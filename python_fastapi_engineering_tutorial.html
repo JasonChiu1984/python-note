@@ -1,0 +1,1622 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FastAPI 工程視覺教學 - API、指令、應用與打包</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --teal: #0f8794;
+      --orange: #d16b28;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --soft-teal: #e1f6f8;
+      --soft-orange: #fff0e2;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      grid-template-columns: 2.75rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      text-decoration: none;
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .brand-copy { display: grid; gap: 0.18rem; min-width: 0; }
+    .brand strong { font-size: 1rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 800; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-orange); color: var(--ink); outline: none; }
+    .progress-box {
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft-orange);
+      color: var(--orange);
+      font-weight: 950;
+      text-align: center;
+    }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2rem;
+      padding: 0.32rem 0.64rem;
+      border: 1px solid rgba(209,107,40,0.28);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.74);
+      color: var(--orange);
+      font-weight: 950;
+      font-size: 0.9rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    h2, h3 { letter-spacing: 0; }
+    .hero p, .lead { color: var(--muted); max-width: 58rem; margin: 0; }
+    .status-strip { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 1rem; }
+    .status-strip span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.1rem;
+      padding: 0.25rem 0.58rem;
+      border-radius: 6px;
+      background: var(--soft-orange);
+      color: var(--orange);
+      font-weight: 900;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--orange); color: white; border-color: #ad551f; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem);
+      scroll-margin-top: 1rem;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      line-height: 1.1;
+    }
+    .section-head p { margin-top: 0.45rem; color: var(--muted); max-width: 66rem; }
+    .tool-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 5vw, 4.8rem);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.78);
+    }
+    .search {
+      width: 100%;
+      min-height: 2.8rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0.45rem 0.75rem;
+      font: inherit;
+      background: white;
+      color: var(--ink);
+    }
+    .quick-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .quick-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.25rem;
+      padding: 0.34rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card {
+      display: grid;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .lesson-top {
+      display: grid;
+      grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr);
+      gap: 1rem;
+      align-items: center;
+    }
+    .visual-small { min-width: 0; }
+    .lesson-title { min-width: 0; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.8rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      background: var(--soft-orange);
+      color: var(--orange);
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+    .lesson-title h3 { margin: 0.45rem 0 0.35rem; font-size: 1.35rem; line-height: 1.18; }
+    .summary { color: var(--muted); margin: 0; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+    .complete-toggle {
+      display: inline-flex;
+      gap: 0.4rem;
+      align-items: center;
+      min-height: 2.4rem;
+      padding: 0.32rem 0.62rem;
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 900;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 48rem; }
+    th, td {
+      padding: 0.7rem;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0f5fb; }
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+    pre {
+      margin: 0;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #213047;
+      background: #101827;
+      color: #e9f2ff;
+      padding: 1rem;
+      font-size: 0.9rem;
+      line-height: 1.62;
+      tab-size: 2;
+    }
+    .output {
+      display: none;
+      margin-top: 0.5rem;
+      border-color: #24745b;
+      background: #10251f;
+      color: #dff7ed;
+    }
+    .output.is-open { display: block; }
+    .code-tools { display: flex; justify-content: flex-end; margin-bottom: -0.3rem; }
+    .copy-code {
+      min-height: 2rem;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .steps { display: grid; gap: 0.55rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      padding: 0.72rem;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      text-align: left;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; min-width: 0; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.1rem;
+      min-width: 2.1rem;
+      height: 2.1rem;
+      border-radius: 8px;
+      background: var(--soft-orange);
+      color: #7a3d14;
+      line-height: 1;
+      text-align: center;
+    }
+    .step-panel {
+      display: none;
+      padding: 0 0.85rem 0.85rem 3.4rem;
+      color: var(--muted);
+    }
+    .step.is-open .step-panel { display: block; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .hidden-by-search { display: none; }
+    .mindmap-wrap { overflow-x: auto; }
+    .mindmap-wrap svg { min-width: 54rem; }
+    .check-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+    .mini {
+      padding: 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.86);
+    }
+    .mini strong { display: block; margin-bottom: 0.25rem; }
+    .mini span { color: var(--muted); font-size: 0.92rem; }
+    .pager {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1rem, 5vw, 4.8rem) 4rem;
+    }
+    .back-to-top {
+      position: fixed;
+      right: 1.2rem;
+      bottom: 1.2rem;
+      z-index: 10;
+      width: 3.25rem;
+      height: 3.25rem;
+      border-radius: 999px;
+      border: 1px solid #ad551f;
+      background: var(--orange);
+      color: white;
+      font-weight: 950;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    @media (max-width: 1220px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .tool-panel { grid-template-columns: 1fr; }
+      .check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .lesson-top { grid-template-columns: 1fr; }
+      .check-grid { grid-template-columns: 1fr; }
+      .section-head { display: block; }
+      .pager { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mobile-nav" aria-label="手機導覽">
+    <a href="index.html">入口</a>
+    <a href="#map">心智圖</a>
+    <a href="#intro">簡介</a>
+    <a href="#commands">指令</a>
+    <a href="#routing">路由</a>
+    <a href="#validation">驗證</a>
+    <a href="#applications">應用</a>
+    <a href="#packaging">打包</a>
+  </div>
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" aria-label="回教材入口">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="API icon">
+            <rect x="5" y="7" width="22" height="18" rx="5" fill="#fff0e2"></rect>
+            <path d="M10 16h12M16 10v12" stroke="#d16b28" stroke-width="3" stroke-linecap="round"></path>
+          </svg>
+        </span>
+        <span class="brand-copy"><strong>FastAPI 工程教學</strong><span>API Service to Delivery</span></span>
+      </a>
+      <nav class="nav" aria-label="章節導覽">
+        <a href="#map">互動式心智圖</a>
+        <a href="#intro">FastAPI 簡介</a>
+        <a href="#commands">指令與參數</a>
+        <a href="#routing">路由與回應</a>
+        <a href="#validation">驗證與依賴</a>
+        <a href="#applications">專案應用</a>
+        <a href="#packaging">打包與部署</a>
+        <a href="#checklist">驗收清單</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 36</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">FastAPI Engineering</span>
+          <h1>FastAPI 指令、API、應用與打包實戰</h1>
+          <p>用專案工程角度學 FastAPI：不是只會寫一個 endpoint，而是能設計 request/response schema、dependency injection、error boundary、測試、OpenAPI、部署與 release smoke test。</p>
+          <div class="status-strip" aria-label="教材重點">
+            <span>v0.9.0</span>
+            <span>36 張互動卡</span>
+            <span>心智圖 / 指令 / 路由 / 驗證 / 部署</span>
+            <span>顯示輸出，不假執行</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#map">看心智圖</a>
+            <a class="button green" href="#commands">看指令參數</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="FastAPI API service 流程圖" aria-describedby="heroDesc">
+            <desc id="heroDesc">Client request 進入 FastAPI，經 routing、dependency、Pydantic validation、service、repository，再回傳 response 與 OpenAPI contract。</desc>
+            <defs><marker id="heroArrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="30" y="44" width="700" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="62" y="134" width="126" height="86" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+            <text x="125" y="170" text-anchor="middle" font-size="22" font-weight="900" fill="#172033">Client</text>
+            <text x="125" y="200" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">JSON / Form</text>
+            <path d="M198 177h74" stroke="#2f6fbb" stroke-width="6" marker-end="url(#heroArrow)"></path>
+            <rect x="286" y="104" width="188" height="146" rx="14" fill="#fff0e2" stroke="#d16b28" stroke-width="4"></rect>
+            <text x="380" y="148" text-anchor="middle" font-size="28" font-weight="900" fill="#172033">FastAPI</text>
+            <text x="380" y="184" text-anchor="middle" font-size="17" font-weight="850" fill="#5d6b7d">router + Depends</text>
+            <text x="380" y="216" text-anchor="middle" font-size="17" font-weight="850" fill="#5d6b7d">Pydantic schema</text>
+            <path d="M486 177h74" stroke="#2f6fbb" stroke-width="6" marker-end="url(#heroArrow)"></path>
+            <rect x="574" y="134" width="126" height="86" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+            <text x="637" y="170" text-anchor="middle" font-size="22" font-weight="900" fill="#172033">Service</text>
+            <text x="637" y="200" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">DB / Queue</text>
+            <path d="M380 266v42" stroke="#7257a8" stroke-width="6" marker-end="url(#heroArrow)"></path>
+            <rect x="254" y="318" width="252" height="42" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect>
+            <text x="380" y="346" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">OpenAPI / tests / deployment</text>
+            <text x="380" y="70" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">工程重點：contract -> validation -> service boundary -> test -> package</text>
+          </svg>
+        </div>
+      </section>
+
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：FastAPI、uvicorn、Depends、Pydantic、APIRouter、JWT、CORS、Docker、workers、pytest">
+        <div class="quick-links">
+          <a href="#intro">簡介</a>
+          <a href="#commands">指令參數</a>
+          <a href="#routing">路由</a>
+          <a href="#validation">驗證依賴</a>
+          <a href="#applications">應用</a>
+          <a href="#packaging">打包</a>
+        </div>
+      </div>
+
+      <section class="section-block" id="map">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">互動式心智圖</span>
+            <h2>FastAPI 從 request 到 production</h2>
+            <p>直接點選節點進入主題。建議順序：簡介、指令、routing、validation/dependencies、project application、packaging/deployment。</p>
+          </div>
+          <div class="progress-box" id="progressSummaryMobile">完成 0 / 36</div>
+        </div>
+        <div class="surface mindmap-wrap">
+          <svg viewBox="0 0 1080 620" role="img" aria-label="FastAPI 互動式心智圖" aria-describedby="mindDesc">
+            <desc id="mindDesc">FastAPI 教材心智圖，六個主題節點都能點選到對應章節。</desc>
+            <defs><marker id="mindArrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="24" y="24" width="1032" height="572" rx="22" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <circle cx="540" cy="310" r="96" fill="#fff0e2" stroke="#d16b28" stroke-width="5"></circle>
+            <text x="540" y="296" text-anchor="middle" font-size="32" font-weight="950" fill="#172033">FastAPI</text>
+            <text x="540" y="328" text-anchor="middle" font-size="16" font-weight="850" fill="#5d6b7d">API contract + async service</text>
+            <path d="M458 258 326 154" stroke="#2f6fbb" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <path d="M540 212 540 160" stroke="#d16b28" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <path d="M622 258 754 154" stroke="#2d8a69" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <path d="M638 330 760 420" stroke="#7257a8" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <path d="M540 408 540 462" stroke="#c34848" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <path d="M442 330 320 420" stroke="#0f8794" stroke-width="5" marker-end="url(#mindArrow)"></path>
+            <a href="#intro"><rect x="96" y="78" width="230" height="104" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text x="211" y="119" text-anchor="middle" font-size="24" font-weight="900">簡介</text><text x="211" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">ASGI / OpenAPI</text></a>
+            <a href="#commands"><rect x="425" y="56" width="230" height="104" rx="12" fill="#fff0e2" stroke="#d16b28" stroke-width="3"></rect><text x="540" y="97" text-anchor="middle" font-size="24" font-weight="900">指令</text><text x="540" y="129" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">fastapi / uvicorn</text></a>
+            <a href="#routing"><rect x="754" y="78" width="230" height="104" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text x="869" y="119" text-anchor="middle" font-size="24" font-weight="900">路由</text><text x="869" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">path / query / body</text></a>
+            <a href="#validation"><rect x="754" y="420" width="230" height="104" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect><text x="869" y="461" text-anchor="middle" font-size="24" font-weight="900">驗證</text><text x="869" y="493" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">Pydantic / Depends</text></a>
+            <a href="#applications"><rect x="96" y="420" width="230" height="104" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="3"></rect><text x="211" y="461" text-anchor="middle" font-size="24" font-weight="900">應用</text><text x="211" y="493" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">service / DB / queue</text></a>
+            <a href="#packaging"><rect x="425" y="458" width="230" height="104" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect><text x="540" y="499" text-anchor="middle" font-size="24" font-weight="900">打包</text><text x="540" y="531" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">wheel / container / workers</text></a>
+          </svg>
+        </div>
+      </section>
+
+      <section class="section-block" id="intro" data-group="intro">
+        <div class="section-head"><div><span class="eyebrow">FastAPI Intro</span><h2>簡介與專案心智模型</h2><p>先把 FastAPI 放在正確位置：它是 ASGI web framework，靠 Python type hints、Pydantic、Starlette 與 OpenAPI，把 API contract 變成可驗證、可測試、可部署的 service。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="commands" data-group="commands">
+        <div class="section-head"><div><span class="eyebrow">Commands</span><h2>指令說明與參數表</h2><p>開發、測試、啟動與部署都要知道每個參數在控制什麼，尤其是 `--reload`、`--workers`、host/port、環境變數與 release smoke test。</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>指令</th><th>用途</th><th>常用參數</th><th>工程提醒</th></tr></thead>
+            <tbody>
+              <tr><td><code>pip install "fastapi[standard]"</code></td><td>安裝 FastAPI 與標準開發依賴</td><td>搭配 venv / lock file</td><td>部署環境要固定版本</td></tr>
+              <tr><td><code>fastapi dev app/main.py</code></td><td>本機開發啟動</td><td><code>--host</code>、<code>--port</code></td><td>開發用，不當 production process manager</td></tr>
+              <tr><td><code>fastapi run app/main.py</code></td><td>啟動 production-oriented server</td><td><code>--host</code>、<code>--port</code></td><td>仍需搭配部署平台、health check、logs</td></tr>
+              <tr><td><code>uvicorn app.main:app --reload</code></td><td>開發 reload</td><td><code>--reload</code>、<code>--factory</code></td><td>reload 不能進 production</td></tr>
+              <tr><td><code>uvicorn app.main:app --workers 4</code></td><td>多 worker 啟動</td><td><code>--workers</code>、<code>--host</code>、<code>--port</code></td><td>每個 worker 有獨立 memory 與 DB pool</td></tr>
+              <tr><td><code>pytest -q</code></td><td>API 測試</td><td><code>-q</code>、<code>-k</code>、<code>--maxfail</code></td><td>測 contract，不只測函式</td></tr>
+              <tr><td><code>python -m build</code></td><td>wheel / sdist 交付</td><td>讀取 <code>pyproject.toml</code></td><td>安裝 wheel 後再跑 smoke test</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="routing" data-group="routing">
+        <div class="section-head"><div><span class="eyebrow">Routing</span><h2>路由、回應與 API contract</h2><p>每個 path operation 都是對外契約：path/query/body/status/response model 錯了，前端、SDK、CI、監控都會一起痛。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="validation" data-group="validation">
+        <div class="section-head"><div><span class="eyebrow">Validation</span><h2>驗證、依賴注入與安全邊界</h2><p>Pydantic model、Depends、settings、security、middleware 是 FastAPI 能從 demo 變成專案的核心。這章刻意把 failure mode 放進每張卡。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="applications" data-group="applications">
+        <div class="section-head"><div><span class="eyebrow">Applications</span><h2>專案級應用案例</h2><p>把 API 寫進 service/repository/test boundary：notes API、DB session、upload、SSE/WebSocket、背景任務、OpenAPI versioning。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="packaging" data-group="packaging">
+        <div class="section-head"><div><span class="eyebrow">Packaging</span><h2>打包、部署與 release smoke test</h2><p>FastAPI 交付通常不是單一 exe，而是 wheel、container、process manager、workers、環境變數、health check、rollback script 的組合。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="checklist">
+        <div class="section-head"><div><span class="eyebrow">Checklist</span><h2>專案驗收清單</h2><p>完成此篇後，你應該能把一個 FastAPI service 從 contract、code、test、package 到 deployment smoke test 串起來。</p></div></div>
+        <div class="check-grid">
+          <div class="mini"><strong>Contract</strong><span>每個 endpoint 有 request/response model、status code 與錯誤格式。</span></div>
+          <div class="mini"><strong>Testing</strong><span>TestClient、dependency override、DB fake、contract regression。</span></div>
+          <div class="mini"><strong>Security</strong><span>CORS、auth、secrets、rate limit、permission boundary。</span></div>
+          <div class="mini"><strong>Delivery</strong><span>wheel/container、health check、workers、rollback、logs。</span></div>
+        </div>
+      </section>
+
+      <nav class="pager" aria-label="上下章">
+        <a class="button" href="index.html">回入口</a>
+        <a class="button primary" href="#top">回到最上層</a>
+      </nav>
+    </main>
+  </div>
+  <button class="back-to-top" type="button" aria-label="回到最上層">↑</button>
+
+  <script>
+    const lessonGroups = {
+      intro: [
+        {
+          id: "intro-fastapi-role",
+          tag: "Concept",
+          title: "FastAPI 是什麼",
+          visual: "api",
+          summary: "FastAPI 是用 Python type hints 建立 API 的 framework，內建 OpenAPI 文件、資料驗證、dependency injection 與 ASGI 並發模型。",
+          table: ["API framework", "FastAPI + Pydantic + Starlette", "REST API、內部 service、ML inference、資料工具 backend", "只把它當 Flask 替代品，忽略 contract 與 validation"],
+          code: String.raw`from fastapi import FastAPI
+
+app = FastAPI(title="Notes API", version="1.0.0")
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}`,
+          output: "GET /health -> {\"status\":\"ok\"}",
+          steps: [
+            ["建立 app", "`FastAPI()` 是 ASGI application 入口。"],
+            ["宣告 route", "`@app.get` 把 function 轉成 path operation。"],
+            ["回傳 dict", "FastAPI 會序列化成 JSON response。"]
+          ]
+        },
+        {
+          id: "intro-asgi",
+          tag: "ASGI",
+          title: "ASGI、Uvicorn 與事件迴圈",
+          visual: "server",
+          summary: "FastAPI 本身是 application；Uvicorn / Hypercorn 類 server 負責接 socket、跑 event loop、管理 request lifecycle。",
+          table: ["執行模型", "client -> ASGI server -> FastAPI app", "高並發 API、WebSocket、SSE、background task", "把 blocking I/O 放進 async endpoint 阻塞 event loop"],
+          code: String.raw`# development
+uvicorn app.main:app --reload
+
+# production shape
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4`,
+          output: "Uvicorn imports app.main:app and starts an ASGI server.",
+          steps: [
+            ["server 載入 app", "`app.main:app` 指 module 與 FastAPI instance。"],
+            ["event loop 接 request", "async endpoint 在 event loop 上排程。"],
+            ["workers 擴展", "多 worker 是多 process，不共享 memory。"]
+          ]
+        },
+        {
+          id: "intro-openapi-contract",
+          tag: "OpenAPI",
+          title: "OpenAPI 是 API 契約，不只是文件",
+          visual: "contract",
+          summary: "FastAPI 會從 type hints、Pydantic model、status code 產生 OpenAPI。資深專案會把它當 contract regression 的輸入。",
+          table: ["契約文件", "type hints -> JSON Schema -> OpenAPI", "前後端協作、SDK 生成、API review", "文件存在但 response_model 與實際輸出不一致"],
+          code: String.raw`from pydantic import BaseModel
+
+class NoteOut(BaseModel):
+    id: str
+    title: str
+    done: bool
+
+@app.get("/notes/{note_id}", response_model=NoteOut)
+def get_note(note_id: str) -> NoteOut:
+    return NoteOut(id=note_id, title="read docs", done=False)`,
+          output: "OpenAPI includes NoteOut schema and GET /notes/{note_id}.",
+          steps: [
+            ["定義輸出 model", "`NoteOut` 是對外資料契約。"],
+            ["綁定 response_model", "FastAPI 會過濾與驗證輸出。"],
+            ["納入 review", "API schema diff 可成為 CI gate。"]
+          ]
+        },
+        {
+          id: "intro-project-layout",
+          tag: "Layout",
+          title: "專案目錄與邊界",
+          visual: "folder",
+          summary: "中大型 FastAPI 專案要拆 router、schema、service、repository、settings、tests；不要把 DB 與商業邏輯塞在 endpoint。",
+          table: ["專案架構", "api -> service -> repository", "多人維護、測試、部署、版本演進", "main.py 破千行，endpoint 直接操作資料庫"],
+          code: String.raw`app/
+  main.py
+  api/routes/notes.py
+  schemas/note.py
+  services/note_service.py
+  repositories/note_repo.py
+  settings.py
+tests/
+  test_notes_api.py`,
+          output: "Endpoint thin, service testable, repository replaceable.",
+          steps: [
+            ["router 處理 HTTP", "解析 request、status code、依賴注入。"],
+            ["service 處理規則", "驗證商業規則與協調流程。"],
+            ["repository 處理 I/O", "DB、檔案、外部 API 都藏在邊界後。"]
+          ]
+        }
+      ],
+      commands: [
+        {
+          id: "cmd-install",
+          tag: "install",
+          title: "安裝 fastapi[standard]",
+          visual: "terminal",
+          summary: "官方建議從 virtual environment 安裝 `fastapi[standard]`。standard extras 讓常見 CLI、server 與表單/驗證支援一次到位。",
+          table: ["安裝", "`pip install \"fastapi[standard]\"`", "新專案、本機教學、完整 FastAPI CLI 體驗", "沒加引號導致 shell 解析 extras 出錯"],
+          code: String.raw`python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install "fastapi[standard]"`,
+          output: "FastAPI and standard dependencies installed in .venv.",
+          steps: [
+            ["先建 venv", "避免污染全域 Python。"],
+            ["升級 pip", "降低解析 wheel / extras 的問題。"],
+            ["安裝 standard extras", "開發 FastAPI 時較少漏依賴。"]
+          ]
+        },
+        {
+          id: "cmd-fastapi-dev",
+          tag: "fastapi dev",
+          title: "fastapi dev 本機開發",
+          visual: "reload",
+          summary: "`fastapi dev` 適合開發期 reload 與快速試 endpoint。它不是交付證據，交付要再跑 production 啟動與 smoke test。",
+          table: ["開發啟動", "`fastapi dev app/main.py`", "本機修改、熱重載、互動文件", "把 dev reload 放進 production"],
+          code: String.raw`fastapi dev app/main.py --host 127.0.0.1 --port 8000
+
+# smoke check
+curl -s localhost:8000/health`,
+          output: "{\"status\":\"ok\"}",
+          steps: [
+            ["指定入口檔", "讓 CLI 找到 FastAPI app。"],
+            ["只綁本機", "開發環境不暴露外部網路。"],
+            ["curl 驗證", "不要只看 console 沒報錯。"]
+          ]
+        },
+        {
+          id: "cmd-fastapi-run",
+          tag: "fastapi run",
+          title: "fastapi run 與 production 啟動",
+          visual: "run",
+          summary: "`fastapi run` 用於啟動 FastAPI app。實務上仍需要 process supervisor、health check、logs、metrics 與 rollback 方案。",
+          table: ["服務啟動", "`fastapi run app/main.py --host 0.0.0.0 --port 8000`", "容器或 VM 內啟動 API", "以為 run 就等於完整 production deployment"],
+          code: String.raw`fastapi run app/main.py --host 0.0.0.0 --port 8000
+
+# release smoke
+curl -s localhost:8000/health
+curl -s localhost:8000/openapi.json | python -m json.tool >/tmp/openapi.json`,
+          output: "health ok; OpenAPI JSON can be generated.",
+          steps: [
+            ["對外綁定", "容器內常用 0.0.0.0。"],
+            ["檢查 health", "確認 process 能服務 request。"],
+            ["檢查 OpenAPI", "確保 contract 仍可輸出。"]
+          ]
+        },
+        {
+          id: "cmd-uvicorn",
+          tag: "uvicorn",
+          title: "uvicorn 常用參數",
+          visual: "server",
+          summary: "Uvicorn 是常見 ASGI server。`--reload` 給開發，`--workers` 給多 process，`--proxy-headers` 需要理解反向代理邊界。",
+          table: ["ASGI server", "`uvicorn module:app [options]`", "細部控制 server 參數", "workers 與 DB pool 數量沒一起設計"],
+          code: String.raw`uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn app.main:create_app --factory --workers 2`,
+          output: "Server starts with selected import target and worker model.",
+          steps: [
+            ["module:app", "最常見是匯入 app instance。"],
+            ["--factory", "入口是 create_app function 時使用。"],
+            ["--workers", "多 process 增加吞吐，但放大資源需求。"]
+          ]
+        },
+        {
+          id: "cmd-testclient",
+          tag: "pytest",
+          title: "TestClient 測 API contract",
+          visual: "test",
+          summary: "FastAPI 測試不只呼叫 service function，而是用 TestClient 穿過 routing、validation、dependency 與 response model。",
+          table: ["API 測試", "`TestClient(app)`", "contract regression、status code、錯誤格式", "只測 service，漏掉 HTTP 層錯誤"],
+          code: String.raw`from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_health():
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}`,
+          output: "pytest -q -> 1 passed",
+          steps: [
+            ["建立 client", "TestClient 模擬 HTTP request。"],
+            ["驗 status code", "contract 第一層就是狀態碼。"],
+            ["驗 JSON", "不要只驗 200。"]
+          ]
+        },
+        {
+          id: "cmd-openapi-export",
+          tag: "OpenAPI",
+          title: "匯出 OpenAPI 做版本比對",
+          visual: "contract",
+          summary: "OpenAPI schema 可匯出成 artifact。API 專案常用 schema diff 來檢查是否破壞相容性。",
+          table: ["契約匯出", "`app.openapi()` 或 `/openapi.json`", "SDK、前端合約、CI diff", "不小心改欄位名稱但沒人發現"],
+          code: String.raw`import json
+from app.main import app
+
+with open("openapi.snapshot.json", "w", encoding="utf-8") as fh:
+    json.dump(app.openapi(), fh, ensure_ascii=False, indent=2, sort_keys=True)`,
+          output: "openapi.snapshot.json generated for review.",
+          steps: [
+            ["產生 schema", "`app.openapi()` 不需啟動 server。"],
+            ["排序輸出", "讓 diff 比較穩定。"],
+            ["放進 CI", "破壞性變更需人工 review。"]
+          ]
+        },
+        {
+          id: "cmd-build",
+          tag: "build",
+          title: "打包 wheel 後驗收",
+          visual: "wheel",
+          summary: "FastAPI service 也可以先以 Python package 交付，再由 container 或平台安裝。關鍵是安裝 wheel 後跑 API smoke test。",
+          table: ["打包驗收", "`python -m build`", "內部 service、SDK shared package、平台部署", "editable install 通過但 wheel 漏檔案"],
+          code: String.raw`python -m build
+python -m pip install dist/notes_api-*.whl --force-reinstall
+python -m notes_api --check-config
+pytest -q tests/test_smoke.py`,
+          output: "wheel installed; config and smoke tests pass.",
+          steps: [
+            ["build artifact", "產生 wheel / sdist。"],
+            ["重裝 wheel", "避免測到 source tree。"],
+            ["跑 smoke", "確認產物能啟動與匯入設定。"]
+          ]
+        }
+      ],
+      routing: [
+        {
+          id: "route-path-query",
+          tag: "Path / Query",
+          title: "Path 與 Query 參數",
+          visual: "route",
+          summary: "Path 是資源定位，query 是篩選/排序/分頁。型別註解會變成 validation 與 OpenAPI schema。",
+          table: ["參數設計", "`/notes/{note_id}?limit=20`", "CRUD、查詢、列表 API", "把可選篩選塞進 path 導致路由爆炸"],
+          code: String.raw`@app.get("/notes/{note_id}")
+def get_note(note_id: str, include_history: bool = False) -> dict:
+    return {"id": note_id, "include_history": include_history}`,
+          output: "GET /notes/n1?include_history=true -> include_history is true.",
+          steps: [
+            ["path 必填", "`note_id` 是 URL 的一部分。"],
+            ["query 可選", "有 default 就成為 optional query。"],
+            ["型別轉換", "FastAPI 會把 true 轉成 bool。"]
+          ]
+        },
+        {
+          id: "route-body",
+          tag: "Body",
+          title: "Request Body 與 Pydantic",
+          visual: "schema",
+          summary: "Body model 是寫入 API 的資料契約。欄位型別、限制、default 都應放進 model，而不是 endpoint 裡手動 if。",
+          table: ["輸入契約", "`BaseModel` request body", "create/update command、表單後端、內部 API", "用 dict 接 body 失去 schema 與文件"],
+          code: String.raw`from pydantic import BaseModel, Field
+
+class NoteCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    content: str = ""
+
+@app.post("/notes", status_code=201)
+def create_note(payload: NoteCreate) -> dict:
+    return {"id": "n1", "title": payload.title}`,
+          output: "Invalid title returns 422 validation error.",
+          steps: [
+            ["宣告 model", "輸入欄位集中管理。"],
+            ["加 Field constraint", "限制也會進 OpenAPI。"],
+            ["回 201", "建立資源不要偷用 200。"]
+          ]
+        },
+        {
+          id: "route-response-model",
+          tag: "Response",
+          title: "response_model 保護輸出",
+          visual: "contract",
+          summary: "`response_model` 會把內部物件轉成公開 schema，可避免 password、secret、internal flag 外洩。",
+          table: ["輸出契約", "`response_model=NoteOut`", "公開 API、SDK、前端資料契約", "直接回傳 ORM object 暴露內部欄位"],
+          code: String.raw`class UserOut(BaseModel):
+    id: str
+    email: str
+
+@app.get("/users/{user_id}", response_model=UserOut)
+def get_user(user_id: str):
+    return {"id": user_id, "email": "a@example.test", "password_hash": "hidden"}`,
+          output: "Response only contains id and email.",
+          steps: [
+            ["內部可多欄位", "service / repo 可能有敏感欄位。"],
+            ["輸出被過濾", "`response_model` 決定公開欄位。"],
+            ["降低洩漏風險", "API boundary 要明確。"]
+          ]
+        },
+        {
+          id: "route-status-errors",
+          tag: "Errors",
+          title: "HTTPException 與錯誤分類",
+          visual: "error",
+          summary: "資深 API 不只 raise 500。要把 not found、validation、conflict、permission denied 分成穩定錯誤格式。",
+          table: ["錯誤邊界", "`raise HTTPException(status_code=404, detail=...)`", "CRUD、權限、資料狀態衝突", "所有錯誤都回 500 或文字訊息"],
+          code: String.raw`from fastapi import HTTPException
+
+@app.get("/notes/{note_id}")
+def get_note(note_id: str):
+    note = None
+    if note is None:
+        raise HTTPException(status_code=404, detail={"code": "NOTE_NOT_FOUND"})
+    return note`,
+          output: "404 {\"detail\":{\"code\":\"NOTE_NOT_FOUND\"}}",
+          steps: [
+            ["辨識錯誤類型", "not found 不應是 500。"],
+            ["固定 code", "前端與 runbook 可依 code 處理。"],
+            ["保留 detail", "detail 不放敏感資料。"]
+          ]
+        },
+        {
+          id: "route-router",
+          tag: "APIRouter",
+          title: "APIRouter 拆模組",
+          visual: "folder",
+          summary: "APIRouter 讓 notes、users、auth、admin 依 bounded context 拆開，main.py 只做組裝。",
+          table: ["模組化路由", "`APIRouter(prefix='/notes')`", "中大型專案、版本化 API", "所有 endpoint 都塞在 main.py"],
+          code: String.raw`from fastapi import APIRouter
+
+router = APIRouter(prefix="/notes", tags=["notes"])
+
+@router.get("/{note_id}")
+def get_note(note_id: str):
+    return {"id": note_id}
+
+# app/main.py
+app.include_router(router)`,
+          output: "GET /notes/n1 is registered under notes tag.",
+          steps: [
+            ["router 管 context", "同一領域的 endpoint 放一起。"],
+            ["prefix 統一路徑", "避免每個 function 重複寫。"],
+            ["main 組裝", "入口保持薄。"]
+          ]
+        },
+        {
+          id: "route-background",
+          tag: "Background",
+          title: "BackgroundTasks 的適用邊界",
+          visual: "queue",
+          summary: "BackgroundTasks 適合短小、可重試成本低的後續動作。重要任務、長任務、跨程序可靠性請用 queue。",
+          table: ["背景工作", "`BackgroundTasks.add_task`", "寄通知、寫 audit、輕量後處理", "拿它做長時間任務或不可丟任務"],
+          code: String.raw`from fastapi import BackgroundTasks
+
+def write_audit(note_id: str) -> None:
+    print(f"audit note={note_id}")
+
+@app.post("/notes/{note_id}/done")
+def mark_done(note_id: str, tasks: BackgroundTasks):
+    tasks.add_task(write_audit, note_id)
+    return {"status": "accepted"}`,
+          output: "Response returns first; audit task runs after response.",
+          steps: [
+            ["加入 task", "把輕量副作用排到 response 後。"],
+            ["不可承諾可靠", "process crash 可能丟 task。"],
+            ["重要任務用 queue", "例如 Celery、RQ、Arq、平台隊列。"]
+          ]
+        },
+        {
+          id: "route-streaming",
+          tag: "Stream",
+          title: "StreamingResponse 與長回應",
+          visual: "stream",
+          summary: "大檔案或逐步產出資料時用 streaming，不要一次把所有內容組進 memory。",
+          table: ["串流回應", "`StreamingResponse(generator)`", "下載、逐步匯出、AI/資料串流", "一次讀完整檔案造成 memory spike"],
+          code: String.raw`from fastapi.responses import StreamingResponse
+
+def iter_rows():
+    yield "id,title\n"
+    yield "n1,read docs\n"
+
+@app.get("/export.csv")
+def export_csv():
+    return StreamingResponse(iter_rows(), media_type="text/csv")`,
+          output: "Client receives CSV chunks progressively.",
+          steps: [
+            ["建立 generator", "每次 yield 一段資料。"],
+            ["回 StreamingResponse", "server 不必一次持有全部內容。"],
+            ["測 timeout", "串流要測 client timeout 與 proxy buffering。"]
+          ]
+        }
+      ],
+      validation: [
+        {
+          id: "val-pydantic-v2",
+          tag: "Pydantic",
+          title: "Pydantic model 與 field validation",
+          visual: "schema",
+          summary: "FastAPI 使用 Pydantic 做資料驗證與序列化。模型是 API contract 的核心，不應散落在 endpoint 裡。",
+          table: ["資料驗證", "`BaseModel` + `Field`", "request body、response、settings、domain DTO", "用 Any 或 dict 讓 schema 失去意義"],
+          code: String.raw`from pydantic import BaseModel, Field
+
+class PageQuery(BaseModel):
+    limit: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)`,
+          output: "limit must be 1..100; offset must be >= 0.",
+          steps: [
+            ["集中規則", "limit/offset 規則放在 model。"],
+            ["自動文件", "Field constraint 進 OpenAPI。"],
+            ["自動錯誤", "不合法輸入回 422。"]
+          ]
+        },
+        {
+          id: "val-depends",
+          tag: "Depends",
+          title: "Depends 做 dependency injection",
+          visual: "depends",
+          summary: "`Depends` 把 DB session、settings、current user、service object 注入 endpoint，讓測試可 override。",
+          table: ["依賴注入", "`Depends(get_service)`", "DB、權限、外部 client、service layer", "endpoint 直接 new 依賴導致測試難替換"],
+          code: String.raw`from fastapi import Depends
+
+def get_note_service() -> NoteService:
+    return NoteService(repo=JsonNoteRepo("notes.json"))
+
+@app.get("/notes/{note_id}")
+def get_note(note_id: str, svc: NoteService = Depends(get_note_service)):
+    return svc.get(note_id)`,
+          output: "Endpoint receives NoteService from dependency provider.",
+          steps: [
+            ["定義 provider", "集中建立 dependency。"],
+            ["endpoint 宣告依賴", "HTTP 層不負責組裝底層物件。"],
+            ["測試可 override", "用 fake service 測 API contract。"]
+          ]
+        },
+        {
+          id: "val-settings",
+          tag: "Settings",
+          title: "Settings 與環境變數",
+          visual: "config",
+          summary: "設定要從程式碼抽出。API key、DB URL、環境模式、CORS origins 都應透過 settings 管理。",
+          table: ["設定管理", "`BaseSettings` / env vars", "dev/staging/prod 切換", "把 secret 寫死在程式碼或 Docker image"],
+          code: String.raw`from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    app_env: str = "dev"
+    database_url: str
+    cors_origins: list[str] = []
+
+def get_settings() -> Settings:
+    return Settings()`,
+          output: "Settings loaded from environment variables.",
+          steps: [
+            ["宣告欄位", "設定也要有型別與 default。"],
+            ["從環境讀", "部署環境注入 DB URL 和 secret。"],
+            ["測試覆寫", "測試環境給專用 settings。"]
+          ]
+        },
+        {
+          id: "val-auth",
+          tag: "Security",
+          title: "Bearer token 權限邊界",
+          visual: "lock",
+          summary: "安全不是 decorator 裝飾而已。要定義 current user、scope、permission denied 格式與審計事件。",
+          table: ["安全邊界", "`Security(...)` / `Depends(...)`", "JWT、service token、內部 API", "只驗 token 存在，不驗 scope 和租戶"],
+          code: String.raw`from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+bearer = HTTPBearer()
+
+def require_token(token: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
+    if token.credentials != "dev-token":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return "user-1"`,
+          output: "Missing or invalid token returns 401.",
+          steps: [
+            ["抽成 dependency", "每個 endpoint 不重複驗 token。"],
+            ["固定失敗碼", "未認證 401，無權限 403。"],
+            ["加 scope", "production 要檢查 role/scope/tenant。"]
+          ]
+        },
+        {
+          id: "val-cors",
+          tag: "CORS",
+          title: "CORS 不是萬用開關",
+          visual: "shield",
+          summary: "CORS 是瀏覽器跨來源保護。production 不應 `allow_origins=['*']` 又允許 credentials。",
+          table: ["瀏覽器安全", "`CORSMiddleware`", "前端 SPA、管理後台、第三方整合", "用 wildcard 掩蓋環境設定錯誤"],
+          code: String.raw`from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["app.example.internal"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)`,
+          output: "Browser requests from allowed origin can access API.",
+          steps: [
+            ["列白名單", "明確允許前端來源。"],
+            ["限制 methods", "不要全開。"],
+            ["和 auth 分開", "CORS 不是 API authorization。"]
+          ]
+        },
+        {
+          id: "val-middleware",
+          tag: "Middleware",
+          title: "Middleware 加 request id 與計時",
+          visual: "trace",
+          summary: "Middleware 適合跨 endpoint 的觀測與安全策略，例如 request id、latency、error logging。",
+          table: ["橫切關注", "`@app.middleware('http')`", "observability、audit、tenant context", "在 middleware 做太多商業邏輯"],
+          code: String.raw`import time
+import uuid
+
+@app.middleware("http")
+async def request_context(request, call_next):
+    request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+    started = time.perf_counter()
+    response = await call_next(request)
+    response.headers["x-request-id"] = request_id
+    response.headers["x-response-ms"] = f"{(time.perf_counter() - started) * 1000:.1f}"
+    return response`,
+          output: "Every response includes x-request-id and x-response-ms.",
+          steps: [
+            ["進入 request", "讀或產生 request id。"],
+            ["呼叫下游", "`call_next` 執行 routing。"],
+            ["補 header", "讓 client 和 logs 能關聯。"]
+          ]
+        }
+      ],
+      applications: [
+        {
+          id: "app-notes-api",
+          tag: "Case",
+          title: "notes-api 分層實作",
+          visual: "layers",
+          summary: "把 notes-cli 延伸成 API：endpoint 只負責 HTTP，service 負責規則，repository 負責資料存取。",
+          table: ["專案切片", "router -> service -> repository", "CRUD service、內部工具 API", "endpoint 直接寫檔或 SQL"],
+          code: String.raw`@router.post("/notes", response_model=NoteOut, status_code=201)
+def create_note(payload: NoteCreate, svc: NoteService = Depends(get_note_service)):
+    note = svc.create(title=payload.title, content=payload.content)
+    return NoteOut.model_validate(note)`,
+          output: "POST /notes creates a note through service boundary.",
+          steps: [
+            ["router 接 payload", "HTTP 層拿到已驗證的 NoteCreate。"],
+            ["service 執行規則", "例如 title 不可重複、長度限制、審計。"],
+            ["schema 輸出", "回傳 NoteOut，避免外洩內部欄位。"]
+          ]
+        },
+        {
+          id: "app-db-session",
+          tag: "Database",
+          title: "DB session lifecycle",
+          visual: "database",
+          summary: "DB session 要用 dependency 管理生命週期。每個 request 建立/釋放，錯誤時 rollback。",
+          table: ["資料庫邊界", "`yield session` dependency", "SQLAlchemy、SQLModel、交易控制", "全域 session 或忘記 rollback"],
+          code: String.raw`def get_db():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()`,
+          output: "Session is committed, rolled back, and closed per request.",
+          steps: [
+            ["yield session", "FastAPI 會在 response 後執行 finally。"],
+            ["錯誤 rollback", "避免半套寫入。"],
+            ["關閉連線", "避免 pool 被耗盡。"]
+          ]
+        },
+        {
+          id: "app-upload",
+          tag: "Upload",
+          title: "UploadFile 與檔案限制",
+          visual: "file",
+          summary: "檔案上傳要限制大小、類型與儲存位置。不要把整個大檔讀進 memory，也不要信任檔名。",
+          table: ["檔案 API", "`UploadFile`", "CSV 匯入、圖片、附件、批次處理", "直接使用使用者檔名寫入磁碟"],
+          code: String.raw`from fastapi import File, UploadFile
+
+@app.post("/imports")
+async def import_file(file: UploadFile = File()):
+    if file.content_type not in {"text/csv", "application/json"}:
+        raise HTTPException(status_code=415, detail={"code": "UNSUPPORTED_FILE"})
+    first_chunk = await file.read(1024)
+    return {"filename": file.filename, "peek_bytes": len(first_chunk)}`,
+          output: "Unsupported content type returns 415.",
+          steps: [
+            ["檢查 content type", "先擋明顯錯誤。"],
+            ["分段讀取", "大檔案不要一次 read。"],
+            ["安全檔名", "production 要產生 server-side path。"]
+          ]
+        },
+        {
+          id: "app-sse-websocket",
+          tag: "Realtime",
+          title: "SSE / WebSocket 選型",
+          visual: "stream",
+          summary: "單向事件流可用 SSE，雙向互動才用 WebSocket。不同協議會影響 proxy、timeout、測試與部署。",
+          table: ["即時通訊", "SSE or WebSocket", "通知、進度條、聊天室、監控", "所有即時需求都上 WebSocket"],
+          code: String.raw`from fastapi.responses import StreamingResponse
+
+async def progress_events():
+    for step in ["queued", "running", "done"]:
+        yield f"data: {step}\n\n"
+
+@app.get("/jobs/{job_id}/events")
+def job_events(job_id: str):
+    return StreamingResponse(progress_events(), media_type="text/event-stream")`,
+          output: "Client receives queued, running, done events.",
+          steps: [
+            ["判斷方向", "server -> client 用 SSE 常較簡單。"],
+            ["注意 proxy", "反向代理可能 buffer event stream。"],
+            ["設 timeout", "長連線要設心跳與斷線重連。"]
+          ]
+        },
+        {
+          id: "app-async-client",
+          tag: "Async I/O",
+          title: "呼叫外部 API 的 async 邊界",
+          visual: "external",
+          summary: "async endpoint 中呼叫外部 HTTP 要用 async client、timeout、retry 與 exception translation。",
+          table: ["外部整合", "async client + timeout", "付款、通知、內部微服務", "沒有 timeout 導致 worker 卡住"],
+          code: String.raw`async def fetch_profile(user_id: str, client: AsyncClient) -> dict:
+    try:
+        response = await client.get(f"/profiles/{user_id}", timeout=2.0)
+        response.raise_for_status()
+        return response.json()
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail={"code": "PROFILE_TIMEOUT"}) from exc`,
+          output: "Timeout is translated to 504 with stable error code.",
+          steps: [
+            ["設定 timeout", "外部 API 永遠可能慢。"],
+            ["轉換錯誤", "不要把底層 exception 直接噴給 client。"],
+            ["加入 metrics", "記錄 timeout rate 與 latency。"]
+          ]
+        },
+        {
+          id: "app-versioning",
+          tag: "Versioning",
+          title: "API versioning 與 deprecation",
+          visual: "version",
+          summary: "版本不是路徑加 v2 就結束。要有 deprecation policy、schema diff、相容性測試與移除日期。",
+          table: ["版本治理", "`/v1` `/v2` routers", "公開 API、SDK、長期客戶整合", "直接改 response 欄位讓 client 壞掉"],
+          code: String.raw`v1 = APIRouter(prefix="/v1")
+v2 = APIRouter(prefix="/v2")
+
+@v1.get("/notes/{note_id}", deprecated=True)
+def get_note_v1(note_id: str):
+    return {"id": note_id, "title": "legacy"}
+
+@v2.get("/notes/{note_id}")
+def get_note_v2(note_id: str):
+    return {"id": note_id, "title": "legacy", "links": []}`,
+          output: "OpenAPI marks v1 operation as deprecated.",
+          steps: [
+            ["保留舊版", "破壞性變更放新版本。"],
+            ["標示 deprecated", "文件與 SDK 能看見遷移訊號。"],
+            ["設移除流程", "公告、監控、灰度、移除。"]
+          ]
+        }
+      ],
+      packaging: [
+        {
+          id: "pkg-pyproject",
+          tag: "pyproject",
+          title: "pyproject.toml 設計",
+          visual: "package",
+          summary: "FastAPI 專案也要是可安裝 package。`pyproject.toml` 要定義 metadata、dependencies、scripts、optional extras。",
+          table: ["包裝設定", "`[project] dependencies`", "service package、CI、container build", "requirements 與 pyproject 版本漂移"],
+          code: String.raw`[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notes-api"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = ["fastapi[standard]>=0.115", "pydantic-settings>=2"]
+
+[project.scripts]
+notes-api-check = "notes_api.cli:check"`,
+          output: "Package metadata declares FastAPI runtime dependencies.",
+          steps: [
+            ["宣告 runtime dependencies", "部署時不靠手動 pip install。"],
+            ["提供 script", "config check 可做 release smoke。"],
+            ["鎖定版本策略", "搭配 lock file 或 constraints。"]
+          ]
+        },
+        {
+          id: "pkg-docker",
+          tag: "Docker",
+          title: "Container 打包與 health check",
+          visual: "container",
+          summary: "FastAPI production 常用 container。Dockerfile 應安裝 wheel、使用非 root user、提供 health endpoint。",
+          table: ["容器交付", "build image -> run API -> health check", "Kubernetes、ECS、Cloud Run、內部平台", "容器只測 build 成功，不測 endpoint"],
+          code: String.raw`FROM python:3.12-slim
+WORKDIR /app
+COPY dist/notes_api-*.whl /tmp/
+RUN pip install --no-cache-dir /tmp/notes_api-*.whl
+USER 10001
+EXPOSE 8000
+CMD ["fastapi", "run", "notes_api/main.py", "--host", "0.0.0.0", "--port", "8000"]`,
+          output: "Image starts API on port 8000 with packaged app.",
+          steps: [
+            ["安裝 wheel", "容器測的是 release artifact。"],
+            ["非 root 執行", "降低容器逃逸風險。"],
+            ["健康檢查", "部署平台要打 /health。"]
+          ]
+        },
+        {
+          id: "pkg-workers",
+          tag: "Workers",
+          title: "workers、資源與 DB pool",
+          visual: "workers",
+          summary: "多 worker 是多 process；每個 process 都會有自己的記憶體、連線池與快取。workers 不是越多越好。",
+          table: ["容量配置", "`--workers N`", "CPU-bound 少、I/O-bound API、多核心主機", "worker 數量超過 DB pool 或 memory 預算"],
+          code: String.raw`WEB_CONCURRENCY=4
+DB_POOL_SIZE=5
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$WEB_CONCURRENCY"`,
+          output: "Total possible DB connections ~= workers * DB_POOL_SIZE.",
+          steps: [
+            ["算資源", "4 workers * pool 5 = 20 DB connections。"],
+            ["測延遲", "worker 增加要看 p95/p99。"],
+            ["設上限", "避免壓垮 DB 或主機 memory。"]
+          ]
+        },
+        {
+          id: "pkg-config",
+          tag: "Config",
+          title: "環境設定與 secret 交付",
+          visual: "lock",
+          summary: "設定與 secret 不進 image。release 要檢查必要 env vars，並讓錯誤在啟動時明確失敗。",
+          table: ["部署設定", "env vars + startup check", "dev/staging/prod、secret rotation", "缺設定時 API 啟動後才在 request 失敗"],
+          code: String.raw`def check_config(settings: Settings) -> None:
+    required = {
+        "DATABASE_URL": settings.database_url,
+        "JWT_PUBLIC_KEY": settings.jwt_public_key,
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(f"missing required settings: {', '.join(missing)}")`,
+          output: "Startup/config check fails fast when required env vars are missing.",
+          steps: [
+            ["列必要設定", "明確知道 production 需要什麼。"],
+            ["啟動前檢查", "不要讓第一個使用者 request 才爆。"],
+            ["secret rotation", "設定來源要支援輪替。"]
+          ]
+        },
+        {
+          id: "pkg-pyinstaller-caveat",
+          tag: "PyInstaller",
+          title: "PyInstaller 打 API 的取捨",
+          visual: "exe",
+          summary: "FastAPI 通常以 container 或 package 部署。PyInstaller 可做內部單機 API 工具，但要測 hidden imports、templates、static、SSL 與 uvicorn 啟動。",
+          table: ["執行檔", "`pyinstaller app.py --onedir`", "內部桌面工具、離線小型 API、demo appliance", "把 production web service 硬打成 onefile 卻沒測 networking"],
+          code: String.raw`# app.py
+import uvicorn
+from notes_api.main import app
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+# build
+pyinstaller --name notes-api --onedir app.py`,
+          output: "dist/notes-api starts a local FastAPI server.",
+          steps: [
+            ["先 onedir", "比 onefile 好排查缺檔。"],
+            ["測 endpoint", "exe 啟動後打 /health 與 /openapi.json。"],
+            ["明確限制場景", "正式雲端部署優先 container。"]
+          ]
+        },
+        {
+          id: "pkg-release-rollback",
+          tag: "Release",
+          title: "Release smoke 與 rollback drill",
+          visual: "release",
+          summary: "交付不是 deploy 按鈕。要保存版本、OpenAPI、image digest、測試證據、health check 與 rollback 指令。",
+          table: ["發布治理", "test -> build -> deploy -> smoke -> rollback", "正式服務、SLA、內部平台", "沒有 rollback 演練，出事才找上一版"],
+          code: String.raw`pytest -q
+python -m build
+docker build -t notes-api:1.0.0 .
+docker run --rm -p 8000:8000 notes-api:1.0.0
+curl -s localhost:8000/health
+curl -s localhost:8000/openapi.json > release-openapi.json
+
+# rollback record
+echo "rollback to notes-api:0.9.7" > RELEASE_ROLLBACK.txt`,
+          output: "Tests pass, image serves health, OpenAPI artifact is saved.",
+          steps: [
+            ["測試先行", "unit/integration/API contract 必須先過。"],
+            ["部署後 smoke", "確認產物在目標形態可服務。"],
+            ["保留 rollback", "出事時照 runbook 回上一版。"]
+          ]
+        }
+      ]
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const palette = {
+        api: ["#fff0e2", "#d16b28"], server: ["#e7f0fb", "#2f6fbb"], contract: ["#eee9f8", "#7257a8"],
+        folder: ["#e6f5ef", "#2d8a69"], terminal: ["#101827", "#d16b28"], reload: ["#fff4cf", "#c79a14"],
+        run: ["#e6f5ef", "#2d8a69"], test: ["#eee9f8", "#7257a8"], wheel: ["#fff4cf", "#c79a14"],
+        route: ["#e7f0fb", "#2f6fbb"], schema: ["#fff0e2", "#d16b28"], error: ["#fae8e8", "#c34848"],
+        queue: ["#e1f6f8", "#0f8794"], stream: ["#e1f6f8", "#0f8794"], depends: ["#e6f5ef", "#2d8a69"],
+        config: ["#fff4cf", "#c79a14"], lock: ["#fae8e8", "#c34848"], shield: ["#e7f0fb", "#2f6fbb"],
+        trace: ["#eee9f8", "#7257a8"], layers: ["#e6f5ef", "#2d8a69"], database: ["#eee9f8", "#7257a8"],
+        file: ["#fff4cf", "#c79a14"], external: ["#e7f0fb", "#2f6fbb"], version: ["#fff0e2", "#d16b28"],
+        package: ["#fae8e8", "#c34848"], container: ["#e1f6f8", "#0f8794"], workers: ["#e6f5ef", "#2d8a69"],
+        exe: ["#eee9f8", "#7257a8"], release: ["#fff4cf", "#c79a14"]
+      };
+      const [soft, stroke] = palette[type] || palette.api;
+      const dark = type === "terminal";
+      const fill = dark ? "#101827" : "#fff";
+      const text = dark ? "#e9f2ff" : "#172033";
+      const shapes = {
+        api: `<rect x="50" y="60" width="210" height="78" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="94" text-anchor="middle">GET /notes</text><text x="155" y="124" text-anchor="middle">JSON</text>`,
+        server: `<rect x="48" y="44" width="214" height="112" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M80 78h150M80 106h150M80 134h98" stroke="${stroke}" stroke-width="5"/><text x="155" y="176" text-anchor="middle">ASGI</text>`,
+        contract: `<path d="M72 42h128l40 40v82H72z" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M200 42v40h40" fill="none" stroke="${stroke}" stroke-width="3"/><text x="155" y="116" text-anchor="middle">OpenAPI</text>`,
+        folder: `<path d="M52 56h84l20 22h106v78H52z" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="157" y="110" text-anchor="middle">app/</text>`,
+        terminal: `<rect x="34" y="48" width="242" height="98" rx="10" fill="#101827" stroke="${stroke}" stroke-width="3"/><text x="56" y="86" fill="#e9f2ff">$ fastapi dev</text><text x="56" y="116" fill="#e9f2ff">$ pytest -q</text>`,
+        reload: `<path d="M92 78a68 68 0 0 1 118-20" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/><path d="M210 58v42h-42" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><text x="155" y="156" text-anchor="middle">reload</text>`,
+        run: `<circle cx="155" cy="96" r="58" fill="${fill}" stroke="${stroke}" stroke-width="4"/><polygon points="140,66 200,96 140,126" fill="${stroke}"/><text x="155" y="174" text-anchor="middle">run</text>`,
+        test: `<rect x="56" y="45" width="172" height="96" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M85 82l28 28 72-70" fill="none" stroke="${stroke}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="142" y="132" text-anchor="middle">pytest</text>`,
+        wheel: `<circle cx="155" cy="90" r="58" fill="${fill}" stroke="${stroke}" stroke-width="4"/><circle cx="155" cy="90" r="18" fill="${soft}" stroke="${stroke}" stroke-width="3"/><text x="155" y="170" text-anchor="middle">wheel</text>`,
+        route: `<rect x="48" y="58" width="214" height="78" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="94" text-anchor="middle">/items/{id}</text><text x="155" y="122" text-anchor="middle">?q=...</text>`,
+        schema: `<rect x="56" y="48" width="198" height="104" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M86 78h138M86 106h116M86 134h92" stroke="${stroke}" stroke-width="5"/><text x="155" y="176" text-anchor="middle">model</text>`,
+        error: `<polygon points="155,38 248,150 62,150" fill="${fill}" stroke="${stroke}" stroke-width="4"/><text x="155" y="117" text-anchor="middle">404</text>`,
+        queue: `<rect x="42" y="62" width="66" height="58" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="122" y="62" width="66" height="58" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="202" y="62" width="66" height="58" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="156" text-anchor="middle">tasks</text>`,
+        stream: `<path d="M50 70c40-28 78 28 118 0s62-28 92 0M50 116c40-28 78 28 118 0s62-28 92 0" fill="none" stroke="${stroke}" stroke-width="6" stroke-linecap="round"/><text x="155" y="160" text-anchor="middle">stream</text>`,
+        depends: `<circle cx="95" cy="96" r="38" fill="${fill}" stroke="${stroke}" stroke-width="3"/><circle cx="215" cy="96" r="38" fill="${fill}" stroke="${stroke}" stroke-width="3"/><line x1="133" y1="96" x2="177" y2="96" stroke="${stroke}" stroke-width="5"/><text x="95" y="102" text-anchor="middle">API</text><text x="215" y="102" text-anchor="middle">svc</text>`,
+        config: `<rect x="62" y="50" width="186" height="110" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M94 86h122M94 116h122" stroke="${stroke}" stroke-width="5"/><text x="155" y="178" text-anchor="middle">env</text>`,
+        lock: `<rect x="72" y="78" width="166" height="76" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M112 78V60c0-26 86-26 86 0v18" fill="none" stroke="${stroke}" stroke-width="5"/><text x="155" y="124" text-anchor="middle">auth</text>`,
+        shield: `<path d="M155 40l82 30v42c0 50-38 82-82 98-44-16-82-48-82-98V70z" fill="${fill}" stroke="${stroke}" stroke-width="4"/><text x="155" y="122" text-anchor="middle">CORS</text>`,
+        trace: `<rect x="52" y="54" width="206" height="90" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M82 86h80M82 114h146" stroke="${stroke}" stroke-width="5"/><text x="155" y="174" text-anchor="middle">request id</text>`,
+        layers: `<rect x="60" y="44" width="190" height="34" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="60" y="88" width="190" height="34" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="60" y="132" width="190" height="34" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="66" text-anchor="middle">router</text><text x="155" y="110" text-anchor="middle">service</text><text x="155" y="154" text-anchor="middle">repo</text>`,
+        database: `<ellipse cx="155" cy="62" rx="86" ry="26" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M69 62v72c0 14 38 26 86 26s86-12 86-26V62" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="119" text-anchor="middle">DB</text>`,
+        file: `<path d="M76 38h110l44 44v84H76z" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M186 38v44h44" fill="none" stroke="${stroke}" stroke-width="3"/><text x="153" y="116" text-anchor="middle">upload</text>`,
+        external: `<rect x="50" y="62" width="90" height="68" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="172" y="62" width="90" height="68" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M144 96h24" stroke="${stroke}" stroke-width="5"/><text x="95" y="103" text-anchor="middle">API</text><text x="217" y="103" text-anchor="middle">ext</text>`,
+        version: `<rect x="44" y="58" width="94" height="72" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><rect x="172" y="58" width="94" height="72" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="91" y="101" text-anchor="middle">v1</text><text x="219" y="101" text-anchor="middle">v2</text>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="158" y="105" text-anchor="middle">pkg</text>`,
+        container: `<rect x="54" y="54" width="202" height="92" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="3"/><path d="M84 84h142M84 116h142" stroke="${stroke}" stroke-width="5"/><text x="155" y="172" text-anchor="middle">image</text>`,
+        workers: `<circle cx="88" cy="94" r="32" fill="${fill}" stroke="${stroke}" stroke-width="3"/><circle cx="155" cy="94" r="32" fill="${fill}" stroke="${stroke}" stroke-width="3"/><circle cx="222" cy="94" r="32" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="164" text-anchor="middle">workers</text>`,
+        exe: `<rect x="64" y="52" width="182" height="100" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="3"/><text x="155" y="108" text-anchor="middle">.exe</text><text x="155" y="174" text-anchor="middle">onedir</text>`,
+        release: `<path d="M82 132c22-54 64-82 126-82 32 0 58 8 82 25" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/><path d="M154 102l62-48" stroke="${stroke}" stroke-width="7" stroke-linecap="round"/><circle cx="154" cy="103" r="10" fill="${stroke}"/><text x="154" y="165" text-anchor="middle">release</text>`
+      };
+      return `<svg viewBox="0 0 310 190" role="img" aria-label="${escapeHtml(title)} 圖示">
+        <rect x="6" y="10" width="298" height="170" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="${text}">${shapes[type]}</g>
+      </svg>`;
+    }
+
+    function renderLessons() {
+      document.querySelectorAll("[data-group]").forEach((section) => {
+        const group = lessonGroups[section.dataset.group] || [];
+        const root = section.querySelector(".cards");
+        root.innerHTML = group.map((lesson, index) => `
+          <article class="lesson-card lesson-item" id="${escapeHtml(lesson.id)}" data-lesson-id="${escapeHtml(lesson.id)}" data-search="${escapeHtml([lesson.title, lesson.tag, lesson.summary, lesson.table.join(" "), lesson.code].join(" "))}">
+            <div class="lesson-top">
+              <div class="visual-small">${visualSvg(lesson.visual, lesson.title)}</div>
+              <div class="lesson-title">
+                <span class="tag">${escapeHtml(lesson.tag)}</span>
+                <h3>${index + 1}. ${escapeHtml(lesson.title)}</h3>
+                <p class="summary">${escapeHtml(lesson.summary)}</p>
+                <div class="card-actions">
+                  <label class="complete-toggle"><input type="checkbox" data-complete="${escapeHtml(lesson.id)}">完成</label>
+                  <a class="button" href="#${escapeHtml(lesson.id)}">定位</a>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>格式 / Pattern</th><th>適用情境</th><th>常見錯誤</th></tr></thead>
+                <tbody><tr>${lesson.table.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="code-head">
+                <strong>範例 / 指令</strong>
+                <button class="button output-toggle" type="button" data-output="out-${escapeHtml(lesson.id)}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(lesson.code)}</pre>
+              <pre class="output" id="out-${escapeHtml(lesson.id)}">${escapeHtml(lesson.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(lesson.title)} step-by-step">
+              ${lesson.steps.map((step, stepIndex) => {
+                const panelId = `${lesson.id}-step-${stepIndex + 1}`;
+                return `
+                  <div class="step">
+                    <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">
+                      <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="step-panel" id="${escapeHtml(panelId)}">${escapeHtml(step[1])}</div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </article>
+        `).join("");
+      });
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-fastapi-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      document.querySelectorAll("#progressSummary, #progressSummaryMobile").forEach((el) => {
+        el.textContent = `完成 ${done} / ${total}`;
+      });
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(checkbox.dataset.complete);
+        } else {
+          completed.delete(checkbox.dataset.complete);
+        }
+        localStorage.setItem("python-fastapi-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `fastapi-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    function bindBackToTop() {
+      const button = document.querySelector(".back-to-top");
+      if (!button) return;
+      const toggle = () => button.classList.toggle("is-visible", window.scrollY > 420);
+      button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      window.addEventListener("scroll", toggle, { passive: true });
+      toggle();
+    }
+
+    renderLessons();
+    enhanceCodeBlocks();
+    bindInteractions();
+    bindBackToTop();
+    updateProgress();
+  </script>
+</body>
+</html>

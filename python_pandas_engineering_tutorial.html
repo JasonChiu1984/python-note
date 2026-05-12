@@ -1,0 +1,1700 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pandas 工程視覺教學 - DataFrame、指令、應用與打包</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --teal: #0f8794;
+      --rose: #b54879;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --soft-teal: #e1f6f8;
+      --soft-rose: #f8e6ef;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      grid-template-columns: 2.75rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      text-decoration: none;
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .brand-copy { display: grid; gap: 0.18rem; min-width: 0; }
+    .brand strong { font-size: 1rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 800; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-rose); color: var(--ink); outline: none; }
+    .progress-box {
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft-rose);
+      color: var(--rose);
+      font-weight: 950;
+      text-align: center;
+    }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2rem;
+      padding: 0.32rem 0.64rem;
+      border: 1px solid rgba(181,72,121,0.28);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.74);
+      color: var(--rose);
+      font-weight: 950;
+      font-size: 0.9rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    h2, h3 { letter-spacing: 0; }
+    .hero p, .lead { color: var(--muted); max-width: 58rem; margin: 0; }
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+    .status-strip span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.1rem;
+      padding: 0.25rem 0.58rem;
+      border-radius: 6px;
+      background: var(--soft-rose);
+      color: var(--rose);
+      font-weight: 900;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--rose); color: white; border-color: #983b66; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem);
+      scroll-margin-top: 1rem;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      line-height: 1.1;
+    }
+    .section-head p { margin-top: 0.45rem; color: var(--muted); max-width: 66rem; }
+    .tool-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 5vw, 4.8rem);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+    }
+    .search {
+      min-height: 2.8rem;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 0.85rem;
+      font: inherit;
+      font-weight: 750;
+      color: var(--ink);
+      background: white;
+    }
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .quick-links a {
+      display: grid;
+      place-items: center;
+      min-height: 3rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      color: var(--rose);
+      box-shadow: var(--shadow);
+      font-weight: 950;
+      text-decoration: none;
+      text-align: center;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .lesson-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 0.9rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .lesson-card.hidden-by-search { display: none; }
+    .lesson-top {
+      display: grid;
+      grid-template-columns: 9rem minmax(0, 1fr);
+      gap: 1rem;
+      align-items: center;
+    }
+    .visual-small {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fbfe;
+      min-height: 7rem;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .visual-small svg { width: 100%; height: auto; display: block; }
+    .lesson-title h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.22;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.9rem;
+      margin-bottom: 0.45rem;
+      padding: 0.18rem 0.52rem;
+      border-radius: 6px;
+      background: var(--soft-rose);
+      color: var(--rose);
+      font-weight: 950;
+      font-size: 0.82rem;
+    }
+    .summary { color: var(--muted); margin: 0; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.65rem; }
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.66rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .complete-toggle input { width: 1rem; height: 1rem; }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 42rem; }
+    th, td {
+      padding: 0.72rem 0.78rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--soft-rose); color: var(--ink); font-weight: 950; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    pre {
+      margin: 0;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+      margin: 0.3rem 0 0.4rem;
+    }
+    .code, .output {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #101827;
+      color: #e9f1ff;
+    }
+    .output {
+      display: none;
+      margin-top: 0.45rem;
+      background: #0f2c24;
+      color: #dff7ed;
+    }
+    .output.is-open { display: block; }
+    .code-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.35rem;
+    }
+    .copy-code {
+      min-height: 2rem;
+      padding: 0.28rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .steps { display: grid; gap: 0.52rem; margin-top: 0.2rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.68rem 0.78rem;
+      border: 0;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 950;
+      text-align: left;
+      cursor: pointer;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; min-width: 0; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 2.4rem;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 8px;
+      background: var(--soft-yellow);
+      color: #765800;
+      font-weight: 950;
+      line-height: 1;
+      text-align: center;
+    }
+    .step-panel {
+      display: none;
+      padding: 0 0.78rem 0.82rem 3.78rem;
+      color: var(--muted);
+    }
+    .step.is-open .step-panel { display: block; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+    .mini {
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+    }
+    .mini strong { display: block; margin-bottom: 0.25rem; }
+    .mini span { color: var(--muted); }
+    .back-to-top {
+      position: fixed;
+      right: clamp(1rem, 3vw, 1.6rem);
+      bottom: clamp(1rem, 3vw, 1.6rem);
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.15rem;
+      height: 3.15rem;
+      border: 1px solid rgba(181,72,121,0.32);
+      border-radius: 50%;
+      background: var(--rose);
+      color: white;
+      box-shadow: 0 16px 34px rgba(23, 32, 51, 0.22);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.6rem);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .back-to-top.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-to-top svg { width: 1.25rem; height: 1.25rem; }
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .matrix, .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .lesson-top { grid-template-columns: 1fr; }
+      .visual-small { min-height: 8.5rem; }
+      .tool-panel { grid-template-columns: 1fr; }
+      .section-head { display: grid; align-items: start; }
+      .matrix, .quick-links { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+      h1 { max-width: 12ch; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="#top">首頁</a>
+    <a href="#map">心智圖</a>
+    <a href="#intro">簡介</a>
+    <a href="#commands">指令</a>
+    <a href="#dataframe">核心語法</a>
+    <a href="#applications">應用</a>
+    <a href="#packaging">打包</a>
+    <a href="#cases">案例</a>
+    <a href="#checklist">檢查表</a>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="側邊導覽">
+      <a class="brand" href="#top" aria-label="回到 Pandas 教材首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 40 40" role="img" aria-label="Pandas icon">
+            <rect x="4" y="4" width="32" height="32" rx="9" fill="#172033"></rect>
+            <rect x="11" y="9" width="5" height="22" rx="2" fill="#f7c948"></rect>
+            <rect x="18" y="13" width="5" height="18" rx="2" fill="#62d1dc"></rect>
+            <rect x="25" y="7" width="5" height="24" rx="2" fill="#f08ab7"></rect>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Pandas 工程專題</strong>
+          <span>DataFrame to Delivery</span>
+        </span>
+      </a>
+      <nav class="nav" aria-label="主要章節">
+        <a href="#map">互動式心智圖</a>
+        <a href="#intro">Pandas 簡介</a>
+        <a href="#commands">指令與參數</a>
+        <a href="#dataframe">DataFrame 核心語法</a>
+        <a href="#applications">詳細應用</a>
+        <a href="#packaging">打包交付</a>
+        <a href="#cases">專案案例</a>
+        <a href="#checklist">上線檢查表</a>
+        <a href="index.html">回教材入口</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 35</div>
+    </aside>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">獨立篇幅 · Pandas</span>
+          <h1>Pandas 指令、DataFrame、應用與打包實戰</h1>
+          <p>用專案工程角度學 Pandas：不是只會 `read_csv`，而是能定義 schema、處理 missing、join、groupby、時間序列、Parquet、chunking、測試與交付。</p>
+          <div class="status-strip" aria-label="教材狀態">
+            <span>v0.9.0</span>
+            <span>35 個互動教學卡</span>
+            <span>心智圖 / 指令 / DataFrame / 應用 / 打包 / 範例專案</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#map">看心智圖</a>
+            <a class="button green" href="#commands">看指令參數</a>
+            <a class="button" href="#sample-project">看範例專案</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Pandas DataFrame 資料流總覽" aria-describedby="heroDesc">
+            <desc id="heroDesc">Pandas 將 CSV、Excel、SQL、Parquet 讀成 DataFrame，再經 schema、clean、join、groupby、export 形成資料產品。</desc>
+            <rect x="28" y="38" width="704" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="62" y="122" width="136" height="92" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+            <text x="130" y="158" text-anchor="middle" font-size="22" font-weight="900" fill="#172033">CSV / SQL</text>
+            <text x="130" y="188" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">raw data</text>
+            <line x1="212" y1="168" x2="270" y2="168" stroke="#b54879" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="270,148 310,168 270,188" fill="#b54879"></polygon>
+            <rect x="322" y="92" width="168" height="150" rx="12" fill="#f8e6ef" stroke="#b54879" stroke-width="3"></rect>
+            <text x="406" y="134" text-anchor="middle" font-size="28" font-weight="900" fill="#172033">DataFrame</text>
+            <text x="406" y="168" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">index / columns</text>
+            <text x="406" y="198" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">dtype / schema</text>
+            <line x1="502" y1="168" x2="558" y2="168" stroke="#b54879" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="558,148 598,168 558,188" fill="#b54879"></polygon>
+            <rect x="610" y="122" width="98" height="92" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+            <text x="659" y="158" text-anchor="middle" font-size="21" font-weight="900" fill="#172033">output</text>
+            <text x="659" y="188" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">report / file</text>
+            <path d="M130 260c82 52 402 52 530 0" fill="none" stroke="#7257a8" stroke-width="4" stroke-dasharray="10 8"></path>
+            <text x="384" y="320" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">工程重點：schema -> clean -> join/groupby -> validate -> package</text>
+          </svg>
+        </div>
+      </section>
+
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：read_csv、DataFrame、dtype、groupby、merge、pivot、datetime、parquet、pyarrow、PyInstaller">
+        <span class="progress-box" id="progressSummaryMobile">完成 0 / 35</span>
+      </div>
+
+      <section class="section-block" id="sample-project">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">v0.9.0 範例專案</span>
+            <h2>從 DataFrame 教材走到可驗收資料工具</h2>
+            <p>對照 `範例程式碼/pandas_etl_report/`：讀取 orders CSV，驗 schema、處理 missing、產生營收 JSON 與資料品質摘要，並以測試保護欄位、dtype、時間格式與品質門檻。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="mini"><strong>src boundary</strong><span>`src/pandas_etl_report/pipeline.py` 放 ETL 規則，CLI 只處理路徑與輸出。</span></div>
+          <div class="mini"><strong>sample data</strong><span>`samples/orders.csv` 是 wheel、CLI、PyInstaller smoke test 共用輸入。</span></div>
+          <div class="mini"><strong>tests</strong><span>`tests/test_pipeline.py` 驗 schema、missing policy、quality summary 與 JSON feed。</span></div>
+          <div class="mini"><strong>handoff</strong><span><a href="範例程式碼/pandas_etl_report/README.md">開啟 Pandas 範例 README</a></span></div>
+        </div>
+      </section>
+
+      <section class="section-block" id="map">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">互動式心智圖</span>
+            <h2>Pandas 從表格到資料產品</h2>
+            <p>直接點選節點進入主題。建議順序：DataFrame 心智模型、read/write 指令、schema 與 cleaning、merge/groupby、time series、Parquet、packaging。</p>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 1080 620" role="img" aria-label="Pandas 互動式心智圖" aria-describedby="mindDesc">
+            <desc id="mindDesc">Pandas 主題包含 intro、commands、dataframe、applications、packaging、cases、checklist。</desc>
+            <rect x="28" y="38" width="1024" height="522" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <circle cx="540" cy="292" r="82" fill="#f8e6ef" stroke="#b54879" stroke-width="4"></circle>
+            <text x="540" y="283" text-anchor="middle" font-size="30" font-weight="950">Pandas</text>
+            <text x="540" y="318" text-anchor="middle" font-size="16" font-weight="850" fill="#5d6b7d">DataFrame mental model</text>
+
+            <line x1="468" y1="252" x2="250" y2="138" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="540" y1="210" x2="540" y2="116" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="612" y1="252" x2="830" y2="138" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="622" y1="332" x2="840" y2="454" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="540" y1="374" x2="540" y2="486" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="458" y1="332" x2="240" y2="454" stroke="#b54879" stroke-width="5" stroke-linecap="round"></line>
+
+            <a href="#intro"><rect x="96" y="78" width="230" height="104" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text x="211" y="119" text-anchor="middle" font-size="24" font-weight="900">簡介</text><text x="211" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">Series / DataFrame</text></a>
+            <a href="#commands"><rect x="425" y="64" width="230" height="104" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect><text x="540" y="105" text-anchor="middle" font-size="24" font-weight="900">指令</text><text x="540" y="137" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">install / read / test</text></a>
+            <a href="#dataframe"><rect x="754" y="78" width="230" height="104" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text x="869" y="119" text-anchor="middle" font-size="24" font-weight="900">核心語法</text><text x="869" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">schema / groupby / merge</text></a>
+            <a href="#applications"><rect x="764" y="416" width="230" height="104" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect><text x="879" y="457" text-anchor="middle" font-size="24" font-weight="900">應用</text><text x="879" y="489" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">ETL / BI / time series</text></a>
+            <a href="#packaging"><rect x="425" y="458" width="230" height="104" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect><text x="540" y="499" text-anchor="middle" font-size="24" font-weight="900">打包</text><text x="540" y="531" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">pyproject / extras / exe</text></a>
+            <a href="#cases"><rect x="86" y="416" width="230" height="104" rx="12" fill="#f8e6ef" stroke="#b54879" stroke-width="3"></rect><text x="201" y="457" text-anchor="middle" font-size="24" font-weight="900">案例</text><text x="201" y="489" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">production slices</text></a>
+          </svg>
+        </div>
+        <div class="quick-links" aria-label="主題快選">
+          <a href="#intro">Pandas 簡介</a>
+          <a href="#commands">指令參數</a>
+          <a href="#dataframe">核心語法</a>
+          <a href="#applications">詳細應用</a>
+          <a href="#packaging">打包交付</a>
+          <a href="#cases">實戰案例</a>
+        </div>
+      </section>
+
+      <section class="section-block" id="intro" data-group="intro">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Pandas 簡介</span>
+            <h2>先理解表格資料模型</h2>
+            <p>Pandas 的主角是 `DataFrame`：帶 index、columns、dtype 的表格資料。它很適合讀寫、清洗、join、groupby、時間序列與資料產品前處理。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="commands" data-group="commands">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">指令說明</span>
+            <h2>安裝、I/O、測試與環境診斷</h2>
+            <p>Pandas 工程常見指令不是單一 CLI，而是安裝 extras、讀寫檔案、跑測試、檢查版本與打包驗收。資料工具尤其要測 sample data。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>指令 / 參數</th><th>用途</th><th>適用時機</th><th>常見錯誤</th></tr></thead>
+            <tbody>
+              <tr><td><code>python -m pip install pandas</code></td><td>安裝核心 pandas 與必要依賴</td><td>venv、CI、一般專案</td><td>裝到錯 Python 或忘記 venv</td></tr>
+              <tr><td><code>pip install "pandas[performance]"</code></td><td>安裝效能相關 optional dependencies</td><td>大型資料、groupby、eval/query 等效能敏感場景</td><td>把所有 extras 都裝進 runtime 增加攻擊面</td></tr>
+              <tr><td><code>pip install "pandas[excel,parquet]"</code></td><td>依 I/O 格式安裝 optional dependencies</td><td>Excel、Parquet、Feather、SQL 等格式</td><td>用到才發現 ImportError</td></tr>
+              <tr><td><code>python -c "import pandas as pd; print(pd.__version__)"</code></td><td>驗證 import 與版本</td><td>安裝後 smoke test</td><td>只看安裝成功沒真正 import</td></tr>
+              <tr><td><code>pd.read_csv(..., dtype=..., parse_dates=...)</code></td><td>讀 CSV 並固定 schema</td><td>資料管線入口</td><td>讓 dtype 自動推斷導致資料漂移</td></tr>
+              <tr><td><code>pd.read_parquet(..., columns=..., filters=...)</code></td><td>讀 Parquet 並做欄位/分割過濾</td><td>大型資料湖或快取</td><td>沒裝 pyarrow/fastparquet 或沒測 storage options</td></tr>
+              <tr><td><code>python -m build</code></td><td>打包依賴 pandas 的專案</td><td>wheel / sdist release</td><td>漏 optional-dependencies</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="dataframe" data-group="dataframe">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">核心語法</span>
+            <h2>每個語法都搭配工程範例</h2>
+            <p>這章聚焦專案最常用、也最容易出錯的 Pandas 語法：schema、index、filter、assign、missing、groupby、merge、pivot、datetime、chunking。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="applications" data-group="applications">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">詳細應用</span>
+            <h2>從 ETL 到 BI、時間序列與資料品質</h2>
+            <p>Pandas 適合 tabular data。若資料已大到超出記憶體，或需要分散式運算，應切換到 SQL、Polars、DuckDB、Spark 或 chunk pipeline。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="packaging" data-group="packaging">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">打包詳細介紹</span>
+            <h2>把依賴 Pandas 的資料工具交付出去</h2>
+            <p>交付 Pandas 專案要管理核心依賴、optional extras、sample data、schema 測試、wheel、PyInstaller 與目標機 smoke test。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>打包層級</th><th>產物</th><th>命令</th><th>驗收</th></tr></thead>
+            <tbody>
+              <tr><td>核心套件</td><td>pyproject metadata</td><td><code>dependencies = ["pandas>=3"]</code></td><td><code>pip install . && python -c "import app"</code></td></tr>
+              <tr><td>格式 extras</td><td>optional-dependencies</td><td><code>[project.optional-dependencies]</code></td><td><code>pip install ".[parquet,excel]"</code></td></tr>
+              <tr><td>wheel</td><td>dist/*.whl</td><td><code>python -m build</code></td><td>安裝 wheel 後跑 sample ETL</td></tr>
+              <tr><td>執行檔</td><td>dist/app/</td><td><code>pyinstaller --onedir app.py</code></td><td>目標機讀 sample.csv / sample.parquet</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="cases" data-group="cases">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">專案案例</span>
+            <h2>4 個 Pandas production slice</h2>
+            <p>每個案例包含問題、取捨、程式碼、預期輸出與 step-by-step。瀏覽器不執行 Python，只提供真實專案可落地的片段與驗收命令。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="checklist">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">上線檢查表</span>
+            <h2>Pandas 專案交付前 8 件事</h2>
+            <p>資料工具上線前，請把 schema、dtype、missing、join cardinality、時間區間、效能、sample data 與 package extras 都驗收清楚。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="mini"><strong>Schema contract</strong><span>欄位、dtype、nullable、日期欄位都寫進測試。</span></div>
+          <div class="mini"><strong>Missing policy</strong><span>NA 是丟棄、補值、報錯還是保留，要明確。</span></div>
+          <div class="mini"><strong>Join cardinality</strong><span>merge 前檢查 one-to-one / one-to-many。</span></div>
+          <div class="mini"><strong>Time zone</strong><span>時間序列要定義 timezone 與邊界。</span></div>
+          <div class="mini"><strong>Chunk plan</strong><span>資料量大時要分批、欄位裁剪或改用 SQL/Parquet。</span></div>
+          <div class="mini"><strong>Sample data</strong><span>release smoke test 要包含固定 input/output。</span></div>
+          <div class="mini"><strong>Extras</strong><span>Excel、Parquet、SQL、Cloud 依賴用 optional extras 管理。</span></div>
+          <div class="mini"><strong>Runtime report</strong><span>記錄 pandas/NumPy/pyarrow 版本與平台。</span></div>
+        </div>
+      </section>
+
+      <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </main>
+  </div>
+
+  <script>
+    const lessonGroups = {
+      intro: [
+        {
+          id: "intro-dataframe",
+          tag: "DataFrame",
+          title: "Pandas 是什麼",
+          visual: "table",
+          summary: "Pandas 是 Python 的 tabular data 工具。核心資料結構是 `Series` 與 `DataFrame`，適合探索、清洗、轉換與匯出表格資料。",
+          table: ["資料模型", "DataFrame = index + columns + dtype columns", "CSV、Excel、SQL、Parquet、報表與 ETL", "把 DataFrame 當成無 schema 的 dict list"],
+          code: String.raw`import pandas as pd
+
+df = pd.DataFrame({
+    "city": ["Taipei", "Tokyo"],
+    "sales": [120, 180],
+})
+
+print(df.shape)
+print(df.dtypes)
+print(df["sales"].sum())`,
+          output: "(2, 2)\ncity     object\nsales     int64\ndtype: object\n300",
+          steps: [
+            ["DataFrame 是表格", "每個 column 有自己的 dtype，列由 index 對齊。"],
+            ["Series 是一欄", "`df['sales']` 回傳 Series。"],
+            ["工程先看 schema", "進入 ETL 前先確認欄位、型別、空值。"]
+          ]
+        },
+        {
+          id: "intro-series-index",
+          tag: "Index",
+          title: "Series、Index 與對齊",
+          visual: "index",
+          summary: "Pandas 會依 index 對齊資料，這很強也很容易踩坑。兩個 Series 相加時，不是照位置，而是照 label 對齊。",
+          table: ["資料對齊", "Series index alignment", "時間序列、join 前資料檢查", "以為兩列相同位置會直接相加"],
+          code: String.raw`import pandas as pd
+
+a = pd.Series([10, 20], index=["A", "B"])
+b = pd.Series([1, 2], index=["B", "C"])
+
+print(a + b)`,
+          output: "A     NaN\nB    21.0\nC     NaN\ndtype: float64",
+          steps: [
+            ["看 index", "Pandas 運算會依 label 對齊。"],
+            ["缺值會出現", "A 和 C 找不到對應值，所以是 NaN。"],
+            ["需要位置運算時", "先確認 `.to_numpy()` 或 reset_index 是否符合需求。"]
+          ]
+        },
+        {
+          id: "intro-when-not",
+          tag: "Decision",
+          title: "什麼時候不該用 Pandas",
+          visual: "decision",
+          summary: "資料太大、需要低延遲服務、嚴格資料庫交易、分散式運算時，Pandas 可能不是主工具。它是資料處理刀，不是所有資料系統。",
+          table: ["選型判斷", "data size -> schema -> memory -> output SLA", "單機資料清洗、分析、批次報表", "把長時間服務 API 寫成全域 DataFrame 操作"],
+          code: String.raw`# 先估資料量與記憶體
+rows = 10_000_000
+columns = 20
+bytes_per_float64 = 8
+estimated = rows * columns * bytes_per_float64
+print(round(estimated / 1024 / 1024 / 1024, 2), "GB")`,
+          output: "1.49 GB",
+          steps: [
+            ["先估記憶體", "DataFrame 會有 index、object、temporary copy 成本。"],
+            ["看 SLA", "互動式 API 不一定適合每次讀整份 CSV。"],
+            ["必要時換工具", "SQL、DuckDB、Polars、Spark、Dask 都是合理替代。"]
+          ]
+        }
+      ],
+      commands: [
+        {
+          id: "cmd-install",
+          tag: "pip",
+          title: "安裝與版本檢查",
+          visual: "terminal",
+          summary: "用 `python -m pip` 確保安裝到目前 Python。安裝後要 import pandas 並印版本。",
+          table: ["安裝", "`python -m pip install pandas`", "venv、CI、一般資料工具", "pip 指到錯 interpreter"],
+          code: String.raw`python -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install pandas
+python -c "import pandas as pd; print(pd.__version__)"`,
+          output: "3.x.x",
+          steps: [
+            ["建立 venv", "隔離專案依賴。"],
+            ["用 python -m pip", "避免 pip 指到另一個 Python。"],
+            ["import 驗收", "安裝成功後立即確認 runtime 可用。"]
+          ]
+        },
+        {
+          id: "cmd-extras",
+          tag: "extras",
+          title: "optional dependencies 與 extras",
+          visual: "package",
+          summary: "Pandas 很多 I/O 與效能能力靠 optional dependencies。只裝需要的 extras，降低依賴風險。",
+          table: ["可選依賴", "`pandas[performance]`, `pandas[excel]`, `pandas[parquet]`", "大型資料、Excel、Parquet、SQL、cloud storage", "全部裝 pandas[all] 造成依賴過重"],
+          code: String.raw`python -m pip install "pandas[performance]"
+python -m pip install "pandas[excel,parquet]"
+
+python - <<'PY'
+import pandas as pd
+print(pd.__version__)
+PY`,
+          output: "安裝指定 extras 後，對應功能的 ImportError 風險降低。",
+          steps: [
+            ["依格式選 extras", "Excel、Parquet、SQL、cloud storage 分開管理。"],
+            ["不要過度安裝", "沒用到的 optional dependency 是維護與資安成本。"],
+            ["寫進 pyproject", "團隊依賴要可重現。"]
+          ]
+        },
+        {
+          id: "cmd-read-csv",
+          tag: "read_csv",
+          title: "read_csv 關鍵參數",
+          visual: "file",
+          summary: "`read_csv` 是資料入口。工程上要優先指定 `dtype`、`usecols`、`parse_dates`、`encoding`、`chunksize`、`on_bad_lines`。",
+          table: ["CSV 讀取", "`pd.read_csv(path, dtype=..., usecols=...)`", "ETL 入口、報表資料、批次處理", "自動推斷 dtype 導致資料漂移"],
+          code: String.raw`import pandas as pd
+
+df = pd.read_csv(
+    "orders.csv",
+    usecols=["order_id", "created_at", "amount"],
+    dtype={"order_id": "string", "amount": "float64"},
+    parse_dates=["created_at"],
+    encoding="utf-8",
+)`,
+          output: "DataFrame 欄位只保留 order_id、created_at、amount，並套用指定 dtype。",
+          steps: [
+            ["usecols 裁剪", "大型 CSV 先減少欄位。"],
+            ["dtype 固定", "避免同一欄在不同檔案被推成不同型別。"],
+            ["日期明確解析", "parse_dates 讓時間欄位進入 datetime 流程。"]
+          ]
+        },
+        {
+          id: "cmd-chunksize",
+          tag: "chunksize",
+          title: "分批讀取大型 CSV",
+          visual: "chunk",
+          summary: "`chunksize` 會回傳可迭代的 TextFileReader，適合無法一次放進記憶體的大檔。",
+          table: ["大檔處理", "`pd.read_csv(..., chunksize=100_000)`", "大型 CSV、批次轉檔、低記憶體環境", "把所有 chunk append 回 list 又爆記憶體"],
+          code: String.raw`import pandas as pd
+
+total = 0.0
+for chunk in pd.read_csv("orders.csv", chunksize=100_000):
+    total += chunk["amount"].sum()
+
+print(total)`,
+          output: "輸出全部 chunk 的 amount 總和。",
+          steps: [
+            ["每批處理", "chunk 用完就釋放，不累積全部資料。"],
+            ["聚合結果", "保留 total、count、summary，而不是保留所有 row。"],
+            ["必要時落地", "中間結果可寫 Parquet partition。"]
+          ]
+        },
+        {
+          id: "cmd-read-parquet",
+          tag: "read_parquet",
+          title: "Parquet 讀取參數",
+          visual: "parquet",
+          summary: "Parquet 適合欄式資料。`columns` 可裁剪欄位，`filters` 可嘗試下推過濾，通常需要 pyarrow 或 fastparquet。",
+          table: ["欄式檔案", "`pd.read_parquet(path, columns=..., filters=...)`", "資料湖、快取、分析資料集", "沒安裝 engine 或沒測 remote storage"],
+          code: String.raw`import pandas as pd
+
+df = pd.read_parquet(
+    "orders.parquet",
+    columns=["order_id", "amount", "country"],
+    filters=[("country", "==", "TW")],
+)`,
+          output: "讀取欄位裁剪後、country 為 TW 的資料列。",
+          steps: [
+            ["columns 裁剪", "只讀需要欄位，降低 I/O。"],
+            ["filters 下推", "能否有效取決於 engine 與資料分割。"],
+            ["依賴要安裝", "pyarrow/fastparquet 是 optional dependency。"]
+          ]
+        },
+        {
+          id: "cmd-testing",
+          tag: "pytest",
+          title: "DataFrame 測試指令",
+          visual: "test",
+          summary: "Pandas 測試不該只看列數。用 `pandas.testing.assert_frame_equal` 比對欄位、dtype、index 與值。",
+          table: ["測試", "`pytest -q` + `assert_frame_equal`", "ETL、報表、資料轉換函式", "只 assert row count 導致 schema 退化沒被發現"],
+          code: String.raw`import pandas as pd
+from pandas.testing import assert_frame_equal
+
+def test_transform():
+    out = pd.DataFrame({"amount": [1, 2]}).assign(amount2=lambda d: d["amount"] * 2)
+    expected = pd.DataFrame({"amount": [1, 2], "amount2": [2, 4]})
+    assert_frame_equal(out, expected)`,
+          output: "pytest -q\n1 passed",
+          steps: [
+            ["比 DataFrame", "同時檢查欄位、index、dtype、值。"],
+            ["固定輸入", "測試資料要小但覆蓋邊界。"],
+            ["測 dtype", "資料工具最常因型別漂移出錯。"]
+          ]
+        },
+        {
+          id: "cmd-profile",
+          tag: "profile",
+          title: "效能與記憶體診斷",
+          visual: "chart",
+          summary: "Pandas 慢不一定是 Pandas 的錯；常見原因是 object dtype、逐列 apply、重複 copy、未裁剪欄位或 join 爆炸。",
+          table: ["效能診斷", "`df.info(memory_usage='deep')`", "大型資料、CI timeout、報表變慢", "只看 CPU，不看記憶體與中間 DataFrame"],
+          code: String.raw`import pandas as pd
+
+df = pd.read_csv("orders.csv")
+df.info(memory_usage="deep")
+print(df.memory_usage(deep=True).sum())`,
+          output: "輸出欄位 dtype、non-null count 與深度記憶體估算。",
+          steps: [
+            ["先看 dtype", "object 欄位常是記憶體熱點。"],
+            ["看欄位數", "usecols 可立即降低 I/O 與 memory。"],
+            ["減少 apply", "可向量化或 groupby agg 時，不要逐列 Python function。"]
+          ]
+        }
+      ],
+      dataframe: [
+        {
+          id: "df-schema",
+          tag: "schema",
+          title: "建立 schema contract",
+          visual: "schema",
+          summary: "資料管線入口要檢查必要欄位、dtype、nullable 與日期欄位。沒有 schema，後面的 groupby/merge 都是在沙上蓋樓。",
+          table: ["資料契約", "required columns + dtype + null policy", "ETL、報表、ML 特徵", "資料欄位改名後仍默默跑出錯報表"],
+          code: String.raw`required = {"order_id", "created_at", "amount"}
+missing = required - set(df.columns)
+if missing:
+    raise ValueError(f"missing columns: {sorted(missing)}")
+
+df = df.astype({"order_id": "string", "amount": "float64"})`,
+          output: "缺欄位時直接失敗；欄位存在時套用明確 dtype。",
+          steps: [
+            ["先驗欄位", "缺欄位要 fail fast。"],
+            ["再轉 dtype", "避免下游每次自己猜型別。"],
+            ["空值另定 policy", "nullable 不等於可以無限制放行。"]
+          ]
+        },
+        {
+          id: "df-select-filter",
+          tag: "select",
+          title: "選欄、過濾與 query",
+          visual: "filter",
+          summary: "Pandas 選欄與 row filter 是資料清洗基本功。工程上要避免 chained assignment，並讓條件可讀。",
+          table: ["資料篩選", "`df.loc[mask, columns]`", "清洗資料、篩選報表範圍", "用 chained assignment 導致 SettingWithCopy 問題"],
+          code: String.raw`active = df.loc[
+    (df["status"] == "paid") & (df["amount"] > 0),
+    ["order_id", "amount", "created_at"],
+].copy()
+
+active["amount_tax"] = active["amount"] * 1.05`,
+          output: "active 只包含 paid 且 amount > 0 的訂單，並新增 amount_tax。",
+          steps: [
+            ["mask 寫清楚", "多條件用括號包住。"],
+            ["用 loc", "同時指定列與欄。"],
+            ["必要時 copy", "要修改結果時明確取得副本。"]
+          ]
+        },
+        {
+          id: "df-missing",
+          tag: "missing",
+          title: "缺值處理策略",
+          visual: "missing",
+          summary: "缺值不是技術細節，而是 domain policy。要決定 drop、fill、保留或報錯，並把比例輸出到 log/metrics。",
+          table: ["缺值處理", "`isna`, `dropna`, `fillna`", "資料清洗、報表、模型特徵", "不分欄位一律 fill 0"],
+          code: String.raw`na_ratio = df["amount"].isna().mean()
+if na_ratio > 0.01:
+    raise ValueError(f"amount NA too high: {na_ratio:.2%}")
+
+df["country"] = df["country"].fillna("UNKNOWN")`,
+          output: "amount 缺值超過 1% 直接失敗；country 缺值補 UNKNOWN。",
+          steps: [
+            ["逐欄定 policy", "金額、國家、備註欄位不能同一套規則。"],
+            ["量化比例", "缺值比例是資料品質訊號。"],
+            ["不要靜默", "補值要可被 review 和追蹤。"]
+          ]
+        },
+        {
+          id: "df-assign-pipe",
+          tag: "assign / pipe",
+          title: "assign 與 pipe 組合轉換",
+          visual: "pipe",
+          summary: "`assign` 適合新增欄位，`pipe` 適合把轉換拆成可測函式。大型 ETL 不應全部塞在一行。",
+          table: ["轉換管線", "`df.pipe(fn).assign(...)`", "可測、可讀、可組合的 ETL", "過度 method chaining 導致 debug 困難"],
+          code: String.raw`def keep_paid(df):
+    return df.loc[df["status"] == "paid"].copy()
+
+result = (
+    df.pipe(keep_paid)
+      .assign(amount_tax=lambda d: d["amount"] * 1.05)
+)`,
+          output: "result 是已過濾 paid 訂單並新增 amount_tax 的 DataFrame。",
+          steps: [
+            ["函式拆段", "每段 transform 可單獨測。"],
+            ["assign 新欄位", "避免中途修改原始 df。"],
+            ["debug 有邊界", "pipe function 是很好的斷點。"]
+          ]
+        },
+        {
+          id: "df-groupby",
+          tag: "groupby",
+          title: "groupby split-apply-combine",
+          visual: "group",
+          summary: "groupby 是 split-apply-combine：分組、套用聚合或轉換、再合併結果。常見於報表、監控與特徵工程。",
+          table: ["分組聚合", "`df.groupby(keys).agg(...)`", "銷售報表、分群統計、特徵聚合", "忘記 dropna/observed/sort 影響輸出"],
+          code: String.raw`summary = (
+    df.groupby("country", dropna=False, sort=False)
+      .agg(
+          orders=("order_id", "nunique"),
+          revenue=("amount", "sum"),
+      )
+      .reset_index()
+)`,
+          output: "每個 country 一列，包含 orders 與 revenue。",
+          steps: [
+            ["明確 keys", "分組欄位要穩定且可解釋。"],
+            ["命名聚合", "輸出欄位名稱不要靠 MultiIndex 猜。"],
+            ["dropna/sort 寫明", "避免 pandas 版本或預設行為造成差異。"]
+          ]
+        },
+        {
+          id: "df-merge",
+          tag: "merge",
+          title: "merge 與 cardinality 驗證",
+          visual: "join",
+          summary: "merge 是 production ETL 最常見事故來源。請用 `validate` 明確指定 one-to-one、one-to-many 或 many-to-one。",
+          table: ["資料合併", "`pd.merge(..., validate='many_to_one')`", "維度表、訂單明細、客戶資料", "join key 重複導致列數爆炸"],
+          code: String.raw`orders = orders.merge(
+    customers[["customer_id", "segment"]],
+    on="customer_id",
+    how="left",
+    validate="many_to_one",
+    indicator=True,
+)
+
+missing = (orders["_merge"] == "left_only").mean()`,
+          output: "若 customers 的 customer_id 不是唯一，merge 會直接報錯。",
+          steps: [
+            ["validate cardinality", "讓資料模型錯誤早點爆。"],
+            ["indicator 追蹤匹配", "left_only 比例可當資料品質訊號。"],
+            ["join key 型別一致", "string vs int key 會造成詭異匹配問題。"]
+          ]
+        },
+        {
+          id: "df-pivot",
+          tag: "pivot",
+          title: "pivot_table 與寬表報表",
+          visual: "pivot",
+          summary: "`pivot_table` 能把長表轉成寬表報表。適合 BI 輸出，但不一定適合下游機器處理。",
+          table: ["寬表轉換", "`pd.pivot_table(...)`", "月報、部門統計、交叉分析", "index/columns 組合不唯一卻使用 pivot"],
+          code: String.raw`report = pd.pivot_table(
+    df,
+    values="amount",
+    index="country",
+    columns="month",
+    aggfunc="sum",
+    fill_value=0,
+)`,
+          output: "每個 country 一列、每個 month 一欄，值是 amount sum。",
+          steps: [
+            ["長表輸入", "pivot_table 適合 tidy data。"],
+            ["aggfunc 明確", "sum/mean/count 要由報表需求決定。"],
+            ["fill_value", "缺月份補 0 或保留 NA 要明確。"]
+          ]
+        },
+        {
+          id: "df-datetime",
+          tag: "datetime",
+          title: "datetime、timezone 與 resample",
+          visual: "time",
+          summary: "時間序列要先把欄位轉成 datetime，再決定 timezone、頻率與補值策略。時間邊界不清楚會讓報表對不上。",
+          table: ["時間序列", "`pd.to_datetime`, `resample`", "日報、監控、交易資料", "混用 naive/aware datetime"],
+          code: String.raw`df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
+daily = (
+    df.set_index("created_at")
+      .resample("D")["amount"]
+      .sum()
+      .reset_index()
+)`,
+          output: "daily 每天一列，amount 是當日總和。",
+          steps: [
+            ["先轉 UTC", "跨時區資料先統一基準。"],
+            ["set index", "resample 需要 datetime index。"],
+            ["定補值策略", "缺日期是 0、NA 還是不顯示，要依需求。"]
+          ]
+        },
+        {
+          id: "df-category",
+          tag: "category",
+          title: "category 與記憶體最佳化",
+          visual: "memory",
+          summary: "重複字串欄位可轉 category 降低記憶體，但 category 也會影響 groupby observed 行為與輸出。",
+          table: ["型別最佳化", "`astype('category')`", "國家、狀態、分群、低基數字串", "category 類別集合與資料不一致"],
+          code: String.raw`df["country"] = df["country"].astype("category")
+before = df["country"].astype("string").memory_usage(deep=True)
+after = df["country"].memory_usage(deep=True)
+
+print(before, after)`,
+          output: "低基數字串通常 category 佔用較少記憶體。",
+          steps: [
+            ["確認低基數", "unique 太多時 category 未必划算。"],
+            ["注意 groupby", "observed 影響未出現類別是否輸出。"],
+            ["保存類別策略", "訓練/推論資料的 category 要一致。"]
+          ]
+        },
+        {
+          id: "df-apply-vectorize",
+          tag: "apply",
+          title: "apply、vectorization 與效能取捨",
+          visual: "speed",
+          summary: "`apply(axis=1)` 常是效能熱點。能用向量化、map、merge 或 groupby agg 時，就不要逐列 Python function。",
+          table: ["效能語法", "`np.where`, `Series.map`, vectorized ops", "大量 row transform", "把每列當 dict 一列一列處理"],
+          code: String.raw`import numpy as np
+
+df["tier"] = np.where(df["amount"] >= 1000, "high", "normal")
+
+# 比 df.apply(lambda row: ..., axis=1) 更容易向量化與測試`,
+          output: "新增 tier 欄位，amount >= 1000 為 high。",
+          steps: [
+            ["先找內建操作", "Series/NumPy 向量化通常更快。"],
+            ["apply 留給複雜邏輯", "必要時先把資料量降下來。"],
+            ["benchmark 證明", "不要只憑直覺說 apply 慢。"]
+          ]
+        }
+      ],
+      applications: [
+        {
+          id: "app-etl",
+          tag: "ETL",
+          title: "CSV 到清洗後 Parquet",
+          visual: "flow",
+          summary: "典型資料工具會從 CSV 讀入、驗 schema、清洗、輸出 Parquet。Parquet 適合中間快取與下游分析。",
+          table: ["資料管線", "read_csv -> validate -> clean -> to_parquet", "批次報表、資料湖前處理", "沒有 sample input/output 驗收"],
+          code: String.raw`df = pd.read_csv("orders.csv", dtype={"order_id": "string"})
+df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
+df = df.loc[df["amount"].notna()].copy()
+df.to_parquet("orders_clean.parquet", index=False)`,
+          output: "產生 orders_clean.parquet，供下游快速讀取。",
+          steps: [
+            ["讀入固定型別", "入口先控 schema。"],
+            ["清洗有 policy", "amount 缺值如何處理要明確。"],
+            ["輸出欄式格式", "Parquet 便於欄位裁剪與大型資料分析。"]
+          ]
+        },
+        {
+          id: "app-bi",
+          tag: "BI",
+          title: "月報與部門彙總",
+          visual: "pivot",
+          summary: "Pandas 很適合生成固定格式月報。核心是日期欄位、groupby、pivot_table 與輸出格式。",
+          table: ["報表", "groupby + pivot_table + to_excel", "月報、營運報表、財務摘要", "報表欄位順序和缺值未固定"],
+          code: String.raw`df["month"] = pd.to_datetime(df["created_at"]).dt.to_period("M").astype(str)
+report = pd.pivot_table(
+    df,
+    values="amount",
+    index="department",
+    columns="month",
+    aggfunc="sum",
+    fill_value=0,
+)`,
+          output: "report 是 department x month 的寬表。",
+          steps: [
+            ["固定 period", "月份格式要一致。"],
+            ["缺值補 0", "報表需求通常不希望空格。"],
+            ["欄位排序", "月份欄位順序要固定，避免 Excel diff 困難。"]
+          ]
+        },
+        {
+          id: "app-data-quality",
+          tag: "Quality",
+          title: "資料品質報告",
+          visual: "check",
+          summary: "用 Pandas 產生缺值、重複 key、型別、範圍與 unmatched join 比例，讓資料品質可觀測。",
+          table: ["品質檢查", "isna / duplicated / merge indicator", "ETL gate、CI sample data、監控", "只在人工看報表時才發現資料壞掉"],
+          code: String.raw`quality = {
+    "rows": len(df),
+    "amount_na_ratio": float(df["amount"].isna().mean()),
+    "duplicate_order_id": int(df["order_id"].duplicated().sum()),
+}
+print(quality)`,
+          output: "{'rows': 1000, 'amount_na_ratio': 0.002, 'duplicate_order_id': 0}",
+          steps: [
+            ["品質數字化", "用 ratio/count 讓 CI 或監控可判斷。"],
+            ["定門檻", "NA 比例超過多少要 fail。"],
+            ["保留 artifact", "品質報告應隨 release 或 ETL run 保存。"]
+          ]
+        },
+        {
+          id: "app-time-series",
+          tag: "Time",
+          title: "時間序列補點與重採樣",
+          visual: "time",
+          summary: "監控與交易資料常需要 resample、rolling、補點。先處理 timezone，再處理 frequency。",
+          table: ["時間序列", "to_datetime + resample + rolling", "監控、感測器、交易、日報", "沒有定義缺點補 0 還是 NA"],
+          code: String.raw`ts = df.assign(ts=pd.to_datetime(df["ts"], utc=True)).set_index("ts")
+hourly = ts["value"].resample("1h").mean()
+rolling = hourly.rolling(24, min_periods=6).mean()`,
+          output: "hourly 是每小時平均；rolling 是 24 小時滑動平均。",
+          steps: [
+            ["UTC 先行", "避免 DST/timezone 邊界事故。"],
+            ["resample 定頻率", "將不規則資料轉成固定時間粒度。"],
+            ["rolling 設 min_periods", "避免早期窗口全是 NA。"]
+          ]
+        },
+        {
+          id: "app-sql",
+          tag: "SQL",
+          title: "SQL 與 DataFrame 邊界",
+          visual: "database",
+          summary: "Pandas 可讀 SQL，但大量過濾、join、排序應盡量推到資料庫。DataFrame 適合拿結果做後處理，不是替代資料庫。",
+          table: ["資料庫", "read_sql_query(sql, con)", "資料庫報表、抽樣、後處理", "select * 拉全表到記憶體"],
+          code: String.raw`sql = """
+select order_id, created_at, amount
+from orders
+where created_at >= :start
+"""
+df = pd.read_sql_query(sql, con, params={"start": "2026-01-01"})`,
+          output: "只把需要日期範圍與欄位讀入 DataFrame。",
+          steps: [
+            ["SQL 裁剪", "where/use columns 在資料庫端做。"],
+            ["參數化", "不要手拼 SQL 字串。"],
+            ["資料量估算", "讀入前先知道大概 rows/columns。"]
+          ]
+        },
+        {
+          id: "app-dashboard-feed",
+          tag: "Dashboard",
+          title: "產生 dashboard feed",
+          visual: "json",
+          summary: "Pandas 可以把資料聚合後輸出 JSON/CSV/Parquet 給 dashboard。輸出 schema 要固定。",
+          table: ["資料產品", "groupby -> records JSON", "營運 dashboard、前端報表、API feed", "輸出欄位名稱不穩造成前端壞掉"],
+          code: String.raw`summary = (
+    df.groupby("country")
+      .agg(revenue=("amount", "sum"), orders=("order_id", "nunique"))
+      .reset_index()
+)
+payload = summary.to_dict(orient="records")`,
+          output: "[{'country': 'TW', 'revenue': 1200.0, 'orders': 3}]",
+          steps: [
+            ["固定欄位", "dashboard 依賴欄位名稱。"],
+            ["orient 明確", "records 適合 API feed。"],
+            ["測 JSON schema", "輸出格式變更要被測試抓到。"]
+          ]
+        }
+      ],
+      packaging: [
+        {
+          id: "pkg-pyproject",
+          tag: "pyproject",
+          title: "宣告 pandas 依賴",
+          visual: "file",
+          summary: "使用 pandas 的資料工具，應在 `[project].dependencies` 宣告 pandas；I/O 格式支援放 optional dependencies。",
+          table: ["套件設定", "`dependencies = [\"pandas>=3\"]`", "一般 pandas app / library", "漏 dependencies 導致使用者安裝後 ImportError"],
+          code: String.raw`# pyproject.toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pandas-toolkit"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["pandas>=3"]`,
+          output: "pip install . 後會安裝 pandas runtime dependency。",
+          steps: [
+            ["runtime 放 dependencies", "純 Python 使用 pandas 時，不需要放 build-system。"],
+            ["版本寫清楚", "pandas 2/3 行為差異要由測試支撐。"],
+            ["安裝後 smoke test", "從 wheel 安裝再跑 sample ETL。"]
+          ]
+        },
+        {
+          id: "pkg-extras",
+          tag: "extras",
+          title: "optional-dependencies 設計",
+          visual: "package",
+          summary: "Excel、Parquet、SQL、Cloud storage 都應該是 extras，讓使用者按需求安裝，不把所有 optional dependencies 塞進核心。",
+          table: ["可選功能", "`[project.optional-dependencies]`", "資料工具支援多格式", "全部依賴都變 required，部署變重且資安面變大"],
+          code: String.raw`[project.optional-dependencies]
+excel = ["openpyxl>=3", "xlsxwriter>=3"]
+parquet = ["pyarrow>=15"]
+sql = ["sqlalchemy>=2"]
+performance = ["numexpr", "bottleneck"]`,
+          output: "使用者可執行：pip install '.[parquet,excel]'",
+          steps: [
+            ["按功能拆 extras", "I/O 支援不要全部綁成核心依賴。"],
+            ["文件寫清楚", "缺 dependency 時要提示安裝哪個 extra。"],
+            ["CI 分組測", "parquet/excel/sql extras 至少各有 smoke test。"]
+          ]
+        },
+        {
+          id: "pkg-build-wheel",
+          tag: "wheel",
+          title: "建立 wheel 並用 sample data 驗收",
+          visual: "wheel",
+          summary: "資料工具 release 要 build wheel、安裝 wheel、跑 sample input/output。不要只測 source tree。",
+          table: ["release", "`python -m build`", "內部 CLI、ETL library、報表工具", "editable install 通過但 wheel 漏 package data"],
+          code: String.raw`python -m pip install -U build
+python -m build
+python -m pip install dist/pandas_toolkit-0.1.0-*.whl --force-reinstall
+pandas-toolkit run samples/orders.csv --out /tmp/report.json`,
+          output: "processed samples/orders.csv -> /tmp/report.json",
+          steps: [
+            ["build artifact", "dist/ 產物要保存。"],
+            ["從 wheel 安裝", "避免吃到本機 source。"],
+            ["跑 sample", "資料工具必須測實際資料流。"]
+          ]
+        },
+        {
+          id: "pkg-pyinstaller",
+          tag: "PyInstaller",
+          title: "Pandas CLI 打包成執行檔",
+          visual: "package",
+          summary: "PyInstaller 打 pandas app 時，常見風險是 hidden imports、資料檔、Excel/Parquet engine 與 shared libraries。先 onedir，再 onefile。",
+          table: ["執行檔", "`pyinstaller --onedir app.py`", "內部報表工具、無 Python 環境交付", "只測 --help 沒測 read_csv/read_parquet"],
+          code: String.raw`pyinstaller --name report-tool --onedir app.py
+./dist/report-tool/report-tool --version
+./dist/report-tool/report-tool run samples/orders.csv --out /tmp/report.json`,
+          output: "report-tool 0.1.0\nprocessed 100 rows",
+          steps: [
+            ["先 onedir", "看清楚 pandas/NumPy/pyarrow 相關 binary 是否收進去。"],
+            ["測 I/O", "CSV、Excel、Parquet 都要按支援矩陣測。"],
+            ["目標機驗收", "打包機成功不代表使用者機器成功。"]
+          ]
+        },
+        {
+          id: "pkg-lock",
+          tag: "lock",
+          title: "版本鎖定與相容性",
+          visual: "lock",
+          summary: "pandas、NumPy、pyarrow、openpyxl 版本會影響 dtype、I/O 與效能。正式交付要有 lock 或環境文件。",
+          table: ["可重現", "`requirements.txt`, `uv.lock`, `environment.yml`", "CI、教學範例、資料產品 release", "半年後重跑報表結果或 dtype 不同"],
+          code: String.raw`python -m pip freeze > requirements.txt
+python -m pip install -r requirements.txt
+
+python - <<'PY'
+import pandas as pd
+print(pd.__version__)
+pd.show_versions()
+PY`,
+          output: "輸出 pandas 版本與相關依賴版本，方便 issue 排查。",
+          steps: [
+            ["鎖住可重現", "資料報表需要可重跑。"],
+            ["記錄 show_versions", "pandas issue 排查需要依賴版本。"],
+            ["升級要測", "版本鎖定不是永不升級，而是升級有驗收。"]
+          ]
+        }
+      ],
+      cases: [
+        {
+          id: "case-orders-etl",
+          tag: "Case 1",
+          title: "訂單 CSV 清洗成 Parquet",
+          visual: "flow",
+          summary: "把外部 orders.csv 讀入、驗欄位、轉日期、過濾壞資料、輸出 Parquet，並產生品質摘要。",
+          table: ["ETL slice", "read_csv -> validate -> clean -> to_parquet", "每日批次報表、資料湖入口", "沒有品質摘要與 sample 驗收"],
+          code: String.raw`df = pd.read_csv("orders.csv", dtype={"order_id": "string", "amount": "float64"})
+required = {"order_id", "created_at", "amount"}
+missing = required - set(df.columns)
+if missing:
+    raise ValueError(f"missing columns: {missing}")
+
+df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
+clean = df.loc[df["amount"].notna()].copy()
+clean.to_parquet("orders_clean.parquet", index=False)`,
+          output: "orders_clean.parquet 產生，缺欄位或 amount 缺值過高可 fail fast。",
+          steps: [
+            ["固定 dtype", "入口控制 schema。"],
+            ["驗 required columns", "缺欄位立即失敗。"],
+            ["輸出 Parquet", "下游可欄位裁剪、快速讀取。"]
+          ]
+        },
+        {
+          id: "case-revenue-dashboard",
+          tag: "Case 2",
+          title: "營收 dashboard feed",
+          visual: "json",
+          summary: "把訂單資料按國家與月份彙總，輸出 records JSON 給前端 dashboard。",
+          table: ["資料產品", "groupby -> JSON records", "營運 dashboard、API feed", "輸出 schema 未測，前端欄位壞掉"],
+          code: String.raw`df["month"] = pd.to_datetime(df["created_at"], utc=True).dt.to_period("M").astype(str)
+summary = (
+    df.groupby(["country", "month"], dropna=False)
+      .agg(revenue=("amount", "sum"), orders=("order_id", "nunique"))
+      .reset_index()
+)
+payload = summary.to_dict(orient="records")`,
+          output: "[{'country': 'TW', 'month': '2026-05', 'revenue': 1200.0, 'orders': 8}]",
+          steps: [
+            ["定 group keys", "country/month 是 dashboard 維度。"],
+            ["命名聚合", "輸出欄位明確。"],
+            ["測 JSON schema", "前端依賴欄位不能任意改。"]
+          ]
+        },
+        {
+          id: "case-join-quality",
+          tag: "Case 3",
+          title: "客戶維度表 join 品質檢查",
+          visual: "join",
+          summary: "訂單 join 客戶維度表前，先驗 customer_id 唯一性；join 後計算 unmatched ratio。",
+          table: ["資料品質", "merge validate + indicator", "維度表、主資料管理、報表補維度", "dimension key 重複造成 row explosion"],
+          code: String.raw`enriched = orders.merge(
+    customers[["customer_id", "segment"]],
+    on="customer_id",
+    how="left",
+    validate="many_to_one",
+    indicator=True,
+)
+
+unmatched_ratio = (enriched["_merge"] == "left_only").mean()
+if unmatched_ratio > 0.01:
+    raise ValueError(f"customer unmatched too high: {unmatched_ratio:.2%}")`,
+          output: "customers 若 customer_id 重複會報錯；unmatched 超過 1% 也會 fail。",
+          steps: [
+            ["validate many_to_one", "保護 join cardinality。"],
+            ["indicator 追蹤", "知道哪些 row 沒匹配。"],
+            ["設品質門檻", "unmatched 比例太高就阻擋報表。"]
+          ]
+        },
+        {
+          id: "case-cli-package",
+          tag: "Case 4",
+          title: "Pandas 報表 CLI 打包",
+          visual: "package",
+          summary: "建立 `report-tool`：讀 CSV、產 JSON、支援 parquet extra，打包成 wheel 或 PyInstaller 執行檔並用 sample 驗收。",
+          table: ["交付案例", "CLI -> read_csv -> summary -> json", "內部營運工具、每日批次報表", "只測本機 source，沒測 wheel/exe"],
+          code: String.raw`# release smoke test
+python -m build
+python -m pip install dist/report_tool-*.whl --force-reinstall
+report-tool run samples/orders.csv --out /tmp/report.json
+
+pyinstaller --name report-tool --onedir app.py
+./dist/report-tool/report-tool run samples/orders.csv --out /tmp/report.json`,
+          output: "processed samples/orders.csv -> /tmp/report.json",
+          steps: [
+            ["wheel 驗收", "安裝產物後跑 sample。"],
+            ["exe 驗收", "PyInstaller 產物也跑同一份 sample。"],
+            ["保留 artifact", "sample input/output、報告與產物都留存。"]
+          ]
+        }
+      ]
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const palette = {
+        table: ["#f8e6ef", "#b54879"], index: ["#e7f0fb", "#2f6fbb"], decision: ["#eee9f8", "#7257a8"],
+        terminal: ["#e7f0fb", "#2f6fbb"], package: ["#fae8e8", "#c34848"], file: ["#fff4cf", "#c79a14"],
+        chunk: ["#e6f5ef", "#2d8a69"], parquet: ["#e1f6f8", "#0f8794"], test: ["#eee9f8", "#7257a8"],
+        chart: ["#e7f0fb", "#2f6fbb"], schema: ["#f8e6ef", "#b54879"], filter: ["#fff4cf", "#c79a14"],
+        missing: ["#fae8e8", "#c34848"], pipe: ["#e6f5ef", "#2d8a69"], group: ["#e7f0fb", "#2f6fbb"],
+        join: ["#eee9f8", "#7257a8"], pivot: ["#fff4cf", "#c79a14"], time: ["#e1f6f8", "#0f8794"],
+        memory: ["#e6f5ef", "#2d8a69"], speed: ["#e7f0fb", "#2f6fbb"], flow: ["#e6f5ef", "#2d8a69"],
+        check: ["#e1f6f8", "#0f8794"], database: ["#eee9f8", "#7257a8"], json: ["#fff4cf", "#c79a14"],
+        wheel: ["#fff4cf", "#c79a14"], lock: ["#e6f5ef", "#2d8a69"]
+      };
+      const [soft, stroke] = palette[type] || palette.table;
+      const arrow = `<polygon points="210,84 246,102 210,120" fill="${stroke}"/>`;
+      const shapes = {
+        table: `<rect x="42" y="50" width="224" height="96" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M42 82h224M42 114h224M100 50v96M170 50v96" stroke="${stroke}" stroke-width="2"/><text x="154" y="170" text-anchor="middle">DataFrame</text>`,
+        index: `<rect x="64" y="48" width="54" height="104" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="128" y="48" width="118" height="104" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="91" y="105" text-anchor="middle">idx</text><text x="187" y="105" text-anchor="middle">values</text>`,
+        decision: `<polygon points="156,34 256,92 156,150 56,92" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="156" y="88" text-anchor="middle">memory?</text><text x="156" y="115" text-anchor="middle">schema?</text>`,
+        terminal: `<rect x="34" y="48" width="242" height="98" rx="10" fill="#101827" stroke="${stroke}" stroke-width="3"/><text x="56" y="86" fill="#dff7ed">$ pip install</text><text x="56" y="116" fill="#dff7ed">import pandas</text>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="158" y="101" text-anchor="middle">dist/</text><text x="158" y="128" text-anchor="middle">tool</text>`,
+        file: `<path d="M76 38h110l44 44v84H76z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M186 38v44h44" fill="none" stroke="${stroke}" stroke-width="3"/><text x="153" y="116" text-anchor="middle">csv</text>`,
+        chunk: `<rect x="42" y="58" width="64" height="66" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="122" y="58" width="64" height="66" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="202" y="58" width="64" height="66" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="154" y="160" text-anchor="middle">chunks</text>`,
+        parquet: `<rect x="56" y="50" width="198" height="96" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 80h138M86 108h98" stroke="${stroke}" stroke-width="5"/><text x="155" y="170" text-anchor="middle">parquet</text>`,
+        test: `<path d="M56 45h172v96H56z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M85 82l28 28 72-70" fill="none" stroke="${stroke}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="142" y="132" text-anchor="middle">pytest</text>`,
+        chart: `<rect x="44" y="42" width="222" height="116" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M78 130V76M128 130V58M178 130V94M228 130V70" stroke="${stroke}" stroke-width="16"/><text x="155" y="178" text-anchor="middle">profile</text>`,
+        schema: `<rect x="52" y="46" width="206" height="106" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 76h138M86 106h138M86 136h88" stroke="${stroke}" stroke-width="5"/><text x="155" y="176" text-anchor="middle">schema</text>`,
+        filter: `<rect x="46" y="54" width="218" height="80" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="90" cy="94" r="14" fill="${stroke}"/><circle cx="140" cy="94" r="14" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="190" cy="94" r="14" fill="${stroke}"/><text x="155" y="164" text-anchor="middle">filter</text>`,
+        missing: `<rect x="50" y="58" width="210" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="90" y="104" text-anchor="middle">NA</text><text x="155" y="104" text-anchor="middle">?</text><text x="222" y="104" text-anchor="middle">fill</text>`,
+        pipe: `<rect x="40" y="58" width="74" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="77" y="94" text-anchor="middle">pipe</text><line x1="120" y1="88" x2="184" y2="88" stroke="${stroke}" stroke-width="4"/><rect x="196" y="58" width="74" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="233" y="94" text-anchor="middle">assign</text>${arrow}`,
+        group: `<circle cx="92" cy="92" r="32" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="156" cy="92" r="32" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="220" cy="92" r="32" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="156" y="164" text-anchor="middle">groupby</text>`,
+        join: `<rect x="42" y="54" width="90" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="178" y="54" width="90" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><line x1="136" y1="92" x2="174" y2="92" stroke="${stroke}" stroke-width="4"/><text x="87" y="98" text-anchor="middle">left</text><text x="223" y="98" text-anchor="middle">right</text>`,
+        pivot: `<rect x="48" y="48" width="212" height="104" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M48 82h212M112 48v104M184 48v104" stroke="${stroke}" stroke-width="2"/><path d="M88 128h124" stroke="${stroke}" stroke-width="6"/><text x="154" y="174" text-anchor="middle">pivot</text>`,
+        time: `<circle cx="156" cy="96" r="54" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M156 62v36l30 18" stroke="${stroke}" stroke-width="5" stroke-linecap="round"/><text x="156" y="174" text-anchor="middle">datetime</text>`,
+        memory: `<rect x="42" y="62" width="226" height="70" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 62v70M130 62v70M174 62v70M218 62v70" stroke="${stroke}" stroke-width="2"/><text x="155" y="158" text-anchor="middle">category</text>`,
+        speed: `<path d="M64 132c22-54 64-82 126-82 32 0 58 8 82 25" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/><path d="M154 102l62-48" stroke="${stroke}" stroke-width="7" stroke-linecap="round"/><circle cx="154" cy="103" r="10" fill="${stroke}"/><text x="154" y="165" text-anchor="middle">vectorize</text>`,
+        flow: `<rect x="40" y="58" width="66" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="73" y="94" text-anchor="middle">csv</text><line x1="112" y1="88" x2="174" y2="88" stroke="${stroke}" stroke-width="4"/><rect x="190" y="58" width="80" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="230" y="94" text-anchor="middle">parquet</text>${arrow}`,
+        check: `<path d="M56 45h172v96H56z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M85 82l28 28 72-70" fill="none" stroke="${stroke}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="142" y="132" text-anchor="middle">quality</text>`,
+        database: `<ellipse cx="156" cy="62" rx="86" ry="26" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M70 62v72c0 14 38 26 86 26s86-12 86-26V62" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="156" y="119" text-anchor="middle">SQL</text>`,
+        json: `<path d="M76 38h110l44 44v84H76z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M186 38v44h44" fill="none" stroke="${stroke}" stroke-width="3"/><text x="153" y="116" text-anchor="middle">json</text>`,
+        wheel: `<circle cx="155" cy="90" r="58" fill="#fff" stroke="${stroke}" stroke-width="4"/><circle cx="155" cy="90" r="18" fill="${soft}" stroke="${stroke}" stroke-width="3"/><text x="155" y="170" text-anchor="middle">wheel</text>`,
+        lock: `<rect x="70" y="78" width="170" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M112 78V58c0-24 86-24 86 0v20" fill="none" stroke="${stroke}" stroke-width="5"/><text x="155" y="124" text-anchor="middle">lock</text>`
+      };
+      return `<svg viewBox="0 0 310 190" role="img" aria-label="${escapeHtml(title)} 圖示">
+        <rect x="6" y="10" width="298" height="170" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="#172033">${shapes[type]}</g>
+      </svg>`;
+    }
+
+    function renderLessons() {
+      document.querySelectorAll("[data-group]").forEach((section) => {
+        const group = lessonGroups[section.dataset.group] || [];
+        const root = section.querySelector(".cards");
+        root.innerHTML = group.map((lesson, index) => `
+          <article class="lesson-card lesson-item" id="${escapeHtml(lesson.id)}" data-lesson-id="${escapeHtml(lesson.id)}" data-search="${escapeHtml([lesson.title, lesson.tag, lesson.summary, lesson.table.join(" "), lesson.code].join(" "))}">
+            <div class="lesson-top">
+              <div class="visual-small">${visualSvg(lesson.visual, lesson.title)}</div>
+              <div class="lesson-title">
+                <span class="tag">${escapeHtml(lesson.tag)}</span>
+                <h3>${index + 1}. ${escapeHtml(lesson.title)}</h3>
+                <p class="summary">${escapeHtml(lesson.summary)}</p>
+                <div class="card-actions">
+                  <label class="complete-toggle"><input type="checkbox" data-complete="${escapeHtml(lesson.id)}">完成</label>
+                  <a class="button" href="#${escapeHtml(lesson.id)}">定位</a>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>格式 / Pattern</th><th>適用情境</th><th>常見錯誤</th></tr></thead>
+                <tbody><tr>${lesson.table.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="code-head">
+                <strong>範例 / 指令</strong>
+                <button class="button output-toggle" type="button" data-output="out-${escapeHtml(lesson.id)}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(lesson.code)}</pre>
+              <pre class="output" id="out-${escapeHtml(lesson.id)}">${escapeHtml(lesson.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(lesson.title)} step-by-step">
+              ${lesson.steps.map((step, stepIndex) => {
+                const panelId = `${lesson.id}-step-${stepIndex + 1}`;
+                return `
+                  <div class="step">
+                    <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">
+                      <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="step-panel" id="${escapeHtml(panelId)}">${escapeHtml(step[1])}</div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </article>
+        `).join("");
+      });
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-pandas-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      document.querySelectorAll("#progressSummary, #progressSummaryMobile").forEach((el) => {
+        el.textContent = `完成 ${done} / ${total}`;
+      });
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(checkbox.dataset.complete);
+        } else {
+          completed.delete(checkbox.dataset.complete);
+        }
+        localStorage.setItem("python-pandas-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `pandas-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    function bindBackToTop() {
+      const button = document.querySelector(".back-to-top");
+      if (!button) return;
+      const toggle = () => button.classList.toggle("is-visible", window.scrollY > 420);
+      button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      window.addEventListener("scroll", toggle, { passive: true });
+      toggle();
+    }
+
+    renderLessons();
+    enhanceCodeBlocks();
+    bindInteractions();
+    bindBackToTop();
+    updateProgress();
+  </script>
+</body>
+</html>

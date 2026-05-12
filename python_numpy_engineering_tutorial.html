@@ -1,0 +1,1650 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NumPy 工程視覺教學 - ndarray、指令、應用、效能與打包</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --cyan: #0f8794;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --soft-cyan: #e1f6f8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      grid-template-columns: 2.75rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      text-decoration: none;
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .brand-copy { display: grid; gap: 0.18rem; min-width: 0; }
+    .brand strong { font-size: 1rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 800; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-cyan); color: var(--ink); outline: none; }
+    .progress-box {
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft-cyan);
+      color: var(--cyan);
+      font-weight: 950;
+      text-align: center;
+    }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2rem;
+      padding: 0.32rem 0.64rem;
+      border: 1px solid rgba(15,135,148,0.28);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.74);
+      color: var(--cyan);
+      font-weight: 950;
+      font-size: 0.9rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    h2, h3 { letter-spacing: 0; }
+    .hero p, .lead { color: var(--muted); max-width: 58rem; margin: 0; }
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+    .status-strip span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.1rem;
+      padding: 0.25rem 0.58rem;
+      border-radius: 6px;
+      background: var(--soft-cyan);
+      color: var(--cyan);
+      font-weight: 900;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--cyan); color: white; border-color: #0c737e; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem);
+      scroll-margin-top: 1rem;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      line-height: 1.1;
+    }
+    .section-head p { margin-top: 0.45rem; color: var(--muted); max-width: 66rem; }
+    .tool-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 5vw, 4.8rem);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+    }
+    .search {
+      min-height: 2.8rem;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 0.85rem;
+      font: inherit;
+      font-weight: 750;
+      color: var(--ink);
+      background: white;
+    }
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .quick-links a {
+      display: grid;
+      place-items: center;
+      min-height: 3rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      color: var(--cyan);
+      box-shadow: var(--shadow);
+      font-weight: 950;
+      text-decoration: none;
+      text-align: center;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .lesson-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 0.9rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .lesson-card.hidden-by-search { display: none; }
+    .lesson-top {
+      display: grid;
+      grid-template-columns: 9rem minmax(0, 1fr);
+      gap: 1rem;
+      align-items: center;
+    }
+    .visual-small {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fbfe;
+      min-height: 7rem;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .visual-small svg { width: 100%; height: auto; display: block; }
+    .lesson-title h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.22;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.9rem;
+      margin-bottom: 0.45rem;
+      padding: 0.18rem 0.52rem;
+      border-radius: 6px;
+      background: var(--soft-cyan);
+      color: var(--cyan);
+      font-weight: 950;
+      font-size: 0.82rem;
+    }
+    .summary { color: var(--muted); margin: 0; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.65rem; }
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.66rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .complete-toggle input { width: 1rem; height: 1rem; }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 42rem; }
+    th, td {
+      padding: 0.72rem 0.78rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--soft-cyan); color: var(--ink); font-weight: 950; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    pre {
+      margin: 0;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+      margin: 0.3rem 0 0.4rem;
+    }
+    .code, .output {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #101827;
+      color: #e9f1ff;
+    }
+    .output {
+      display: none;
+      margin-top: 0.45rem;
+      background: #0f2c24;
+      color: #dff7ed;
+    }
+    .output.is-open { display: block; }
+    .code-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.35rem;
+    }
+    .copy-code {
+      min-height: 2rem;
+      padding: 0.28rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .steps { display: grid; gap: 0.52rem; margin-top: 0.2rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.68rem 0.78rem;
+      border: 0;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 950;
+      text-align: left;
+      cursor: pointer;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; min-width: 0; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 2.4rem;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 8px;
+      background: var(--soft-yellow);
+      color: #765800;
+      font-weight: 950;
+      line-height: 1;
+      text-align: center;
+    }
+    .step-panel {
+      display: none;
+      padding: 0 0.78rem 0.82rem 3.78rem;
+      color: var(--muted);
+    }
+    .step.is-open .step-panel { display: block; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+    .mini {
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+    }
+    .mini strong { display: block; margin-bottom: 0.25rem; }
+    .mini span { color: var(--muted); }
+    .back-to-top {
+      position: fixed;
+      right: clamp(1rem, 3vw, 1.6rem);
+      bottom: clamp(1rem, 3vw, 1.6rem);
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.15rem;
+      height: 3.15rem;
+      border: 1px solid rgba(15,135,148,0.32);
+      border-radius: 50%;
+      background: var(--cyan);
+      color: white;
+      box-shadow: 0 16px 34px rgba(23, 32, 51, 0.22);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.6rem);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .back-to-top.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-to-top svg { width: 1.25rem; height: 1.25rem; }
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .matrix, .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .lesson-top { grid-template-columns: 1fr; }
+      .visual-small { min-height: 8.5rem; }
+      .tool-panel { grid-template-columns: 1fr; }
+      .section-head { display: grid; align-items: start; }
+      .matrix, .quick-links { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+      h1 { max-width: 12ch; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="#top">首頁</a>
+    <a href="#map">心智圖</a>
+    <a href="#intro">簡介</a>
+    <a href="#commands">指令</a>
+    <a href="#arrays">核心語法</a>
+    <a href="#applications">應用</a>
+    <a href="#packaging">打包</a>
+    <a href="#cases">案例</a>
+    <a href="#checklist">檢查表</a>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="側邊導覽">
+      <a class="brand" href="#top" aria-label="回到 NumPy 教材首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 40 40" role="img" aria-label="NumPy icon">
+            <rect x="4" y="4" width="32" height="32" rx="9" fill="#172033"></rect>
+            <path d="M10 26V12l7 3.6V30z" fill="#62d1dc"></path>
+            <path d="M18 30V16l12-6v14z" fill="#f7c948"></path>
+            <path d="M22 28v-9l8-4v9z" fill="#7ed7a8"></path>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>NumPy 工程專題</strong>
+          <span>ndarray to Production</span>
+        </span>
+      </a>
+      <nav class="nav" aria-label="主要章節">
+        <a href="#map">互動式心智圖</a>
+        <a href="#intro">NumPy 簡介</a>
+        <a href="#commands">指令與參數</a>
+        <a href="#arrays">ndarray 核心語法</a>
+        <a href="#applications">詳細應用</a>
+        <a href="#packaging">打包交付</a>
+        <a href="#cases">專案案例</a>
+        <a href="#checklist">上線檢查表</a>
+        <a href="index.html">回教材入口</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">獨立篇幅 · NumPy</span>
+          <h1>NumPy 指令、ndarray、應用與打包實戰</h1>
+          <p>用專案工程角度學 NumPy：看懂 `shape`、`dtype`、`axis`、broadcasting、view/copy、I/O 與效能邊界，最後能把依賴 NumPy 的工具打包、測試、部署。</p>
+          <div class="status-strip" aria-label="教材狀態">
+            <span>v0.9.0</span>
+            <span>32 個互動教學卡</span>
+            <span>心智圖 / 指令 / 語法 / 應用 / 打包 / 範例專案</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#map">看心智圖</a>
+            <a class="button green" href="#commands">看指令參數</a>
+            <a class="button" href="#sample-project">看範例專案</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="NumPy ndarray 資料流總覽" aria-describedby="heroDesc">
+            <desc id="heroDesc">資料從 Python list 進入 ndarray，透過 dtype、shape、ufunc、axis 與 broadcasting 形成向量化計算，再輸出成模型、報表或檔案。</desc>
+            <rect x="28" y="38" width="704" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="70" y="120" width="130" height="92" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+            <text x="135" y="158" text-anchor="middle" font-size="24" font-weight="900" fill="#172033">list</text>
+            <text x="135" y="188" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">raw data</text>
+            <line x1="214" y1="166" x2="270" y2="166" stroke="#0f8794" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="270,146 310,166 270,186" fill="#0f8794"></polygon>
+            <rect x="322" y="94" width="168" height="144" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="3"></rect>
+            <text x="406" y="138" text-anchor="middle" font-size="28" font-weight="900" fill="#172033">ndarray</text>
+            <text x="406" y="172" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">shape / dtype</text>
+            <text x="406" y="202" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">axis / stride</text>
+            <line x1="502" y1="166" x2="558" y2="166" stroke="#0f8794" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="558,146 598,166 558,186" fill="#0f8794"></polygon>
+            <rect x="610" y="120" width="98" height="92" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+            <text x="659" y="158" text-anchor="middle" font-size="21" font-weight="900" fill="#172033">result</text>
+            <text x="659" y="188" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">model / file</text>
+            <path d="M130 258c80 54 410 54 540 0" fill="none" stroke="#7257a8" stroke-width="4" stroke-dasharray="10 8"></path>
+            <text x="384" y="318" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">工程重點：資料形狀固定 -> 向量化 -> 測 memory -> package 驗收</text>
+          </svg>
+        </div>
+      </section>
+
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：pip install、ndarray、shape、dtype、axis、broadcasting、ufunc、npy、wheel、PyInstaller">
+        <span class="progress-box" id="progressSummaryMobile">完成 0 / 32</span>
+      </div>
+
+      <section class="section-block" id="sample-project">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">v0.9.0 範例專案</span>
+            <h2>從 ndarray 教材走到可驗收程式碼</h2>
+            <p>對照 `範例程式碼/numpy_feature_pipeline/`：固定 CSV schema，轉成 `float32` 特徵矩陣，輸出 `.npy` cache 與 JSON 統計，並以測試保護 shape、dtype、NaN policy 與 CLI 邊界。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="mini"><strong>src boundary</strong><span>`src/numpy_feature_pipeline/pipeline.py` 保留純函式，CLI 只負責參數與 I/O。</span></div>
+          <div class="mini"><strong>sample data</strong><span>`samples/features.csv` 是 wheel、CLI、PyInstaller smoke test 共用輸入。</span></div>
+          <div class="mini"><strong>tests</strong><span>`tests/test_pipeline.py` 驗 shape、dtype、統計欄位與錯誤路徑。</span></div>
+          <div class="mini"><strong>handoff</strong><span><a href="範例程式碼/numpy_feature_pipeline/README.md">開啟 NumPy 範例 README</a></span></div>
+        </div>
+      </section>
+
+      <section class="section-block" id="map">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">互動式心智圖</span>
+            <h2>NumPy 從資料到交付</h2>
+            <p>心智圖可以直接點進主題。讀法很簡單：先理解 array model，再學 indexing、broadcasting、ufunc、I/O、效能，最後補 packaging 與 project slice。</p>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 1080 620" role="img" aria-label="NumPy 互動式心智圖" aria-describedby="mindDesc">
+            <desc id="mindDesc">NumPy 主題包含 intro、commands、arrays、applications、packaging、cases、checklist。</desc>
+            <rect x="28" y="38" width="1024" height="522" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <circle cx="540" cy="292" r="82" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></circle>
+            <text x="540" y="283" text-anchor="middle" font-size="30" font-weight="950">NumPy</text>
+            <text x="540" y="318" text-anchor="middle" font-size="16" font-weight="850" fill="#5d6b7d">ndarray mental model</text>
+
+            <line x1="468" y1="252" x2="250" y2="138" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="540" y1="210" x2="540" y2="116" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="612" y1="252" x2="830" y2="138" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="622" y1="332" x2="840" y2="454" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="540" y1="374" x2="540" y2="486" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+            <line x1="458" y1="332" x2="240" y2="454" stroke="#0f8794" stroke-width="5" stroke-linecap="round"></line>
+
+            <a href="#intro"><rect x="96" y="78" width="230" height="104" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text x="211" y="119" text-anchor="middle" font-size="24" font-weight="900">簡介</text><text x="211" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">array / dtype / shape</text></a>
+            <a href="#commands"><rect x="425" y="64" width="230" height="104" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect><text x="540" y="105" text-anchor="middle" font-size="24" font-weight="900">指令</text><text x="540" y="137" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">install / check / config</text></a>
+            <a href="#arrays"><rect x="754" y="78" width="230" height="104" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text x="869" y="119" text-anchor="middle" font-size="24" font-weight="900">核心語法</text><text x="869" y="151" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">index / axis / ufunc</text></a>
+            <a href="#applications"><rect x="764" y="416" width="230" height="104" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect><text x="879" y="457" text-anchor="middle" font-size="24" font-weight="900">應用</text><text x="879" y="489" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">ETL / image / finance</text></a>
+            <a href="#packaging"><rect x="425" y="458" width="230" height="104" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect><text x="540" y="499" text-anchor="middle" font-size="24" font-weight="900">打包</text><text x="540" y="531" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">pyproject / wheel / exe</text></a>
+            <a href="#cases"><rect x="86" y="416" width="230" height="104" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="3"></rect><text x="201" y="457" text-anchor="middle" font-size="24" font-weight="900">案例</text><text x="201" y="489" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">production slices</text></a>
+          </svg>
+        </div>
+        <div class="quick-links" aria-label="主題快選">
+          <a href="#intro">NumPy 簡介</a>
+          <a href="#commands">指令參數</a>
+          <a href="#arrays">核心語法</a>
+          <a href="#applications">詳細應用</a>
+          <a href="#packaging">打包交付</a>
+          <a href="#cases">實戰案例</a>
+        </div>
+      </section>
+
+      <section class="section-block" id="intro" data-group="intro">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">NumPy 簡介</span>
+            <h2>先把 ndarray 想清楚</h2>
+            <p>NumPy 的核心不是「很多函式」，而是 homogeneous N-dimensional array：固定 dtype、固定 shape、連續或有 stride 的資料區塊，再用 C-level loop 做向量化運算。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="commands" data-group="commands">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">指令說明</span>
+            <h2>安裝、檢查、環境與診斷</h2>
+            <p>NumPy 沒有像 Cython 那樣的主要 CLI，但工程上會反覆用 pip/conda/uv、`python -c`、`np.show_config()`、pytest 與 build 指令來驗證環境與交付。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>指令 / 參數</th><th>用途</th><th>適用時機</th><th>常見錯誤</th></tr></thead>
+            <tbody>
+              <tr><td><code>python -m pip install numpy</code></td><td>安裝 NumPy 到目前 Python 環境</td><td>一般 venv / CI</td><td>用了錯的 Python 或裝到 base 環境</td></tr>
+              <tr><td><code>conda install numpy</code></td><td>由 conda 管理 Python 與 native library</td><td>科學運算、需要 MKL/OpenBLAS/CUDA 相關依賴</td><td>混用 pip/conda 造成 ABI 或依賴混亂</td></tr>
+              <tr><td><code>python -c "import numpy as np; print(np.__version__)"</code></td><td>驗證 import 與版本</td><td>安裝後 smoke test</td><td>只看 pip success 沒真的 import</td></tr>
+              <tr><td><code>np.show_config()</code></td><td>檢查 BLAS/LAPACK 與 build 設定</td><td>效能或部署差異排查</td><td>不同平台線性代數效能差異未記錄</td></tr>
+              <tr><td><code>python -m build</code></td><td>打包依賴 NumPy 的專案</td><td>wheel / sdist release</td><td>漏寫 dependencies 或 build-system</td></tr>
+              <tr><td><code>pyinstaller --onedir app.py</code></td><td>把使用 NumPy 的工具打成執行檔</td><td>內部桌面工具、CLI 交付</td><td>漏掉 shared libraries 或 hidden imports</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="arrays" data-group="arrays">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">核心語法</span>
+            <h2>每個語法都搭配工程範例</h2>
+            <p>這章把初學常混淆的 shape、axis、broadcasting、view/copy、ufunc 與 I/O 拆開。資深專案最常見的 bug，往往不是公式錯，而是資料形狀或 copy 誤判。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="applications" data-group="applications">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">詳細應用</span>
+            <h2>從資料清洗到影像與金融特徵</h2>
+            <p>NumPy 適合 CPU 上大量 homogeneous 資料。若資料很小、規則很複雜、I/O 才是瓶頸，就不該盲目向量化。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="packaging" data-group="packaging">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">打包詳細介紹</span>
+            <h2>把依賴 NumPy 的工具交付出去</h2>
+            <p>交付 NumPy 專案時，要把 runtime dependency、wheel、PyInstaller、BLAS 差異、CI smoke test 與資料檔一起想清楚。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>打包層級</th><th>產物</th><th>命令</th><th>驗收</th></tr></thead>
+            <tbody>
+              <tr><td>專案依賴</td><td>pyproject metadata</td><td><code>dependencies = ["numpy>=2"]</code></td><td><code>pip install . && python -c "import app"</code></td></tr>
+              <tr><td>wheel</td><td>dist/*.whl</td><td><code>python -m build</code></td><td><code>pip install dist/*.whl --force-reinstall</code></td></tr>
+              <tr><td>執行檔</td><td>dist/app/</td><td><code>pyinstaller --onedir app.py</code></td><td>目標機啟動、import numpy、跑 sample input</td></tr>
+              <tr><td>數值一致性</td><td>測試報告</td><td><code>pytest -q</code></td><td>shape、dtype、tolerance、NaN policy 都固定</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="cases" data-group="cases">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">專案案例</span>
+            <h2>4 個 NumPy production slice</h2>
+            <p>每個案例包含問題、取捨、程式碼、預期輸出與 step-by-step。瀏覽器不執行 Python，只提供真實專案可落地的片段與驗收命令。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="checklist">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">上線檢查表</span>
+            <h2>NumPy 專案交付前 8 件事</h2>
+            <p>NumPy 專案的可靠性來自資料契約、數值容差、效能證據與交付驗收，不是只靠 `np.array` 寫起來比較短。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="mini"><strong>Shape contract</strong><span>輸入輸出 shape 寫進測試與錯誤訊息。</span></div>
+          <div class="mini"><strong>Dtype policy</strong><span>明確指定 int/float 精度，避免平台差異。</span></div>
+          <div class="mini"><strong>NaN policy</strong><span>定義缺值、inf、除以零的行為。</span></div>
+          <div class="mini"><strong>Copy budget</strong><span>確認 view/copy 與 peak memory。</span></div>
+          <div class="mini"><strong>Broadcast guard</strong><span>broadcasting 前先 assert shape。</span></div>
+          <div class="mini"><strong>Benchmark gate</strong><span>保留 baseline，不用感覺談效能。</span></div>
+          <div class="mini"><strong>Wheel smoke</strong><span>wheel 安裝後跑 import 與 sample data。</span></div>
+          <div class="mini"><strong>Runtime report</strong><span>記錄 NumPy version、BLAS 設定與平台。</span></div>
+        </div>
+      </section>
+
+      <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </main>
+  </div>
+
+  <script>
+    const lessonGroups = {
+      intro: [
+        {
+          id: "intro-ndarray",
+          tag: "ndarray",
+          title: "NumPy 是什麼",
+          visual: "cube",
+          summary: "NumPy 提供 homogeneous N-dimensional array，也就是 `ndarray`。它適合大量同型別資料，用 C-level loop 做快速運算。",
+          table: ["資料模型", "ndarray = data buffer + dtype + shape + strides", "科學運算、資料前處理、特徵工程", "把 NumPy 當成比較快的 Python list"],
+          code: String.raw`import numpy as np
+
+a = np.array([[1, 2, 3], [4, 5, 6]])
+print(a.shape)
+print(a.dtype)
+print(a.ndim)
+print(a.size)`,
+          output: "(2, 3)\nint64\n2\n6",
+          steps: [
+            ["看 shape", "`(2, 3)` 表示 2 列、3 欄。"],
+            ["看 dtype", "同一個 array 裡每個元素共用同一種資料型別。"],
+            ["看 size", "`size` 是總元素數，等於 shape 各維度相乘。"]
+          ]
+        },
+        {
+          id: "intro-mental-model",
+          tag: "Shape",
+          title: "shape、axis、dtype 心智模型",
+          visual: "axis",
+          summary: "專案中多數 NumPy bug 都跟 shape 或 axis 有關。先確認資料是 `(rows, columns)`、`(batch, features)` 還是 `(height, width, channel)`。",
+          table: ["資料契約", "`shape`, `ndim`, `dtype`, `axis`", "API 邊界、模型輸入、影像與矩陣", "axis=0/1 誤用導致統計方向錯"],
+          code: String.raw`import numpy as np
+
+x = np.array([[10, 20, 30],
+              [1, 2, 3]])
+
+print(x.sum(axis=0))
+print(x.sum(axis=1))`,
+          output: "[11 22 33]\n[60  6]",
+          steps: [
+            ["axis=0", "沿著列方向聚合，結果保留欄。"],
+            ["axis=1", "沿著欄方向聚合，結果保留列。"],
+            ["寫進命名", "用 `batch_features`、`height_width_channel` 這類命名降低誤用。"]
+          ]
+        },
+        {
+          id: "intro-when-not",
+          tag: "Decision",
+          title: "什麼時候不該用 NumPy",
+          visual: "decision",
+          summary: "NumPy 擅長大量同型別數值資料；若資料很小、規則分支很多、主要瓶頸是網路或資料庫，NumPy 未必是主解。",
+          table: ["選型判斷", "profile -> data shape -> vectorize -> benchmark", "CPU-bound homogeneous arrays", "為了看起來高級而強行向量化"],
+          code: String.raw`# 先量測，再決定是否改成 NumPy
+python -m cProfile -o profile.out app.py
+python -m pstats profile.out
+
+# I/O-bound 任務先處理批次、索引、快取或並發`,
+          output: "如果時間花在 requests/db/file I/O，NumPy 不會神奇加速。",
+          steps: [
+            ["先 profile", "找出真正慢的地方。"],
+            ["看資料形狀", "資料要能變成固定 dtype/shape 才有 NumPy 優勢。"],
+            ["看維護成本", "向量化太隱晦時，可能比 for-loop 更難 review。"]
+          ]
+        }
+      ],
+      commands: [
+        {
+          id: "cmd-install-pip",
+          tag: "pip",
+          title: "pip 安裝與版本檢查",
+          visual: "terminal",
+          summary: "使用 `python -m pip` 可以確保 pip 對應目前 Python。安裝後一定要 import 與印版本，避免裝到錯環境。",
+          table: ["安裝", "`python -m pip install numpy`", "venv、CI、一般 Python 專案", "直接用 pip 指到另一個 Python"],
+          code: String.raw`python -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install numpy
+python -c "import numpy as np; print(np.__version__)"`,
+          output: "2.x.x",
+          steps: [
+            ["建 venv", "隔離專案依賴，不污染系統 Python。"],
+            ["用 python -m pip", "確定 pip 裝到目前 interpreter。"],
+            ["import 驗收", "安裝成功不等於 runtime import 一定成功。"]
+          ]
+        },
+        {
+          id: "cmd-conda",
+          tag: "conda",
+          title: "conda 環境安裝",
+          visual: "package",
+          summary: "conda 會一起管理 Python 與 native libraries，適合科學運算環境與較複雜的非 Python 依賴。",
+          table: ["環境管理", "`conda create -n np-env python=3.12 numpy`", "需要 BLAS、編譯器、科學運算套件組", "混用 pip/conda 後沒紀錄來源"],
+          code: String.raw`conda create -n np-env python=3.12 numpy
+conda activate np-env
+python -c "import numpy as np; print(np.__version__)"`,
+          output: "2.x.x",
+          steps: [
+            ["環境先行", "不要直接在 base 環境做專案。"],
+            ["記錄 channel", "defaults 或 conda-forge 要固定，避免重建環境不同。"],
+            ["CI 對齊", "部署使用 conda 時，CI 也要用同樣方式測。"]
+          ]
+        },
+        {
+          id: "cmd-uv-pixi",
+          tag: "uv / pixi",
+          title: "專案式安裝工作流",
+          visual: "flow",
+          summary: "官方安裝頁也把 uv、pixi 這類 project-based workflow 列為新使用者可考慮的路線。重點是把依賴寫進專案，而不是口頭記憶。",
+          table: ["專案依賴", "`uv pip install numpy` / `pixi add numpy`", "新專案、需要可重建環境", "只在本機手動裝，沒有 lock 或設定檔"],
+          code: String.raw`uv venv
+uv pip install numpy
+python -c "import numpy as np; print(np.arange(3))"
+
+pixi add numpy
+pixi run python -c "import numpy as np; print(np.arange(3))"`,
+          output: "[0 1 2]",
+          steps: [
+            ["選一套工具", "團隊內不要同時混用多套環境流程。"],
+            ["依賴進專案", "讓同事與 CI 能重建。"],
+            ["保留 smoke test", "建立環境後立刻 import NumPy。"]
+          ]
+        },
+        {
+          id: "cmd-show-config",
+          tag: "show_config",
+          title: "檢查 BLAS / LAPACK 設定",
+          visual: "config",
+          summary: "`np.show_config()` 可顯示 NumPy build 與線性代數 backend。效能或部署差異時，這是第一個診斷入口。",
+          table: ["環境診斷", "`python -c \"import numpy as np; np.show_config()\"`", "不同機器速度差、線性代數問題", "只比較時間，不記錄 backend"],
+          code: String.raw`python -c "import numpy as np; np.show_config()"
+
+# release log 建議記錄
+python - <<'PY'
+import platform, numpy as np
+print(platform.platform())
+print(np.__version__)
+np.show_config()
+PY`,
+          output: "NumPy version、compiler、BLAS/LAPACK 或 SIMD 資訊會依平台不同。",
+          steps: [
+            ["記錄版本", "效能報告要包含 NumPy 與 Python 版本。"],
+            ["記錄 backend", "OpenBLAS/MKL/Accelerate 可能造成速度差。"],
+            ["用同資料比較", "不同 backend 要用同一份 benchmark input。"]
+          ]
+        },
+        {
+          id: "cmd-test",
+          tag: "pytest",
+          title: "數值測試與 tolerance",
+          visual: "test",
+          summary: "NumPy 專案測試不只 assert equal。浮點結果要用 `np.testing.assert_allclose`，並把 tolerance 寫清楚。",
+          table: ["測試指令", "`pytest -q`", "數值演算法、資料前處理、模型特徵", "用 `==` 比較浮點 array"],
+          code: String.raw`import numpy as np
+
+def normalize(x):
+    return (x - x.mean()) / x.std()
+
+def test_normalize():
+    out = normalize(np.array([1.0, 2.0, 3.0]))
+    np.testing.assert_allclose(out.mean(), 0.0, atol=1e-12)
+    np.testing.assert_allclose(out.std(), 1.0, atol=1e-12)`,
+          output: "pytest -q\n1 passed",
+          steps: [
+            ["固定 tolerance", "浮點測試要說明可接受誤差。"],
+            ["測 shape", "除了值，也要測輸出 shape。"],
+            ["測特殊值", "NaN、inf、空 array 要有策略。"]
+          ]
+        },
+        {
+          id: "cmd-benchmark",
+          tag: "benchmark",
+          title: "效能量測指令",
+          visual: "chart",
+          summary: "向量化是否值得，要用固定資料集、固定 runner 與重複次數量測。不要只用一次手動 `time.time()` 決策。",
+          table: ["效能指令", "`python -m timeit` / benchmark script", "重構 for-loop、資料批次處理", "資料太小導致 benchmark 沒代表性"],
+          code: String.raw`python -m timeit -s "import numpy as np; x=np.arange(1000000)" "x.sum()"
+
+python - <<'PY'
+import numpy as np
+from timeit import timeit
+x = np.arange(1_000_000)
+print(timeit(lambda: x.sum(), number=100))
+PY`,
+          output: "輸出固定資料集下的耗時；正式報告要附硬體與 NumPy config。",
+          steps: [
+            ["資料夠大", "NumPy 的優勢通常在大量資料。"],
+            ["重複量測", "避免一次性雜訊。"],
+            ["附環境", "版本、CPU、BLAS backend 影響很大。"]
+          ]
+        }
+      ],
+      arrays: [
+        {
+          id: "arr-create",
+          tag: "array",
+          title: "建立 array 與 dtype",
+          visual: "array",
+          summary: "`np.array`、`zeros`、`ones`、`arange`、`linspace` 是建立資料的入口。工程上建議明確指定 dtype。",
+          table: ["建立資料", "`np.array(..., dtype=np.float64)`", "模型輸入、特徵矩陣、固定精度計算", "讓 NumPy 自動推 dtype，導致平台差異"],
+          code: String.raw`import numpy as np
+
+a = np.array([1, 2, 3], dtype=np.float64)
+b = np.zeros((2, 3), dtype=np.int32)
+c = np.linspace(0, 1, 5)
+
+print(a.dtype)
+print(b.shape)
+print(c)`,
+          output: "float64\n(2, 3)\n[0.   0.25 0.5  0.75 1.  ]",
+          steps: [
+            ["指定 dtype", "避免 int32/int64 或 float32/float64 意外差異。"],
+            ["指定 shape", "初始化時就讓資料契約明確。"],
+            ["用 linspace", "需要固定點數的連續區間時，比手算 step 清楚。"]
+          ]
+        },
+        {
+          id: "arr-reshape",
+          tag: "reshape",
+          title: "reshape 與資料長度",
+          visual: "shape",
+          summary: "`reshape` 不改變元素總數；新 shape 的乘積必須等於 `size`。這是資料批次與模型輸入最常見的檢查。",
+          table: ["形狀轉換", "`x.reshape(rows, cols)`", "batch、feature matrix、影像 flatten", "size 對不上或把 row/column 搞反"],
+          code: String.raw`import numpy as np
+
+x = np.arange(12)
+y = x.reshape(3, 4)
+
+print(x.size)
+print(y.shape)
+print(y[1, 2])`,
+          output: "12\n(3, 4)\n6",
+          steps: [
+            ["先看 size", "元素總數是 reshape 的硬限制。"],
+            ["再定 shape", "把資料語意寫成 rows/features 或 batch/features。"],
+            ["測索引", "用已知位置確認 row-major 讀法是否符合預期。"]
+          ]
+        },
+        {
+          id: "arr-index",
+          tag: "index",
+          title: "索引、切片與布林遮罩",
+          visual: "mask",
+          summary: "NumPy 支援位置索引、切片與 boolean mask。資料清洗常用 mask，但 mask shape 必須對齊資料。",
+          table: ["資料篩選", "`x[x > 0]`", "清洗異常值、過濾樣本、選取特徵", "mask shape 不一致或誤以為切片一定 copy"],
+          code: String.raw`import numpy as np
+
+x = np.array([10, -1, 5, -3, 8])
+mask = x > 0
+
+print(mask)
+print(x[mask])
+print(x[1:4])`,
+          output: "[ True False  True False  True]\n[10  5  8]\n[-1  5 -3]",
+          steps: [
+            ["mask 是 array", "每個位置一個 True/False。"],
+            ["mask shape 對齊", "長度不一致會報錯。"],
+            ["注意 view/copy", "切片多半是 view，boolean indexing 通常產生 copy。"]
+          ]
+        },
+        {
+          id: "arr-broadcast",
+          tag: "broadcast",
+          title: "Broadcasting 規則",
+          visual: "broadcast",
+          summary: "broadcasting 讓不同 shape 的 array 也能逐元素運算。規則從右邊維度開始比：相等或其中一邊是 1 才相容。",
+          table: ["向量化", "`image * scale`", "影像通道縮放、特徵標準化、批次運算", "不小心擴成巨大中間 array"],
+          code: String.raw`import numpy as np
+
+image = np.ones((2, 2, 3))
+scale = np.array([1.0, 0.5, 0.25])
+
+out = image * scale
+print(out.shape)
+print(out[0, 0])`,
+          output: "(2, 2, 3)\n[1.   0.5  0.25]",
+          steps: [
+            ["從右比 shape", "`(2,2,3)` 與 `(3,)` 的最後一維相容。"],
+            ["避免大中間值", "broadcast 不一定 copy，但後續運算可能造成大 array。"],
+            ["失敗先印 shape", "遇到 ValueError 先印左右 operand shape。"]
+          ]
+        },
+        {
+          id: "arr-ufunc",
+          tag: "ufunc",
+          title: "ufunc 與向量化",
+          visual: "ufunc",
+          summary: "ufunc 是 NumPy 的逐元素函式，例如 `np.sqrt`、`np.exp`、`np.maximum`。它們通常比 Python for-loop 更適合大量資料。",
+          table: ["逐元素運算", "`np.sqrt(x)`", "數值轉換、特徵工程、公式計算", "用 Python function 包住每個元素，失去向量化"],
+          code: String.raw`import numpy as np
+
+x = np.array([1.0, 4.0, 9.0])
+y = np.sqrt(x)
+z = np.maximum(y, 2.5)
+
+print(y)
+print(z)`,
+          output: "[1. 2. 3.]\n[2.5 2.5 3. ]",
+          steps: [
+            ["用內建 ufunc", "先找 NumPy 是否已有向量化函式。"],
+            ["組合公式", "多個 ufunc 可組成特徵計算。"],
+            ["注意中間 array", "大量鏈式運算可能增加 memory peak。"]
+          ]
+        },
+        {
+          id: "arr-aggregate",
+          tag: "axis",
+          title: "聚合與 axis",
+          visual: "axis",
+          summary: "`sum`、`mean`、`std`、`min`、`max` 都可用 axis 控制方向。資料專案必須把 axis 意義寫進測試。",
+          table: ["統計聚合", "`x.mean(axis=0)`", "欄位統計、batch loss、通道平均", "axis 用錯但 shape 看起來還合理"],
+          code: String.raw`import numpy as np
+
+x = np.array([[1, 2, 3],
+              [4, 5, 6]])
+
+print(x.mean(axis=0))
+print(x.mean(axis=1))
+print(x.mean())`,
+          output: "[2.5 3.5 4.5]\n[2. 5.]\n3.5",
+          steps: [
+            ["axis=0 保留欄", "常用於每個 feature 的統計。"],
+            ["axis=1 保留列", "常用於每筆樣本的統計。"],
+            ["不指定 axis", "會聚合整個 array。"]
+          ]
+        },
+        {
+          id: "arr-view-copy",
+          tag: "view / copy",
+          title: "view、copy 與記憶體",
+          visual: "memory",
+          summary: "NumPy 操作可能回傳 view 或 copy。view 共享底層資料，copy 會配置新記憶體。大型資料處理要特別小心。",
+          table: ["記憶體模型", "`x.base`, `x.copy()`", "大型 array、資料清洗、效能優化", "改了 view 影響原始資料卻不知道"],
+          code: String.raw`import numpy as np
+
+x = np.array([1, 2, 3, 4])
+view = x[1:3]
+copy = x[[1, 2]]
+
+view[0] = 99
+copy[0] = 77
+
+print(x)
+print(copy)`,
+          output: "[ 1 99  3  4]\n[77  3]",
+          steps: [
+            ["切片常是 view", "修改 view 會影響原始 array。"],
+            ["fancy indexing 常是 copy", "修改 copy 不會影響原始 array。"],
+            ["明確 copy", "跨層傳遞資料時，用 `.copy()` 表達 ownership。"]
+          ]
+        },
+        {
+          id: "arr-io",
+          tag: "I/O",
+          title: "npy、npz 與文字檔",
+          visual: "file",
+          summary: "`np.save` / `np.load` 適合保存 array；`np.savez` 可放多個 array。CSV 交換性好，但 dtype 與精度要小心。",
+          table: ["資料儲存", "`np.save`, `np.load`, `np.savez`", "中間特徵、模型輸入快取、測試 fixture", "用 CSV 存大矩陣造成慢與精度問題"],
+          code: String.raw`import numpy as np
+
+x = np.arange(6).reshape(2, 3)
+np.save("features.npy", x)
+
+loaded = np.load("features.npy")
+print(loaded.shape)
+print(np.array_equal(x, loaded))`,
+          output: "(2, 3)\nTrue",
+          steps: [
+            ["npy 保 shape/dtype", "適合 NumPy 專案內部資料交換。"],
+            ["npz 放多個 array", "可用 key 管理多組資料。"],
+            ["外部交換另議", "需要人讀或跨系統時，CSV/Parquet 可能更適合。"]
+          ]
+        }
+      ],
+      applications: [
+        {
+          id: "app-cleaning",
+          tag: "ETL",
+          title: "資料清洗與缺值策略",
+          visual: "mask",
+          summary: "NumPy 可快速處理 missing、outlier、range validation。工程上要先定義 NaN/inf/空 array 的規則。",
+          table: ["資料清洗", "`np.isnan`, `np.isfinite`, mask", "ETL、感測器資料、模型前處理", "把 NaN 默默轉 0 卻沒有記錄"],
+          code: String.raw`import numpy as np
+
+x = np.array([1.0, np.nan, 5.0, np.inf])
+valid = np.isfinite(x)
+clean = x[valid]
+
+print(valid)
+print(clean.mean())`,
+          output: "[ True False  True False]\n3.0",
+          steps: [
+            ["先定 policy", "NaN 是丟棄、補值、還是報錯，要明確。"],
+            ["mask 清楚", "mask 本身也可以成為 debug output。"],
+            ["保留統計", "記錄被過濾的比例，避免資料品質退化無感。"]
+          ]
+        },
+        {
+          id: "app-image",
+          tag: "Image",
+          title: "影像 channel normalization",
+          visual: "image",
+          summary: "影像資料常見 shape 是 `(height, width, channel)`。channel-wise normalization 是 broadcasting 的經典案例。",
+          table: ["影像處理", "`image / 255`, `(x - mean) / std`", "CV pipeline、模型輸入", "channel 順序 RGB/BGR 搞錯"],
+          code: String.raw`import numpy as np
+
+image = np.array([[[0, 128, 255]]], dtype=np.float32)
+mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+
+out = (image / 255.0 - mean) / std
+print(out.shape)
+print(out[0, 0])`,
+          output: "(1, 1, 3)\n[-1.          0.00392163  1.        ]",
+          steps: [
+            ["固定 dtype", "影像轉 float32 才能避免整數除法/溢位問題。"],
+            ["確認 channel", "RGB/BGR 要在邊界轉清楚。"],
+            ["測 shape", "單張、批次、多 channel 都要測。"]
+          ]
+        },
+        {
+          id: "app-finance",
+          tag: "Finance",
+          title: "rolling feature 與 returns",
+          visual: "chart",
+          summary: "金融與監控資料常需要差分、rolling、百分比變化。NumPy 可處理基礎向量運算，但複雜時間索引可交給 pandas。",
+          table: ["時間序列", "`np.diff`, `np.convolve`", "價格變化、監控指標、趨勢特徵", "忽略缺值與交易日間隔"],
+          code: String.raw`import numpy as np
+
+price = np.array([100.0, 102.0, 101.0, 105.0])
+returns = np.diff(price) / price[:-1]
+
+print(np.round(returns, 4))`,
+          output: "[ 0.02   -0.0098  0.0396]",
+          steps: [
+            ["對齊分母", "`np.diff(price)` 比原資料短 1。"],
+            ["保留時間索引", "NumPy 本身不保留日期 index。"],
+            ["測缺值", "缺交易日或 NaN 會影響特徵。"]
+          ]
+        },
+        {
+          id: "app-distance",
+          tag: "Vector",
+          title: "批次距離計算",
+          visual: "broadcast",
+          summary: "用 broadcasting 可一次算多個點到多個中心的距離，但資料太大時會產生巨大中間矩陣。",
+          table: ["向量計算", "`points[:, None, :] - centers[None, :, :]`", "KMeans、最近鄰、地理距離前處理", "一次展開太大造成記憶體爆掉"],
+          code: String.raw`import numpy as np
+
+points = np.array([[0.0, 0.0], [3.0, 4.0]])
+centers = np.array([[0.0, 0.0], [1.0, 1.0]])
+
+diff = points[:, None, :] - centers[None, :, :]
+dist = np.sqrt((diff ** 2).sum(axis=2))
+print(dist)`,
+          output: "[[0.         1.41421356]\n [5.         3.60555128]]",
+          steps: [
+            ["插入新軸", "`[:, None, :]` 讓 points 與 centers 可以 broadcast。"],
+            ["axis=2 聚合座標", "每個點與中心的 x/y 差異平方後相加。"],
+            ["大資料分批", "points*centers 太大時要 chunk。"]
+          ]
+        },
+        {
+          id: "app-simulation",
+          tag: "Simulation",
+          title: "隨機模擬與可重現",
+          visual: "random",
+          summary: "現代 NumPy 建議用 `np.random.default_rng()` 建立 generator，讓隨機流程可重現、可注入、可測試。",
+          table: ["隨機數", "`rng = np.random.default_rng(seed)`", "Monte Carlo、測試資料、模擬", "全域 random state 讓測試不穩"],
+          code: String.raw`import numpy as np
+
+rng = np.random.default_rng(42)
+samples = rng.normal(loc=0.0, scale=1.0, size=5)
+
+print(np.round(samples, 3))`,
+          output: "[ 0.305 -1.04   0.75   0.941 -1.951]",
+          steps: [
+            ["注入 seed", "測試與範例要可重現。"],
+            ["傳入 generator", "service 層不要直接依賴全域 random。"],
+            ["記錄分布", "loc、scale、size 是資料契約的一部分。"]
+          ]
+        },
+        {
+          id: "app-linear",
+          tag: "linalg",
+          title: "線性代數與 backend 差異",
+          visual: "matrix",
+          summary: "`np.linalg` 依賴底層 BLAS/LAPACK，平台與 backend 會影響效能與數值細節。上線前要記錄 config。",
+          table: ["矩陣計算", "`np.linalg.solve`, `@`", "回歸、最佳化、科學計算", "矩陣奇異或 condition number 太差"],
+          code: String.raw`import numpy as np
+
+a = np.array([[3.0, 1.0], [1.0, 2.0]])
+b = np.array([9.0, 8.0])
+x = np.linalg.solve(a, b)
+
+print(np.round(x, 3))`,
+          output: "[2. 3.]",
+          steps: [
+            ["先檢查矩陣", "奇異矩陣會讓 solve 失敗。"],
+            ["記錄 backend", "效能報告要包含 `np.show_config()`。"],
+            ["測 tolerance", "不同 backend 結果可能有微小浮點差。"]
+          ]
+        }
+      ],
+      packaging: [
+        {
+          id: "pkg-pyproject",
+          tag: "pyproject",
+          title: "宣告 NumPy runtime dependency",
+          visual: "file",
+          summary: "若你的套件只是使用 NumPy Python API，通常把 NumPy 放在 `[project].dependencies` 即可；若 build extension 才需要放在 build-system。",
+          table: ["套件設定", "`dependencies = [\"numpy>=2\"]`", "一般 NumPy app / library", "把 runtime dependency 漏掉，使用者安裝後才 ImportError"],
+          code: String.raw`# pyproject.toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "numpy-toolkit"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["numpy>=2"]`,
+          output: "pip install . 後會安裝 NumPy runtime dependency。",
+          steps: [
+            ["runtime 放 dependencies", "純 Python 使用 NumPy 時，不必放進 build-system。"],
+            ["版本寫清楚", "NumPy 1.x/2.x API 差異要由專案測試決定。"],
+            ["安裝後驗收", "從 wheel 安裝再 import。"]
+          ]
+        },
+        {
+          id: "pkg-build",
+          tag: "wheel",
+          title: "建立 wheel 並安裝驗收",
+          visual: "wheel",
+          summary: "正式交付不要只跑 source tree。要 build wheel、安裝 wheel，再用 sample data smoke test。",
+          table: ["binary/source release", "`python -m build`", "內部套件、CLI library、資料工具", "只在 editable install 測過"],
+          code: String.raw`python -m pip install -U build
+python -m build
+python -m pip install dist/numpy_toolkit-0.1.0-*.whl --force-reinstall
+python -c "import numpy_toolkit; print('ok')"`,
+          output: "Successfully built ...whl\nok",
+          steps: [
+            ["build artifact", "產物進 dist/，CI 可保存。"],
+            ["force reinstall", "避免吃到本機 editable version。"],
+            ["sample data", "import 成功後再跑最小資料流程。"]
+          ]
+        },
+        {
+          id: "pkg-pyinstaller",
+          tag: "PyInstaller",
+          title: "NumPy 工具打包成執行檔",
+          visual: "package",
+          summary: "PyInstaller 打 NumPy app 時，先用 `onedir` 檢查 shared libraries 與啟動結果。不要一開始就追求 onefile。",
+          table: ["執行檔", "`pyinstaller --onedir app.py`", "內部資料工具、桌面小工具、無 Python 環境交付", "漏 shared library 或 sample data"],
+          code: String.raw`pyinstaller --name np-tool --onedir app.py
+./dist/np-tool/np-tool --version
+./dist/np-tool/np-tool run samples/input.npy`,
+          output: "np-tool 0.1.0\nprocessed shape=(100, 8)",
+          steps: [
+            ["先 onedir", "可看見 NumPy 相關 binary 是否被收進去。"],
+            ["帶 sample data", "測真實資料流程，而不是只測 --help。"],
+            ["目標機驗證", "打包機能跑不代表使用者機器能跑。"]
+          ]
+        },
+        {
+          id: "pkg-native",
+          tag: "C API",
+          title: "依賴 NumPy C API 的打包",
+          visual: "capi",
+          summary: "如果專案用 Cython、C extension 或 Pythran 並依賴 NumPy C API，NumPy 會成為 build-time dependency，還要考慮 ABI 與 wheel matrix。",
+          table: ["extension build", "`build-system.requires` includes numpy", "Cython extension、C API、native acceleration", "用錯 NumPy build 版本造成 ABI 問題"],
+          code: String.raw`# pyproject.toml for extension using NumPy C API
+[build-system]
+requires = ["setuptools>=68", "wheel", "Cython>=3", "numpy>=2"]
+build-backend = "setuptools.build_meta"
+
+# CI：每個 Python/OS matrix 都 build wheel + install + smoke test`,
+          output: "build-time NumPy 與 runtime NumPy 都要由 CI matrix 驗證。",
+          steps: [
+            ["分清 API", "純 Python API 與 C API 的打包風險不同。"],
+            ["測 wheel", "build 成功後必須安裝 wheel 再 import extension。"],
+            ["記 ABI 策略", "支援哪些 Python/NumPy/OS 要寫進 release note。"]
+          ]
+        },
+        {
+          id: "pkg-lock",
+          tag: "lock",
+          title: "版本鎖定與重現環境",
+          visual: "lock",
+          summary: "資料專案常被 NumPy、pandas、scipy 版本連動影響。正式交付要有 requirements、lock 或 environment file。",
+          table: ["可重現", "`requirements.txt`, `uv.lock`, `environment.yml`", "CI、部署、教學範例、分析報告", "只寫 pip install numpy，半年後重跑結果不同"],
+          code: String.raw`python -m pip freeze > requirements.txt
+python -m pip install -r requirements.txt
+
+# conda 專案
+conda env export > environment.yml
+conda env create -f environment.yml`,
+          output: "環境可重建，CI 與交付文件可引用同一份依賴清單。",
+          steps: [
+            ["鎖版本", "教學與 production 都需要可重跑。"],
+            ["記平台", "OS、Python、NumPy、BLAS 都可能影響結果。"],
+            ["定期更新", "鎖住不代表永遠不升級，要有升級測試。"]
+          ]
+        }
+      ],
+      cases: [
+        {
+          id: "case-feature-pipeline",
+          tag: "Case 1",
+          title: "CSV 特徵矩陣轉 npy cache",
+          visual: "file",
+          summary: "資料管線先把外部 CSV 轉成固定 dtype/shape 的 `.npy`，後續模型訓練讀取更快、契約更清楚。",
+          table: ["資料管線", "CSV -> validation -> np.save", "特徵工程、模型訓練、批次任務", "沒存 schema，後續不知道欄位順序"],
+          code: String.raw`import numpy as np
+
+raw = np.array([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]], dtype=np.float32)
+assert raw.ndim == 2
+assert raw.shape[1] == 2
+
+np.save("features.npy", raw)
+loaded = np.load("features.npy")
+print(loaded.dtype, loaded.shape)`,
+          output: "float32 (3, 2)",
+          steps: [
+            ["驗 shape", "轉 cache 前先 assert 欄位數。"],
+            ["固定 dtype", "float32/float64 要由模型需求決定。"],
+            ["保存 schema", "欄位名稱與順序不要只存在腦中。"]
+          ]
+        },
+        {
+          id: "case-anomaly",
+          tag: "Case 2",
+          title: "感測器異常值偵測",
+          visual: "mask",
+          summary: "用 mask 找出超出上下界或非 finite 的資料，並保留異常比例給 observability。",
+          table: ["品質檢查", "`np.isfinite`, range mask", "IoT、BACnet/Modbus readings、監控資料", "把異常直接丟掉但沒有告警"],
+          code: String.raw`import numpy as np
+
+reading = np.array([21.5, 22.0, np.nan, 99.0, 21.8])
+valid = np.isfinite(reading) & (reading >= 0) & (reading <= 60)
+bad_ratio = 1.0 - valid.mean()
+
+print(reading[valid])
+print(round(bad_ratio, 2))`,
+          output: "[21.5 22.  21.8]\n0.4",
+          steps: [
+            ["定上下界", "範圍來自 domain，不是隨便猜。"],
+            ["保留比例", "bad_ratio 可進 metrics。"],
+            ["不要吞掉", "異常資料應該能回查來源。"]
+          ]
+        },
+        {
+          id: "case-image-batch",
+          tag: "Case 3",
+          title: "批次影像 normalize",
+          visual: "image",
+          summary: "把 `(batch, height, width, channel)` 影像批次標準化，並用 broadcasting 對 channel 套用 mean/std。",
+          table: ["影像批次", "`(x / 255 - mean) / std`", "ML preprocessing、影像檢測", "忘記 batch 維度或 channel 順序"],
+          code: String.raw`import numpy as np
+
+batch = np.ones((4, 8, 8, 3), dtype=np.float32) * 128
+mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+
+normalized = (batch / 255.0 - mean) / std
+print(normalized.shape)
+print(round(float(normalized.mean()), 4))`,
+          output: "(4, 8, 8, 3)\n0.0039",
+          steps: [
+            ["固定批次格式", "明確採用 NHWC 或 NCHW。"],
+            ["channel broadcast", "mean/std shape 是 `(3,)`。"],
+            ["測單張與批次", "避免部署時單張影像少一維。"]
+          ]
+        },
+        {
+          id: "case-cli-package",
+          tag: "Case 4",
+          title: "NumPy CLI 打包交付",
+          visual: "package",
+          summary: "建立一個讀 `.npy`、計算統計、輸出 JSON 的 CLI，打成 wheel 或 PyInstaller 執行檔時都要用 sample data 驗收。",
+          table: ["交付案例", "npy input -> stats -> json", "內部資料工具、報表批次任務", "只測 --help，沒測 NumPy import 與資料讀取"],
+          code: String.raw`# smoke command
+python -m build
+python -m pip install dist/npstats-*.whl --force-reinstall
+npstats samples/features.npy --out /tmp/stats.json
+
+# expected json fields
+# {"shape": [100, 8], "mean": ..., "std": ...}`,
+          output: "processed samples/features.npy -> /tmp/stats.json",
+          steps: [
+            ["先建 sample", "release 測試需要固定 input。"],
+            ["安裝 wheel 後測", "不要只在 source tree 測。"],
+            ["PyInstaller 再測一次", "執行檔要確認 NumPy binary 與資料路徑。"]
+          ]
+        }
+      ]
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const palette = {
+        cube: ["#e1f6f8", "#0f8794"], axis: ["#e7f0fb", "#2f6fbb"], decision: ["#eee9f8", "#7257a8"],
+        terminal: ["#e7f0fb", "#2f6fbb"], package: ["#fae8e8", "#c34848"], flow: ["#e6f5ef", "#2d8a69"],
+        config: ["#fff4cf", "#c79a14"], test: ["#eee9f8", "#7257a8"], chart: ["#e7f0fb", "#2f6fbb"],
+        array: ["#e1f6f8", "#0f8794"], shape: ["#e6f5ef", "#2d8a69"], mask: ["#fff4cf", "#c79a14"],
+        broadcast: ["#eee9f8", "#7257a8"], ufunc: ["#e7f0fb", "#2f6fbb"], memory: ["#fae8e8", "#c34848"],
+        file: ["#e7f0fb", "#2f6fbb"], image: ["#e6f5ef", "#2d8a69"], random: ["#fff4cf", "#c79a14"],
+        matrix: ["#eee9f8", "#7257a8"], wheel: ["#fff4cf", "#c79a14"], capi: ["#eee9f8", "#7257a8"],
+        lock: ["#e6f5ef", "#2d8a69"]
+      };
+      const [soft, stroke] = palette[type] || palette.cube;
+      const arrow = `<polygon points="210,84 246,102 210,120" fill="${stroke}"/>`;
+      const shapes = {
+        cube: `<path d="M92 52l64-30 64 30v78l-64 34-64-34z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M92 52l64 34 64-34M156 86v78" fill="none" stroke="${stroke}" stroke-width="3"/><text x="156" y="112" text-anchor="middle">ndarray</text>`,
+        axis: `<rect x="62" y="44" width="190" height="106" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M62 80h190M62 116h190M125 44v106M188 44v106" stroke="${stroke}" stroke-width="2"/><text x="156" y="174" text-anchor="middle">axis / shape</text>`,
+        decision: `<polygon points="156,34 256,92 156,150 56,92" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="156" y="88" text-anchor="middle">profile?</text><text x="156" y="115" text-anchor="middle">shape?</text>`,
+        terminal: `<rect x="34" y="48" width="242" height="98" rx="10" fill="#101827" stroke="${stroke}" stroke-width="3"/><text x="56" y="86" fill="#dff7ed">$ pip install</text><text x="56" y="116" fill="#dff7ed">import numpy</text>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="158" y="101" text-anchor="middle">dist/</text><text x="158" y="128" text-anchor="middle">wheel</text>`,
+        flow: `<rect x="40" y="58" width="74" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="77" y="94" text-anchor="middle">env</text><line x1="120" y1="88" x2="184" y2="88" stroke="${stroke}" stroke-width="4"/><rect x="196" y="58" width="74" height="60" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="233" y="94" text-anchor="middle">lock</text>${arrow}`,
+        config: `<rect x="52" y="42" width="206" height="116" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 72h138M86 102h138M86 132h98" stroke="${stroke}" stroke-width="5"/><text x="155" y="178" text-anchor="middle">show_config</text>`,
+        test: `<path d="M56 45h172v96H56z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M85 82l28 28 72-70" fill="none" stroke="${stroke}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="142" y="132" text-anchor="middle">pytest</text>`,
+        chart: `<rect x="44" y="42" width="222" height="116" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M78 130V76M128 130V58M178 130V94M228 130V70" stroke="${stroke}" stroke-width="16"/><text x="155" y="178" text-anchor="middle">benchmark</text>`,
+        array: `<rect x="42" y="50" width="224" height="96" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M42 82h224M42 114h224M86 50v96M130 50v96M174 50v96M218 50v96" stroke="${stroke}" stroke-width="2"/><text x="154" y="170" text-anchor="middle">array</text>`,
+        shape: `<rect x="46" y="58" width="92" height="72" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="172" y="42" width="92" height="104" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="92" y="100" text-anchor="middle">1D</text><text x="218" y="100" text-anchor="middle">2D</text>`,
+        mask: `<rect x="46" y="54" width="218" height="80" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="90" cy="94" r="14" fill="${stroke}"/><circle cx="140" cy="94" r="14" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="190" cy="94" r="14" fill="${stroke}"/><text x="155" y="164" text-anchor="middle">mask</text>`,
+        broadcast: `<rect x="44" y="54" width="88" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="88" y="98" text-anchor="middle">(2,3)</text><line x1="142" y1="92" x2="194" y2="92" stroke="${stroke}" stroke-width="4"/><polygon points="194,76 226,92 194,108" fill="${stroke}"/><rect x="230" y="54" width="48" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="254" y="98" text-anchor="middle">(3)</text>`,
+        ufunc: `<circle cx="92" cy="92" r="40" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="218" cy="92" r="40" fill="#fff" stroke="${stroke}" stroke-width="3"/><line x1="136" y1="92" x2="174" y2="92" stroke="${stroke}" stroke-width="4"/><polygon points="174,76 206,92 174,108" fill="${stroke}"/><text x="92" y="98" text-anchor="middle">x</text><text x="218" y="98" text-anchor="middle">f(x)</text>`,
+        memory: `<rect x="42" y="62" width="226" height="70" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 62v70M130 62v70M174 62v70M218 62v70" stroke="${stroke}" stroke-width="2"/><text x="155" y="158" text-anchor="middle">view / copy</text>`,
+        file: `<path d="M76 38h110l44 44v84H76z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M186 38v44h44" fill="none" stroke="${stroke}" stroke-width="3"/><text x="153" y="116" text-anchor="middle">npy</text>`,
+        image: `<rect x="58" y="44" width="192" height="116" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="84" y="70" width="38" height="64" fill="#f05a5a"/><rect x="136" y="70" width="38" height="64" fill="#5fbf7b"/><rect x="188" y="70" width="38" height="64" fill="#5d8ee8"/><text x="154" y="178" text-anchor="middle">channels</text>`,
+        random: `<circle cx="94" cy="92" r="32" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="214" cy="92" r="32" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="94" y="99" text-anchor="middle">rng</text><text x="214" y="99" text-anchor="middle">seed</text>`,
+        matrix: `<rect x="62" y="48" width="80" height="80" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="172" y="48" width="80" height="80" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="102" y="95" text-anchor="middle">A</text><text x="212" y="95" text-anchor="middle">b</text><text x="156" y="162" text-anchor="middle">solve</text>`,
+        wheel: `<circle cx="155" cy="90" r="58" fill="#fff" stroke="${stroke}" stroke-width="4"/><circle cx="155" cy="90" r="18" fill="${soft}" stroke="${stroke}" stroke-width="3"/><text x="155" y="170" text-anchor="middle">wheel</text>`,
+        capi: `<rect x="42" y="54" width="92" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="88" y="98" text-anchor="middle">C API</text><line x1="142" y1="92" x2="184" y2="92" stroke="${stroke}" stroke-width="4"/><polygon points="184,76 216,92 184,108" fill="${stroke}"/><rect x="220" y="54" width="58" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="249" y="98" text-anchor="middle">ABI</text>`,
+        lock: `<rect x="70" y="78" width="170" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M112 78V58c0-24 86-24 86 0v20" fill="none" stroke="${stroke}" stroke-width="5"/><text x="155" y="124" text-anchor="middle">lock</text>`
+      };
+      return `<svg viewBox="0 0 310 190" role="img" aria-label="${escapeHtml(title)} 圖示">
+        <rect x="6" y="10" width="298" height="170" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="#172033">${shapes[type]}</g>
+      </svg>`;
+    }
+
+    function renderLessons() {
+      document.querySelectorAll("[data-group]").forEach((section) => {
+        const group = lessonGroups[section.dataset.group] || [];
+        const root = section.querySelector(".cards");
+        root.innerHTML = group.map((lesson, index) => `
+          <article class="lesson-card lesson-item" id="${escapeHtml(lesson.id)}" data-lesson-id="${escapeHtml(lesson.id)}" data-search="${escapeHtml([lesson.title, lesson.tag, lesson.summary, lesson.table.join(" "), lesson.code].join(" "))}">
+            <div class="lesson-top">
+              <div class="visual-small">${visualSvg(lesson.visual, lesson.title)}</div>
+              <div class="lesson-title">
+                <span class="tag">${escapeHtml(lesson.tag)}</span>
+                <h3>${index + 1}. ${escapeHtml(lesson.title)}</h3>
+                <p class="summary">${escapeHtml(lesson.summary)}</p>
+                <div class="card-actions">
+                  <label class="complete-toggle"><input type="checkbox" data-complete="${escapeHtml(lesson.id)}">完成</label>
+                  <a class="button" href="#${escapeHtml(lesson.id)}">定位</a>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>格式 / Pattern</th><th>適用情境</th><th>常見錯誤</th></tr></thead>
+                <tbody><tr>${lesson.table.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="code-head">
+                <strong>範例 / 指令</strong>
+                <button class="button output-toggle" type="button" data-output="out-${escapeHtml(lesson.id)}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(lesson.code)}</pre>
+              <pre class="output" id="out-${escapeHtml(lesson.id)}">${escapeHtml(lesson.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(lesson.title)} step-by-step">
+              ${lesson.steps.map((step, stepIndex) => {
+                const panelId = `${lesson.id}-step-${stepIndex + 1}`;
+                return `
+                  <div class="step">
+                    <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">
+                      <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="step-panel" id="${escapeHtml(panelId)}">${escapeHtml(step[1])}</div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </article>
+        `).join("");
+      });
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-numpy-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      document.querySelectorAll("#progressSummary, #progressSummaryMobile").forEach((el) => {
+        el.textContent = `完成 ${done} / ${total}`;
+      });
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(checkbox.dataset.complete);
+        } else {
+          completed.delete(checkbox.dataset.complete);
+        }
+        localStorage.setItem("python-numpy-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `numpy-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    function bindBackToTop() {
+      const button = document.querySelector(".back-to-top");
+      if (!button) return;
+      const toggle = () => button.classList.toggle("is-visible", window.scrollY > 420);
+      button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      window.addEventListener("scroll", toggle, { passive: true });
+      toggle();
+    }
+
+    renderLessons();
+    enhanceCodeBlocks();
+    bindInteractions();
+    bindBackToTop();
+    updateProgress();
+  </script>
+</body>
+</html>
