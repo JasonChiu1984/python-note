@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cython 工程實戰視覺教學 - 指令、語法、效能與打包</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      grid-template-columns: 2.75rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .brand-copy { display: grid; gap: 0.18rem; min-width: 0; }
+    .brand strong { font-size: 1rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 800; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-blue); color: var(--ink); outline: none; }
+    .progress-box {
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 950;
+      text-align: center;
+    }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.85fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2rem;
+      padding: 0.32rem 0.64rem;
+      border: 1px solid rgba(47,111,187,0.25);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.72);
+      color: var(--blue);
+      font-weight: 950;
+      font-size: 0.9rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    h2, h3 { letter-spacing: 0; }
+    .hero p, .lead { color: var(--muted); max-width: 58rem; margin: 0; }
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .status-strip span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2rem;
+      padding: 0.26rem 0.58rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.82);
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 900;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem);
+      scroll-margin-top: 1rem;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      line-height: 1.1;
+    }
+    .section-head p { margin-top: 0.45rem; color: var(--muted); max-width: 66rem; }
+    .tool-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 5vw, 4.8rem);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+    }
+    .search {
+      min-height: 2.8rem;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 0.85rem;
+      font: inherit;
+      font-weight: 750;
+      color: var(--ink);
+      background: white;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .lesson-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 0.9rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .lesson-card.hidden-by-search { display: none; }
+    .lesson-top {
+      display: grid;
+      grid-template-columns: 9rem minmax(0, 1fr);
+      gap: 1rem;
+      align-items: center;
+    }
+    .visual-small {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fbfe;
+      min-height: 7rem;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .visual-small svg { width: 100%; height: auto; display: block; }
+    .lesson-title h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.22;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.9rem;
+      margin-bottom: 0.45rem;
+      padding: 0.18rem 0.52rem;
+      border-radius: 6px;
+      background: var(--soft-yellow);
+      color: #7a5b05;
+      font-weight: 950;
+      font-size: 0.82rem;
+    }
+    .summary { color: var(--muted); margin: 0; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.65rem; }
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.66rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .complete-toggle input { width: 1rem; height: 1rem; }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 42rem; }
+    th, td {
+      padding: 0.72rem 0.78rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--soft-blue);
+      color: var(--ink);
+      font-weight: 950;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: 0; }
+    pre {
+      margin: 0;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+      margin: 0.3rem 0 0.4rem;
+    }
+    .code, .output {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #101827;
+      color: #e9f1ff;
+    }
+    .output {
+      display: none;
+      margin-top: 0.45rem;
+      background: #0f2c24;
+      color: #dff7ed;
+    }
+    .output.is-open { display: block; }
+    .code-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.35rem;
+    }
+    .copy-code {
+      min-height: 2rem;
+      padding: 0.28rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .steps { display: grid; gap: 0.52rem; margin-top: 0.2rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.68rem 0.78rem;
+      border: 0;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 950;
+      text-align: left;
+      cursor: pointer;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; min-width: 0; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 2.4rem;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 8px;
+      background: var(--soft-yellow);
+      color: #765800;
+      font-weight: 950;
+      line-height: 1;
+      text-align: center;
+    }
+    .step-panel {
+      display: none;
+      padding: 0 0.78rem 0.82rem 3.78rem;
+      color: var(--muted);
+    }
+    .step.is-open .step-panel { display: block; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+    .mini {
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+    }
+    .mini strong { display: block; margin-bottom: 0.25rem; }
+    .mini span { color: var(--muted); }
+    .back-to-top {
+      position: fixed;
+      right: clamp(1rem, 3vw, 1.6rem);
+      bottom: clamp(1rem, 3vw, 1.6rem);
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.15rem;
+      height: 3.15rem;
+      border: 1px solid rgba(47,111,187,0.32);
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      box-shadow: 0 16px 34px rgba(23, 32, 51, 0.22);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.6rem);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .back-to-top.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-to-top svg { width: 1.25rem; height: 1.25rem; }
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .lesson-top { grid-template-columns: 1fr; }
+      .visual-small { min-height: 8.5rem; }
+      .tool-panel { grid-template-columns: 1fr; }
+      .section-head { display: grid; align-items: start; }
+      .matrix { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+      h1 { max-width: 12ch; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="#top">首頁</a>
+    <a href="#map">流程圖</a>
+    <a href="#intro">簡介</a>
+    <a href="#commands">指令</a>
+    <a href="#language">語法</a>
+    <a href="#applications">應用</a>
+    <a href="#packaging">打包</a>
+    <a href="#cases">實戰</a>
+    <a href="#checklist">檢查表</a>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="側邊導覽">
+      <a class="brand" href="#top" aria-label="回到 Cython 教材首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 40 40" role="img" aria-label="Cython icon">
+            <rect x="4" y="4" width="32" height="32" rx="9" fill="#172033"></rect>
+            <path d="M13 24c-2.8-4.5-.5-10 5-11.2 3-.7 5.7.2 7.6 2.2l-3 3c-.9-.9-2-1.2-3.3-1-2.7.5-3.8 3.6-2.3 5.8 1.5 2.1 4.5 2.3 6.4.5l3 3.1c-3.9 3.8-10.4 2.9-13.4-2.4z" fill="#f7c948"></path>
+            <path d="M25 23h8l-9 12 2-8h-8l9-12z" fill="#62b0ff"></path>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Cython 工程專題</strong>
+          <span>Compile Python to Extension</span>
+        </span>
+      </a>
+      <nav class="nav" aria-label="主要章節">
+        <a href="#map">流程圖</a>
+        <a href="#intro">Cython 簡介</a>
+        <a href="#commands">指令與參數</a>
+        <a href="#language">語法與型別</a>
+        <a href="#applications">詳細應用</a>
+        <a href="#packaging">打包交付</a>
+        <a href="#cases">專案案例</a>
+        <a href="#checklist">交付檢查表</a>
+        <a href="index.html">回教材入口</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">獨立篇幅 · Cython</span>
+          <h1>Cython 指令、語法、效能與打包實戰</h1>
+          <p>用資深工程師角度看 Cython：不是把所有 Python 都硬編譯，而是找出 hot path，建立清楚 package boundary，補 benchmark、pytest、wheel 與跨平台 release 驗收。</p>
+          <div class="status-strip" aria-label="教材狀態">
+            <span>v0.5.0</span>
+            <span>32 個互動教學卡</span>
+            <span>指令 / 語法 / 打包 / 專案案例</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#commands">看指令參數</a>
+            <a class="button green" href="#packaging">看打包流程</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Cython 編譯管線總覽" aria-describedby="heroSvgDesc">
+            <desc id="heroSvgDesc">pyx 經 Cython 轉 C，再由 C compiler 產生可 import 的 Python extension。</desc>
+            <defs>
+              <marker id="heroArrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto"><path d="M2 2l10 5-10 5z" fill="#2f6fbb"></path></marker>
+              <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#172033" flood-opacity="0.12"></feDropShadow></filter>
+            </defs>
+            <rect x="28" y="38" width="704" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g filter="url(#softShadow)">
+              <rect x="64" y="138" width="122" height="92" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+              <text x="125" y="178" text-anchor="middle" font-size="24" font-weight="900" fill="#172033">.pyx</text>
+              <text x="125" y="207" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">typed Python</text>
+              <path d="M202 184h76" stroke="#2f6fbb" stroke-width="6" marker-end="url(#heroArrow)"></path>
+              <rect x="296" y="138" width="122" height="92" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect>
+              <text x="357" y="178" text-anchor="middle" font-size="24" font-weight="900" fill="#172033">C / C++</text>
+              <text x="357" y="207" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">generated</text>
+              <path d="M434 184h76" stroke="#2f6fbb" stroke-width="6" marker-end="url(#heroArrow)"></path>
+              <rect x="528" y="138" width="156" height="92" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+              <text x="606" y="178" text-anchor="middle" font-size="24" font-weight="900" fill="#172033">.so / .pyd</text>
+              <text x="606" y="207" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">import module</text>
+            </g>
+            <path d="M126 258c70 55 390 55 480 0" fill="none" stroke="#7257a8" stroke-width="4" stroke-dasharray="10 8"></path>
+            <text x="374" y="315" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">工程重點：profile 找熱點 -> typing 最小化 -> benchmark 證明 -> wheel 交付</text>
+          </svg>
+        </div>
+      </section>
+
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：cythonize、cdef、memoryview、nogil、wheel、PyInstaller、benchmark">
+        <span class="progress-box" id="progressSummaryMobile">完成 0 / 32</span>
+      </div>
+
+      <section class="section-block" id="map">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">畫給我看</span>
+            <h2>Cython 選型與交付流程</h2>
+            <p>先判斷是不是 hot path，再選 `cdef`、memoryview、C library wrapper、nogil 或 package delivery。Cython 是工程刀，不是所有程式碼都要編譯。</p>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 1120 620" role="img" aria-label="Cython 使用決策流程圖" aria-describedby="decisionDesc">
+            <desc id="decisionDesc">從效能問題、profile、Cython 語法、測試、打包到發佈的決策流程。</desc>
+            <rect x="28" y="38" width="1064" height="522" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="74" y="118" width="190" height="92" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+            <text x="169" y="154" text-anchor="middle" font-size="24" font-weight="900">效能問題</text>
+            <text x="169" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">先 profile，不先猜</text>
+            <line x1="282" y1="164" x2="344" y2="164" stroke="#2f6fbb" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="344,144 384,164 344,184" fill="#2f6fbb"></polygon>
+
+            <polygon points="500,86 620,164 500,242 380,164" fill="#fff" stroke="#7257a8" stroke-width="4"></polygon>
+            <text x="500" y="154" text-anchor="middle" font-size="23" font-weight="900">hot path?</text>
+            <text x="500" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">CPU loop / C API</text>
+            <line x1="626" y1="164" x2="688" y2="164" stroke="#2f6fbb" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="688,144 728,164 688,184" fill="#2f6fbb"></polygon>
+
+            <rect x="744" y="118" width="198" height="92" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect>
+            <text x="843" y="154" text-anchor="middle" font-size="24" font-weight="900">最小改寫</text>
+            <text x="843" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">typing / memoryview</text>
+            <line x1="843" y1="210" x2="843" y2="266" stroke="#2f6fbb" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="823,266 843,306 863,266" fill="#2f6fbb"></polygon>
+
+            <rect x="720" y="320" width="246" height="92" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+            <text x="843" y="356" text-anchor="middle" font-size="24" font-weight="900">測試 + benchmark</text>
+            <text x="843" y="386" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">正確性先於速度</text>
+            <line x1="966" y1="366" x2="996" y2="366" stroke="#2f6fbb" stroke-width="6" stroke-linecap="round"></line>
+            <polygon points="996,346 1032,366 996,386" fill="#2f6fbb"></polygon>
+
+            <rect x="1038" y="320" width="54" height="92" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect>
+            <text x="1065" y="356" text-anchor="middle" font-size="17" font-weight="900">wheel</text>
+            <text x="1065" y="386" text-anchor="middle" font-size="12" font-weight="800" fill="#5d6b7d">平台</text>
+
+            <line x1="500" y1="244" x2="500" y2="292" stroke="#7257a8" stroke-width="5" stroke-dasharray="10 8" stroke-linecap="round"></line>
+            <polygon points="484,292 500,324 516,292" fill="#7257a8"></polygon>
+            <rect x="376" y="334" width="248" height="76" rx="12" fill="#fff" stroke="#7257a8" stroke-width="3" stroke-dasharray="10 8"></rect>
+            <text x="500" y="364" text-anchor="middle" font-size="19" font-weight="900">不是 hot path</text>
+            <text x="500" y="390" text-anchor="middle" font-size="15" font-weight="800" fill="#5d6b7d">保留 Python，補測試</text>
+            <line x1="624" y1="372" x2="678" y2="372" stroke="#7257a8" stroke-width="5" stroke-linecap="round"></line>
+            <polygon points="678,354 714,372 678,390" fill="#7257a8"></polygon>
+
+            <rect x="74" y="430" width="268" height="92" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect>
+            <text x="208" y="466" text-anchor="middle" font-size="24" font-weight="900">C library wrapper</text>
+            <text x="208" y="496" text-anchor="middle" font-size="16" font-weight="800" fill="#5d6b7d">cdef extern / .pxd / ABI</text>
+            <path d="M344 476H626V410H684" fill="none" stroke="#7257a8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <polygon points="684,392 720,410 684,428" fill="#7257a8"></polygon>
+          </svg>
+        </div>
+      </section>
+
+      <section class="section-block" id="intro" data-group="intro">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Cython 簡介</span>
+            <h2>先理解它解決什麼問題</h2>
+            <p>Cython 把 `.pyx` 或部分 Python 語法轉成 C/C++ extension，讓 Python 保持呼叫介面，同時把熱點搬近 C 層。真正的工程價值在「邊界清楚、效能可證明、可被打包部署」。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="commands" data-group="commands">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">指令說明</span>
+            <h2>cython / cythonize / build_ext / build</h2>
+            <p>這一章把常用指令、參數、用途與陷阱拆開。日常開發用 `cythonize -i` 快速驗證；正式交付用 `pyproject.toml`、wheel 與 CI matrix。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>指令 / 參數</th><th>用途</th><th>適用時機</th><th>常見錯誤</th></tr></thead>
+            <tbody>
+              <tr><td><code>cython file.pyx</code></td><td>只把 Cython 轉成 C/C++ 原始碼</td><td>需要手動控制 C compiler 或檢查產生碼</td><td>以為會直接產生可 import module</td></tr>
+              <tr><td><code>cythonize -i file.pyx</code></td><td>轉 C 並編譯成目前目錄可 import extension</td><td>本機快速開發、效能實驗</td><td>沒有 C compiler、Python headers 或平台工具鏈</td></tr>
+              <tr><td><code>-a / --annotate</code></td><td>產生 HTML 標註，顯示 Python interaction 熱度</td><td>找出還沒被型別化的瓶頸</td><td>只看顏色不看 benchmark</td></tr>
+              <tr><td><code>-j N</code></td><td>多檔案平行編譯</td><td>大型 package 有多個 `.pyx`</td><td>CI runner CPU 太小時反而搶資源</td></tr>
+              <tr><td><code>-X directive=value</code></td><td>設定 compiler directive，例如 boundscheck</td><td>針對單次編譯快速驗證</td><td>全域關閉安全檢查卻沒測邊界</td></tr>
+              <tr><td><code>python setup.py build_ext --inplace</code></td><td>用 setuptools extension 在原地產生 extension</td><td>需要自訂 Extension、include dirs、libraries</td><td>只支援本機測試，不等於正式發佈</td></tr>
+              <tr><td><code>python -m build</code></td><td>產生 sdist / wheel</td><td>正式 package release</td><td>缺 pyproject build-system 或 wheel 平台驗證</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="language" data-group="language">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">語法與型別</span>
+            <h2>每個 Cython 語法都搭配工程範例</h2>
+            <p>重點不是把 Python 寫成 C，而是把最昂貴的 loop、資料存取、跨語言邊界標清楚。`cdef`、`cpdef`、memoryview、`.pxd`、`nogil` 都是邊界工具。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="applications" data-group="applications">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">詳細應用</span>
+            <h2>從 hot loop 到 C SDK wrapper</h2>
+            <p>資深專案會先問：瓶頸在哪、資料形狀是否穩定、API 邊界能不能維護、失敗時怎麼回 Python。這裡用實務場景拆解應用。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="packaging" data-group="packaging">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">打包詳細介紹</span>
+            <h2>從 pyproject 到 wheel、CI 與 PyInstaller</h2>
+            <p>Cython 的交付不是把 `.pyx` 丟出去就結束。你需要 build-system、platform wheel、Python ABI、include data、CI matrix、smoke test 與 rollback 計畫。</p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1rem">
+          <table>
+            <thead><tr><th>打包層級</th><th>產物</th><th>命令</th><th>驗收</th></tr></thead>
+            <tbody>
+              <tr><td>開發期</td><td>原地 extension</td><td><code>cythonize -i src/pkg/fast.pyx</code></td><td><code>python -c "import pkg.fast"</code></td></tr>
+              <tr><td>套件發佈</td><td>sdist + wheel</td><td><code>python -m build</code></td><td><code>pip install dist/*.whl</code></td></tr>
+              <tr><td>跨平台</td><td>多平台 wheel</td><td><code>cibuildwheel</code> 或 CI matrix</td><td>Windows / macOS / Linux 都跑 smoke test</td></tr>
+              <tr><td>執行檔</td><td>PyInstaller app</td><td><code>pyinstaller --onedir app.py</code></td><td>確認 extension、assets、hidden imports 都在 dist</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="cases" data-group="cases">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">專案案例</span>
+            <h2>6 個可落地的 Cython project slice</h2>
+            <p>每個案例都包含問題、取捨、程式碼、預期輸出與 step-by-step。這些不是瀏覽器執行 Python，而是提供真實專案會用的實作片段與驗收命令。</p>
+          </div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="checklist">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">交付檢查表</span>
+            <h2>Cython 上線前要看這 8 件事</h2>
+            <p>資深工程不是只追求快，而是把快、安全、可維護與可部署一起交付。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="mini"><strong>Profile evidence</strong><span>先有 `py-spy`、`cProfile` 或 benchmark，再決定要不要 Cython。</span></div>
+          <div class="mini"><strong>Minimal boundary</strong><span>只把 hot path 放進 `.pyx`，外層 API 保持 Python 易測試。</span></div>
+          <div class="mini"><strong>Typed data path</strong><span>loop、memoryview、C struct、C function signature 都要清楚。</span></div>
+          <div class="mini"><strong>Safety directives</strong><span>`boundscheck=False`、`wraparound=False` 必須有邊界測試保護。</span></div>
+          <div class="mini"><strong>Benchmark gate</strong><span>CI 或 release 前保留 baseline，避免改了卻沒有真的變快。</span></div>
+          <div class="mini"><strong>Wheel matrix</strong><span>不同 OS / Python version 要分別 build 與 smoke test。</span></div>
+          <div class="mini"><strong>Fallback plan</strong><span>extension build 失敗時，要知道是否允許 pure Python fallback。</span></div>
+          <div class="mini"><strong>Rollback</strong><span>保留上一版 wheel / exe，extension crash 時可以快速退回。</span></div>
+        </div>
+      </section>
+
+      <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </main>
+  </div>
+
+  <script>
+    const lessonGroups = {
+      intro: [
+        {
+          id: "intro-what",
+          tag: "What",
+          title: "Cython 是什麼",
+          visual: "pipeline",
+          summary: "Cython 是 Python 的超集，能把 `.pyx` 或部分 Python 程式轉成 C/C++ extension，讓 Python 用 import 方式呼叫。",
+          table: ["加速 CPU hot path", "`.pyx -> .c -> .so/.pyd`", "影像、數值、解析器、C SDK wrapper", "以為整個專案都該轉 Cython"],
+          code: String.raw`# fast_sum.pyx
+def py_sum(values):
+    total = 0
+    for value in values:
+        total += value
+    return total
+
+cpdef long typed_sum(long[:] values):
+    cdef Py_ssize_t i
+    cdef long total = 0
+    for i in range(values.shape[0]):
+        total += values[i]
+    return total`,
+          output: "typed_sum 仍能被 Python import，但 loop 走 C-level 整數與 memoryview。",
+          steps: [
+            ["先保留 Python 介面", "外部呼叫者仍用 Python function，不必知道底層是 C extension。"],
+            ["只型別化熱點", "把耗時 loop 改成 `cpdef`、`cdef long`、typed memoryview。"],
+            ["用 benchmark 驗證", "速度提升要用資料與 baseline 證明，不用感覺判斷。"]
+          ]
+        },
+        {
+          id: "intro-when",
+          tag: "Decision",
+          title: "什麼時候該用 Cython",
+          visual: "decision",
+          summary: "適合 CPU-bound loop、C/C++ library binding、大量 typed array 處理。不適合 I/O-bound、頻繁改需求、還沒 profile 的程式。",
+          table: ["選型決策", "profile -> isolate -> rewrite -> benchmark", "熱點明確、資料形狀穩定", "沒 profile 就重寫，維護成本暴增"],
+          code: String.raw`# 先找熱點，不先改寫
+python -m cProfile -o profile.out app.py
+python -m pstats profile.out
+
+# 找到真正熱點後，再切出小函式
+# pure Python API -> Cython inner loop`,
+          output: "先證明 80% 時間卡在哪，再決定要不要把那段搬到 Cython。",
+          steps: [
+            ["找熱點", "用 profiler 找到真正耗時函式。"],
+            ["切邊界", "把熱點縮成輸入輸出清楚的小函式。"],
+            ["保留退路", "若 Cython build 失敗，外層仍可用 pure Python fallback。"]
+          ]
+        },
+        {
+          id: "intro-risks",
+          tag: "Risk",
+          title: "工程風險與成本",
+          visual: "shield",
+          summary: "Cython 引入 C compiler、平台 wheel、ABI、記憶體安全與 release matrix。速度換來的是更高的建置與維護成本。",
+          table: ["風險管理", "small extension boundary", "大型專案需要可回滾的 binary release", "把 C-level crash 當普通 Python exception"],
+          code: String.raw`# 建議保留純 Python fallback
+try:
+    from ._fast import typed_sum
+except ImportError:
+    def typed_sum(values):
+        return sum(values)`,
+          output: "extension 不可用時，功能仍能降級運作，只是速度較慢。",
+          steps: [
+            ["小邊界", "Cython module 越小，debug、測試與打包越容易。"],
+            ["平台測試", "Windows `.pyd`、macOS/Linux `.so` 都要個別驗收。"],
+            ["回滾策略", "發佈 binary 前保留上一版 wheel 或 executable。"]
+          ]
+        }
+      ],
+      commands: [
+        {
+          id: "cmd-cythonize-i",
+          tag: "cythonize -i",
+          title: "本機快速編譯",
+          visual: "terminal",
+          summary: "`cythonize -i` 會轉 C 並編譯出可直接 import 的 extension，適合快速確認 `.pyx` 能不能跑。",
+          table: ["快速建置", "`cythonize -i fast_math.pyx`", "單檔 hot path 實驗", "沒安裝 C compiler 或 Python headers"],
+          code: String.raw`python -m pip install cython setuptools wheel
+cythonize -i fast_math.pyx
+python -c "import fast_math; print(fast_math.add(2, 3))"`,
+          output: "5",
+          steps: [
+            ["安裝工具", "`cython` 負責轉譯，`setuptools/wheel` 負責 extension build。"],
+            ["原地輸出", "`-i` 會把 `.so` 或 `.pyd` 放到可 import 位置。"],
+            ["立即 smoke test", "編譯成功後立刻用 `python -c import` 驗證。"]
+          ]
+        },
+        {
+          id: "cmd-annotate",
+          tag: "-a",
+          title: "產生效能標註 HTML",
+          visual: "heat",
+          summary: "`-a` 會產生 annotated HTML，顯示哪些程式碼還大量觸碰 Python C API，是調整型別的第一張地圖。",
+          table: ["效能觀察", "`cythonize -a -i fast_parse.pyx`", "想知道哪一行仍是 Python-heavy", "看到黃就亂關安全檢查"],
+          code: String.raw`cythonize -a -i fast_parse.pyx
+open fast_parse.html
+
+# 黃色越深，代表 Python interaction 越多
+# 下一步再決定是否加 cdef / typed memoryview`,
+          output: "產生 fast_parse.html 與 fast_parse.c，並編譯 extension。",
+          steps: [
+            ["看互動熱度", "標註頁不是分數，而是告訴你哪些行還在走 Python object。"],
+            ["先改資料型別", "通常從 loop 變數、list access、function signature 開始。"],
+            ["再跑 benchmark", "HTML 變淡不等於一定變快，仍要量測。"]
+          ]
+        },
+        {
+          id: "cmd-directives",
+          tag: "-X",
+          title: "Compiler directive 參數",
+          visual: "switch",
+          summary: "`-X boundscheck=False` 等 directive 可調整安全檢查與語言行為。效能提升前，要先知道拿掉的是哪一層保護。",
+          table: ["編譯參數", "`-X boundscheck=False -X wraparound=False`", "array index 已由測試保證安全", "全域關掉檢查但沒有負索引或越界測試"],
+          code: String.raw`cythonize -i -X language_level=3 \
+  -X boundscheck=False \
+  -X wraparound=False \
+  kernels.pyx`,
+          output: "編譯時套用 Python 3 語法與 indexing 相關 directive。",
+          steps: [
+            ["language_level", "新專案固定用 Python 3 語意，避免版本差異。"],
+            ["boundscheck", "關閉越界檢查前，測試必須覆蓋邊界。"],
+            ["wraparound", "若不支援負索引，文件與測試都要明確。"]
+          ]
+        },
+        {
+          id: "cmd-parallel",
+          tag: "-j",
+          title: "多檔案平行編譯",
+          visual: "parallel",
+          summary: "`-j N` 可讓多個 `.pyx` 平行 build，適合 package 裡有多個 extension module。",
+          table: ["建置加速", "`cythonize -j 4 -i src/pkg/*.pyx`", "CI runner 或本機多核心編譯", "N 設太大導致記憶體或 CPU 爭用"],
+          code: String.raw`cythonize -j 4 -i "src/fastlib/*.pyx"
+python -m pytest tests/test_fastlib.py`,
+          output: "多個 extension module 平行產生並通過測試。",
+          steps: [
+            ["先確認單檔能 build", "多檔平行前，先把 include path、compiler 問題清掉。"],
+            ["CI 設合理 N", "小 runner 用 2 或 CPU count，不要盲目開很大。"],
+            ["build 後跑 tests", "平行編譯成功不代表 module 行為正確。"]
+          ]
+        },
+        {
+          id: "cmd-build-ext",
+          tag: "build_ext",
+          title: "setup.py / Extension 自訂建置",
+          visual: "package",
+          summary: "當你需要 include dirs、libraries、extra compile args，就用 setuptools `Extension` 加上 `cythonize()`。",
+          table: ["自訂建置", "`python setup.py build_ext --inplace`", "包 C library、C++、OpenMP、header path", "把開發指令當正式發佈流程"],
+          code: String.raw`# setup.py
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+extensions = [
+    Extension(
+        "fastlib.core",
+        ["src/fastlib/core.pyx"],
+        include_dirs=["include"],
+        extra_compile_args=["-O3"],
+    )
+]
+
+setup(ext_modules=cythonize(extensions, language_level=3))`,
+          output: "python setup.py build_ext --inplace 會產生 fastlib/core*.so 或 .pyd。",
+          steps: [
+            ["Extension 命名要對 package", "`fastlib.core` 必須對應 Python import path。"],
+            ["路徑集中管理", "include dirs、libraries 不要散在 shell script。"],
+            ["正式交付再走 wheel", "`build_ext --inplace` 是開發驗證，不是 release。"]
+          ]
+        },
+        {
+          id: "cmd-build",
+          tag: "python -m build",
+          title: "正式 package build",
+          visual: "wheel",
+          summary: "`python -m build` 會依 `pyproject.toml` 在隔離環境產生 sdist / wheel，是交付 Cython package 的正式入口。",
+          table: ["正式打包", "`python -m build`", "release 前產 wheel、上傳內部 registry 或 PyPI", "缺 build-system requires，CI 才發現找不到 Cython"],
+          code: String.raw`python -m pip install build
+python -m build
+python -m pip install dist/fastlib-0.1.0-*.whl
+python -c "import fastlib.core; print('ok')"`,
+          output: "Successfully built fastlib-0.1.0.tar.gz and fastlib-0.1.0-...whl\nok",
+          steps: [
+            ["宣告 build-system", "`pyproject.toml` 必須列出 setuptools、wheel、Cython。"],
+            ["安裝 wheel 驗收", "不要只看 dist 出現檔案，要真的 pip install。"],
+            ["保留產物", "release artifact 要能被下載、重裝與 rollback。"]
+          ]
+        }
+      ],
+      language: [
+        {
+          id: "lang-def-cdef-cpdef",
+          tag: "def / cdef / cpdef",
+          title: "函式邊界三選一",
+          visual: "boundary",
+          summary: "`def` 給 Python 呼叫，`cdef` 給 Cython 內部快呼叫，`cpdef` 同時提供 Python wrapper 與 C-level 呼叫。",
+          table: ["函式語法", "`def` / `cdef` / `cpdef`", "API 邊界、內部 helper、熱點公開函式", "全部用 cpdef 導致 API 過度暴露"],
+          code: String.raw`def public_api(int value):
+    return _inner(value)
+
+cdef int _inner(int value):
+    return value * 2
+
+cpdef int fast_double(int value):
+    return _inner(value)`,
+          output: "public_api 與 fast_double 可從 Python 呼叫，_inner 只給 Cython 內部使用。",
+          steps: [
+            ["外部 API 用 def", "維持 Python 呼叫彈性與可讀性。"],
+            ["內部熱點用 cdef", "避免 Python function call overhead。"],
+            ["需要雙邊呼叫才用 cpdef", "不要把所有 helper 都變公開介面。"]
+          ]
+        },
+        {
+          id: "lang-cdef-types",
+          tag: "cdef type",
+          title: "變數型別與 loop 加速",
+          visual: "type",
+          summary: "`cdef int i`、`cdef double total` 讓 loop 變數走 C type，避免每次迭代都產生 Python object 操作。",
+          table: ["型別宣告", "`cdef Py_ssize_t i`", "大量數值迴圈", "型別溢位或把 Python None 傳進 C type"],
+          code: String.raw`cpdef double mean(double[:] values):
+    cdef Py_ssize_t i
+    cdef double total = 0.0
+    cdef Py_ssize_t n = values.shape[0]
+    for i in range(n):
+        total += values[i]
+    return total / n`,
+          output: "loop index、total、n 都是 C-level type，適合處理連續數值資料。",
+          steps: [
+            ["先型別化 loop", "i、total、n 是最常見的收益點。"],
+            ["注意除以零", "Cython 加速不會替你補 business validation。"],
+            ["測溢位與極值", "C int/long 有範圍限制，和 Python int 不同。"]
+          ]
+        },
+        {
+          id: "lang-memoryview",
+          tag: "memoryview",
+          title: "Typed memoryview 處理陣列資料",
+          visual: "array",
+          summary: "`double[:]`、`unsigned char[:, :]` 讓 Cython 以 C-like 方式存取 buffer，常用於 NumPy、影像、聲音、二進位資料。",
+          table: ["陣列語法", "`double[:] values`", "數值陣列、影像 pixel、binary buffer", "資料不是 contiguous 卻假設步進固定"],
+          code: String.raw`cpdef void threshold(unsigned char[:, :] image, unsigned char limit):
+    cdef Py_ssize_t y, x
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            image[y, x] = 255 if image[y, x] >= limit else 0`,
+          output: "直接原地修改 2D buffer，不需要每個 pixel 都包成 Python object。",
+          steps: [
+            ["確認資料形狀", "shape、dtype、contiguous 會影響速度與正確性。"],
+            ["避免 Python list", "list of list 不是 memoryview 最佳資料來源。"],
+            ["補邊界測試", "影像尺寸為 0、1、非方形都要測。"]
+          ]
+        },
+        {
+          id: "lang-extension-type",
+          tag: "cdef class",
+          title: "Extension type 儲存 C-level 狀態",
+          visual: "class",
+          summary: "`cdef class` 是 Cython extension type，可把欄位存成 C type，適合高頻物件、parser state、C pointer wrapper。",
+          table: ["物件語法", "`cdef class ParserState`", "大量建立或高頻呼叫的狀態物件", "忘記處理 C resource 釋放"],
+          code: String.raw`cdef class Counter:
+    cdef long value
+
+    def __cinit__(self, long start=0):
+        self.value = start
+
+    cpdef long add(self, long amount):
+        self.value += amount
+        return self.value`,
+          output: "Counter.value 是 C long，不是一般 Python attribute dictionary。",
+          steps: [
+            ["欄位固定", "cdef class 的 C 欄位需要預先宣告。"],
+            ["初始化用 __cinit__", "C-level resource 準備通常放這裡。"],
+            ["釋放要設計", "包 C pointer 時要處理 __dealloc__。"]
+          ]
+        },
+        {
+          id: "lang-pxd-cimport",
+          tag: ".pxd / cimport",
+          title: "跨模組共享 Cython 宣告",
+          visual: "module",
+          summary: "`.pxd` 像 Cython 的 header，讓其他 `.pyx` 用 `cimport` 取得 C-level function、type 或 extension class 宣告。",
+          table: ["模組邊界", "`from pkg.core cimport fast_inner`", "大型 package 拆多個 extension module", "把實作放進 .pxd 造成邊界混亂"],
+          code: String.raw`# core.pxd
+cdef int fast_inner(int value)
+
+# core.pyx
+cdef int fast_inner(int value):
+    return value * 2
+
+# worker.pyx
+from .core cimport fast_inner
+
+cpdef int run(int value):
+    return fast_inner(value) + 1`,
+          output: "worker.pyx 以 C-level 呼叫 core.pyx 的 fast_inner。",
+          steps: [
+            ["pxd 放宣告", "像 header，只暴露其他 module 需要知道的型別與函式。"],
+            ["pyx 放實作", "實作仍放在 `.pyx`，避免重複與耦合。"],
+            ["版本要同步", "改 signature 時，呼叫端也要重新編譯與測試。"]
+          ]
+        },
+        {
+          id: "lang-nogil",
+          tag: "nogil / prange",
+          title: "釋放 GIL 與平行 loop",
+          visual: "parallel",
+          summary: "`with nogil` 讓 C-level code 不持有 Python GIL；`prange` 可用 OpenMP 平行迴圈，但區塊內不能碰 Python object。",
+          table: ["並行語法", "`with nogil` / `prange`", "純 C 數值運算、無 Python object 的 loop", "nogil 區塊內呼叫 Python API"],
+          code: String.raw`from cython.parallel import prange
+
+cpdef void scale(double[:] values, double factor):
+    cdef Py_ssize_t i
+    with nogil:
+        for i in prange(values.shape[0], schedule="static"):
+            values[i] = values[i] * factor`,
+          output: "純數值 loop 可在不持有 GIL 的情況下執行；OpenMP 設定需由 compiler/build options 配合。",
+          steps: [
+            ["只放 C-level 操作", "nogil 內不能建立 Python list、dict、raise 一般 Python exception。"],
+            ["檢查 thread safety", "寫同一個位置會 race，必須保證每個 index 獨立。"],
+            ["build options", "OpenMP 在不同平台的 compiler flags 不同，CI 要分平台驗收。"]
+          ]
+        }
+      ],
+      applications: [
+        {
+          id: "app-hot-loop",
+          tag: "Hot loop",
+          title: "把高頻 loop 變成 C-level",
+          visual: "speed",
+          summary: "最常見成功案例是：Python 外層負責 I/O 與 orchestration，Cython 只處理高頻、資料型別穩定的 loop。",
+          table: ["效能應用", "profile -> isolate -> cdef loop", "log parser、feature extraction、計算核心", "把 I/O await 用 Cython 包起來，速度不會明顯改善"],
+          code: String.raw`cpdef int count_separator(bytes data, unsigned char sep):
+    cdef Py_ssize_t i
+    cdef int total = 0
+    for i in range(len(data)):
+        if data[i] == sep:
+            total += 1
+    return total`,
+          output: "適合大量 bytes 掃描，例如 CSV、log、binary protocol 的初步解析。",
+          steps: [
+            ["bytes 進來", "避免每個字元轉 Python str。"],
+            ["C-level index", "用 Py_ssize_t 做索引。"],
+            ["外層仍 Python", "檔案讀取、錯誤處理留在 Python 層。"]
+          ]
+        },
+        {
+          id: "app-c-wrapper",
+          tag: "C SDK",
+          title: "包裝 C library / SDK",
+          visual: "capi",
+          summary: "Cython 很適合把 C header 包成 Python module。重點是錯誤碼轉 exception、resource ownership 與 ABI 版本管理。",
+          table: ["跨語言應用", "`cdef extern from`", "既有 C SDK、硬體 library、壓縮/加密/影像核心", "沒定義誰負責 free 記憶體"],
+          code: String.raw`cdef extern from "sensor.h":
+    ctypedef struct Sensor:
+        pass
+    Sensor* sensor_open(const char* path)
+    int sensor_read(Sensor* sensor, double* out_value)
+    void sensor_close(Sensor* sensor)
+
+cdef class SensorClient:
+    cdef Sensor* handle
+
+    def __cinit__(self, bytes path):
+        self.handle = sensor_open(path)
+        if self.handle == NULL:
+            raise RuntimeError("sensor_open failed")
+
+    def __dealloc__(self):
+        if self.handle != NULL:
+            sensor_close(self.handle)`,
+          output: "Python 使用者拿到 SensorClient，底層持有 C pointer 並在釋放時關閉。",
+          steps: [
+            ["宣告 C API", "用 `cdef extern` 對應 header。"],
+            ["轉換錯誤", "C error code 轉成 Python exception。"],
+            ["管理生命週期", "__dealloc__ 要釋放 C resource，避免 memory leak。"]
+          ]
+        },
+        {
+          id: "app-plugin-boundary",
+          tag: "Boundary",
+          title: "把 Cython 放在 package boundary 內",
+          visual: "boundary",
+          summary: "大型專案不要讓 `.pyx` 到處滲透。建議建立 `fastpath` package，外面只依賴穩定 Python function 或 Protocol。",
+          table: ["架構應用", "Python facade -> Cython implementation", "需要替換 pure Python / Cython 實作", "業務邏輯直接寫死在 Cython extension"],
+          code: String.raw`# pkg/fastpath/__init__.py
+try:
+    from ._cy import normalize_scores
+except ImportError:
+    from ._py import normalize_scores
+
+# service.py
+from pkg.fastpath import normalize_scores
+
+def rank(items):
+    scores = normalize_scores([item.score for item in items])
+    return sorted(zip(scores, items), reverse=True)`,
+          output: "Service 層不知道底層是 pure Python 還是 Cython，測試與 fallback 都更容易。",
+          steps: [
+            ["Facade 固定", "`fastpath.__init__` 是唯一入口。"],
+            ["實作可替換", "Cython 失敗時可退回 Python。"],
+            ["業務留外層", "排名規則留在 service，Cython 只做數值處理。"]
+          ]
+        },
+        {
+          id: "app-benchmark",
+          tag: "Benchmark",
+          title: "用 benchmark 證明改動有效",
+          visual: "chart",
+          summary: "Cython PR 必須附 benchmark 與 correctness test。沒有 baseline 的速度改善，很容易只是局部測試錯覺。",
+          table: ["驗收應用", "`pytest + pytest-benchmark` 或自製 timeit", "效能敏感 PR / release gate", "只跑一次、本機狀態不穩、資料太小"],
+          code: String.raw`from timeit import timeit
+from fastlib import py_sum, typed_sum
+
+data = list(range(1_000_000))
+
+print("python", timeit(lambda: py_sum(data), number=10))
+print("cython", timeit(lambda: typed_sum(data), number=10))`,
+          output: "輸出兩個版本的耗時；正式專案應固定資料集與 runner 條件。",
+          steps: [
+            ["資料集固定", "benchmark 輸入要能重現。"],
+            ["先測正確性", "速度快但答案錯沒有價值。"],
+            ["記錄門檻", "例如至少比 baseline 快 2x，否則不值得引入 Cython。"]
+          ]
+        },
+        {
+          id: "app-errors",
+          tag: "Error",
+          title: "C 層錯誤要轉成 Python 可診斷錯誤",
+          visual: "error",
+          summary: "Cython 包 C library 時，最重要的是把 NULL、error code、errno、resource leak 轉成 Python exception 與 log。",
+          table: ["可靠性應用", "error code -> exception", "C SDK / system API / binary parser", "segfault 後才發現錯誤邊界沒設計"],
+          code: String.raw`cdef int rc = sensor_read(self.handle, &value)
+if rc != 0:
+    raise SensorReadError(f"sensor_read failed: rc={rc}")
+return value`,
+          output: "呼叫者拿到可捕捉、可測試、可記錄的 Python exception。",
+          steps: [
+            ["不要吞錯", "C error code 必須轉成明確 exception。"],
+            ["保留上下文", "錯誤訊息包含 rc、path、operation。"],
+            ["測 failure path", "用 fake C wrapper 或測試替身驗證錯誤轉換。"]
+          ]
+        }
+      ],
+      packaging: [
+        {
+          id: "pkg-pyproject",
+          tag: "pyproject",
+          title: "build-system 與 package metadata",
+          visual: "file",
+          summary: "`pyproject.toml` 要宣告 build backend 與 build-time dependencies。Cython package 不能假設使用者機器已經有 Cython。",
+          table: ["打包設定", "`[build-system] requires`", "wheel / sdist / CI build", "漏列 Cython 或 setuptools，隔離 build 失敗"],
+          code: String.raw`# pyproject.toml
+[build-system]
+requires = ["setuptools>=68", "wheel", "Cython>=3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastlib"
+version = "0.1.0"
+requires-python = ">=3.10"`,
+          output: "pip/build 會在隔離環境安裝 build-time dependencies 後再建置。",
+          steps: [
+            ["build-system 必填", "這是 pip/build 知道如何建置 extension 的入口。"],
+            ["分清 dependency", "Cython 是 build-time dependency，不一定是 runtime dependency。"],
+            ["鎖最低版本", "版本過低會造成 directive 或語法不支援。"]
+          ]
+        },
+        {
+          id: "pkg-wheel",
+          tag: "wheel",
+          title: "平台 wheel 與 ABI",
+          visual: "wheel",
+          summary: "Cython extension wheel 不是純 Python wheel，通常帶有 OS、architecture、Python ABI tag。跨平台必須各自 build。",
+          table: ["binary distribution", "`dist/*.whl`", "交付給沒有 compiler 的使用者", "在 macOS build 以為 Linux 可以用"],
+          code: String.raw`python -m build
+ls dist/
+
+# fastlib-0.1.0-cp311-cp311-macosx_14_0_arm64.whl
+# fastlib-0.1.0.tar.gz`,
+          output: "wheel 檔名會帶 Python/平台標籤；不是所有平台通用。",
+          steps: [
+            ["看 tag", "cp311、win_amd64、manylinux、macosx 都代表相容性範圍。"],
+            ["平台各自建", "Windows、macOS、Linux 分別建 wheel。"],
+            ["安裝後 smoke test", "每個 wheel 都要 import 與跑最小功能測試。"]
+          ]
+        },
+        {
+          id: "pkg-so-inplace",
+          tag: ".so / build_ext",
+          title: "建立可 import 的 .so 範例",
+          visual: "package",
+          summary: "`.so` 是 macOS / Linux 上 Python extension module 的常見副檔名；Windows 對應 `.pyd`。這個範例展示 `.pyx` 如何 build 成 `fastmath/_core*.so` 並直接 import。",
+          table: ["原地 extension", "`python setup.py build_ext --inplace`", "本機驗證 `.pyx -> .so -> import` 的最小可跑流程", "把 `.so` 當跨平台通用檔案，或忘記 package path 要對齊 module name"],
+          code: String.raw`# 專案結構
+cython_so_example/
+  pyproject.toml
+  setup.py
+  src/fastmath/__init__.py
+  src/fastmath/_core.pyx
+  demo.py
+
+# src/fastmath/_core.pyx
+# cython: language_level=3
+cpdef long add_range(long n):
+    cdef long i
+    cdef long total = 0
+    for i in range(n + 1):
+        total += i
+    return total
+
+# setup.py
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+extensions = [
+    Extension("fastmath._core", ["src/fastmath/_core.pyx"])
+]
+
+setup(
+    packages=["fastmath"],
+    package_dir={"": "src"},
+    ext_modules=cythonize(extensions, language_level=3),
+)
+
+# build + smoke test
+python -m pip install -U Cython setuptools wheel
+python setup.py build_ext --inplace
+python -c "from fastmath import add_range; print(add_range(100))"
+ls src/fastmath/*_core*.so`,
+          output: "5050\nsrc/fastmath/_core.cpython-311-darwin.so\n\nLinux 常見：_core.cpython-311-x86_64-linux-gnu.so\nWindows 會是：_core.cp311-win_amd64.pyd",
+          steps: [
+            ["module name 對齊路徑", "`Extension(\"fastmath._core\", ...)` 會產生可被 `fastmath._core` import 的 extension。"],
+            ["build_ext --inplace", "把編譯產物放回 package 目錄旁，適合本機開發與教學展示。"],
+            ["先 import 驗收", "看到 `.so` 還不夠，必須用 `python -c` 實際 import 並呼叫函式。"],
+            ["正式交付走 wheel", "`.so` 是平台相關產物；要發給別人時應放進 wheel 並在目標平台驗證。"]
+          ]
+        },
+        {
+          id: "pkg-manifest",
+          tag: "sdist",
+          title: "sdist、.pyx、.pxd 與 header 檔",
+          visual: "file",
+          summary: "source distribution 要包含 `.pyx`、`.pxd`、必要 header 或產生的 `.c`。團隊要決定是否要求使用者 build 時安裝 Cython。",
+          table: ["source package", "MANIFEST / package-data", "內部套件、需要重新編譯的使用者", "漏掉 .pxd 或 header，wheel build 才失敗"],
+          code: String.raw`# MANIFEST.in
+recursive-include src/fastlib *.pyx *.pxd
+recursive-include include *.h
+
+# package data 也要在 setup 設定中確認`,
+          output: "sdist 解開後包含建置 extension 所需的 Cython source 與 headers。",
+          steps: [
+            ["列出必要檔案", "`.pyx`、`.pxd`、`.h`、license 都要進 sdist。"],
+            ["重建測試", "用乾淨 venv 從 sdist 安裝一次。"],
+            ["文件寫清楚", "使用者是否需要 compiler 與 Cython，要明確告知。"]
+          ]
+        },
+        {
+          id: "pkg-pyinstaller",
+          tag: "PyInstaller",
+          title: "Cython extension 與執行檔打包",
+          visual: "package",
+          summary: "PyInstaller 通常能收進 extension，但動態 import、package data、外部 shared library 仍可能需要 hidden imports 或 add-binary。",
+          table: ["執行檔交付", "`pyinstaller --onedir app.py`", "內部工具、CLI、桌面輔助程式", "漏掉 `.dll/.dylib/.so` 或 assets"],
+          code: String.raw`pyinstaller --name fast-tool --onedir app.py \
+  --hidden-import fastlib._cy \
+  --add-binary "vendor/libsensor.dylib:vendor"
+
+./dist/fast-tool/fast-tool --version`,
+          output: "fast-tool 0.1.0",
+          steps: [
+            ["先 onedir", "先用資料夾模式看清楚 extension 與 shared library 是否存在。"],
+            ["補 hidden import", "動態載入的 Cython module 可能不會被自動發現。"],
+            ["目標機驗證", "打包機成功不代表使用者機器也能跑。"]
+          ]
+        },
+        {
+          id: "pkg-ci",
+          tag: "CI matrix",
+          title: "跨平台 build matrix",
+          visual: "ci",
+          summary: "Cython package 的 CI 至少要跑 lint、pytest、build wheel、install wheel、smoke test。跨平台時用 matrix 拆 OS 與 Python 版本。",
+          table: ["CI 交付", "test -> build -> install -> smoke", "正式 release、內部 package registry", "只跑 source test，沒測 wheel 安裝後狀態"],
+          code: String.raw`python -m pip install -U pip build
+python -m pip install -e ".[test]"
+pytest
+python -m build
+python -m pip install dist/*.whl --force-reinstall
+python -c "import fastlib; print(fastlib.__version__)"`,
+          output: "測試通過、wheel build 成功、安裝後 import 成功。",
+          steps: [
+            ["先測 source", "確保程式碼邏輯正確。"],
+            ["再測 package", "確保 wheel 內容完整。"],
+            ["保留 artifacts", "發佈與 rollback 都需要可追蹤產物。"]
+          ]
+        }
+      ],
+      cases: [
+        {
+          id: "case-image",
+          tag: "Case 1",
+          title: "影像二值化核心",
+          visual: "array",
+          summary: "將影像 pixel loop 從 Python 轉成 memoryview，外層仍由 Python 負責讀檔與寫檔。",
+          table: ["影像處理", "memoryview + bounds test", "大量 pixel 轉換", "關掉 boundscheck 後沒測邊界影像"],
+          code: String.raw`# image_kernel.pyx
+# cython: boundscheck=False, wraparound=False
+
+cpdef void binarize(unsigned char[:, :] image, unsigned char limit):
+    cdef Py_ssize_t y, x
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            image[y, x] = 255 if image[y, x] >= limit else 0`,
+          output: "pytest 驗收：空影像、1x1、非方形影像、limit=0/255 都要通過。",
+          steps: [
+            ["外層 Python", "Pillow/OpenCV 或檔案 I/O 不放進 Cython。"],
+            ["核心 loop", "只把 pixel loop 放進 `.pyx`。"],
+            ["測邊界", "關安全檢查前先補 shape 與 limit 邊界測試。"]
+          ]
+        },
+        {
+          id: "case-finance",
+          tag: "Case 2",
+          title: "金融 tick rolling window",
+          visual: "speed",
+          summary: "tick 資料大量進來時，rolling sum/mean 是典型 hot loop。Cython 可處理固定 dtype 的數值陣列。",
+          table: ["數值計算", "typed memoryview + cdef accumulator", "大量 tick、feature engineering", "浮點精度與 NaN 規則沒定義"],
+          code: String.raw`cpdef void rolling_mean(double[:] values, int window, double[:] out):
+    cdef Py_ssize_t i
+    cdef double total = 0.0
+    for i in range(values.shape[0]):
+        total += values[i]
+        if i >= window:
+            total -= values[i - window]
+        out[i] = total / min(i + 1, window)`,
+          output: "驗收：window=1、window 大於資料長度、負值、NaN policy。",
+          steps: [
+            ["定義金融規則", "NaN、缺值、window 不足時如何算要先寫清楚。"],
+            ["資料型別固定", "double memoryview 讓 loop 避開 Python object。"],
+            ["對照 baseline", "用 pure Python 或 NumPy 結果比對正確性。"]
+          ]
+        },
+        {
+          id: "case-log-parser",
+          tag: "Case 3",
+          title: "大型 log 分隔符掃描",
+          visual: "terminal",
+          summary: "GB 級 log 的第一層掃描可以用 Cython 處理 bytes，Python 層再解析欄位與錯誤處理。",
+          table: ["資料解析", "bytes scan + Python parser boundary", "CSV/log/binary protocol 前處理", "把所有 parsing 規則硬塞進 Cython 導致不可維護"],
+          code: String.raw`cpdef int count_lines(bytes payload):
+    cdef Py_ssize_t i
+    cdef int lines = 0
+    for i in range(len(payload)):
+        if payload[i] == 10:  # \n
+            lines += 1
+    return lines`,
+          output: "適合快速預掃描；完整欄位解析仍可留在 Python service。",
+          steps: [
+            ["掃描先行", "Cython 處理 bytes-level counting。"],
+            ["規則留 Python", "複雜欄位規則、錯誤訊息、schema 驗證留 Python。"],
+            ["測奇怪輸入", "空檔、無換行、最後一行無 newline、非 UTF-8。"]
+          ]
+        },
+        {
+          id: "case-sdk",
+          tag: "Case 4",
+          title: "硬體 C SDK 包裝",
+          visual: "capi",
+          summary: "用 Cython 將 C SDK 包成 Python class，對外提供乾淨 API，對內管理 pointer、錯誤碼與 close。",
+          table: ["C library", "cdef extern + cdef class", "sensor、PLC、影像擷取卡、壓縮 library", "resource ownership 不清楚造成 leak 或 double free"],
+          code: String.raw`cdef class Device:
+    cdef DeviceHandle* handle
+
+    def read(self):
+        cdef double value
+        cdef int rc = device_read(self.handle, &value)
+        if rc != 0:
+            raise DeviceError(f"read failed: rc={rc}")
+        return value`,
+          output: "Python 端可 `try/except DeviceError`，而不是直接面對 C error code。",
+          steps: [
+            ["API 翻譯", "把 C function 轉成 Python class method。"],
+            ["錯誤分類", "open/read/close 的錯誤要能分辨。"],
+            ["資源釋放", "close 與 __dealloc__ 都要設計。"]
+          ]
+        },
+        {
+          id: "case-validation",
+          tag: "Case 5",
+          title: "高頻資料驗證器",
+          visual: "shield",
+          summary: "大量資料入站時，簡單規則可用 Cython 加速；複雜 business rule 留在 Python，避免把產品邏輯編死。",
+          table: ["資料驗證", "fast predicate + Python error report", "streaming data、ETL、IoT telemetry", "Cython 只回 True/False，錯誤診斷不足"],
+          code: String.raw`cpdef bint valid_range(double[:] values, double low, double high):
+    cdef Py_ssize_t i
+    for i in range(values.shape[0]):
+        if values[i] < low or values[i] > high:
+            return False
+    return True`,
+          output: "快速判斷資料是否全在範圍內；詳細錯誤報告可由 Python fallback 找出位置。",
+          steps: [
+            ["快路徑", "常見 valid case 走 Cython。"],
+            ["慢路徑", "失敗時用 Python 產生詳細診斷。"],
+            ["規則版本化", "validation policy 要有版本與測試。"]
+          ]
+        },
+        {
+          id: "case-cli-release",
+          tag: "Case 6",
+          title: "Cython CLI 打包交付",
+          visual: "package",
+          summary: "CLI 工具可把核心加速 module 編成 extension，再用 wheel 或 PyInstaller 交付給沒有 Python 開發環境的使用者。",
+          table: ["交付案例", "wheel + smoke test + optional PyInstaller", "內部工具、批次處理、資料轉換 CLI", "只在開發機能跑，使用者機器缺 shared library"],
+          code: String.raw`# release smoke test
+python -m build
+python -m pip install dist/fastcli-*.whl --force-reinstall
+fastcli --version
+fastcli process samples/input.bin --out /tmp/result.json`,
+          output: "fastcli 0.1.0\nprocessed 120000 rows",
+          steps: [
+            ["wheel 先行", "先確定 package 可安裝，再談 executable。"],
+            ["samples 驗收", "release 附固定 sample input/output。"],
+            ["rollback", "保留上一版 wheel/exe，extension 問題可退版。"]
+          ]
+        }
+      ]
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const palette = {
+        pipeline: ["#e7f0fb", "#2f6fbb"], decision: ["#eee9f8", "#7257a8"], shield: ["#fae8e8", "#c34848"],
+        terminal: ["#e7f0fb", "#2f6fbb"], heat: ["#fff4cf", "#c79a14"], switch: ["#e6f5ef", "#2d8a69"],
+        parallel: ["#eee9f8", "#7257a8"], package: ["#fae8e8", "#c34848"], wheel: ["#fff4cf", "#c79a14"],
+        boundary: ["#e7f0fb", "#2f6fbb"], type: ["#e6f5ef", "#2d8a69"], array: ["#fff4cf", "#c79a14"],
+        class: ["#eee9f8", "#7257a8"], module: ["#e7f0fb", "#2f6fbb"], speed: ["#e6f5ef", "#2d8a69"],
+        capi: ["#eee9f8", "#7257a8"], chart: ["#e7f0fb", "#2f6fbb"], error: ["#fae8e8", "#c34848"],
+        file: ["#e7f0fb", "#2f6fbb"], ci: ["#e6f5ef", "#2d8a69"]
+      };
+      const [soft, stroke] = palette[type] || palette.pipeline;
+      const arrow = `<marker id="arrow-${type}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="${stroke}"/></marker>`;
+      const shapes = {
+        pipeline: `<rect x="28" y="62" width="62" height="46" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="59" y="91" text-anchor="middle">pyx</text><path d="M92 85h38" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="138" y="62" width="62" height="46" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="169" y="91" text-anchor="middle">C</text><path d="M202 85h38" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="248" y="62" width="62" height="46" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="279" y="91" text-anchor="middle">so</text>`,
+        decision: `<polygon points="150,30 245,84 150,138 55,84" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="150" y="78" text-anchor="middle">hot?</text><text x="150" y="102" text-anchor="middle">profile</text>`,
+        shield: `<path d="M150 28l92 36v60c0 48-38 78-92 96-54-18-92-48-92-96V64z" fill="#fff" stroke="${stroke}" stroke-width="4"/><text x="150" y="95" text-anchor="middle">safe</text><text x="150" y="122" text-anchor="middle">fallback</text>`,
+        terminal: `<rect x="35" y="45" width="240" height="96" rx="10" fill="#101827" stroke="${stroke}" stroke-width="3"/><text x="58" y="82" fill="#dff7ed">$ cythonize -i</text><text x="58" y="112" fill="#dff7ed">import module</text>`,
+        heat: `<rect x="45" y="36" width="210" height="120" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="74" y="64" width="160" height="18" fill="#fff4cf"/><rect x="74" y="92" width="130" height="18" fill="#ffd36b"/><rect x="74" y="120" width="184" height="18" fill="#f08f4f"/><text x="155" y="170" text-anchor="middle">annotate</text>`,
+        switch: `<rect x="42" y="56" width="220" height="72" rx="36" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="104" cy="92" r="28" fill="${soft}" stroke="${stroke}" stroke-width="3"/><text x="177" y="98" text-anchor="middle">directives</text>`,
+        parallel: `<circle cx="72" cy="86" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="152" cy="86" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="232" cy="86" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M100 86h24M180 86h24" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="152" y="144" text-anchor="middle">parallel</text>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="158" y="101" text-anchor="middle">dist/</text><text x="158" y="128" text-anchor="middle">exe</text>`,
+        wheel: `<circle cx="155" cy="90" r="58" fill="#fff" stroke="${stroke}" stroke-width="4"/><circle cx="155" cy="90" r="18" fill="${soft}" stroke="${stroke}" stroke-width="3"/><path d="M155 32v40M155 108v40M97 90h40M173 90h40M114 49l28 28M168 103l28 28M196 49l-28 28M142 103l-28 28" stroke="${stroke}" stroke-width="3"/><text x="155" y="170" text-anchor="middle">wheel</text>`,
+        boundary: `<rect x="36" y="52" width="88" height="70" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="80" y="93" text-anchor="middle">Python</text><path d="M126 87h54" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="188" y="52" width="88" height="70" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="232" y="93" text-anchor="middle">Cython</text>`,
+        type: `<rect x="44" y="48" width="220" height="90" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M99 48v90M154 48v90M209 48v90" stroke="${stroke}" stroke-width="3"/><text x="72" y="99" text-anchor="middle">int</text><text x="126" y="99" text-anchor="middle">long</text><text x="182" y="99" text-anchor="middle">double</text><text x="238" y="99" text-anchor="middle">bint</text>`,
+        array: `<rect x="42" y="50" width="224" height="96" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M42 82h224M42 114h224M86 50v96M130 50v96M174 50v96M218 50v96" stroke="${stroke}" stroke-width="2"/><text x="154" y="170" text-anchor="middle">memoryview</text>`,
+        class: `<rect x="62" y="36" width="186" height="124" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M62 76h186M62 116h186" stroke="${stroke}" stroke-width="3"/><text x="155" y="62" text-anchor="middle">cdef class</text><text x="155" y="102" text-anchor="middle">C fields</text><text x="155" y="145" text-anchor="middle">methods</text>`,
+        module: `<rect x="48" y="54" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="89" y="98" text-anchor="middle">.pxd</text><path d="M132 93h42" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="184" y="54" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="225" y="98" text-anchor="middle">.pyx</text>`,
+        speed: `<path d="M64 132c22-54 64-82 126-82 32 0 58 8 82 25" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/><path d="M154 102l62-48" stroke="${stroke}" stroke-width="7" stroke-linecap="round"/><circle cx="154" cy="103" r="10" fill="${stroke}"/><text x="154" y="165" text-anchor="middle">hot path</text>`,
+        capi: `<rect x="42" y="54" width="88" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="86" y="98" text-anchor="middle">C SDK</text><path d="M132 92h44" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="184" y="54" width="92" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="230" y="86" text-anchor="middle">Python</text><text x="230" y="110" text-anchor="middle">API</text>`,
+        chart: `<rect x="44" y="42" width="222" height="116" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M78 130V76M128 130V58M178 130V94M228 130V70" stroke="${stroke}" stroke-width="16"/><text x="155" y="178" text-anchor="middle">benchmark</text>`,
+        error: `<rect x="42" y="54" width="90" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="87" y="99" text-anchor="middle">rc=-1</text><path d="M134 92h42" stroke="${stroke}" stroke-width="4" marker-end="url(#arrow-${type})"/><rect x="184" y="54" width="94" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="231" y="87" text-anchor="middle">Exception</text><text x="231" y="111" text-anchor="middle">log</text>`,
+        file: `<path d="M76 38h110l44 44v84H76z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M186 38v44h44" fill="none" stroke="${stroke}" stroke-width="3"/><text x="153" y="115" text-anchor="middle">toml</text>`,
+        ci: `<rect x="44" y="54" width="70" height="74" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="122" y="54" width="70" height="74" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="200" y="54" width="70" height="74" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="79" y="98" text-anchor="middle">test</text><text x="157" y="98" text-anchor="middle">build</text><text x="235" y="98" text-anchor="middle">smoke</text>`
+      };
+      return `<svg viewBox="0 0 310 190" role="img" aria-label="${escapeHtml(title)} 圖示">
+        <defs>${arrow}</defs>
+        <rect x="6" y="10" width="298" height="170" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="#172033">${shapes[type]}</g>
+      </svg>`;
+    }
+
+    function allLessons() {
+      return Object.values(lessonGroups).flat();
+    }
+
+    function renderLessons() {
+      document.querySelectorAll("[data-group]").forEach((section) => {
+        const group = lessonGroups[section.dataset.group] || [];
+        const root = section.querySelector(".cards");
+        root.innerHTML = group.map((lesson, index) => `
+          <article class="lesson-card lesson-item" id="${escapeHtml(lesson.id)}" data-lesson-id="${escapeHtml(lesson.id)}" data-search="${escapeHtml([lesson.title, lesson.tag, lesson.summary, lesson.table.join(" "), lesson.code].join(" "))}">
+            <div class="lesson-top">
+              <div class="visual-small">${visualSvg(lesson.visual, lesson.title)}</div>
+              <div class="lesson-title">
+                <span class="tag">${escapeHtml(lesson.tag)}</span>
+                <h3>${index + 1}. ${escapeHtml(lesson.title)}</h3>
+                <p class="summary">${escapeHtml(lesson.summary)}</p>
+                <div class="card-actions">
+                  <label class="complete-toggle"><input type="checkbox" data-complete="${escapeHtml(lesson.id)}">完成</label>
+                  <a class="button" href="#${escapeHtml(lesson.id)}">定位</a>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>格式 / Pattern</th><th>適用情境</th><th>常見錯誤</th></tr></thead>
+                <tbody><tr>${lesson.table.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="code-head">
+                <strong>範例 / 指令</strong>
+                <button class="button output-toggle" type="button" data-output="out-${escapeHtml(lesson.id)}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(lesson.code)}</pre>
+              <pre class="output" id="out-${escapeHtml(lesson.id)}">${escapeHtml(lesson.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(lesson.title)} step-by-step">
+              ${lesson.steps.map((step, stepIndex) => {
+                const panelId = `${lesson.id}-step-${stepIndex + 1}`;
+                return `
+                  <div class="step">
+                    <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${escapeHtml(panelId)}">
+                      <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="step-panel" id="${escapeHtml(panelId)}">${escapeHtml(step[1])}</div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </article>
+        `).join("");
+      });
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-cython-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      document.querySelectorAll("#progressSummary, #progressSummaryMobile").forEach((el) => {
+        el.textContent = `完成 ${done} / ${total}`;
+      });
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(checkbox.dataset.complete);
+        } else {
+          completed.delete(checkbox.dataset.complete);
+        }
+        localStorage.setItem("python-cython-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `cython-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    function bindBackToTop() {
+      const button = document.querySelector(".back-to-top");
+      if (!button) return;
+      const toggle = () => button.classList.toggle("is-visible", window.scrollY > 420);
+      button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      window.addEventListener("scroll", toggle, { passive: true });
+      toggle();
+    }
+
+    renderLessons();
+    enhanceCodeBlocks();
+    bindInteractions();
+    bindBackToTop();
+    updateProgress();
+  </script>
+</body>
+</html>
