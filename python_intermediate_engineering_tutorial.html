@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 中級工程視覺教學 - 大型專案、並發、平行運算與打包</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .brand strong { font-size: 1rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-blue); color: var(--ink); outline: none; }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      padding: 0.32rem 0.55rem;
+      border: 1px solid rgba(47,111,187,0.25);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.72);
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 0.84rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    .hero p, .lead { color: var(--muted); max-width: 56rem; margin: 0; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.5rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero-visual { padding: 0.7rem; }
+    .hero-visual svg, .diagram svg { width: 100%; height: auto; display: block; }
+    .section { padding: 2.2rem clamp(1rem, 5vw, 4.8rem); }
+    .section h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.7rem); line-height: 1.12; letter-spacing: 0; }
+    .section-head { margin-bottom: 1rem; }
+    .grid { display: grid; gap: 1rem; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .diagram { padding: 1rem; overflow-x: auto; }
+    .diagram svg.wide { min-width: 58rem; }
+    .topic-list { display: grid; gap: 1rem; }
+    .topic-card {
+      display: grid;
+      grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .topic-visual {
+      padding: 1rem;
+      background: linear-gradient(180deg, var(--soft-blue), #fff);
+      border-right: 1px solid var(--line);
+    }
+    .topic-visual svg { width: 100%; height: auto; min-height: 9.5rem; }
+    .topic-body { min-width: 0; padding: 1rem; display: grid; gap: 0.85rem; }
+    .topic-title { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+    .topic-title h3 { margin: 0; font-size: 1.22rem; line-height: 1.22; }
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      padding: 0.14rem 0.42rem;
+      border-radius: 6px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+    .summary { margin: 0; color: var(--muted); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
+    table { width: 100%; min-width: 48rem; border-collapse: collapse; font-size: 0.91rem; }
+    th, td { padding: 0.66rem 0.7rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eef4fb; color: #31445b; font-weight: 900; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    code { font-family: var(--mono); }
+    td code, p code, li code {
+      padding: 0.08rem 0.28rem;
+      border-radius: 5px;
+      background: #edf3f8;
+      color: #1d446a;
+      font-size: 0.9em;
+    }
+    .code {
+      margin: 0;
+      padding: 0.9rem;
+      border-radius: 7px;
+      overflow-x: auto;
+      background: #172033;
+      color: #eef6ff;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      line-height: 1.58;
+      white-space: pre;
+      tab-size: 4;
+    }
+    .code-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; }
+    .output {
+      display: none;
+      margin: 0;
+      padding: 0.75rem 0.9rem;
+      border-left: 4px solid var(--green);
+      border-radius: 7px;
+      background: #f1fbf7;
+      color: #21483b;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+    }
+    .output.is-open { display: block; }
+    .steps { display: grid; gap: 0.55rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      min-height: 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.68rem 0.82rem;
+      border: 0;
+      background: white;
+      font: inherit;
+      font-weight: 900;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; }
+    .step-number {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 6px;
+      background: var(--soft-yellow);
+      color: #735508;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+    .step-panel { display: none; padding: 0 0.9rem 0.9rem 3.15rem; color: #405268; font-size: 0.94rem; }
+    .step.is-open .step-panel { display: block; }
+    .chevron { transition: transform 180ms ease; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .capability {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .capability h3 { margin: 0 0 0.4rem; font-size: 1.08rem; }
+    .capability p { margin: 0; color: var(--muted); }
+    .learning-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.9rem;
+      align-items: center;
+      padding: 1rem;
+      margin: 0 clamp(1rem, 5vw, 4.8rem) 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow);
+    }
+    .search-box {
+      width: 100%;
+      min-height: 2.55rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 750;
+    }
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.5rem 0.72rem;
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+    }
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-height: 2.35rem;
+      padding: 0.45rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .complete-toggle input { width: 1rem; height: 1rem; accent-color: var(--green); }
+    .copy-code {
+      min-height: 2.25rem;
+      padding: 0.38rem 0.58rem;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.12);
+      color: white;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .code-tools { display: flex; justify-content: flex-end; margin-bottom: -0.5rem; }
+    .mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+    .mini-box {
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #f8fbfe;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .mini-box strong { display: block; margin-bottom: 0.2rem; color: var(--ink); }
+    .flow-note {
+      display: grid;
+      gap: 0.85rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .flow-note svg { width: 100%; min-width: 54rem; height: auto; display: block; }
+    .checklist-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+    .hidden-by-search { display: none !important; }
+    .section-pager { display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1rem; }
+    footer { padding: 2rem clamp(1rem, 5vw, 4.8rem) 3rem; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 1080px) {
+      .layout { display: block; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero, .topic-card { grid-template-columns: 1fr; }
+      .topic-visual { border-right: 0; border-bottom: 1px solid var(--line); }
+      .grid.two, .checklist-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .hero, .section, footer { padding-left: 0.85rem; padding-right: 0.85rem; }
+      h1 { max-width: 14ch; }
+      .topic-title, .code-head { display: block; }
+      .learning-tools, .mini-grid { grid-template-columns: 1fr; }
+      .learning-tools { margin-left: 0.85rem; margin-right: 0.85rem; }
+      .button { width: 100%; margin-top: 0.45rem; }
+      .step-panel { padding-left: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="index.html">入口</a>
+    <a href="#roadmap">路線</a>
+    <a href="#architecture">架構</a>
+    <a href="#decision">並發決策</a>
+    <a href="#topics">工程卡片</a>
+    <a href="#capstone">Capstone</a>
+    <a href="#production">交付線</a>
+    <a href="#testing-lab">測試</a>
+    <a href="#repository-hardening">Repository</a>
+    <a href="#concurrency-lifecycle">Worker</a>
+    <a href="#packaging">打包</a>
+    <a href="#readiness">維運</a>
+    <a href="#toolchain">工具鏈</a>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>Python 中級工程教材</strong>
+        <span>Architecture / Concurrency / Packaging</span>
+      </div>
+      <nav class="nav" aria-label="主要章節">
+        <a href="index.html">教材入口</a>
+        <a href="python_beginner_interactive_tutorial.html">初級教材</a>
+        <a href="#roadmap">中級路線</a>
+        <a href="#architecture">大型專案架構</a>
+        <a href="#decision">並發與平行決策</a>
+        <a href="#topics">工程主題卡</a>
+        <a href="#capstone">notes-cli Capstone</a>
+        <a href="#production">Production 一條到底</a>
+        <a href="#testing-lab">測試實戰補強</a>
+        <a href="#repository-hardening">Repository 硬化</a>
+        <a href="#concurrency-lifecycle">Worker 生命週期</a>
+        <a href="#packaging">PyInstaller 打包</a>
+        <a href="#readiness">維運與安全檢查</a>
+        <a href="#toolchain">工具鏈與 CI</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <div>
+          <span class="eyebrow">中級教材 / 20年專案工程師視角</span>
+          <h1>Python 中高階工程實戰</h1>
+          <p>這份教材給已經會基本語法的人：把 Python 放進大型專案、知道何時用 thread、process、async，並能把工具打包成可交付的執行檔。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#topics">開始看工程卡片</a>
+            <a class="button" href="#production">看交付一條線</a>
+            <a class="button" href="#decision">看並發決策圖</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface hero-visual">
+          <svg viewBox="0 0 740 430" role="img" aria-labelledby="heroTitle heroDesc">
+            <title id="heroTitle">Python 中級工程路線圖</title>
+            <desc id="heroDesc">從架構、工程化、並發、平行運算到打包交付。</desc>
+            <defs>
+              <marker id="heroArrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker>
+            </defs>
+            <rect x="18" y="20" width="704" height="390" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <path d="M95 218 C185 92 285 92 374 218 S555 344 642 218" fill="none" stroke="#2f6fbb" stroke-width="7" stroke-linecap="round" marker-end="url(#heroArrow)"></path>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
+              <g transform="translate(95 218)"><circle r="52" fill="#fff" stroke="#2f6fbb" stroke-width="3"></circle><text y="-5" font-size="16">Architecture</text><text y="20" font-size="13" fill="#5d6b7d">分層邊界</text></g>
+              <g transform="translate(245 118)"><rect x="-62" y="-38" width="124" height="76" rx="12" fill="#fff" stroke="#2d8a69" stroke-width="3"></rect><text y="-5" font-size="16">Engineering</text><text y="20" font-size="13" fill="#5d6b7d">測試與日誌</text></g>
+              <g transform="translate(374 218)"><circle r="54" fill="#fff" stroke="#7257a8" stroke-width="3"></circle><text y="-5" font-size="16">Concurrency</text><text y="20" font-size="13" fill="#5d6b7d">thread / async</text></g>
+              <g transform="translate(520 318)"><rect x="-68" y="-38" width="136" height="76" rx="12" fill="#fff" stroke="#c79a14" stroke-width="3"></rect><text y="-5" font-size="16">Parallelism</text><text y="20" font-size="13" fill="#5d6b7d">process / CPU</text></g>
+              <g transform="translate(642 218)"><circle r="54" fill="#fff" stroke="#c34848" stroke-width="3"></circle><text y="-5" font-size="16">Packaging</text><text y="20" font-size="13" fill="#5d6b7d">PyInstaller</text></g>
+            </g>
+          </svg>
+        </div>
+      </header>
+
+      <section class="learning-tools" aria-label="教材互動工具">
+        <label>
+          <span class="tag">Search</span>
+          <input id="lessonSearch" class="search-box" type="search" placeholder="搜尋工程主題，例如 timeout、PyInstaller、mypy、deadlock">
+        </label>
+        <div class="progress-pill" id="progressSummary">完成 0 / 0</div>
+      </section>
+
+      <section id="roadmap" class="section">
+        <div class="section-head">
+          <h2>中級學習路線</h2>
+          <p class="lead">中級不是背更多語法，而是學會選型：哪段程式應該拆成 service，哪種工作適合 thread，何時要 process，打包後為什麼在使用者電腦失敗。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability"><h3>學完會具備</h3><p>能設計分層 Python 專案、寫可測試 service、判斷 I/O-bound 與 CPU-bound、使用 PyInstaller 交付工具。</p></article>
+          <article class="capability"><h3>不假裝簡單</h3><p>GIL、cancel、timeout、hidden imports、assets path 都會用視覺流程與 step 卡拆解，不只給一段命令。</p></article>
+        </div>
+      </section>
+
+      <section id="architecture" class="section">
+        <div class="section-head">
+          <h2>大型專案架構圖</h2>
+          <p class="lead">專案長大後，穩定性來自邊界。CLI/API 只處理輸入輸出，service 管規則，repository 管資料來源，domain model 表達核心概念。</p>
+        </div>
+        <div class="surface diagram">
+          <svg class="wide" viewBox="0 0 1080 480" role="img" aria-labelledby="archTitle archDesc">
+            <title id="archTitle">大型 Python 專案分層架構</title>
+            <desc id="archDesc">CLI/API、Service、Domain、Repository、Infrastructure、Tests 的關係。</desc>
+            <defs><marker id="archArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#4d6d8c"></path></marker></defs>
+            <rect x="20" y="20" width="1040" height="440" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" font-weight="900" text-anchor="middle">
+              <rect x="70" y="70" width="190" height="84" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="165" y="105">CLI / API</text><text x="165" y="132" font-size="14" fill="#5d6b7d">輸入輸出</text>
+              <rect x="330" y="70" width="190" height="84" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="425" y="105">Application Service</text><text x="425" y="132" font-size="14" fill="#5d6b7d">流程與規則</text>
+              <rect x="600" y="70" width="190" height="84" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="695" y="105">Domain Model</text><text x="695" y="132" font-size="14" fill="#5d6b7d">核心資料</text>
+              <rect x="850" y="70" width="160" height="84" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="930" y="105">Config</text><text x="930" y="132" font-size="14" fill="#5d6b7d">環境切換</text>
+              <rect x="330" y="250" width="190" height="84" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="425" y="285">Repository</text><text x="425" y="312" font-size="14" fill="#5d6b7d">資料介面</text>
+              <rect x="600" y="250" width="190" height="84" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="695" y="285">Infrastructure</text><text x="695" y="312" font-size="14" fill="#5d6b7d">DB / File / HTTP</text>
+              <rect x="70" y="250" width="190" height="84" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="165" y="285">Tests</text><text x="165" y="312" font-size="14" fill="#5d6b7d">行為保護網</text>
+            </g>
+            <path d="M260 112h62" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M520 112h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M790 112h52" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M425 154v88" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M520 292h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M260 292h62" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+          </svg>
+        </div>
+      </section>
+
+      <section id="decision" class="section">
+        <div class="section-head">
+          <h2>並發與平行運算決策圖</h2>
+          <p class="lead">不要先問「哪個比較快」，先問工作在等什麼。等網路或檔案，多半是 concurrency；燒 CPU，才需要真正 parallelism。</p>
+        </div>
+        <div class="surface diagram">
+          <svg class="wide" viewBox="0 0 1080 520" role="img" aria-labelledby="decisionTitle decisionDesc">
+            <title id="decisionTitle">Thread、Async、Process 選型流程圖</title>
+            <desc id="decisionDesc">依照 I/O-bound、CPU-bound、共享狀態、部署限制選擇並發工具。</desc>
+            <defs><marker id="decArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="20" y="20" width="1040" height="480" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
+              <path d="M540 52l130 78-130 78-130-78z" fill="#fff" stroke="#2f6fbb" stroke-width="3"></path><text x="540" y="126">工作主要在等待嗎？</text><text x="540" y="151" font-size="14" fill="#5d6b7d">Network / File / DB</text>
+              <rect x="95" y="260" width="210" height="100" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text x="200" y="303">asyncio</text><text x="200" y="330" font-size="14" fill="#5d6b7d">大量 socket / API</text>
+              <rect x="395" y="260" width="210" height="100" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text x="500" y="303">ThreadPool</text><text x="500" y="330" font-size="14" fill="#5d6b7d">包同步 I/O 函式庫</text>
+              <rect x="735" y="260" width="230" height="100" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect><text x="850" y="303">ProcessPool</text><text x="850" y="330" font-size="14" fill="#5d6b7d">CPU-bound / 繞過 GIL</text>
+              <path d="M540 208v44" stroke="#2f6fbb" stroke-width="3" marker-end="url(#decArrow)"></path><text x="575" y="238" fill="#5d6b7d" font-size="14">是，但函式庫同步</text>
+              <path d="M410 130H240c-30 0-40 25-40 55v67" stroke="#2d8a69" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="300" y="118" fill="#5d6b7d" font-size="14">是，且可 await</text>
+              <path d="M670 130h180c35 0 45 25 45 55v67" stroke="#c79a14" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="790" y="118" fill="#5d6b7d" font-size="14">否，CPU 計算</text>
+              <text x="540" y="430" font-size="16" fill="#5d6b7d">GIL 提醒：thread 對 CPU-bound Python bytecode 不會真正平行；process 才能多核心計算。</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section id="topics" class="section">
+        <div class="section-head">
+          <h2>工程主題卡</h2>
+          <p class="lead">每張卡包含表格、範例、輸出與 step-by-step 詳解。點開步驟時，會看到工程師真正做決策的原因。</p>
+        </div>
+        <div id="topicList" class="topic-list" aria-live="polite"></div>
+      </section>
+
+      <section id="capstone" class="section">
+        <div class="section-head">
+          <h2>notes-cli 工程版 Capstone</h2>
+          <p class="lead">同一個專案線貫穿 typing、DI、logging、pytest 與打包。目標不是記住片段，而是知道一個可交付 CLI 應該長什麼樣。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="capstone-layout" data-search="capstone notes-cli architecture src tests pyproject">
+            <label class="complete-toggle"><input type="checkbox" data-complete="capstone-layout">完成</label>
+            <h3>專案骨架</h3>
+            <pre class="code">notes-cli/
+  pyproject.toml
+  src/notes_cli/
+    cli.py
+    config.py
+    domain.py
+    services.py
+    repositories.py
+    logging_setup.py
+  tests/
+    test_services.py
+    test_cli.py</pre>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="capstone-flow" data-search="capstone service repository dependency injection logging pytest">
+            <label class="complete-toggle"><input type="checkbox" data-complete="capstone-flow">完成</label>
+            <h3>交付流程</h3>
+            <div class="mini-grid">
+              <div class="mini-box"><strong>1. Domain</strong>先定義 Note 與錯誤類型。</div>
+              <div class="mini-box"><strong>2. Service</strong>驗證 title/body，依賴 Repo Protocol。</div>
+              <div class="mini-box"><strong>3. CLI</strong>只處理 argv、輸出與 exit code。</div>
+              <div class="mini-box"><strong>4. Tests</strong>unit test service，CLI test 驗證指令。</div>
+              <div class="mini-box"><strong>5. Logs</strong>邊界記錄錯誤，訊息給人看。</div>
+              <div class="mini-box"><strong>6. Dist</strong>PyInstaller onedir 後做 smoke test。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="production" class="section">
+        <div class="section-head">
+          <h2>Production notes-cli 一條到底</h2>
+          <p class="lead">資深工程師不是只把功能寫出來，而是把需求、決策、邊界、測試、CI、release 與 rollback 串成可交付流程。</p>
+        </div>
+        <div class="flow-note">
+          <svg viewBox="0 0 1120 310" role="img" aria-labelledby="prodTitle prodDesc">
+            <title id="prodTitle">Production notes-cli 交付流程</title>
+            <desc id="prodDesc">從需求、ADR、package boundary、config、repository migration、tests、CI、release 到 rollback 的流程。</desc>
+            <defs><marker id="prodArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="16" y="18" width="1088" height="274" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
+              <rect x="42" y="84" width="116" height="76" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="100" y="116">需求</text><text x="100" y="140" font-size="13" fill="#5d6b7d">SLO / CLI UX</text>
+              <rect x="182" y="84" width="116" height="76" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="240" y="116">ADR</text><text x="240" y="140" font-size="13" fill="#5d6b7d">取捨紀錄</text>
+              <rect x="322" y="84" width="116" height="76" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="380" y="116">Boundary</text><text x="380" y="140" font-size="13" fill="#5d6b7d">package</text>
+              <rect x="462" y="84" width="116" height="76" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="520" y="116">Config</text><text x="520" y="140" font-size="13" fill="#5d6b7d">env precedence</text>
+              <rect x="602" y="84" width="116" height="76" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="660" y="116">Migration</text><text x="660" y="140" font-size="13" fill="#5d6b7d">schema</text>
+              <rect x="742" y="84" width="116" height="76" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="800" y="116">Tests</text><text x="800" y="140" font-size="13" fill="#5d6b7d">unit / integ</text>
+              <rect x="882" y="84" width="116" height="76" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="940" y="116">CI</text><text x="940" y="140" font-size="13" fill="#5d6b7d">gates</text>
+              <rect x="742" y="206" width="116" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="800" y="241">Release</text>
+              <rect x="882" y="206" width="116" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="940" y="241">Rollback</text>
+            </g>
+            <path d="M158 122h16M298 122h16M438 122h16M578 122h16M718 122h16M858 122h16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
+            <path d="M940 160v38" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
+            <path d="M882 235h-16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
+          </svg>
+        </div>
+        <div class="grid two" style="margin-top: 1rem;">
+          <article class="capability lesson-item" data-lesson-id="prod-requirement-adr" data-search="production requirement ADR SLO package boundary notes-cli">
+            <label class="complete-toggle"><input type="checkbox" data-complete="prod-requirement-adr">完成</label>
+            <h3>1. 需求與 ADR</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>項目</th><th>教材範例</th><th>資深工程判斷</th></tr></thead>
+                <tbody>
+                  <tr><td>需求</td><td>notes-cli create/list/search/export</td><td>先定 CLI UX、exit code、資料位置、錯誤訊息，而不是先寫檔案。</td></tr>
+                  <tr><td>SLO</td><td>list 10000 筆在 1 秒內回應</td><td>讓效能驗收可量測，避免「感覺很慢」。</td></tr>
+                  <tr><td>ADR</td><td>v1 用 JSON repository，v2 可遷移 SQLite</td><td>記錄選擇原因、替代方案、後續轉換成本。</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="prod-adr-step-1"><span><span class="step-number">1</span>先寫驗收</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="prod-adr-step-1">把「使用者能建立、搜尋、匯出 note」寫成命令與預期輸出，後面每層設計都回到這個驗收。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="prod-adr-step-2"><span><span class="step-number">2</span>寫下取捨</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="prod-adr-step-2">JSON 容易交付與除錯，但多程序寫入和查詢效能有限；ADR 讓日後換 SQLite 時有脈絡。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="prod-boundary-config-release" data-search="production package boundary config env release rollback smoke test">
+            <label class="complete-toggle"><input type="checkbox" data-complete="prod-boundary-config-release">完成</label>
+            <h3>2. 邊界、設定、交付</h3>
+            <pre class="code">notes_cli/
+  cli.py              # argv, output, exit code
+  services.py         # use cases
+  repositories.py     # Repo Protocol + JSON implementation
+  config.py           # default &lt; config file &lt; env
+  errors.py           # UserError / DataCorruption / InfraError</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="prod-config-step-1"><span><span class="step-number">1</span>config precedence</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="prod-config-step-1">預設值給本機可跑；config file 給使用者調整；環境變數覆寫 CI/部署設定；secret 不寫進 repository。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="prod-release-step-1"><span><span class="step-number">2</span>release / rollback</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="prod-release-step-1">release 前跑 smoke test；發現資料 migration 失敗時，保留舊版執行檔與備份資料，rollback 不是口號。</div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="testing-lab" class="section">
+        <div class="section-head">
+          <h2>測試實戰補強</h2>
+          <p class="lead">測試要能回答三個問題：規則壞了嗎、外部邊界壞了嗎、CI 失敗時應該改哪一層。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="test-fixture-parametrize" data-search="pytest fixtures parametrize fake repository unit test">
+            <label class="complete-toggle"><input type="checkbox" data-complete="test-fixture-parametrize">完成</label>
+            <h3>fixtures + parametrize + fake repo</h3>
+            <pre class="code">import pytest
+
+class FakeRepo:
+    def __init__(self):
+        self.items = []
+    def save(self, note):
+        self.items.append(note)
+        return note
+
+@pytest.fixture
+def service():
+    return NoteService(repo=FakeRepo())
+
+@pytest.mark.parametrize("title", ["", "   "])
+def test_title_required(service, title):
+    with pytest.raises(UserInputError):
+        service.create(title, "body")</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="test-fixture-step-1"><span><span class="step-number">1</span>fixture 管重複準備</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="test-fixture-step-1">service 建立方式集中在 fixture，重構建構子時只改一處。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="test-param-step-1"><span><span class="step-number">2</span>parametrize 擴大邊界</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="test-param-step-1">空字串、空白、過長 title 都是同一條規則，用參數化讓案例增加但測試結構不膨脹。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="test-integration-coverage" data-search="integration test mock coverage fail log CI diagnosis">
+            <label class="complete-toggle"><input type="checkbox" data-complete="test-integration-coverage">完成</label>
+            <h3>integration test 與 coverage fail 判讀</h3>
+            <pre class="code">def test_json_repo_roundtrip(tmp_path):
+    repo = JsonNoteRepository(tmp_path / "notes.json")
+    repo.save(Note(title="ship", body="tests"))
+    assert repo.list()[0].title == "ship"
+
+# CI log
+# TOTAL 82%, fail-under=85
+# Missing: repositories.py 54-61, cli.py 28</pre>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>CI 訊號</th><th>判讀</th><th>修正</th></tr></thead>
+                <tbody>
+                  <tr><td>unit fail</td><td>規則退化</td><td>修 service/domain，再補回歸測試。</td></tr>
+                  <tr><td>integration fail</td><td>檔案、DB、HTTP 邊界壞</td><td>先確認環境，再看 adapter 實作。</td></tr>
+                  <tr><td>coverage fail</td><td>新增分支沒有保護網</td><td>補缺口測試，不先降門檻。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="repository-hardening" class="section">
+        <div class="section-head">
+          <h2>Repository 硬化：從 JSON demo 到可維運資料層</h2>
+          <p class="lead">JSON repository 很適合中級教材，但 production 思維要補上鎖、損毀復原、schema version 與 migration。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="repo-atomic-lock" data-search="repository atomic write file lock corrupt JSON recovery encoding">
+            <label class="complete-toggle"><input type="checkbox" data-complete="repo-atomic-lock">完成</label>
+            <h3>atomic write + lock + corrupt recovery</h3>
+            <pre class="code">def save_document(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup = path.with_suffix(".bak")
+    tmp = path.with_suffix(".tmp")
+    if path.exists():
+        backup.write_bytes(path.read_bytes())
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
+
+def load_document(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise DataCorruptionError(path) from exc</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="repo-lock-step-1"><span><span class="step-number">1</span>先保護資料</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="repo-lock-step-1">atomic write 避免半寫；backup 讓 corrupt JSON 有復原路徑；多程序寫入時再加 file lock。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="repo-lock-step-2"><span><span class="step-number">2</span>錯誤不要吞掉</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="repo-lock-step-2">JSONDecodeError 要轉成 DataCorruptionError，CLI 才能提示資料檔路徑與修復方式。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="repo-schema-migration" data-search="repository schema version migration JSON data migration">
+            <label class="complete-toggle"><input type="checkbox" data-complete="repo-schema-migration">完成</label>
+            <h3>schema version + migration</h3>
+            <pre class="code">def migrate(doc: dict) -> dict:
+    version = doc.get("schema_version", 1)
+    if version == 1:
+        for item in doc["notes"]:
+            item.setdefault("tags", [])
+        doc["schema_version"] = 2
+    if doc["schema_version"] != 2:
+        raise UnsupportedSchemaError(doc["schema_version"])
+    return doc</pre>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>變更</th><th>風險</th><th>驗收</th></tr></thead>
+                <tbody>
+                  <tr><td>新增 tags 欄位</td><td>舊資料沒有 key</td><td>v1 fixture 可自動升級到 v2。</td></tr>
+                  <tr><td>改時間格式</td><td>排序與搜尋壞掉</td><td>migration 前後列表順序一致。</td></tr>
+                  <tr><td>不支援版本</td><td>靜默讀錯資料</td><td>明確噴 UnsupportedSchemaError。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="concurrency-lifecycle" class="section">
+        <div class="section-head">
+          <h2>並發實戰：Worker lifecycle 與失敗傳播</h2>
+          <p class="lead">真正專案裡的 worker 不只要會跑，還要能限流、回報例外、收到停止訊號並乾淨 shutdown。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="worker-queue-lifecycle" data-search="worker lifecycle Queue backpressure sentinel shutdown exception propagation">
+            <label class="complete-toggle"><input type="checkbox" data-complete="worker-queue-lifecycle">完成</label>
+            <h3>Queue backpressure + sentinel shutdown</h3>
+            <pre class="code">from queue import Queue
+from threading import Thread
+
+STOP = object()
+jobs = Queue(maxsize=100)
+
+def worker():
+    while True:
+        item = jobs.get()
+        try:
+            if item is STOP:
+                return
+            process(item)
+        finally:
+            jobs.task_done()
+
+t = Thread(target=worker)
+t.start()
+jobs.put(STOP)
+jobs.join()
+t.join(timeout=5)</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="worker-backpressure-step-1"><span><span class="step-number">1</span>maxsize 是壓力閥</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="worker-backpressure-step-1">Queue 無上限時 producer 可以把記憶體塞爆；maxsize 讓上游自然慢下來。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="worker-shutdown-step-1"><span><span class="step-number">2</span>sentinel 結束 worker</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="worker-shutdown-step-1">STOP 是明確停止訊號，比 daemon thread 直接消失更容易清理資源。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="worker-exception-timeout" data-search="ThreadPool exception propagation timeout cancel ProcessPool pickle cost">
+            <label class="complete-toggle"><input type="checkbox" data-complete="worker-exception-timeout">完成</label>
+            <h3>exception propagation + timeout</h3>
+            <pre class="code">from concurrent.futures import ThreadPoolExecutor, as_completed
+
+with ThreadPoolExecutor(max_workers=4) as pool:
+    futures = [pool.submit(upload, item) for item in items]
+    for future in as_completed(futures, timeout=30):
+        try:
+            future.result()
+        except UploadError as exc:
+            logger.exception("upload failed", exc_info=exc)
+            raise</pre>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>問題</th><th>做法</th><th>驗收訊號</th></tr></thead>
+                <tbody>
+                  <tr><td>worker 內例外消失</td><td>future.result() 在主 thread 收斂</td><td>CI 測到失敗會讓 command exit 1。</td></tr>
+                  <tr><td>外部服務卡住</td><td>future timeout + HTTP timeout</td><td>log 有 timeout 與 item id。</td></tr>
+                  <tr><td>ProcessPool 變慢</td><td>量 pickle 資料大小與耗時</td><td>benchmark 表格證明加速大於序列化成本。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="packaging" class="section">
+        <div class="section-head">
+          <h2>PyInstaller 跨平台打包檢查表</h2>
+          <p class="lead">打包不是只跑一行命令。真正會出問題的是 assets path、hidden imports、平台差異、設定檔位置與使用者權限。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability">
+            <h3>建議命令</h3>
+            <pre class="code">python -m pip install pyinstaller
+pyinstaller --name notes-cli --onedir src/notes_app/cli.py
+pyinstaller --name notes-cli --onefile src/notes_app/cli.py</pre>
+          </article>
+          <article class="capability">
+            <h3>交付前必查</h3>
+            <pre class="code">dist/notes-cli/notes-cli --version
+dist/notes-cli/notes-cli create "first note"
+dist/notes-cli/notes-cli list</pre>
+          </article>
+        </div>
+        <div class="table-wrap" style="margin-top: 1rem;">
+          <table>
+            <thead><tr><th>問題</th><th>症狀</th><th>修正方式</th><th>驗收</th></tr></thead>
+            <tbody>
+              <tr><td>hidden imports</td><td>打包後才出現 ModuleNotFoundError</td><td>補 `--hidden-import` 或 spec hiddenimports</td><td>在乾淨環境跑 `--help` 和核心指令</td></tr>
+              <tr><td>assets path</td><td>開發環境讀得到，dist 裡讀不到</td><td>用 `--add-data` 並在 runtime 判斷 `sys._MEIPASS`</td><td>dist 內讀設定檔與模板成功</td></tr>
+              <tr><td>onefile 啟動慢</td><td>每次啟動要解壓縮</td><td>內部工具優先 onedir，確定需求才 onefile</td><td>比較啟動時間與交付便利性</td></tr>
+              <tr><td>跨平台</td><td>macOS 產物不能直接給 Windows</td><td>在目標平台各自打包</td><td>Windows/macOS/Linux 分別 smoke test</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="grid two" style="margin-top: 1rem;">
+          <article class="capability lesson-item" data-lesson-id="packaging-spec" data-search="PyInstaller spec add-data hidden imports MEIPASS">
+            <label class="complete-toggle"><input type="checkbox" data-complete="packaging-spec">完成</label>
+            <h3>spec 與 assets helper</h3>
+            <pre class="code">import sys
+from pathlib import Path
+
+def resource_path(name: str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    return base / name</pre>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="packaging-commands" data-search="PyInstaller onedir onefile add-data hidden-import">
+            <label class="complete-toggle"><input type="checkbox" data-complete="packaging-commands">完成</label>
+            <h3>常用打包命令</h3>
+            <pre class="code">pyinstaller --name notes-cli --onedir \
+  --add-data "templates:templates" \
+  --hidden-import notes_cli.plugins.json_export \
+  src/notes_cli/cli.py</pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="readiness" class="section">
+        <div class="section-head">
+          <h2>Observability / Security / Release Checklist</h2>
+          <p class="lead">中級往資深走，差別在交付後能不能看見問題、保護機密、驗證供應鏈，並在出事時演練 rollback。</p>
+        </div>
+        <div class="checklist-grid">
+          <article class="capability lesson-item" data-lesson-id="ready-structured-logs" data-search="observability structured logging correlation id metrics trace SLO">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ready-structured-logs">完成</label>
+            <h3>Structured logs / metrics</h3>
+            <pre class="code">logger.info(
+    "note_created",
+    extra={"note_id": note.id, "command": "create", "duration_ms": 18},
+)</pre>
+            <p>log 要有事件名、id、耗時、command；metrics 看成功率與延遲；SLO 定義什麼叫壞了。</p>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="ready-secrets" data-search="security secret environment variable permission boundary">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ready-secrets">完成</label>
+            <h3>Secrets / permission boundary</h3>
+            <pre class="code">api_token = os.environ.get("NOTES_API_TOKEN")
+if not api_token:
+    raise ConfigError("NOTES_API_TOKEN required")</pre>
+            <p>secret 從環境或平台 secret store 進來；設定檔可記路徑與模式，不存 token；錯誤訊息不能印出 secret 值。</p>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="ready-supply-chain" data-search="SBOM dependency scanning supply chain pip-audit cyclonedx">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ready-supply-chain">完成</label>
+            <h3>SBOM / dependency scanning</h3>
+            <pre class="code">python -m pip install pip-audit cyclonedx-bom
+pip-audit
+cyclonedx-py environment -o sbom.json</pre>
+            <p>release artifact 應能回答用了哪些 dependency、是否有已知 CVE、產物從哪個 commit 打出來。</p>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="ready-rollback-drill" data-search="release checklist rollback drill smoke test artifact">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ready-rollback-drill">完成</label>
+            <h3>Release / rollback drill</h3>
+            <pre class="code">notes --version
+notes doctor
+notes migrate --dry-run
+notes migrate --backup
+notes rollback --to backup-20260511.json</pre>
+            <p>每次 release 都要有 smoke test、資料備份、回復命令與負責人；rollback 要演練，不等事故當天才想。</p>
+          </article>
+        </div>
+        <div class="table-wrap" style="margin-top: 1rem;">
+          <table>
+            <thead><tr><th>檢查面</th><th>最低門檻</th><th>資深工程驗收</th></tr></thead>
+            <tbody>
+              <tr><td>Observability</td><td>錯誤有 log</td><td>每個 command 有 structured event、duration、error code、correlation id。</td></tr>
+              <tr><td>Security</td><td>secret 不進 git</td><td>secret rotation、最小權限、錯誤訊息遮罩、dependency scan 進 CI。</td></tr>
+              <tr><td>Release</td><td>打包成功</td><td>乾淨環境安裝、smoke test、SBOM、版本與 commit 對得上。</td></tr>
+              <tr><td>Rollback</td><td>保留舊檔</td><td>資料備份、migration dry-run、回復命令與演練紀錄。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="toolchain" class="section">
+        <div class="section-head">
+          <h2>工程工具鏈與 CI</h2>
+          <p class="lead">中級專案要靠工具守住品質：格式、lint、型別、覆蓋率與 CI 是團隊協作的最低防線。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="toolchain-local" data-search="ruff black mypy coverage pre-commit pytest">
+            <label class="complete-toggle"><input type="checkbox" data-complete="toolchain-local">完成</label>
+            <h3>本機品質指令</h3>
+            <pre class="code">python -m pip install ruff black mypy coverage pytest
+ruff check src tests
+black --check src tests
+mypy src
+coverage run -m pytest
+coverage report --fail-under=80</pre>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="toolchain-ci" data-search="GitHub Actions CI pytest ruff mypy coverage">
+            <label class="complete-toggle"><input type="checkbox" data-complete="toolchain-ci">完成</label>
+            <h3>GitHub Actions CI 範例</h3>
+            <pre class="code">name: python-ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - run: pytest</pre>
+          </article>
+        </div>
+        <div class="section-head" style="margin-top: 1.2rem;">
+          <h2>CI 失敗判讀訓練</h2>
+          <p class="lead">資深工程師不只會加 CI，還要能從失敗 log 判斷壞在哪一層：格式、型別、測試、coverage、打包或環境。</p>
+        </div>
+        <div class="grid two">
+          <article class="capability lesson-item" data-lesson-id="ci-failure-lint-type" data-search="CI failure ruff mypy lint type error diagnosis">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ci-failure-lint-type">完成</label>
+            <h3>失敗案例 1：lint / type gate</h3>
+            <pre class="code">ruff check src tests
+F401 `json` imported but unused
+
+mypy src
+src/services.py:21: error:
+Argument 1 to "save" has incompatible type "dict"; expected "Note"</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-lint-step-1"><span><span class="step-number">1</span>先分層</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-lint-step-1">F401 是格式/靜態清理問題；mypy 是契約問題，代表 service 和 repository 對資料型別看法不一致。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-lint-step-2"><span><span class="step-number">2</span>修正策略</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-lint-step-2">刪掉未用 import；再決定 repository.save 應收 Note 還是 dict，不要用 type ignore 掩蓋設計不一致。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="ci-failure-test-coverage" data-search="CI failure pytest coverage regression diagnosis">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ci-failure-test-coverage">完成</label>
+            <h3>失敗案例 2：測試 / coverage gate</h3>
+            <pre class="code">pytest
+FAILED tests/test_services.py::test_title_required
+E   Failed: DID NOT RAISE ValueError
+
+coverage report --fail-under=85
+TOTAL 83%</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-test-step-1"><span><span class="step-number">1</span>判斷層級</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-test-step-1">這不是 CI 環境問題，是 service 規則退化：空 title 沒有被擋下。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-test-step-2"><span><span class="step-number">2</span>補驗收</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-test-step-2">先修 service validation，再補參數化測試；coverage 下降則代表新分支缺測，應補測而不是降門檻。</div></div>
+            </div>
+          </article>
+          <article class="capability lesson-item" data-lesson-id="ci-failure-package" data-search="CI failure package build import smoke hidden import assets">
+            <label class="complete-toggle"><input type="checkbox" data-complete="ci-failure-package">完成</label>
+            <h3>失敗案例 3：package / smoke test</h3>
+            <pre class="code">python -m build
+Successfully built notes-0.3.0.whl
+
+notes --version
+ModuleNotFoundError: No module named 'notes_app.templates'</pre>
+            <div class="steps">
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-package-step-1"><span><span class="step-number">1</span>不要只看 build success</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-package-step-1">wheel build 成功只代表產物生成，不代表安裝後所有 package data 都在。</div></div>
+              <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="ci-package-step-2"><span><span class="step-number">2</span>修 pyproject</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="ci-package-step-2">確認 package-data / MANIFEST 設定，並保留安裝後 smoke test：pip install dist/*.whl && notes --version。</div></div>
+            </div>
+          </article>
+        </div>
+        <div class="section-pager">
+          <a class="button" href="#readiness">上一章：維運與安全檢查</a>
+          <a class="button primary" href="index.html">回教材入口</a>
+        </div>
+      </section>
+
+      <footer>
+        範例輸出為教學用預期結果，不會在瀏覽器中執行 Python。中級教材定位為工程實戰導向，適合已熟悉初級語法後使用。
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const topics = [
+      {
+        title: "Layered Architecture",
+        keyword: "cli -> service -> repository",
+        visual: "layers",
+        summary: "分層不是為了看起來專業，而是讓規則、資料來源、輸入輸出能分開測試與替換。",
+        use: "大型專案骨架、服務重構、API/CLI 共用邏輯",
+        pattern: "CLI/API 呼叫 service；service 依賴 repository 介面；domain model 不碰外部工具",
+        scenario: "同一套 NoteService 同時給 CLI、REST API、排程工作使用",
+        risk: "CLI 直接寫 DB，後續 API 會複製一份規則，bug 也複製一份",
+        example: "class NoteService:\n    def __init__(self, repo):\n        self.repo = repo\n\n    def create(self, title: str, body: str):\n        if not title.strip():\n            raise ValueError(\"title required\")\n        return self.repo.save({\"title\": title, \"body\": body})\n\nservice = NoteService(repo=MemoryRepo())\nprint(service.create(\"ship\", \"write tests\")[\"title\"])",
+        output: "ship",
+        steps: [
+          ["切入口", "CLI/API 只把使用者輸入整理成 service 需要的參數。"],
+          ["放規則", "title 不可空白這類商業規則放在 service，而不是散在每個入口。"],
+          ["藏資料來源", "repo 可以是 JSON、SQLite、HTTP mock，service 不需要知道。"]
+        ]
+      },
+      {
+        title: "typing + Protocol",
+        keyword: "Protocol / type hints",
+        visual: "protocol",
+        summary: "Protocol 用行為定義介面，讓測試替身與正式實作都能被同一個 service 接受。",
+        use: "依賴倒置、測試替身、團隊協作契約",
+        pattern: "class Repo(Protocol): def save(...) -> ...",
+        scenario: "service 依賴 Repo Protocol，不依賴 SQLiteRepo 具體類別",
+        risk: "直接依賴具體類別會讓測試必須啟動真 DB 或真網路",
+        example: "from typing import Protocol\n\nclass Repo(Protocol):\n    def count(self) -> int: ...\n\nclass MemoryRepo:\n    def count(self) -> int:\n        return 3\n\ndef report(repo: Repo) -> str:\n    return f\"notes={repo.count()}\"\n\nprint(report(MemoryRepo()))",
+        output: "notes=3",
+        steps: [
+          ["定義行為", "Protocol 不要求繼承，只要求物件有指定 method。"],
+          ["service 看介面", "report 只需要 count，不管 repo 背後怎麼存資料。"],
+          ["測試更輕", "測試可放 MemoryRepo，不必連真資料庫。"]
+        ]
+      },
+      {
+        title: "Dependency Injection",
+        keyword: "inject dependencies",
+        visual: "di",
+        summary: "DI 把外部依賴從物件內部拿出來，由外面傳入，讓程式更可測試、更可替換。",
+        use: "替換 repository、注入 clock/logger/config、測試隔離",
+        pattern: "Service(repo, clock, logger)",
+        scenario: "正式環境用 SqlRepo，測試環境用 MemoryRepo",
+        risk: "在 service 內 new DB client，測試會被真環境綁死",
+        example: "class Clock:\n    def now(self):\n        return \"2026-05-11\"\n\nclass JobService:\n    def __init__(self, clock):\n        self.clock = clock\n\n    def stamp(self):\n        return f\"job@{self.clock.now()}\"\n\nprint(JobService(Clock()).stamp())",
+        output: "job@2026-05-11",
+        steps: [
+          ["外部建立依賴", "Clock 在 service 外面建立。"],
+          ["建構子注入", "JobService 只接收 clock，不自己決定 clock 來源。"],
+          ["測試可替換", "測試時傳 FakeClock，就能固定時間。"]
+        ]
+      },
+      {
+        title: "struct：二進位資料解析",
+        keyword: "struct.pack / unpack",
+        visual: "struct",
+        summary: "struct 用格式字串把 Python value 與 bytes 互轉。它是處理 binary protocol、檔案 header、感測器封包時的基本工具。",
+        use: "PLC/IoT 封包、二進位檔案、網路協定、固定長度 record",
+        pattern: "struct.pack(format, values...)；struct.unpack(format, bytes)",
+        scenario: "解析 8 bytes 封包：前 4 bytes 是 device_id，後 4 bytes 是溫度乘以 100",
+        risk: "endianness、欄位長度與 signed/unsigned 寫錯，資料看似可解析但值全錯",
+        example: "import struct\n\npacket = struct.pack(\">Ii\", 1001, 2534)\ndevice_id, temperature_raw = struct.unpack(\">Ii\", packet)\nprint(device_id, temperature_raw / 100)",
+        output: "1001 25.34",
+        steps: [
+          ["決定 byte order", "\">\" 表示 big-endian，和協定文件必須一致。"],
+          ["定義欄位格式", "I 是 unsigned int，i 是 signed int；格式字串就是資料契約。"],
+          ["轉成 domain value", "temperature_raw / 100 才是業務層使用的溫度。"]
+        ]
+      },
+      {
+        title: "物件類別設計：dataclass + method",
+        keyword: "@dataclass / class",
+        visual: "class",
+        summary: "中級 class 不只是把資料塞進屬性，而是讓資料與保護規則待在一起。dataclass 適合 domain value object，method 表達行為。",
+        use: "domain model、DTO、設定物件、不可變 value object",
+        pattern: "@dataclass(frozen=True) 定義資料；method 放接近資料的規則",
+        scenario: "Note 物件要保證 title 不為空，並提供 display_title 給 CLI/API 共用",
+        risk: "把所有 service 規則塞進 model 會變胖；把所有資料都用 dict 又缺少契約",
+        example: "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Note:\n    title: str\n    body: str\n\n    def display_title(self) -> str:\n        if not self.title.strip():\n            raise ValueError(\"title\")\n        return self.title.strip().title()\n\nnote = Note(\" first note \", \"body\")\nprint(note.display_title())",
+        output: "First Note",
+        steps: [
+          ["定義資料契約", "title 與 body 是 Note 必備欄位，讀程式的人不用猜 dict key。"],
+          ["保護不變性", "frozen=True 讓 Note 建立後不被隨意改動，適合 value object。"],
+          ["放貼近資料的行為", "display_title 使用 title 本身，放在 Note 內比散在 CLI/API 清楚。"]
+        ]
+      },
+      {
+        title: "檔案處理：Path、JSON、atomic write",
+        keyword: "Path / json / replace",
+        visual: "file",
+        summary: "中級檔案處理要考慮 encoding、目錄建立、JSON 解析錯誤與半寫入。正式工具不要直接覆寫重要檔案。",
+        use: "設定檔、notes-cli repository、cache file、報表輸出",
+        pattern: "先寫 temp file，再 Path.replace 原子替換；讀取時處理不存在與 JSONDecodeError",
+        scenario: "notes-cli 把 notes 存成 UTF-8 JSON，寫入中斷也不留下半份檔案",
+        risk: "直接 write_text 目標檔，程式中斷會造成 JSON 半截，下一次啟動解析失敗",
+        example: "import json\nfrom pathlib import Path\n\npath = Path(\"notes.json\")\ntmp = path.with_suffix(\".tmp\")\nnotes = [{\"title\": \"ship\"}]\ntmp.write_text(json.dumps(notes, ensure_ascii=False), encoding=\"utf-8\")\ntmp.replace(path)\nprint(json.loads(path.read_text(encoding=\"utf-8\"))[0][\"title\"])",
+        output: "ship",
+        steps: [
+          ["準備路徑", "Path 讓路徑操作跨平台，比字串拼接穩。"],
+          ["先寫暫存檔", "tmp 寫成功前不碰正式 notes.json。"],
+          ["原子替換", "replace 讓讀者看到舊檔或新檔，不容易看到半寫狀態。"]
+        ]
+      },
+      {
+        title: "logging + Error Boundary",
+        keyword: "logging / raise from",
+        visual: "error",
+        summary: "中級專案需要能追蹤錯誤來源。不要吞錯，要在邊界轉成使用者能理解的錯誤。",
+        use: "CLI 錯誤訊息、API error response、生產環境追蹤",
+        pattern: "底層 raise；入口層捕捉並轉換；logging 保留 context",
+        scenario: "repository 讀檔失敗，CLI 顯示設定檔路徑錯誤",
+        risk: "except Exception: pass 會讓系統失敗但沒有任何線索",
+        example: "import logging\nlogging.basicConfig(level=logging.INFO)\n\ntry:\n    raise FileNotFoundError(\"config.toml\")\nexcept FileNotFoundError as exc:\n    logging.error(\"load config failed: %s\", exc)\n    print(\"設定檔不存在\")",
+        output: "設定檔不存在",
+        steps: [
+          ["底層保留原因", "FileNotFoundError 帶著真正的失敗原因。"],
+          ["邊界記錄 context", "logging 記錄是哪個流程載入設定失敗。"],
+          ["對外轉譯", "CLI/API 顯示使用者看得懂的訊息。"]
+        ]
+      },
+      {
+        title: "pytest 測試策略",
+        keyword: "unit / integration",
+        visual: "test",
+        summary: "測試不是追求數量，而是把變動成本最高的規則固定住。service unit test 應該快且穩。",
+        use: "回歸保護、重構信心、CI gate",
+        pattern: "unit test service；integration test repository；少量 end-to-end",
+        scenario: "重構 repository 時，service 規則測試仍快速通過",
+        risk: "只寫 end-to-end 會慢、脆弱，壞了也難定位",
+        example: "def apply_discount(price, rate):\n    if rate < 0:\n        raise ValueError(\"rate\")\n    return price * (1 - rate)\n\nassert apply_discount(100, 0.2) == 80",
+        output: "assertion passed",
+        steps: [
+          ["先測規則", "折扣不可為負、計算結果正確，這是 service/domain 規則。"],
+          ["保持快速", "不連 DB、不開 server，單元測試才能常常跑。"],
+          ["再補整合", "repository 與外部資源用較少但關鍵的 integration test。"]
+        ]
+      },
+      {
+        title: "threading + Queue",
+        keyword: "threading.Queue",
+        visual: "thread",
+        summary: "thread 適合 I/O-bound 工作。Queue 是 thread 之間傳遞任務最穩的方式之一。",
+        use: "背景下載、檔案處理排程、同步函式庫包裝",
+        pattern: "producer 放任務；worker thread 從 Queue 取任務",
+        scenario: "一邊讀檔案清單，一邊用多個 worker 上傳",
+        risk: "共享 list/dict 又沒鎖，容易 race condition",
+        example: "from queue import Queue\nfrom threading import Thread\n\nq = Queue()\nq.put(\"upload-a\")\n\ndef worker():\n    item = q.get()\n    print(item)\n    q.task_done()\n\nThread(target=worker).start()\nq.join()",
+        output: "upload-a",
+        steps: [
+          ["放入任務", "producer 用 q.put 把工作丟進 queue。"],
+          ["worker 取出", "thread 呼叫 q.get，安全地拿到一筆任務。"],
+          ["回報完成", "task_done 搭配 join，讓主程式知道任務已完成。"]
+        ]
+      },
+      {
+        title: "ThreadPoolExecutor",
+        keyword: "concurrent.futures",
+        visual: "pool",
+        summary: "ThreadPoolExecutor 比手動管理 Thread 更適合專案：限制 worker 數量、收集結果、處理例外都比較清楚。",
+        use: "批次呼叫 HTTP、同步 SDK 並發、I/O 任務加速",
+        pattern: "with ThreadPoolExecutor(max_workers=N) as pool",
+        scenario: "同時下載 20 個 URL，但最多 5 條 thread",
+        risk: "max_workers 開太大會壓垮對方服務或本機資源",
+        example: "from concurrent.futures import ThreadPoolExecutor\n\ndef fetch(name):\n    return f\"done:{name}\"\n\nwith ThreadPoolExecutor(max_workers=2) as pool:\n    results = list(pool.map(fetch, [\"a\", \"b\", \"c\"]))\n\nprint(results)",
+        output: "['done:a', 'done:b', 'done:c']",
+        steps: [
+          ["建立池", "max_workers 控制同時工作的 thread 數。"],
+          ["提交任務", "map 把多筆輸入分配給 worker。"],
+          ["收集結果", "results 依輸入順序回來，例外也會被傳回主 thread。"]
+        ]
+      },
+      {
+        title: "multiprocessing / ProcessPool",
+        keyword: "ProcessPoolExecutor",
+        visual: "process",
+        summary: "CPU-bound 工作要真正吃多核心，通常用 process。代價是資料序列化與跨程序溝通成本。",
+        use: "影像處理、壓縮、數值計算、CPU 密集批次",
+        pattern: "ProcessPoolExecutor 將可 pickle 的任務分給多個 process",
+        scenario: "把 1000 張圖片縮圖分給多核心處理",
+        risk: "傳巨大 object 進 process，序列化成本可能吃掉加速效果",
+        example: "from concurrent.futures import ProcessPoolExecutor\n\ndef square(n):\n    return n * n\n\nwith ProcessPoolExecutor(max_workers=2) as pool:\n    print(list(pool.map(square, [2, 3, 4])))",
+        output: "[4, 9, 16]",
+        steps: [
+          ["拆成純函式", "process 任務最好是輸入清楚、輸出清楚的 function。"],
+          ["分派到多核心", "每個 process 有自己的 Python interpreter，可避開 GIL 限制。"],
+          ["回收結果", "結果需要序列化回主程序，所以資料不要過大。"]
+        ]
+      },
+      {
+        title: "asyncio Task / gather / timeout",
+        keyword: "asyncio.gather",
+        visual: "async",
+        summary: "asyncio 適合大量可 await 的 I/O。重點是 timeout、cancel、錯誤收斂，不只是 gather 很多 task。",
+        use: "高併發 HTTP、WebSocket、非同步服務",
+        pattern: "create_task / gather / wait_for",
+        scenario: "同時查多個 API，但單個 API 超過 2 秒要放棄",
+        risk: "忘記 timeout，整個請求可能卡在一個慢服務",
+        example: "import asyncio\n\nasync def call(name):\n    await asyncio.sleep(0.01)\n    return f\"ok:{name}\"\n\nasync def main():\n    result = await asyncio.gather(call(\"a\"), call(\"b\"))\n    print(result)\n\nasyncio.run(main())",
+        output: "['ok:a', 'ok:b']",
+        steps: [
+          ["建立 coroutine", "call(\"a\") 代表一個可等待的 I/O 工作。"],
+          ["並發等待", "gather 同時推進多個 coroutine。"],
+          ["收斂結果", "所有工作完成後回傳結果列表；專案中應加 timeout。"]
+        ]
+      },
+      {
+        title: "Lock / Semaphore / Backpressure",
+        keyword: "Lock / Semaphore",
+        visual: "thread",
+        summary: "共享狀態要用 Lock 保護；外部資源要用 Semaphore 限流；Queue maxsize 可以讓 producer 慢下來，避免記憶體被塞爆。",
+        use: "保護共享計數、限制同時上傳數、背景任務流量控制",
+        pattern: "with lock: 修改共享資料；Semaphore(N) 控制同時進入數",
+        scenario: "最多 3 個 worker 同時呼叫外部 API，其餘任務排隊",
+        risk: "鎖太大會失去並發，鎖順序不一致會造成 deadlock",
+        example: "from threading import Lock\n\nlock = Lock()\ncounter = 0\n\nwith lock:\n    counter += 1\n\nprint(counter)",
+        output: "1",
+        steps: [
+          ["找共享狀態", "先標出哪些資料會被多個 thread 同時改。"],
+          ["縮小鎖範圍", "只把真正修改共享資料的區塊放進 lock。"],
+          ["限制外部資源", "用 Semaphore 控制同時 I/O 數量，避免壓垮服務。"]
+        ]
+      },
+      {
+        title: "Deadlock 診斷",
+        keyword: "deadlock order",
+        visual: "error",
+        summary: "deadlock 常來自兩段程式以不同順序拿鎖。工程上要固定鎖順序，並在等待時設 timeout 與 log。",
+        use: "多鎖資源、背景 worker、服務停止流程",
+        pattern: "所有程式都用相同順序取得 lock_a -> lock_b",
+        scenario: "同步 cache 與檔案索引時，需要同時保護兩個資源",
+        risk: "A 拿 lock_a 等 lock_b；B 拿 lock_b 等 lock_a，兩邊永遠卡住",
+        example: "locks = [\"cache_lock\", \"file_lock\"]\nfor name in sorted(locks):\n    print(\"acquire\", name)",
+        output: "acquire cache_lock\nacquire file_lock",
+        steps: [
+          ["固定順序", "所有地方都用同一順序拿鎖。"],
+          ["加 timeout", "等待太久要記錄狀態並放棄。"],
+          ["留下 log", "卡住時需要知道正在等哪一把鎖。"]
+        ]
+      },
+      {
+        title: "async timeout / cancel",
+        keyword: "asyncio.wait_for",
+        visual: "async",
+        summary: "async 專案不能只 gather。每個外部 I/O 都要想 timeout，使用者取消或服務關閉時也要處理 cancellation。",
+        use: "API gateway、批次同步、WebSocket 服務",
+        pattern: "await asyncio.wait_for(call(), timeout=2)",
+        scenario: "呼叫第三方 API 超過 2 秒就回 fallback",
+        risk: "取消後沒有清理資源，會留下半完成的工作",
+        example: "import asyncio\n\nasync def slow():\n    await asyncio.sleep(10)\n\nasync def main():\n    try:\n        await asyncio.wait_for(slow(), timeout=0.01)\n    except asyncio.TimeoutError:\n        print(\"timeout\")\n\nasyncio.run(main())",
+        output: "timeout",
+        steps: [
+          ["包住 await", "wait_for 對單個 awaitable 設定期限。"],
+          ["捕捉 timeout", "TimeoutError 是可預期失敗，應轉成 fallback 或錯誤訊息。"],
+          ["清理狀態", "被 cancel 的 coroutine 仍應釋放連線或檔案。"]
+        ]
+      },
+      {
+        title: "bounded concurrency",
+        keyword: "asyncio.Semaphore",
+        visual: "pool",
+        summary: "大量 task 不代表全部同時打出去。bounded concurrency 用 Semaphore 控制同時執行數，讓系統快但不失控。",
+        use: "批次 API 呼叫、爬資料、非同步上傳",
+        pattern: "async with sem: await call()",
+        scenario: "1000 筆任務排隊，但同時只跑 20 筆",
+        risk: "一次 create 1000 個無限制 I/O 會造成 rate limit 或本機資源耗盡",
+        example: "import asyncio\n\nasync def main():\n    sem = asyncio.Semaphore(2)\n    async with sem:\n        print(\"limited\")\n\nasyncio.run(main())",
+        output: "limited",
+        steps: [
+          ["設定上限", "Semaphore(2) 表示同時最多 2 個工作進入。"],
+          ["包住 I/O", "把真正消耗外部資源的 await 放進 async with。"],
+          ["穩定吞吐", "吞吐可控，比一口氣全送出去更容易維運。"]
+        ]
+      },
+      {
+        title: "GIL 與 CPU-bound benchmark",
+        keyword: "GIL / benchmark",
+        visual: "process",
+        summary: "GIL 讓多 thread 不適合純 Python CPU-bound 計算。用小 benchmark 先證明瓶頸，再決定要不要 ProcessPool。",
+        use: "效能診斷、計算任務選型、避免錯誤優化",
+        pattern: "先量單執行緒，再比較 ThreadPool 與 ProcessPool",
+        scenario: "大量 hash、壓縮、圖片處理或資料轉換",
+        risk: "沒有 benchmark 就改架構，可能只是增加序列化成本",
+        example: "import time\n\nstart = time.perf_counter()\nsum(i * i for i in range(10000))\nprint(round(time.perf_counter() - start, 4) >= 0)",
+        output: "True",
+        steps: [
+          ["先定義工作", "CPU-bound benchmark 應用真實工作，不只 sleep。"],
+          ["比較策略", "同一批資料比較 single、thread、process。"],
+          ["看總成本", "ProcessPool 需把資料序列化送出與收回。"]
+        ]
+      },
+      {
+        title: "PyInstaller 打包交付",
+        keyword: "pyinstaller --onedir",
+        visual: "package",
+        summary: "PyInstaller 把 Python app 和 interpreter、依賴打包。跨平台要在目標平台各自打包，不是一次產所有平台。",
+        use: "CLI 工具交付、內部桌面工具、無 Python 環境部署",
+        pattern: "先 onedir 驗證，再視需求 onefile；assets 使用 sys._MEIPASS 或 runtime helper",
+        scenario: "把 notes-cli 交給沒有安裝 Python 的使用者",
+        risk: "hidden imports、資料檔、相對路徑和防毒誤判是常見交付坑",
+        example: "python -m pip install pyinstaller\npyinstaller --name notes-cli --onedir src/notes_app/cli.py\n./dist/notes-cli/notes-cli --help",
+        output: "Usage: notes-cli [OPTIONS] COMMAND [ARGS]...",
+        steps: [
+          ["先用 onedir", "onedir 容易觀察依賴與 assets，除錯比 onefile 直接。"],
+          ["補 hidden imports", "動態 import 的套件可能需要 --hidden-import 或 spec 檔。"],
+          ["目標平台驗證", "Windows、macOS、Linux 要在各自平台打包與測試。"]
+        ]
+      }
+    ];
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const colors = {
+        layers: ["#e7f0fb", "#2f6fbb"], protocol: ["#e6f5ef", "#2d8a69"], di: ["#fff4cf", "#c79a14"],
+        struct: ["#eee9f8", "#7257a8"], class: ["#e7f0fb", "#2f6fbb"], file: ["#fff4cf", "#c79a14"],
+        error: ["#fae8e8", "#c34848"], test: ["#eee9f8", "#7257a8"], thread: ["#e7f0fb", "#2f6fbb"],
+        pool: ["#e6f5ef", "#2d8a69"], process: ["#fff4cf", "#c79a14"], async: ["#eee9f8", "#7257a8"], package: ["#fae8e8", "#c34848"]
+      };
+      const [soft, stroke] = colors[type] || colors.layers;
+      const arrow = `<marker id="arrow-${type}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="${stroke}"/></marker>`;
+      const shapes = {
+        layers: `<rect x="52" y="35" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="52" y="79" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="52" y="123" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="147" y="57" text-anchor="middle">CLI/API</text><text x="147" y="101" text-anchor="middle">Service</text><text x="147" y="145" text-anchor="middle">Repository</text>`,
+        protocol: `<rect x="38" y="47" width="92" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="176" y="47" width="92" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M130 85h40" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="84" y="91" text-anchor="middle">Protocol</text><text x="222" y="91" text-anchor="middle">Impl</text>`,
+        di: `<rect x="30" y="58" width="82" height="52" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="71" y="90" text-anchor="middle">Repo</text><path d="M112 84h58" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="176" y="45" width="92" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="222" y="90" text-anchor="middle">Service</text>`,
+        struct: `<rect x="36" y="54" width="238" height="70" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M92 54v70M150 54v70M208 54v70" stroke="${stroke}" stroke-width="3"/><text x="64" y="94" text-anchor="middle">I</text><text x="121" y="94" text-anchor="middle">i</text><text x="179" y="94" text-anchor="middle">f</text><text x="241" y="94" text-anchor="middle">bytes</text><text x="155" y="148" text-anchor="middle">pack / unpack</text>`,
+        class: `<rect x="54" y="38" width="196" height="110" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M54 76h196M54 112h196" stroke="${stroke}" stroke-width="3"/><text x="152" y="62" text-anchor="middle">dataclass</text><text x="152" y="99" text-anchor="middle">fields</text><text x="152" y="136" text-anchor="middle">methods</text>`,
+        file: `<path d="M70 36h112l42 42v76H70z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M182 36v42h42" fill="none" stroke="${stroke}" stroke-width="3"/><path d="M94 116h112" stroke="${stroke}" stroke-width="5"/><text x="147" y="102" text-anchor="middle">tmp.replace</text>`,
+        error: `<rect x="40" y="42" width="86" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="83" y="87" text-anchor="middle">raise</text><path d="M126 82h46" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="178" y="42" width="92" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="224" y="76" text-anchor="middle">log</text><text x="224" y="100" text-anchor="middle">message</text>`,
+        test: `<path d="M56 45h172v96H56z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M85 82l28 28 72-70" fill="none" stroke="${stroke}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="142" y="132" text-anchor="middle">pytest</text>`,
+        thread: `<circle cx="72" cy="83" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="152" cy="83" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="232" cy="83" r="28" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M100 83h24M180 83h24" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="152" y="138" text-anchor="middle">Queue</text>`,
+        pool: `<rect x="38" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="122" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="206" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="73" y="91" text-anchor="middle">T1</text><text x="157" y="91" text-anchor="middle">T2</text><text x="241" y="91" text-anchor="middle">T3</text>`,
+        process: `<rect x="44" y="50" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="178" y="50" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="85" y="95" text-anchor="middle">P1</text><text x="219" y="95" text-anchor="middle">P2</text><text x="152" y="148" text-anchor="middle">multi-core</text>`,
+        async: `<rect x="40" y="65" width="62" height="44" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M105 87c48-58 80 58 130 0" fill="none" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="70" y="94" text-anchor="middle">task</text><text x="164" y="62" text-anchor="middle">await</text><rect x="240" y="65" width="34" height="44" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="158" y="100" text-anchor="middle">dist/</text><text x="158" y="128" text-anchor="middle">exe</text>`
+      };
+      return `<svg viewBox="0 0 310 180" role="img" aria-label="${escapeHtml(title)} 概念圖">
+        <defs>${arrow}</defs>
+        <rect x="6" y="10" width="298" height="160" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="#172033">${shapes[type]}</g>
+      </svg>`;
+    }
+
+    function renderTopics() {
+      const root = document.querySelector("#topicList");
+      root.innerHTML = topics.map((topic, index) => `
+        <article class="topic-card lesson-item" id="topic-${index + 1}" data-lesson-id="topic-${index + 1}" data-search="${escapeHtml(topic.title + " " + topic.keyword + " " + topic.summary + " " + topic.use + " " + topic.pattern)}">
+          <div class="topic-visual">
+            ${visualSvg(topic.visual, topic.title)}
+            <span class="tag">${escapeHtml(topic.keyword)}</span>
+          </div>
+          <div class="topic-body">
+            <div class="topic-title">
+              <h3>${index + 1}. ${escapeHtml(topic.title)}</h3>
+              <div class="card-actions">
+                <label class="complete-toggle"><input type="checkbox" data-complete="topic-${index + 1}">完成</label>
+                <a class="button" href="#topic-${index + 1}">定位</a>
+              </div>
+            </div>
+            <p class="summary">${escapeHtml(topic.summary)}</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>模式</th><th>適用情境</th><th>常見風險</th></tr></thead>
+                <tbody><tr><td>${escapeHtml(topic.use)}</td><td><code>${escapeHtml(topic.pattern)}</code></td><td>${escapeHtml(topic.scenario)}</td><td>${escapeHtml(topic.risk)}</td></tr></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="code-head">
+                <strong>Python 範例</strong>
+                <button class="button output-toggle" type="button" data-output="out-${index}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(topic.example)}</pre>
+              <pre class="output" id="out-${index}">${escapeHtml(topic.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(topic.title)} step-by-step">
+              ${topic.steps.map((step, stepIndex) => {
+                const panelId = `topic-${index + 1}-step-${stepIndex + 1}`;
+                return `
+                <div class="step">
+                  <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">
+                    <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                    <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div>
+                </div>
+              `}).join("")}
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(checkbox.dataset.complete);
+        } else {
+          completed.delete(checkbox.dataset.complete);
+        }
+        localStorage.setItem("python-intermediate-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-intermediate-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      const progress = document.querySelector("#progressSummary");
+      if (progress) {
+        progress.textContent = `完成 ${done} / ${total}`;
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `intermediate-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    renderTopics();
+    enhanceCodeBlocks();
+    bindInteractions();
+    updateProgress();
+  </script>
+</body>
+</html>

@@ -1,0 +1,2711 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 初級互動式視覺教學 - 從基礎物件到入門專案</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --panel: #ffffff;
+      --paper: #f7f9fb;
+      --soft-blue: #e7f0fb;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --soft-green: #e6f5ef;
+      --yellow: #f7c948;
+      --soft-yellow: #fff4cf;
+      --red: #c34848;
+      --soft-red: #fae8e8;
+      --violet: #7257a8;
+      --soft-violet: #eee9f8;
+      --shadow: 0 18px 42px rgba(22, 35, 52, 0.08);
+      --radius: 8px;
+      --code-bg: #172033;
+      --code-ink: #eef6ff;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(231, 240, 251, 0.95), rgba(247, 249, 251, 0.96) 38rem),
+        var(--paper);
+      line-height: 1.72;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 17rem minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      padding: 1.4rem 1.1rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 10px 28px rgba(22, 35, 52, 0.06);
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 0.98rem;
+      line-height: 1.25;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .nav {
+      display: grid;
+      gap: 0.4rem;
+      margin-top: 1rem;
+    }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: 0.93rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .nav a:hover,
+    .nav a:focus-visible {
+      color: var(--ink);
+      background: var(--soft-blue);
+      outline: none;
+    }
+
+    .nav svg {
+      flex: 0 0 auto;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(21rem, 0.95fr);
+      gap: clamp(1.25rem, 3vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5.2rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.32rem 0.55rem;
+      border: 1px solid rgba(47, 111, 187, 0.25);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--blue);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .hero h2 {
+      margin: 1.1rem 0 0.85rem;
+      max-width: 13ch;
+      font-size: clamp(2.35rem, 6vw, 5.1rem);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 44rem;
+      margin: 0;
+      color: #344153;
+      font-size: 1.08rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 1.35rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      min-height: 2.55rem;
+      padding: 0.56rem 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 9px 24px rgba(22, 35, 52, 0.07);
+    }
+
+    .button.primary {
+      border-color: #1f5d9c;
+      background: var(--blue);
+      color: white;
+    }
+
+    .hero-visual {
+      min-width: 0;
+      padding: 0.7rem;
+      border: 1px solid rgba(47, 111, 187, 0.25);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: var(--shadow);
+    }
+
+    .section {
+      padding: 2.25rem clamp(1rem, 5vw, 4.8rem);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+
+    .section h2 {
+      margin: 0;
+      font-size: clamp(1.7rem, 4vw, 2.65rem);
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .section-lead {
+      max-width: 54rem;
+      margin: 0.45rem 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .roadmap {
+      width: 100%;
+      min-height: 23rem;
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .object-card,
+    .length-card,
+    .syntax-card,
+    .project-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(22, 35, 52, 0.06);
+      overflow: hidden;
+    }
+
+    .object-card {
+      padding: 1rem;
+      display: grid;
+      gap: 0.75rem;
+      min-height: 100%;
+    }
+
+    .object-top {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .icon-box {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 2.65rem;
+      height: 2.65rem;
+      border-radius: 7px;
+      border: 1px solid rgba(47, 111, 187, 0.18);
+      background: var(--soft-blue);
+    }
+
+    .object-card h3,
+    .syntax-title h3,
+    .project-card h3 {
+      margin: 0;
+      font-size: 1.08rem;
+      line-height: 1.24;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      padding: 0.14rem 0.42rem;
+      border-radius: 6px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .object-card p,
+    .syntax-summary,
+    .project-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .code {
+      margin: 0;
+      padding: 0.9rem;
+      border-radius: 7px;
+      overflow-x: auto;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.58;
+      tab-size: 4;
+      white-space: pre;
+    }
+
+    .length-list,
+    .syntax-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .length-card,
+    .syntax-card {
+      display: grid;
+      grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+      min-height: 16rem;
+    }
+
+    .length-visual,
+    .syntax-visual {
+      display: grid;
+      gap: 0.75rem;
+      align-content: start;
+      padding: 1rem;
+      background: linear-gradient(180deg, var(--soft-blue), #fff);
+      border-right: 1px solid var(--line);
+    }
+
+    .length-visual svg,
+    .syntax-visual svg {
+      width: 100%;
+      height: auto;
+      min-height: 9.5rem;
+    }
+
+    .length-body,
+    .syntax-body {
+      min-width: 0;
+      padding: 1rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .syntax-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .syntax-title small {
+      display: block;
+      margin-top: 0.15rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .meta-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 42rem;
+      background: white;
+      font-size: 0.91rem;
+    }
+
+    th,
+    td {
+      padding: 0.68rem 0.72rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: #31445b;
+      background: #eef4fb;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td code,
+    p code,
+    li code {
+      padding: 0.08rem 0.28rem;
+      border-radius: 5px;
+      background: #edf3f8;
+      color: #1d446a;
+      font-family: var(--mono);
+      font-size: 0.9em;
+    }
+
+    .example-area {
+      display: grid;
+      gap: 0.55rem;
+    }
+
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .code-head strong {
+      font-size: 0.92rem;
+    }
+
+    .toggle-output,
+    .step-toggle {
+      cursor: pointer;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 850;
+    }
+
+    .toggle-output {
+      padding: 0.42rem 0.65rem;
+    }
+
+    .output {
+      display: none;
+      margin: 0;
+      padding: 0.75rem 0.9rem;
+      border-left: 4px solid var(--green);
+      border-radius: 7px;
+      background: #f1fbf7;
+      color: #21483b;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+    }
+
+    .output.is-open {
+      display: block;
+    }
+
+    .steps {
+      display: grid;
+      gap: 0.55rem;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .step-toggle {
+      width: 100%;
+      min-height: 3rem;
+      padding: 0.68rem 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+      text-align: left;
+    }
+
+    .step-toggle span:first-child {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .step-number {
+      display: grid;
+      place-items: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 6px;
+      background: var(--soft-yellow);
+      color: #735508;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .chevron {
+      transition: transform 180ms ease;
+    }
+
+    .step.is-open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .step-panel {
+      display: none;
+      padding: 0 0.9rem 0.9rem 3.18rem;
+      color: #405268;
+      font-size: 0.94rem;
+    }
+
+    .step.is-open .step-panel {
+      display: block;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(8rem, 1fr));
+      gap: 0.75rem;
+      overflow-x: auto;
+      padding: 1rem;
+    }
+
+    .timeline-item {
+      min-width: 8rem;
+      padding: 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+    }
+
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+
+    .architecture {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+
+    .architecture svg {
+      min-width: 52rem;
+      width: 100%;
+      height: auto;
+    }
+
+    .project-card {
+      padding: 1rem;
+    }
+
+    .learning-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.9rem;
+      align-items: center;
+      padding: 1rem;
+      margin: 0 clamp(1rem, 5vw, 4.8rem) 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .search-box {
+      width: 100%;
+      min-height: 2.55rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.5rem 0.72rem;
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+    }
+
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-height: 2.35rem;
+      padding: 0.45rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .complete-toggle input {
+      width: 1rem;
+      height: 1rem;
+      accent-color: var(--green);
+    }
+
+    .copy-code {
+      min-height: 2.25rem;
+      padding: 0.38rem 0.58rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .code-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: -0.5rem;
+    }
+
+    .exercise-list,
+    .engineering-list,
+    .capstone-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .exercise-card,
+    .engineering-card,
+    .capstone-card {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: 0 12px 30px rgba(22, 35, 52, 0.06);
+    }
+
+    .exercise-card h3,
+    .engineering-card h3,
+    .capstone-card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.12rem;
+      line-height: 1.25;
+    }
+
+    .exercise-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin: 0.8rem 0;
+    }
+
+    .mini-box {
+      padding: 0.65rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #f8fbfe;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .mini-box strong {
+      display: block;
+      margin-bottom: 0.18rem;
+      color: var(--ink);
+    }
+
+    .answer-panel {
+      display: none;
+      margin-top: 0.65rem;
+    }
+
+    .answer-panel.is-open {
+      display: block;
+    }
+
+    .hidden-by-search {
+      display: none !important;
+    }
+
+    .section-pager {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .footer {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem) 3rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      overflow-x: auto;
+      gap: 0.45rem;
+    }
+
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .mobile-nav {
+        display: flex;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h2 {
+        max-width: 15ch;
+      }
+
+      .length-card,
+      .syntax-card {
+        grid-template-columns: 1fr;
+      }
+
+      .length-visual,
+      .syntax-visual {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .hero,
+      .section,
+      .footer {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+      }
+
+      .section-head {
+        display: block;
+      }
+
+      .grid.two,
+      .grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-visual {
+        padding: 0.25rem;
+      }
+
+      .roadmap {
+        min-height: 19rem;
+      }
+
+      .syntax-title {
+        display: block;
+      }
+
+      .code-head {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .learning-tools {
+        grid-template-columns: 1fr;
+        margin-left: 0.85rem;
+        margin-right: 0.85rem;
+      }
+
+      .exercise-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .toggle-output {
+        width: 100%;
+      }
+
+      .step-panel {
+        padding-left: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="#map">學習地圖</a>
+    <a href="#objects">基礎物件</a>
+    <a href="#lengths">資料長度</a>
+    <a href="#syntax">語法列表</a>
+    <a href="#project">大型專案</a>
+    <a href="#workflow">實戰路線</a>
+    <a href="#engineering">工程補強</a>
+    <a href="#production-bridge">交付線</a>
+    <a href="#repository-hardening">資料層</a>
+    <a href="#testing-diagnosis">測試判讀</a>
+    <a href="#advanced-syntax-lab">語法落地</a>
+    <a href="#readiness-checklist">維運資安</a>
+    <a href="#exercises">章末練習</a>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="27" height="27" viewBox="0 0 32 32" role="img" aria-label="Python icon">
+            <rect x="6" y="3" width="18" height="12" rx="5" fill="#ffd85a"></rect>
+            <rect x="8" y="17" width="18" height="12" rx="5" fill="#76b7f2"></rect>
+            <circle cx="11" cy="8" r="1.4" fill="#172033"></circle>
+            <circle cx="21" cy="24" r="1.4" fill="#172033"></circle>
+            <path d="M15 15h9a4 4 0 0 1 0 8h-3" fill="none" stroke="#172033" stroke-width="2"></path>
+            <path d="M17 17H8a4 4 0 0 1 0-8h3" fill="none" stroke="#172033" stroke-width="2"></path>
+          </svg>
+        </div>
+        <h1>Python 初級視覺教學<span>Beginner Objects to Projects</span></h1>
+      </div>
+      <nav class="nav" aria-label="主要章節">
+        <a href="#map">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h5v12H4zM15 4h5v16h-5zM10 10h4v8h-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
+          學習地圖
+        </a>
+        <a href="#objects">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 7h10v10H7zM4 4h4M16 4h4M4 20h4M16 20h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+          基礎物件
+        </a>
+        <a href="#lengths">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+          資料長度
+        </a>
+        <a href="#syntax">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          語法列表
+        </a>
+        <a href="#project">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18V7l8-4 8 4v11l-8 4zM4 7l8 4 8-4M12 11v11" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
+          大型專案
+        </a>
+        <a href="#workflow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 6h8a4 4 0 0 1 0 8H9M9 14l3-3M9 14l3 3M17 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          實戰路線
+        </a>
+        <a href="#engineering">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M7 7v10M17 7v10M9 17h6M8 4h8l2 3H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          工程補強
+        </a>
+        <a href="#production-bridge">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15M15 8l4 4-4 4M5 6h6M5 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          Production 交付線
+        </a>
+        <a href="#repository-hardening">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7c0-2 14-2 14 0v10c0 2-14 2-14 0V7zM5 7c0 2 14 2 14 0M5 12c0 2 14 2 14 0" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
+          Repository 硬化
+        </a>
+        <a href="#testing-diagnosis">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10v4l-2 3v7a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-7L7 8zM9 13h6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
+          測試判讀
+        </a>
+        <a href="#advanced-syntax-lab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          語法落地
+        </a>
+        <a href="#readiness-checklist">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12l4 4L19 6M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          維運資安
+        </a>
+        <a href="#exercises">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 7h8M8 12h8M8 17h5M5 4h14v16H5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          章末練習
+        </a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <div>
+          <span class="eyebrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19h14M7 17V5h10v12M9 8h6M9 11h6M9 14h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+            初級教材 / 20年專案工程師視角
+          </span>
+          <h2>Python 初級：從物件到入門專案</h2>
+          <p>這份教材把 Python 畫成可閱讀的結構圖：先看 object 怎麼裝資料，再看語法怎麼控制流程，最後把 function、module、package、testing、logging 接成大型專案骨架。這份是初級主教材，工程章節用來銜接中級與高階，不取代完整 production 實戰。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#lengths">先看資料長度</a>
+            <a class="button" href="#syntax">開始看語法卡片</a>
+            <a class="button" href="#project">跳到大型專案</a>
+            <a class="button" href="index.html">回教材入口</a>
+            <a class="button" href="python_intermediate_engineering_tutorial.html">前往中級</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <svg class="roadmap" viewBox="0 0 720 430" role="img" aria-labelledby="heroRoadmapTitle heroRoadmapDesc">
+            <title id="heroRoadmapTitle">Python 學習路線圖</title>
+            <desc id="heroRoadmapDesc">由資料物件、語法、函式、模組、測試到大型專案的路線圖。</desc>
+            <defs>
+              <marker id="arrowHero" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
+                <path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path>
+              </marker>
+              <linearGradient id="heroGrad" x1="0" x2="1">
+                <stop offset="0" stop-color="#e7f0fb"></stop>
+                <stop offset="1" stop-color="#e6f5ef"></stop>
+              </linearGradient>
+            </defs>
+            <rect x="12" y="14" width="696" height="402" rx="16" fill="url(#heroGrad)" stroke="#cbd9e8"></rect>
+            <path d="M92 215 C178 95 280 95 363 215 S550 336 628 215" fill="none" stroke="#2f6fbb" stroke-width="7" stroke-linecap="round" marker-end="url(#arrowHero)"></path>
+            <g font-family="system-ui, sans-serif" font-weight="800" text-anchor="middle">
+              <g transform="translate(95 215)">
+                <circle r="50" fill="#fff" stroke="#2f6fbb" stroke-width="3"></circle>
+                <text y="-5" font-size="16" fill="#18212f">Object</text>
+                <text y="19" font-size="13" fill="#5d6b7d">資料長相</text>
+              </g>
+              <g transform="translate(225 116)">
+                <rect x="-58" y="-38" width="116" height="76" rx="12" fill="#fff" stroke="#2d8a69" stroke-width="3"></rect>
+                <text y="-4" font-size="16" fill="#18212f">Syntax</text>
+                <text y="20" font-size="13" fill="#5d6b7d">控制規則</text>
+              </g>
+              <g transform="translate(365 215)">
+                <circle r="52" fill="#fff" stroke="#7257a8" stroke-width="3"></circle>
+                <text y="-5" font-size="16" fill="#18212f">Function</text>
+                <text y="19" font-size="13" fill="#5d6b7d">封裝動作</text>
+              </g>
+              <g transform="translate(505 314)">
+                <rect x="-64" y="-38" width="128" height="76" rx="12" fill="#fff" stroke="#c79a14" stroke-width="3"></rect>
+                <text y="-4" font-size="16" fill="#18212f">Package</text>
+                <text y="20" font-size="13" fill="#5d6b7d">拆分邊界</text>
+              </g>
+              <g transform="translate(628 215)">
+                <circle r="54" fill="#fff" stroke="#c34848" stroke-width="3"></circle>
+                <text y="-5" font-size="16" fill="#18212f">Project</text>
+                <text y="19" font-size="13" fill="#5d6b7d">交付系統</text>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </header>
+
+      <section class="learning-tools" aria-label="教材互動工具">
+        <label>
+          <span class="tag">Search</span>
+          <input id="lessonSearch" class="search-box" type="search" placeholder="搜尋語法、物件、資料長度或專案關鍵字，例如 len、dict、function、pytest">
+        </label>
+        <div class="progress-pill" id="progressSummary">完成 0 / 0</div>
+      </section>
+
+      <section id="map" class="section">
+        <div class="section-head">
+          <div>
+            <h2>學習地圖</h2>
+            <p class="section-lead">先建立資料在記憶體裡的形狀，再理解語法如何搬動資料。專案不是語法堆疊，而是把責任切成可測試、可替換、可維護的模組。</p>
+          </div>
+        </div>
+        <div class="surface">
+          <div class="timeline" aria-label="Python 學習五階段">
+            <div class="timeline-item"><strong>1. Object</strong><span>數字、文字、容器、布林值，先看資料能裝什麼。</span></div>
+            <div class="timeline-item"><strong>2. Syntax</strong><span>條件、迴圈、例外、檔案，讓程式能做決策。</span></div>
+            <div class="timeline-item"><strong>3. Function</strong><span>把重複行為封裝，輸入、處理、輸出都清楚。</span></div>
+            <div class="timeline-item"><strong>4. Module</strong><span>把檔案和 package 做成邊界，專案開始長骨架。</span></div>
+            <div class="timeline-item"><strong>5. Project</strong><span>加上測試、設定、日誌、CLI/API，走向可交付。</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="objects" class="section">
+        <div class="section-head">
+          <div>
+            <h2>基礎物件 Objects</h2>
+            <p class="section-lead">Python 不是先背語法，而是先認得資料的形狀。下面每張卡片都把 object 的用途、範例和常見用法放在一起。</p>
+          </div>
+        </div>
+        <div id="objectGrid" class="grid three" aria-live="polite"></div>
+      </section>
+
+      <section id="lengths" class="section">
+        <div class="section-head">
+          <div>
+            <h2>基礎物件資料長度互動列表</h2>
+            <p class="section-lead"><code>len()</code> 不是「數字大小」，而是「容器裡有多少個元素」。不同 object 的長度意義不同，點開每張卡看範例、輸出與常見陷阱。</p>
+          </div>
+        </div>
+        <div id="lengthList" class="length-list" aria-live="polite"></div>
+      </section>
+
+      <section id="syntax" class="section">
+        <div class="section-head">
+          <div>
+            <h2>語法列表 Syntax Cards</h2>
+            <p class="section-lead">每張卡都能點開 step-by-step 詳解。範例輸出是預先列出的執行結果，不在瀏覽器中假裝執行 Python。</p>
+          </div>
+        </div>
+        <div id="syntaxList" class="syntax-list" aria-live="polite"></div>
+      </section>
+
+      <section id="project" class="section">
+        <div class="section-head">
+          <div>
+            <h2>大型專案應用</h2>
+            <p class="section-lead">大型專案的重點不是檔案變多，而是邊界清楚。UI 或 CLI 只負責接收請求，service 負責規則，repository 負責資料來源，test 負責守住行為。</p>
+          </div>
+        </div>
+        <div class="surface architecture">
+          <svg viewBox="0 0 980 430" role="img" aria-labelledby="archTitle archDesc">
+            <title id="archTitle">Python 大型專案分層架構</title>
+            <desc id="archDesc">CLI/API、Service、Repository、Domain、Infrastructure 和 Test 的關係圖。</desc>
+            <defs>
+              <marker id="archArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M1 1l8 4-8 4z" fill="#4d6d8c"></path>
+              </marker>
+            </defs>
+            <rect x="20" y="20" width="940" height="390" rx="16" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" font-weight="800">
+              <rect x="70" y="72" width="180" height="84" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect>
+              <text x="160" y="106" text-anchor="middle" fill="#18212f">CLI / API</text>
+              <text x="160" y="132" text-anchor="middle" fill="#5d6b7d" font-size="14">輸入與回應</text>
+
+              <rect x="330" y="72" width="190" height="84" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect>
+              <text x="425" y="106" text-anchor="middle" fill="#18212f">Service</text>
+              <text x="425" y="132" text-anchor="middle" fill="#5d6b7d" font-size="14">商業規則</text>
+
+              <rect x="600" y="72" width="210" height="84" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect>
+              <text x="705" y="106" text-anchor="middle" fill="#18212f">Repository</text>
+              <text x="705" y="132" text-anchor="middle" fill="#5d6b7d" font-size="14">資料讀寫</text>
+
+              <rect x="330" y="230" width="190" height="84" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect>
+              <text x="425" y="264" text-anchor="middle" fill="#18212f">Domain Model</text>
+              <text x="425" y="290" text-anchor="middle" fill="#5d6b7d" font-size="14">核心資料與規則</text>
+
+              <rect x="600" y="230" width="210" height="84" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect>
+              <text x="705" y="264" text-anchor="middle" fill="#18212f">Infrastructure</text>
+              <text x="705" y="290" text-anchor="middle" fill="#5d6b7d" font-size="14">DB / File / HTTP</text>
+
+              <rect x="70" y="230" width="180" height="84" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect>
+              <text x="160" y="264" text-anchor="middle" fill="#18212f">Tests</text>
+              <text x="160" y="290" text-anchor="middle" fill="#5d6b7d" font-size="14">守住行為</text>
+            </g>
+            <path d="M250 114h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M520 114h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M425 156v66" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M705 156v66" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M250 272h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+            <path d="M520 272h72" stroke="#4d6d8c" stroke-width="3" marker-end="url(#archArrow)"></path>
+          </svg>
+        </div>
+        <div class="grid two" style="margin-top: 1rem;">
+          <article class="project-card">
+            <h3>建議目錄</h3>
+            <p>用 package 切出可測試邊界，讓 CLI/API 可以替換，service 與 domain 不被外部工具綁死。</p>
+            <pre class="code">notes_app/
+  pyproject.toml
+  src/notes_app/
+    __init__.py
+    cli.py
+    config.py
+    domain.py
+    services.py
+    repositories.py
+    logging_setup.py
+  tests/
+    test_services.py
+    test_repositories.py</pre>
+          </article>
+          <article class="project-card">
+            <h3>Service 範例</h3>
+            <p>service 只說規則，不直接知道資料存在 JSON、SQLite 或 API。</p>
+            <pre class="code">from dataclasses import dataclass
+
+@dataclass
+class Note:
+    title: str
+    body: str
+
+class NoteService:
+    def __init__(self, repo):
+        self.repo = repo
+
+    def create(self, title: str, body: str) -> Note:
+        if not title.strip():
+            raise ValueError("title is required")
+        note = Note(title=title, body=body)
+        self.repo.save(note)
+        return note</pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="workflow" class="section">
+        <div class="section-head">
+          <div>
+            <h2>實戰路線</h2>
+            <p class="section-lead">學完語法後，用這條路線把知識放進專案。每一步都有清楚產物，不會只停在看懂範例。</p>
+          </div>
+        </div>
+        <div class="steps" id="projectSteps"></div>
+      </section>
+
+      <section id="capstone" class="section">
+        <div class="section-head">
+          <div>
+            <h2>notes-cli 入門專案線</h2>
+            <p class="section-lead">把前面語法收斂成一個可交付的小工具：CLI 收指令、service 管規則、JSON repository 存資料、pytest 守住行為。</p>
+          </div>
+        </div>
+        <div id="capstoneList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#workflow">上一章：實戰路線</a>
+          <a class="button primary" href="#engineering">下一章：工程補強</a>
+        </div>
+      </section>
+
+      <section id="engineering" class="section">
+        <div class="section-head">
+          <div>
+            <h2>初級到資深工程銜接</h2>
+            <p class="section-lead">這一章把 notes-cli 從「能跑」推向「可維護、可測試、可交付」。重點不是塞更多語法，而是補上資深工程師在專案 review 時會看的風險邊界；更完整的 production walkthrough 請接續中級與高階教材。</p>
+          </div>
+        </div>
+        <div id="engineeringList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#capstone">上一章：notes-cli 專案線</a>
+          <a class="button primary" href="#production-bridge">下一章：Production 交付線</a>
+        </div>
+      </section>
+
+      <section id="production-bridge" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Production notes-cli 一條到底</h2>
+            <p class="section-lead">這是初級教材的資深工程銜接附錄：用 notes-cli 看懂需求到 release/rollback 的完整路線。深入實戰請接續中級與高階教材。</p>
+          </div>
+        </div>
+        <div class="surface architecture">
+          <svg viewBox="0 0 1120 340" role="img" aria-labelledby="prodBridgeTitle prodBridgeDesc">
+            <title id="prodBridgeTitle">Production notes-cli 交付流程</title>
+            <desc id="prodBridgeDesc">需求、ADR、SLO、package boundary、config/env、migration、tests、CI、release、rollback 的流程圖。</desc>
+            <defs>
+              <marker id="prodBridgeArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M1 1l8 4-8 4z" fill="#2f6fbb"></path>
+              </marker>
+            </defs>
+            <rect x="18" y="22" width="1084" height="290" rx="16" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="800">
+              <rect x="40" y="86" width="96" height="74" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="88" y="116">需求</text><text x="88" y="140" font-size="13" fill="#5d6b7d">驗收</text>
+              <rect x="160" y="86" width="96" height="74" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="208" y="116">ADR</text><text x="208" y="140" font-size="13" fill="#5d6b7d">取捨</text>
+              <rect x="280" y="86" width="96" height="74" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="328" y="116">SLO</text><text x="328" y="140" font-size="13" fill="#5d6b7d">速度</text>
+              <rect x="400" y="86" width="116" height="74" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="458" y="116">Boundary</text><text x="458" y="140" font-size="13" fill="#5d6b7d">package</text>
+              <rect x="540" y="86" width="116" height="74" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="598" y="116">Config</text><text x="598" y="140" font-size="13" fill="#5d6b7d">env</text>
+              <rect x="680" y="86" width="116" height="74" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="738" y="116">Migration</text><text x="738" y="140" font-size="13" fill="#5d6b7d">schema</text>
+              <rect x="820" y="86" width="96" height="74" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="868" y="116">Tests</text><text x="868" y="140" font-size="13" fill="#5d6b7d">pytest</text>
+              <rect x="940" y="86" width="96" height="74" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="988" y="116">CI</text><text x="988" y="140" font-size="13" fill="#5d6b7d">gate</text>
+              <rect x="820" y="220" width="96" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="868" y="255">Release</text>
+              <rect x="940" y="220" width="96" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="988" y="255">Rollback</text>
+            </g>
+            <path d="M136 123h16M256 123h16M376 123h16M516 123h16M656 123h16M796 123h16M916 123h16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodBridgeArrow)"></path>
+            <path d="M988 160v52" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodBridgeArrow)"></path>
+            <path d="M940 249h-16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodBridgeArrow)"></path>
+          </svg>
+        </div>
+        <div id="productionBridgeList" class="capstone-list" style="margin-top: 1rem;"></div>
+        <div class="section-pager">
+          <a class="button" href="#engineering">上一章：工程補強</a>
+          <a class="button primary" href="#repository-hardening">下一章：Repository 硬化</a>
+        </div>
+      </section>
+
+      <section id="repository-hardening" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Repository 硬化實戰</h2>
+            <p class="section-lead">把 JSON repository 從教學 demo 推向可維運：先保護資料，再談功能。這裡補 file lock、backup、corrupt JSON 與 schema migration。</p>
+          </div>
+        </div>
+        <div id="repositoryHardeningList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#production-bridge">上一章：Production 交付線</a>
+          <a class="button primary" href="#testing-diagnosis">下一章：測試與 CI 判讀</a>
+        </div>
+      </section>
+
+      <section id="testing-diagnosis" class="section">
+        <div class="section-head">
+          <div>
+            <h2>測試與 CI 失敗判讀</h2>
+            <p class="section-lead">資深工程師要能從失敗訊號判斷壞在哪一層：service 規則、repository 邊界、package 安裝，還是 CI 環境。</p>
+          </div>
+        </div>
+        <div id="testingDiagnosisList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#repository-hardening">上一章：Repository 硬化</a>
+          <a class="button primary" href="#advanced-syntax-lab">下一章：進階語法落地</a>
+        </div>
+      </section>
+
+      <section id="advanced-syntax-lab" class="section">
+        <div class="section-head">
+          <div>
+            <h2>進階語法工程落地</h2>
+            <p class="section-lead">進階語法不是炫技。Protocol、plugin、iterator、decorator 都要回到專案邊界、失敗模式與維護成本。</p>
+          </div>
+        </div>
+        <div id="advancedSyntaxLabList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#testing-diagnosis">上一章：測試與 CI 判讀</a>
+          <a class="button primary" href="#readiness-checklist">下一章：維運與資安</a>
+        </div>
+      </section>
+
+      <section id="readiness-checklist" class="section">
+        <div class="section-head">
+          <div>
+            <h2>維運與資安入門檢查表</h2>
+            <p class="section-lead">初級專案也要早點建立 production 直覺：看得見問題、守住 secret、知道 dependency 風險，並有 release/rollback 證據。</p>
+          </div>
+        </div>
+        <div id="readinessChecklistList" class="capstone-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#advanced-syntax-lab">上一章：進階語法落地</a>
+          <a class="button primary" href="#exercises">下一章：章末練習</a>
+        </div>
+      </section>
+
+      <section id="exercises" class="section">
+        <div class="section-head">
+          <div>
+            <h2>章末練習與答案解析</h2>
+            <p class="section-lead">每題先看目標、輸入與預期輸出，自己寫完再展開答案。這裡不在瀏覽器執行 Python，重點是建立可驗收的練習閉環。</p>
+          </div>
+        </div>
+        <div id="exerciseList" class="exercise-list"></div>
+        <div class="section-pager">
+          <a class="button" href="#readiness-checklist">上一章：維運與資安</a>
+          <a class="button primary" href="python_intermediate_engineering_tutorial.html">下一級：中級工程教材</a>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>教材檔案為單一 HTML，CSS、JavaScript、SVG 都已內嵌。範例輸出是教學用預期結果，不會在瀏覽器中執行 Python 程式碼。</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const objectData = [
+      {
+        name: "int",
+        label: "整數",
+        use: "適合計數、索引、金額分、資料筆數等不需要小數的值。",
+        example: "count = 3\nnext_count = count + 1\nprint(next_count)",
+        icon: "number"
+      },
+      {
+        name: "float",
+        label: "浮點數",
+        use: "適合比例、平均、座標、溫度等需要小數的值。金額精算請改用 Decimal。",
+        example: "price = 19.5\nrate = 0.05\nprint(price * (1 + rate))",
+        icon: "wave"
+      },
+      {
+        name: "str",
+        label: "字串",
+        use: "文字資料，常用於使用者名稱、檔案路徑、訊息、JSON 欄位。",
+        example: "name = \"Ada\"\nprint(f\"Hello, {name}\")",
+        icon: "text"
+      },
+      {
+        name: "bool",
+        label: "布林值",
+        use: "表示是或否，常用於條件判斷、開關、權限、狀態旗標。",
+        example: "is_admin = True\nif is_admin:\n    print(\"allow\")",
+        icon: "toggle"
+      },
+      {
+        name: "None",
+        label: "空值",
+        use: "表示目前沒有值。常用於預設值、查無資料、尚未初始化。",
+        example: "user = None\nif user is None:\n    print(\"guest\")",
+        icon: "empty"
+      },
+      {
+        name: "list",
+        label: "可變序列",
+        use: "有順序、可增刪，適合購物車、任務清單、API 回傳列表。",
+        example: "tasks = [\"read\", \"code\"]\ntasks.append(\"test\")\nprint(tasks)",
+        icon: "list"
+      },
+      {
+        name: "tuple",
+        label: "不可變序列",
+        use: "固定組合資料，適合座標、函式回傳多個值、不可修改的設定。",
+        example: "point = (10, 20)\nx, y = point\nprint(x + y)",
+        icon: "tuple"
+      },
+      {
+        name: "dict",
+        label: "鍵值表",
+        use: "用 key 找 value，適合設定檔、JSON、快取、資料索引。",
+        example: "user = {\"name\": \"Ada\", \"age\": 36}\nprint(user[\"name\"])",
+        icon: "dict"
+      },
+      {
+        name: "set",
+        label: "唯一集合",
+        use: "去除重複、集合交集、權限比對、標籤比對。",
+        example: "tags = {\"python\", \"api\", \"python\"}\nprint(tags)",
+        icon: "set"
+      },
+      {
+        name: "range",
+        label: "整數序列",
+        use: "表示一段連續整數，常用於固定次數迴圈、產生索引，不會一次建立完整 list。",
+        example: "for index in range(3):\n    print(index)",
+        icon: "range"
+      },
+      {
+        name: "bytes",
+        label: "位元組資料",
+        use: "二進位資料，常見於檔案、網路封包、圖片、感測器資料。文字要先 encode 成 bytes。",
+        example: "data = \"Python\".encode(\"utf-8\")\nprint(len(data))",
+        icon: "bytes"
+      }
+    ];
+
+    const lengthData = [
+      {
+        object: "str",
+        meaning: "字元數",
+        lenSupport: "可以",
+        example: "text = \"Python\"\nprint(len(text))\nprint(text[0])",
+        output: "6\nP",
+        use: "限制標題長度、檢查密碼最少字數、切出前幾個字。",
+        mistake: "中文、emoji、組合字元在顯示寬度上可能和 len 結果不同；len 算的是 Python 字串元素數。",
+        steps: [
+          ["建立字串", "text 指向 str object，內容是 Python。"],
+          ["計算長度", "len(text) 回傳 6，代表有 6 個字元。"],
+          ["索引取值", "text[0] 取第一個字元，索引從 0 開始。"]
+        ]
+      },
+      {
+        object: "list",
+        meaning: "元素筆數",
+        lenSupport: "可以",
+        example: "tasks = [\"read\", \"code\", \"test\"]\nprint(len(tasks))\nprint(tasks[-1])",
+        output: "3\ntest",
+        use: "檢查購物車有幾筆、任務佇列有幾個工作、API 回傳幾筆資料。",
+        mistake: "把最後一筆寫成 tasks[len(tasks)] 會 IndexError；最後一筆應用 tasks[-1] 或 tasks[len(tasks)-1]。",
+        steps: [
+          ["建立 list", "list 內有三個元素，每個元素是一個 str。"],
+          ["計算筆數", "len(tasks) 回傳元素數量 3。"],
+          ["取最後一筆", "tasks[-1] 是 Python 常用的倒數索引。"]
+        ]
+      },
+      {
+        object: "tuple",
+        meaning: "固定元素筆數",
+        lenSupport: "可以",
+        example: "point = (10, 20, 30)\nprint(len(point))\nx, y, z = point\nprint(z)",
+        output: "3\n30",
+        use: "座標、RGB 色彩、函式回傳多個固定值。",
+        mistake: "tuple 不能 append；如果長度會變，用 list。",
+        steps: [
+          ["建立 tuple", "point 是不可變序列，長度建立後不變。"],
+          ["計算長度", "len(point) 回傳 3。"],
+          ["解包資料", "x, y, z = point 要求左右數量一致。"]
+        ]
+      },
+      {
+        object: "dict",
+        meaning: "key 的數量",
+        lenSupport: "可以",
+        example: "user = {\"name\": \"Ada\", \"age\": 36}\nprint(len(user))\nprint(\"name\" in user)",
+        output: "2\nTrue",
+        use: "檢查設定欄位數、JSON object 是否有資料、快取索引大小。",
+        mistake: "len(dict) 算的是 key 數量，不是所有 value 裡面的資料量總和。",
+        steps: [
+          ["建立 dict", "dict 用 key 對應 value。"],
+          ["計算 key 數", "len(user) 回傳 2，因為有 name 和 age 兩個 key。"],
+          ["檢查 key", "\"name\" in user 是檢查 key 是否存在。"]
+        ]
+      },
+      {
+        object: "set",
+        meaning: "唯一元素數",
+        lenSupport: "可以",
+        example: "tags = {\"python\", \"api\", \"python\"}\nprint(len(tags))\nprint(\"api\" in tags)",
+        output: "2\nTrue",
+        use: "去重、權限集合、標籤集合、快速檢查某值是否存在。",
+        mistake: "set 不保證順序，不能依賴第 0 個元素是誰。",
+        steps: [
+          ["建立 set", "重複的 python 只會保留一份。"],
+          ["計算唯一數", "len(tags) 回傳 2。"],
+          ["檢查包含", "\"api\" in tags 通常比 list 搜尋更適合大量資料。"]
+        ]
+      },
+      {
+        object: "range",
+        meaning: "會產生的整數個數",
+        lenSupport: "可以",
+        example: "indexes = range(2, 10, 2)\nprint(len(indexes))\nprint(list(indexes))",
+        output: "4\n[2, 4, 6, 8]",
+        use: "固定次數迴圈、分頁索引、產生等差序列。",
+        mistake: "range(2, 10, 2) 不包含 stop 的 10；stop 是停止邊界。",
+        steps: [
+          ["建立 range", "range 只保存 start、stop、step，不一次建立完整 list。"],
+          ["計算個數", "2、4、6、8 共 4 個，所以 len 是 4。"],
+          ["需要時展開", "list(indexes) 才真的把每個整數展開。"]
+        ]
+      },
+      {
+        object: "bytes",
+        meaning: "byte 數",
+        lenSupport: "可以",
+        example: "data = \"哈\".encode(\"utf-8\")\nprint(len(data))\nprint(data)",
+        output: "3\nb'\\xe5\\x93\\x88'",
+        use: "二進位檔案、網路封包、圖片、序列化資料。",
+        mistake: "文字長度和 bytes 長度不同；中文 UTF-8 常不只 1 byte。",
+        steps: [
+          ["文字編碼", "\"哈\" encode 成 UTF-8 bytes。"],
+          ["計算 byte 數", "len(data) 回傳 3，代表底層有 3 bytes。"],
+          ["看 bytes 表示", "b'...' 是 bytes literal，不是一般 str。"]
+        ]
+      },
+      {
+        object: "int / float / bool / None",
+        meaning: "沒有容器長度",
+        lenSupport: "不可以",
+        example: "value = 42\ntry:\n    print(len(value))\nexcept TypeError:\n    print(\"no length\")",
+        output: "no length",
+        use: "用 type 或 isinstance 判斷資料型別；數字大小用比較運算，不用 len。",
+        mistake: "把 len(42) 當成數字位數；若要位數，可先轉 str：len(str(42))。",
+        steps: [
+          ["建立 scalar", "int、float、bool、None 是單一值，不是容器。"],
+          ["呼叫 len", "len(value) 需要物件支援長度協定。"],
+          ["處理錯誤", "TypeError 表示這類 object 沒有長度。"]
+        ]
+      }
+    ];
+
+    const syntaxData = [
+      {
+        title: "變數 Variables",
+        keyword: "name = value",
+        summary: "變數是貼在 object 上的名字，不是固定盒子。重新指定會讓名字指向新的 object。",
+        use: "暫存資料、命名中間結果、讓程式可讀。",
+        format: "變數名稱 = 運算式",
+        scenario: "讀取輸入、計算總價、保存 API 結果。",
+        mistake: "用太短或無意義命名，例如 a、x2，讓後續維護痛苦。",
+        example: "price = 120\nquantity = 3\ntotal = price * quantity\nprint(total)",
+        output: "360",
+        visual: "assign",
+        steps: [
+          ["建立名字", "Python 先建立整數 object 120，再把名字 price 指向它。"],
+          ["計算結果", "price * quantity 會產生新的整數 object 360。"],
+          ["保存結果", "total 指向計算後的 object，後面可以重複使用。"]
+        ]
+      },
+      {
+        title: "註解與輸出 comment / print",
+        keyword: "# / print(...)",
+        summary: "註解寫給人看，print 把資料印到終端機。初學時用 print 觀察資料流，但專案中要逐步改用 logging。",
+        use: "快速觀察變數、說明非顯而易見的決策、教學或除錯。",
+        format: "# 註解文字；print(值1, 值2)",
+        scenario: "檢查 function 輸出、確認迴圈走到哪一步、標記重要規則。",
+        mistake: "用註解重複描述顯而易見的程式，或把 print 留在正式服務中。",
+        example: "# 計算使用者顯示名稱\nname = \"Ada\"\nprint(\"user\", name)",
+        output: "user Ada",
+        visual: "print",
+        steps: [
+          ["讀註解", "# 後方文字不會被 Python 執行。"],
+          ["建立資料", "name 指向字串 object \"Ada\"。"],
+          ["印出資料", "print 會把多個值以空白分隔輸出。"]
+        ]
+      },
+      {
+        title: "基本運算子 Operators",
+        keyword: "+ - * / // % **",
+        summary: "運算子把 object 組成新的結果。數字、字串、list 都能用部分運算子，但意義不同。",
+        use: "數值計算、字串串接、餘數判斷、整除、次方。",
+        format: "左值 運算子 右值",
+        scenario: "計算總價、判斷奇偶、分頁 offset、產生重複字串。",
+        mistake: "把 / 和 // 混用；/ 永遠回傳 float，// 是整除。",
+        example: "pages = 25 // 10\nremain = 25 % 10\nprint(pages, remain)",
+        output: "2 5",
+        visual: "operator",
+        steps: [
+          ["整除", "25 // 10 得到完整的 2 頁。"],
+          ["餘數", "25 % 10 得到剩下 5 筆。"],
+          ["輸出", "print 一次印出 pages 與 remain。"]
+        ]
+      },
+      {
+        title: "物件類型檢查 type / isinstance",
+        keyword: "type(x) / isinstance(x, T)",
+        summary: "Python 的每個值都是 object，都有 type。學習時用 type 看資料長相，專案中用 isinstance 做邊界驗證。",
+        use: "除錯、輸入驗證、理解 API 回傳資料。",
+        format: "type(value)；isinstance(value, 類型)",
+        scenario: "確認 JSON 欄位是 list 還是 dict、檢查使用者輸入是否為 str。",
+        mistake: "到處用 type(...) == ... 取代清楚的資料模型，會讓程式難維護。",
+        example: "value = [\"Ada\", \"Ben\"]\nprint(type(value).__name__)\nprint(isinstance(value, list))",
+        output: "list\nTrue",
+        visual: "inspect",
+        steps: [
+          ["建立 object", "value 指向一個 list object。"],
+          ["查看 type", "type(value).__name__ 得到類型名稱 list。"],
+          ["檢查類型", "isinstance(value, list) 回傳 True。"]
+        ]
+      },
+      {
+        title: "型別轉換 int / str / float / bool",
+        keyword: "int(x), str(x)",
+        summary: "使用者輸入、檔案與 API 常以 str 進來，計算前要轉成正確 type。轉換可能失敗，所以常搭配 try / except。",
+        use: "表單輸入、CLI 參數、CSV 欄位、JSON 資料正規化。",
+        format: "目標類型(原始值)",
+        scenario: "把 \"42\" 轉成 int，把數字轉成顯示文字。",
+        mistake: "以為 bool(\"False\") 會是 False；非空字串轉 bool 會是 True。",
+        example: "raw = \"42\"\ncount = int(raw)\nmessage = str(count) + \" items\"\nprint(message)",
+        output: "42 items",
+        visual: "convert",
+        steps: [
+          ["收到文字", "raw 是 str，不適合直接做數值加總。"],
+          ["轉成整數", "int(raw) 產生 int object 42。"],
+          ["轉回文字", "str(count) 讓結果能和其他字串串接。"]
+        ]
+      },
+      {
+        title: "資料長度 len / 索引 / 切片",
+        keyword: "len(x), x[i], x[a:b]",
+        summary: "len 回傳容器或字串的資料長度；索引用位置取一筆；切片取一段新序列。這是處理資料集合的基本手感。",
+        use: "檢查資料筆數、取第一筆、取前 N 筆、切掉副檔名或前綴。",
+        format: "len(data)；data[0]；data[start:stop]",
+        scenario: "限制標題長度、顯示最新 10 筆、讀取 CSV 欄位。",
+        mistake: "索引從 0 開始；data[len(data)] 會超出範圍。",
+        example: "names = [\"Ada\", \"Ben\", \"Cora\"]\nprint(len(names))\nprint(names[0])\nprint(names[1:])",
+        output: "3\nAda\n['Ben', 'Cora']",
+        visual: "length",
+        steps: [
+          ["算長度", "len(names) 回傳 list 內有 3 筆資料。"],
+          ["取第一筆", "names[0] 取出第一個元素 Ada。"],
+          ["切一段", "names[1:] 從索引 1 取到最後，產生新 list。"]
+        ]
+      },
+      {
+        title: "條件判斷 if / elif / else",
+        keyword: "if condition:",
+        summary: "讓程式依資料狀態走不同路線。條件式只應表達判斷，不要塞進太多副作用。",
+        use: "權限判斷、輸入驗證、狀態分流。",
+        format: "if 條件: 區塊 elif 條件: 區塊 else: 區塊",
+        scenario: "訂單金額折扣、登入角色判斷、API 狀態碼處理。",
+        mistake: "巢狀 if 太深，應提早 return 或拆成 function。",
+        example: "score = 86\nif score >= 90:\n    level = \"A\"\nelif score >= 80:\n    level = \"B\"\nelse:\n    level = \"C\"\nprint(level)",
+        output: "B",
+        visual: "branch",
+        steps: [
+          ["檢查第一個條件", "score >= 90 是 False，所以不進入 A。"],
+          ["檢查下一個條件", "score >= 80 是 True，指定 level = \"B\"。"],
+          ["停止分流", "前面已符合，else 不會執行。"]
+        ]
+      },
+      {
+        title: "迴圈 for",
+        keyword: "for item in items:",
+        summary: "逐一取出 iterable 中的元素。for 適合知道要走完整個資料集合的場景。",
+        use: "處理列表、逐列讀資料、批次轉換。",
+        format: "for 變數 in iterable: 區塊",
+        scenario: "計算總和、發送多筆通知、轉換 API 回傳資料。",
+        mistake: "迴圈內同時改動正在走訪的 list，容易跳過元素。",
+        example: "prices = [100, 80, 40]\ntotal = 0\nfor price in prices:\n    total += price\nprint(total)",
+        output: "220",
+        visual: "loop",
+        steps: [
+          ["取第一筆", "price 指向 100，total 從 0 變成 100。"],
+          ["取第二筆", "price 指向 80，total 變成 180。"],
+          ["取第三筆", "price 指向 40，total 變成 220。"]
+        ]
+      },
+      {
+        title: "迴圈 while",
+        keyword: "while condition:",
+        summary: "只要條件成立就繼續。while 適合等待狀態改變、重試、讀到結束為止。",
+        use: "重試機制、使用者輸入迴圈、背景工作輪詢。",
+        format: "while 條件: 區塊",
+        scenario: "最多重試三次、直到 queue 空掉、等待服務準備好。",
+        mistake: "忘記更新條件，造成無限迴圈。",
+        example: "retry = 0\nwhile retry < 3:\n    print(\"try\", retry)\n    retry += 1",
+        output: "try 0\ntry 1\ntry 2",
+        visual: "while",
+        steps: [
+          ["先判斷", "retry < 3 成立才進入迴圈。"],
+          ["執行區塊", "印出目前 retry，接著 retry += 1。"],
+          ["回到條件", "當 retry 變成 3，條件失敗，迴圈結束。"]
+        ]
+      },
+      {
+        title: "函式 function",
+        keyword: "def name(...):",
+        summary: "function 把一段可重複使用的行為命名。好的 function 像小工具，輸入清楚、輸出清楚。",
+        use: "封裝規則、減少重複、建立測試單位。",
+        format: "def 函式名稱(參數): return 結果",
+        scenario: "計算折扣、驗證資料、轉換格式。",
+        mistake: "function 做太多事，名稱叫 process 或 handle 卻包山包海。",
+        example: "def apply_discount(price, rate):\n    return price * (1 - rate)\n\nprint(apply_discount(100, 0.2))",
+        output: "80.0",
+        visual: "function",
+        steps: [
+          ["定義工具", "def 建立 apply_discount，但尚未執行內容。"],
+          ["呼叫工具", "apply_discount(100, 0.2) 把兩個值送進參數。"],
+          ["回傳結果", "return 把 80.0 交回呼叫端。"]
+        ]
+      },
+      {
+        title: "lambda",
+        keyword: "lambda x: expression",
+        summary: "lambda 是小型匿名 function，適合短而單純的轉換，不適合承載複雜規則。",
+        use: "排序 key、map/filter 小轉換、一次性 callback。",
+        format: "lambda 參數: 單一運算式",
+        scenario: "依 dict 欄位排序、簡短資料轉換。",
+        mistake: "把多層條件塞進 lambda，會比 def 更難讀。",
+        example: "users = [{\"name\": \"Ada\", \"score\": 92}, {\"name\": \"Ben\", \"score\": 81}]\nusers.sort(key=lambda user: user[\"score\"], reverse=True)\nprint(users[0][\"name\"])",
+        output: "Ada",
+        visual: "lambda",
+        steps: [
+          ["建立排序規則", "lambda user: user[\"score\"] 告訴 sort 要看 score。"],
+          ["套用每筆資料", "sort 對每個 user 取出分數。"],
+          ["完成排序", "reverse=True 讓高分排前面。"]
+        ]
+      },
+      {
+        title: "Comprehension",
+        keyword: "[expr for item in items]",
+        summary: "用一行表達清楚的轉換或過濾。當邏輯變複雜，就改回一般 for 迴圈。",
+        use: "列表轉換、過濾資料、建立 dict 或 set。",
+        format: "[輸出 for 變數 in iterable if 條件]",
+        scenario: "取得啟用使用者、轉換價格、建立查找表。",
+        mistake: "巢狀 comprehension 過長，閱讀成本高。",
+        example: "scores = [50, 82, 91, 67]\npassed = [score for score in scores if score >= 60]\nprint(passed)",
+        output: "[82, 91, 67]",
+        visual: "filter",
+        steps: [
+          ["逐一走訪", "從 scores 依序拿出 score。"],
+          ["檢查條件", "只有 score >= 60 的值會保留。"],
+          ["組成新 list", "輸出新的 passed，不改動原本 scores。"]
+        ]
+      },
+      {
+        title: "例外處理 try / except",
+        keyword: "try: ... except Error:",
+        summary: "例外處理用來處理可預期的失敗，不是把錯誤藏起來。except 應盡量指定明確錯誤類型。",
+        use: "檔案不存在、輸入格式錯、網路失敗、資料庫錯誤。",
+        format: "try: 可能失敗的程式 except 錯誤類型: 補救",
+        scenario: "JSON 解析失敗回傳預設值、API 超時重試。",
+        mistake: "裸寫 except: 會吞掉 KeyboardInterrupt 和真正 bug。",
+        example: "raw = \"42\"\ntry:\n    value = int(raw)\nexcept ValueError:\n    value = 0\nprint(value)",
+        output: "42",
+        visual: "try",
+        steps: [
+          ["嘗試執行", "int(raw) 嘗試把字串轉成整數。"],
+          ["成功路徑", "raw 是 \"42\"，轉換成功，不進入 except。"],
+          ["保存結果", "value 得到整數 42。"]
+        ]
+      },
+      {
+        title: "檔案處理 with open",
+        keyword: "with open(...) as f:",
+        summary: "with 會自動管理資源，離開區塊後自動關閉檔案。這是專案中最常用的檔案讀寫姿勢。",
+        use: "讀設定、寫報表、處理 CSV、保存快取。",
+        format: "with open(path, mode, encoding=\"utf-8\") as f:",
+        scenario: "讀取文字檔、輸出 log、載入 JSON。",
+        mistake: "忘記 encoding，跨平台時可能遇到亂碼。",
+        example: "from pathlib import Path\npath = Path(\"hello.txt\")\npath.write_text(\"Python\", encoding=\"utf-8\")\nprint(path.read_text(encoding=\"utf-8\"))",
+        output: "Python",
+        visual: "file",
+        steps: [
+          ["建立 Path", "Path(\"hello.txt\") 表示檔案位置。"],
+          ["寫入文字", "write_text 寫入內容並指定 utf-8。"],
+          ["讀回內容", "read_text 讀出文字，結果是 Python。"]
+        ]
+      },
+      {
+        title: "class 與 object",
+        keyword: "class Name:",
+        summary: "class 定義資料與行為的模板，object 是依模板建立出來的實體。適合把狀態和操作放在一起。",
+        use: "domain model、服務物件、設定物件、資料封裝。",
+        format: "class 類別名稱: 方法與屬性",
+        scenario: "訂單、使用者、裝置、任務狀態。",
+        mistake: "所有東西都塞成 class，反而讓簡單資料變複雜。",
+        example: "class Counter:\n    def __init__(self):\n        self.value = 0\n\n    def add(self):\n        self.value += 1\n\ncounter = Counter()\ncounter.add()\nprint(counter.value)",
+        output: "1",
+        visual: "class",
+        steps: [
+          ["定義模板", "Counter 描述每個 counter 都有 value。"],
+          ["建立實體", "Counter() 呼叫 __init__，value 初始為 0。"],
+          ["呼叫方法", "add 透過 self 修改該 object 的 value。"]
+        ]
+      },
+      {
+        title: "module",
+        keyword: "import module",
+        summary: "module 是一個 .py 檔。把相關 function、class、常數放進檔案，讓專案可拆分。",
+        use: "拆分功能、重複使用、隔離責任。",
+        format: "import 模組 或 from 模組 import 名稱",
+        scenario: "config.py 放設定，services.py 放商業規則。",
+        mistake: "循環 import，兩個 module 互相依賴導致載入困難。",
+        example: "from math import sqrt\n\nprint(sqrt(81))",
+        output: "9.0",
+        visual: "module",
+        steps: [
+          ["找到 module", "Python 從標準函式庫找到 math。"],
+          ["載入名稱", "from math import sqrt 只拿出 sqrt。"],
+          ["呼叫功能", "sqrt(81) 回傳平方根。"]
+        ]
+      },
+      {
+        title: "package",
+        keyword: "package/__init__.py",
+        summary: "package 是一組 module 的資料夾。大型專案用 package 表達邊界和命名空間。",
+        use: "組織多檔案專案、發布套件、建立分層架構。",
+        format: "資料夾 + __init__.py + 多個 .py module",
+        scenario: "notes_app.services、notes_app.repositories。",
+        mistake: "把所有公開 API 都塞進 __init__.py，讓來源不清楚。",
+        example: "from pathlib import Path\n\npackage_dir = Path(\"src/notes_app\")\nprint(package_dir.parts[-1])",
+        output: "notes_app",
+        visual: "package",
+        steps: [
+          ["建立資料夾", "package 以資料夾呈現功能邊界。"],
+          ["放入 module", "services.py、repositories.py 分別負責不同層。"],
+          ["用點號引用", "import notes_app.services 表示 package 下的 module。"]
+        ]
+      },
+      {
+        title: "typing 型別註記",
+        keyword: "name: type",
+        summary: "typing 不會讓 Python 變成靜態語言，但能讓 IDE、review、測試更早發現錯誤。",
+        use: "函式契約、資料結構說明、團隊協作。",
+        format: "def func(value: int) -> str:",
+        scenario: "service public method、API schema、資料轉換 function。",
+        mistake: "型別註記和實際回傳不一致，比沒有註記更危險。",
+        example: "def format_total(total: int) -> str:\n    return f\"NT${total}\"\n\nprint(format_total(360))",
+        output: "NT$360",
+        visual: "typing",
+        steps: [
+          ["標出輸入", "total: int 說明呼叫端應傳整數。"],
+          ["標出輸出", "-> str 說明 function 會回傳字串。"],
+          ["提升可讀性", "讀程式的人不用進入內容也能看懂契約。"]
+        ]
+      },
+      {
+        title: "decorator",
+        keyword: "@decorator",
+        summary: "decorator 包裝 function，在不改原本內容的情況下加入額外行為，例如計時、權限、快取。",
+        use: "logging、cache、權限檢查、retry。",
+        format: "@裝飾器名稱 放在 function 上方",
+        scenario: "API endpoint 權限、重試網路請求、紀錄耗時。",
+        mistake: "decorator 隱藏太多行為，讓呼叫者不知道 function 其實被改過。",
+        example: "def trace(func):\n    def wrapper():\n        print(\"before\")\n        func()\n        print(\"after\")\n    return wrapper\n\n@trace\ndef run():\n    print(\"work\")\n\nrun()",
+        output: "before\nwork\nafter",
+        visual: "decorator",
+        steps: [
+          ["傳入 function", "@trace 會把 run 交給 trace。"],
+          ["回傳 wrapper", "run 這個名字改指向 wrapper。"],
+          ["呼叫新行為", "執行 run() 時先 before，再 work，再 after。"]
+        ]
+      },
+      {
+        title: "generator",
+        keyword: "yield",
+        summary: "generator 逐步產生資料，不一次全部放進記憶體。適合大量資料、串流、分批處理。",
+        use: "讀大檔案、分頁資料、資料 pipeline。",
+        format: "def func(): yield 值",
+        scenario: "逐列讀 CSV、批次同步資料、無限序列。",
+        mistake: "把 generator 轉成 list 後又失去省記憶體的優點。",
+        example: "def numbers():\n    yield 1\n    yield 2\n    yield 3\n\nfor number in numbers():\n    print(number)",
+        output: "1\n2\n3",
+        visual: "generator",
+        steps: [
+          ["建立 generator", "呼叫 numbers() 不會立刻跑完整 function。"],
+          ["第一次取值", "for 需要值時執行到 yield 1。"],
+          ["繼續取值", "下一輪從上次暫停處繼續到 yield 2 和 yield 3。"]
+        ]
+      },
+      {
+        title: "context manager",
+        keyword: "with resource:",
+        summary: "context manager 用進入與離開區塊管理資源，最常見是檔案、鎖、交易、暫時設定。",
+        use: "自動關閉、交易 commit/rollback、暫時切換狀態。",
+        format: "with 取得資源 as 名稱: 使用資源",
+        scenario: "open file、database transaction、thread lock。",
+        mistake: "手動 open 又忘記 close，失敗時資源外洩。",
+        example: "from contextlib import contextmanager\n\n@contextmanager\ndef section(name):\n    print(\"enter\", name)\n    yield\n    print(\"exit\", name)\n\nwith section(\"job\"):\n    print(\"running\")",
+        output: "enter job\nrunning\nexit job",
+        visual: "context",
+        steps: [
+          ["進入區塊", "with 先執行 yield 之前的程式。"],
+          ["執行工作", "區塊內 print(\"running\")。"],
+          ["離開區塊", "區塊結束後執行 yield 之後的清理程式。"]
+        ]
+      },
+      {
+        title: "async / await 基礎",
+        keyword: "async def / await",
+        summary: "async 適合大量等待 I/O 的工作，例如 HTTP、DB、檔案服務。它不是讓 CPU 計算自動變快。",
+        use: "非同步 API、並發網路請求、背景任務。",
+        format: "async def func(): await awaitable",
+        scenario: "同時呼叫多個 API、Web server 處理多連線。",
+        mistake: "在 async function 裡做長時間 CPU 工作，會卡住 event loop。",
+        example: "import asyncio\n\nasync def fetch_name():\n    await asyncio.sleep(0.1)\n    return \"Ada\"\n\nprint(asyncio.run(fetch_name()))",
+        output: "Ada",
+        visual: "async",
+        steps: [
+          ["定義 coroutine", "async def 建立可被 await 的 coroutine。"],
+          ["等待 I/O", "await asyncio.sleep 交還控制權，讓 event loop 可做別的事。"],
+          ["取得結果", "asyncio.run 啟動 event loop 並回收回傳值。"]
+        ]
+      }
+    ];
+
+    const projectStepData = [
+      ["建立虛擬環境", "用 python -m venv .venv 隔離套件版本，讓專案不污染系統 Python。"],
+      ["定義 pyproject.toml", "把專案名稱、版本、依賴、測試工具集中管理，交付時有可重現入口。"],
+      ["先寫 domain", "先定義 Note、User、Order 這類核心 object，不急著碰資料庫或 UI。"],
+      ["加 service", "把商業規則放進 service，讓 CLI、API、排程都能共用同一套行為。"],
+      ["接 repository", "把資料來源藏在 repository 後面，JSON、SQLite、HTTP 都能替換。"],
+      ["補測試與日誌", "用 pytest 守住 service 行為，用 logging 留下可追蹤的執行線索。"]
+    ];
+
+    const capstoneData = [
+      {
+        title: "CLI flow：把指令變成呼叫 service",
+        body: "CLI 只做參數解析與輸出，不放商業規則。這樣未來要做 API 時，可以直接重用 service。",
+        code: "def main(argv):\n    command = argv[1]\n    if command == \"add\":\n        note = service.create(title=argv[2], body=argv[3])\n        print(f\"created:{note['title']}\")\n    elif command == \"list\":\n        for note in service.list_notes():\n            print(note['title'])",
+        checks: ["輸入 add title body 會新增 note", "輸入 list 只負責印資料", "錯誤訊息留在 CLI 邊界處理"]
+      },
+      {
+        title: "JSON repository：先用檔案練資料邊界",
+        body: "JSON repository 很適合初級專案，但正式使用時要處理檔案不存在、JSON 損毀、schema 版本與半寫入問題。",
+        code: "import json\nfrom pathlib import Path\n\nclass JsonNoteRepo:\n    def __init__(self, path: Path):\n        self.path = path\n\n    def load(self):\n        if not self.path.exists():\n            return {\"schema_version\": 1, \"notes\": []}\n        try:\n            return json.loads(self.path.read_text(encoding=\"utf-8\"))\n        except json.JSONDecodeError as exc:\n            raise RuntimeError(\"notes file is corrupted\") from exc\n\n    def save_all(self, data):\n        tmp = self.path.with_suffix(\".tmp\")\n        text = json.dumps(data, ensure_ascii=False, indent=2)\n        tmp.write_text(text, encoding=\"utf-8\")\n        tmp.replace(self.path)",
+        checks: ["檔案不存在時回傳空資料結構", "JSON 損毀時轉成清楚錯誤", "先寫 tmp 再 replace，避免半寫入"]
+      },
+      {
+        title: "Service validation：規則放在一個地方",
+        body: "service 是專案裡最值得測試的地方。只要它穩，CLI、API、排程都能共用同一份規則。",
+        code: "class NoteService:\n    def __init__(self, repo):\n        self.repo = repo\n\n    def create(self, title, body):\n        if not title.strip():\n            raise ValueError(\"title is required\")\n        notes = self.repo.load()\n        note = {\"title\": title.strip(), \"body\": body.strip()}\n        notes.append(note)\n        self.repo.save_all(notes)\n        return note",
+        checks: ["空 title 會失敗", "title/body 會 strip", "新增後交給 repo 保存"]
+      },
+      {
+        title: "pytest：用最小測試守住行為",
+        body: "測試要分層：service 用 fake repo 快速測規則，repository 用 tmp_path 做 integration test，CI 再用 coverage 擋回歸。",
+        code: "import pytest\n\n@pytest.mark.parametrize(\"title\", [\"\", \"   \"])\ndef test_create_note_requires_title(fake_repo, title):\n    service = NoteService(fake_repo)\n    with pytest.raises(ValueError, match=\"title\"):\n        service.create(title, \"body\")\n\ndef test_create_note_saves(fake_repo):\n    service = NoteService(fake_repo)\n    note = service.create(\"ship\", \"tests\")\n    assert note[\"title\"] == \"ship\"\n    assert fake_repo.saved",
+        checks: ["fixture 提供 fake_repo", "parametrize 測多個空白 title", "assert repository 真的被呼叫"]
+      },
+      {
+        title: "Config / env：設定與環境切換",
+        body: "專案不要把路徑、debug 開關、資料檔位置寫死在 service。設定由 env 或 config file 進來，啟動時一次驗證。",
+        code: "import os\nfrom dataclasses import dataclass\nfrom pathlib import Path\n\n@dataclass(frozen=True)\nclass AppConfig:\n    data_path: Path\n    log_level: str = \"INFO\"\n\n    @classmethod\n    def from_env(cls):\n        raw_path = os.environ.get(\"NOTES_DATA\", \"notes.json\")\n        return cls(data_path=Path(raw_path), log_level=os.environ.get(\"LOG_LEVEL\", \"INFO\"))\n\nconfig = AppConfig.from_env()\nprint(config.data_path.name)",
+        checks: ["local/test/prod 可用不同資料檔", "service 只接收 config，不讀 env", "缺必填設定要在啟動時失敗"]
+      },
+      {
+        title: "Error taxonomy + logging policy",
+        body: "資深專案不會只丟 ValueError。錯誤要分類，CLI/API 邊界負責轉譯訊息，log 保留 request/job context。",
+        code: "import logging\n\nclass NotesError(Exception):\n    exit_code = 1\n\nclass ValidationError(NotesError):\n    exit_code = 2\n\nlogger = logging.getLogger(\"notes\")\ntry:\n    raise ValidationError(\"title required\")\nexcept NotesError as exc:\n    logger.warning(\"command failed\", extra={\"error_type\": type(exc).__name__})\n    print(f\"error:{exc}\")",
+        checks: ["錯誤類型能映射 exit code", "log 有 error_type/job_id", "使用者訊息不暴露 traceback"]
+      },
+      {
+        title: "Package boundary + import rule",
+        body: "package 不是資料夾而已。公開 API、內部 module、測試替身要有邊界，避免 CLI 直接 import repository 細節。",
+        code: "# src/notes_app/__init__.py\n__all__ = [\"NoteService\", \"AppConfig\"]\n\n# import rule\n# cli -> service -> repository protocol\n# tests -> fake repo / tmp_path repo\n# service 不 import cli，也不 import argparse",
+        checks: ["__init__.py 只公開穩定 API", "避免跨層 import", "測試可以替換 repository"]
+      },
+      {
+        title: "CI gate + release checklist",
+        body: "能在自己電腦跑不等於可交付。最小 gate 應包含格式、測試、coverage、package import 與 release note。",
+        code: "python -m pytest --cov=notes_app --cov-fail-under=85\npython -m compileall src tests\npython -m pip install -e .\nnotes --version\nnotes add \"ship\" \"release\"",
+        checks: ["coverage 未達門檻不可合併", "package 安裝後可 import", "release 前跑 smoke command"]
+      }
+    ];
+
+    const engineeringData = [
+      {
+        title: "Senior project checklist：從能跑到可交付",
+        summary: "資深工程師看專案時，會先看邊界、設定、錯誤、測試、觀測與交付證據，而不是只看語法是否漂亮。",
+        table: ["package boundary", "config/env", "error taxonomy", "test/CI/release"],
+        code: "review_items = [\n    \"service 不讀 env\",\n    \"repository 可替換\",\n    \"錯誤類型可映射 exit code\",\n    \"CI 有 coverage gate\",\n]\nprint(len(review_items))",
+        steps: [["先看邊界", "CLI/API、service、repository、domain 是否互相污染。"], ["再看失敗", "設定缺失、檔案損毀、輸入錯誤是否有清楚處理。"], ["最後看證據", "測試、coverage、smoke command、release note 是否存在。"]]
+      },
+      {
+        title: "測試策略：fixture / parametrize / fake / integration",
+        summary: "service 測試應快且穩，repository 測試才碰檔案。fixture 管測試資料，parametrize 覆蓋邊界，fake repo 隔離外部依賴。",
+        table: ["fixture 建立測試替身", "parametrize 覆蓋多組輸入", "fake/mock 隔離外部", "integration 驗證真檔案"],
+        code: "import pytest\n\n@pytest.fixture\ndef fake_repo():\n    return FakeRepo()\n\n@pytest.mark.parametrize(\"title\", [\"\", \"   \"])\ndef test_invalid_title(fake_repo, title):\n    with pytest.raises(ValueError):\n        NoteService(fake_repo).create(title, \"body\")",
+        steps: [["unit test", "service 用 fake repo，不碰真檔案。"], ["integration test", "JsonNoteRepo 用 tmp_path 驗證讀寫。"], ["CI gate", "pytest --cov-fail-under=85 讓覆蓋率退化會失敗。"]]
+      },
+      {
+        title: "進階語法落地：Protocol / generic / closure / iterator",
+        summary: "進階語法要服務專案目的：Protocol 做邊界，generic 表達容器型別，closure/decorator 補橫切關注，iterator/generator 處理大量資料。",
+        table: ["Protocol = 行為契約", "Generic = 型別參數", "Closure = 保存狀態", "Iterator = 逐筆資料"],
+        code: "from typing import Protocol, TypeVar\n\nT = TypeVar(\"T\")\nclass Repo(Protocol[T]):\n    def save(self, item: T) -> T: ...\n\ndef make_prefixer(prefix: str):\n    def format_title(title: str) -> str:\n        return f\"{prefix}:{title}\"\n    return format_title\n\nprint(make_prefixer(\"note\")(\"ship\"))",
+        steps: [["Protocol", "service 依賴行為，不依賴具體檔案或資料庫。"], ["Generic", "Repo[Note] 比 Repo 更能說明資料型別。"], ["Closure", "make_prefixer 保存 prefix，避免到處傳重複參數。"]]
+      },
+      {
+        title: "Context manager 交易邊界",
+        summary: "with 不只用來開檔，也能表達交易邊界。成功 commit，失敗 rollback，讓 service 不需要到處手動清理。",
+        table: ["enter = begin", "body = use case", "exit success = commit", "exit error = rollback"],
+        code: "class UnitOfWork:\n    def __enter__(self):\n        print(\"begin\")\n        return self\n    def __exit__(self, exc_type, exc, tb):\n        print(\"rollback\" if exc else \"commit\")\n\nwith UnitOfWork():\n    print(\"save note\")",
+        steps: [["進入 with", "__enter__ 建立資源或交易。"], ["執行 use case", "service 在同一個邊界內完成多個操作。"], ["離開 with", "__exit__ 根據是否有例外決定 commit 或 rollback。"]]
+      },
+      {
+        title: "Async cancellation + backpressure",
+        summary: "async 不是只會 gather。資深專案要設 timeout、處理 cancellation，並用 Semaphore 或 Queue maxsize 做 backpressure。",
+        table: ["timeout", "cancel cleanup", "bounded concurrency", "queue backpressure"],
+        code: "import asyncio\n\nasync def call():\n    await asyncio.sleep(0.01)\n    return \"ok\"\n\nasync def main():\n    sem = asyncio.Semaphore(2)\n    async with sem:\n        print(await asyncio.wait_for(call(), timeout=1))\n\nasyncio.run(main())",
+        steps: [["限制同時數", "Semaphore 避免一次打爆外部服務。"], ["設定期限", "wait_for 讓慢 I/O 不會卡住整個流程。"], ["清理取消", "被 cancel 的 coroutine 仍要釋放資源。"]]
+      },
+      {
+        title: "Release checklist：交付前最後一哩",
+        summary: "release 不是 commit 後就結束。要有版本、變更摘要、測試結果、已知風險、回復方式與 smoke test。",
+        table: ["version", "changelog", "test evidence", "rollback"],
+        code: "release = {\n    \"version\": \"0.2.0\",\n    \"tests\": \"pytest --cov passed\",\n    \"smoke\": \"notes --version passed\",\n    \"rollback\": \"restore previous package\",\n}\nprint(release[\"version\"])",
+        steps: [["整理變更", "列出本版新增、修正與破壞性變更。"], ["附驗證證據", "貼上 pytest、coverage、smoke command 結果。"], ["寫回復方式", "出事時如何退回上一版或復原資料。"]]
+      }
+    ];
+
+    const productionBridgeData = [
+      {
+        title: "需求與驗收：先定義什麼叫完成",
+        summary: "notes-cli 不只要能新增筆記，還要定義命令、輸入、輸出、exit code 與錯誤訊息。驗收先寫清楚，架構才有方向。",
+        table: ["notes add/list/search/export", "空 title 回 exit code 2", "10000 筆 list 不超過 1 秒", "錯誤訊息給人看"],
+        code: "acceptance = {\n    \"command\": \"notes add 'ship' 'tests'\",\n    \"output\": \"created:ship\",\n    \"error_exit_code\": 2,\n    \"slo\": \"list 10000 notes < 1s\",\n}\nprint(acceptance[\"output\"])",
+        steps: [["先寫命令", "把使用者會打的指令寫出來，避免 service 設計漂移。"], ["定義錯誤", "空 title、資料檔損毀、設定缺失都要有不同 exit code。"], ["加入 SLO", "SLO 讓效能討論可量測，不再是主觀感覺。"]]
+      },
+      {
+        title: "ADR：記錄 JSON repository 的取捨",
+        summary: "ADR 是 Architecture Decision Record。初級專案也能用短格式記錄：選了什麼、為什麼、替代方案、未來何時要改。",
+        table: ["Decision = JSON file", "Alternative = SQLite", "Risk = 多程序寫入", "Trigger = 查詢變慢或資料量成長"],
+        code: "adr = {\n    \"decision\": \"Use JSON repository for v1\",\n    \"alternatives\": [\"SQLite\", \"remote API\"],\n    \"risk\": \"file lock and migration needed later\",\n}\nprint(adr[\"decision\"])",
+        steps: [["寫下選擇", "JSON 容易教學與除錯，適合 v1。"], ["寫下代價", "多程序寫入、查詢效能、schema migration 都是後續成本。"], ["寫下轉換點", "當資料量或協作需求變大，就用 ADR 指引遷移。"]]
+      },
+      {
+        title: "SLO：把可用性與效能畫成門檻",
+        summary: "SLO 讓工程師知道何時該優化。對 notes-cli 來說，可以先定 list/search 延遲、資料修復時間與 release smoke test 成功率。",
+        table: ["list latency", "search latency", "data recovery", "smoke pass rate"],
+        code: "slo = [\n    (\"list_10000\", \"< 1s\"),\n    (\"search_10000\", \"< 1.5s\"),\n    (\"recover_corrupt_json\", \"< 10min\"),\n]\nprint(len(slo))",
+        steps: [["選使用者有感指標", "CLI 最有感的是命令回應時間與資料能否讀回。"], ["保留驗收資料", "準備 10000 筆 fixture 才能穩定測 list/search。"], ["不要過早優化", "未碰到 SLO 前，先保持設計簡單。"]]
+      },
+      {
+        title: "package boundary + config/env",
+        summary: "Production 專案要讓 package 邊界與設定來源清楚。service 不讀 env，CLI 啟動時組裝 config、repo、service。",
+        table: ["cli = 組裝與輸出", "service = 規則", "repository = 資料", "config = default < file < env"],
+        code: "def build_service(config):\n    repo = JsonNoteRepo(config.data_path)\n    return NoteService(repo=repo)\n\n# CLI boundary\n# config = AppConfig.from_env()\n# service = build_service(config)",
+        steps: [["組裝留在邊界", "CLI 可以讀 env 與建立物件，但 service 只接收已驗證的 config/repo。"], ["公開 API 要少", "__init__.py 只公開穩定類別，內部 helper 不外露。"], ["測試可替換", "測試傳 FakeRepo，不需要真的讀環境變數。"]]
+      },
+      {
+        title: "release：交付要有 artifact 與證據",
+        summary: "release 不是壓縮檔寄出去。至少要記錄版本、commit、測試結果、SBOM、打包命令、smoke command 與已知風險。",
+        table: ["version", "test evidence", "artifact path", "release note"],
+        code: "release = {\n    \"version\": \"0.3.0\",\n    \"commit\": \"abc1234\",\n    \"tests\": \"pytest --cov passed\",\n    \"artifact\": \"dist/notes-cli\",\n}\nprint(release[\"version\"])",
+        steps: [["固定版本", "版本號要能對回 commit 與產物。"], ["附驗證證據", "pytest、coverage、notes --version 都要有紀錄。"], ["列出風險", "例如 JSON migration 是本版最大風險，release note 要寫清楚。"]]
+      },
+      {
+        title: "rollback drill：回復不是事故當天才想",
+        summary: "rollback drill 是演練：升級前備份資料，升級後 smoke test，失敗時退回舊版與備份資料。",
+        table: ["backup before migration", "smoke after release", "restore old artifact", "verify data"],
+        code: "rollback = [\n    \"stop new command\",\n    \"restore notes.json.bak\",\n    \"run previous notes binary\",\n    \"notes doctor\",\n]\nprint(\"rollback drill ready\")",
+        steps: [["先備份", "migration 前保存 .bak，避免新版本寫壞資料後無路可退。"], ["驗證退版", "舊版 binary 能讀回資料才算真的 rollback。"], ["寫成 runbook", "把步驟寫成文件或命令，不靠人腦臨場發揮。"]]
+      }
+    ];
+
+    const repositoryHardeningData = [
+      {
+        title: "file lock：避免兩個 process 同時寫",
+        summary: "atomic write 只能避免半寫，不保證兩個 process 不互相覆蓋。file lock 是資料層要面對的下一個風險。",
+        table: ["風險 = lost update", "策略 = lock file", "範圍 = load-modify-save", "驗收 = 並發寫入不遺失"],
+        code: "from contextlib import contextmanager\n\n@contextmanager\ndef file_lock(path):\n    lock_path = path.with_suffix(\".lock\")\n    # 實務可用平台鎖或輕量 lock library\n    lock_path.write_text(\"locked\", encoding=\"utf-8\")\n    try:\n        yield\n    finally:\n        lock_path.unlink(missing_ok=True)",
+        steps: [["鎖住整段流程", "只鎖 save 不夠，load-modify-save 必須一起保護。"], ["避免永久 lock", "程式崩潰後要有 stale lock 偵測或人工修復流程。"], ["先寫驗收", "用兩個 worker 同時新增資料，確認最後筆數正確。"]]
+      },
+      {
+        title: "backup recovery：寫入前保留 .bak",
+        summary: "資料檔是使用者資產。寫入前保留備份，migration 前也備份，才能讓 corrupt JSON 或錯誤 migration 有修復路線。",
+        table: ["notes.json", "notes.json.bak", "notes.tmp", "restore command"],
+        code: "def backup_then_replace(path, text):\n    backup = path.with_suffix(\".json.bak\")\n    tmp = path.with_suffix(\".tmp\")\n    if path.exists():\n        backup.write_bytes(path.read_bytes())\n    tmp.write_text(text, encoding=\"utf-8\")\n    tmp.replace(path)",
+        steps: [["先備份舊檔", "replace 前保存可讀版本。"], ["再寫 tmp", "tmp 成功後才替換正式檔。"], ["提供 restore", "notes doctor 或手動 runbook 要說明如何從 .bak 回復。"]]
+      },
+      {
+        title: "corrupt JSON 修復流程",
+        summary: "corrupt JSON 不是只丟錯就結束。CLI 應提示路徑、備份檔、修復命令與下一步，log 保留原始 JSONDecodeError。",
+        table: ["偵測 JSONDecodeError", "提示資料路徑", "嘗試 .bak", "保留 log context"],
+        code: "try:\n    data = json.loads(path.read_text(encoding=\"utf-8\"))\nexcept json.JSONDecodeError as exc:\n    logger.error(\"corrupt JSON\", extra={\"path\": str(path)})\n    raise DataCorruptionError(f\"corrupt JSON: {path}\") from exc",
+        steps: [["不要吞錯", "吞掉 JSONDecodeError 會讓使用者以為資料消失。"], ["轉成專案錯誤", "DataCorruptionError 能被 CLI 轉成清楚訊息。"], ["給修復方向", "提示 notes doctor、.bak 路徑或備份還原流程。"]]
+      },
+      {
+        title: "schema migration 版本升級表",
+        summary: "schema_version 讓資料格式變更可控。每次新增欄位或改格式，都要有 migration 與舊資料 fixture。",
+        table: ["v1 = title/body", "v2 = tags", "v3 = created_at", "unsupported = 明確失敗"],
+        code: "def migrate(doc):\n    version = doc.get(\"schema_version\", 1)\n    if version == 1:\n        for note in doc[\"notes\"]:\n            note.setdefault(\"tags\", [])\n        doc[\"schema_version\"] = 2\n    if doc[\"schema_version\"] != 2:\n        raise UnsupportedSchemaError(doc[\"schema_version\"])\n    return doc",
+        steps: [["每版都可測", "保存 v1 fixture，驗證升級後 tags 存在。"], ["不可靜默忽略", "未知版本要明確失敗，避免讀錯資料。"], ["migration 前備份", "資料格式升級前一定先做 backup。"]]
+      }
+    ];
+
+    const testingDiagnosisData = [
+      {
+        title: "mock 外部服務：隔離 HTTP 失敗",
+        summary: "如果 notes-cli 會同步遠端 API，service test 不應真的打網路。mock 或 fake client 讓失敗案例可重現。",
+        table: ["timeout", "500 response", "invalid JSON", "retry exhausted"],
+        code: "class FakeApiClient:\n    def __init__(self, result):\n        self.result = result\n    def post_note(self, note):\n        return self.result\n\ndef test_sync_handles_500(fake_repo):\n    client = FakeApiClient(result={\"status\": 500})\n    service = SyncService(fake_repo, client)\n    assert service.sync() == \"retry_later\"",
+        steps: [["替換外部依賴", "service 依賴 client interface，不直接呼叫 requests。"], ["固定失敗情境", "500、timeout、壞 JSON 都能在本機穩定測。"], ["保留整合測試", "少量 integration test 再碰真 API 或測試 server。"]]
+      },
+      {
+        title: "測試分層決策：壞在哪一層",
+        summary: "測試失敗時先分類：unit fail 多半是規則，integration fail 多半是 adapter，package smoke fail 多半是 packaging。",
+        table: ["unit = service/domain", "integration = repository/API", "e2e = CLI flow", "smoke = package/install"],
+        code: "test_layers = {\n    \"test_title_required\": \"service\",\n    \"test_json_roundtrip\": \"repository\",\n    \"test_cli_add\": \"cli\",\n    \"test_installed_command\": \"package\",\n}\nprint(test_layers[\"test_json_roundtrip\"])",
+        steps: [["先看測試名字", "測試命名要能指出層級。"], ["再看 fixture", "tmp_path 代表 repository；FakeRepo 代表 service。"], ["最後看環境", "只有 CI 失敗時再比較 Python 版本、路徑與安裝方式。"]]
+      },
+      {
+        title: "coverage 缺口分析",
+        summary: "coverage fail 不是叫你降門檻，而是提醒新增分支沒有測試。先看 missing lines，再補最小案例。",
+        table: ["fail-under = 85", "missing lines", "branch not tested", "new regression test"],
+        code: "# CI failure\n# TOTAL 82%, required 85%\n# Missing: repositories.py 42-58\n\n# 判讀：新增 corrupt JSON 分支沒有測\n# 修正：補 JSONDecodeError fixture 與 .bak recovery 測試",
+        steps: [["找 missing lines", "先看哪個檔案缺，不要盲目增加無關測試。"], ["對應需求", "缺的是 corrupt JSON，就補資料損毀案例。"], ["保留門檻", "除非門檻不合理，否則不因趕 release 而降低。"]]
+      },
+      {
+        title: "CI failure log 判讀",
+        summary: "CI failure 要能拆：ruff 是風格/靜態問題，mypy 是契約問題，pytest 是行為問題，build/smoke 是交付問題。",
+        table: ["ruff F401", "mypy incompatible type", "pytest DID NOT RAISE", "ModuleNotFoundError after build"],
+        code: "ci_failure = \"pytest DID NOT RAISE ValueError\"\nif \"DID NOT RAISE\" in ci_failure:\n    print(\"service validation regression\")\nelif \"ModuleNotFoundError\" in ci_failure:\n    print(\"package data/import issue\")",
+        steps: [["分辨 gate", "先看失敗來自 ruff、mypy、pytest、coverage 還是 package smoke。"], ["定位層級", "DID NOT RAISE 通常是規則退化；ModuleNotFoundError 常是打包或 import 邊界。"], ["修正後補測", "修 bug 同時補一個能抓住它的 regression test。"]]
+      }
+    ];
+
+    const advancedSyntaxLabData = [
+      {
+        title: "Protocol 取捨：邊界清楚但不要過度抽象",
+        summary: "Protocol 適合 service 依賴 repository 行為，但小專案不需要每個 class 都抽介面。抽象要服務測試與替換。",
+        table: ["適用 = Repo boundary", "不適用 = 單一 helper", "好處 = fake repo", "成本 = 多一層契約"],
+        code: "from typing import Protocol\n\nclass NoteRepo(Protocol):\n    def save(self, note): ...\n    def list(self): ...\n\nclass NoteService:\n    def __init__(self, repo: NoteRepo):\n        self.repo = repo",
+        steps: [["看替換需求", "如果正式 repo 和 fake repo 都會用同一行為，Protocol 值得。"], ["避免抽象氾濫", "只有一個 helper、沒有替換需求時，直接函式更清楚。"], ["讓型別說話", "service 接 NoteRepo，讀者知道它只需要 save/list。"]]
+      },
+      {
+        title: "plugin boundary：讓 export 功能可擴充",
+        summary: "plugin boundary 讓 notes-cli 未來能加 markdown/json/html export，而不把所有格式塞進 service。",
+        table: ["core = NoteService", "plugin = Exporter", "boundary = Protocol", "risk = hidden import"],
+        code: "class Exporter(Protocol):\n    name: str\n    def export(self, notes) -> str: ...\n\nclass MarkdownExporter:\n    name = \"markdown\"\n    def export(self, notes):\n        return \"\\n\".join(f\"- {n['title']}\" for n in notes)",
+        steps: [["核心不依賴格式", "service 只提供 notes，不知道 markdown/html 細節。"], ["plugin 有契約", "Exporter Protocol 定義 name/export。"], ["打包要注意", "動態載入 plugin 時，PyInstaller 可能需要 hidden import。"]]
+      },
+      {
+        title: "iterator memory profile：大量資料逐筆處理",
+        summary: "iterator/generator 的工程價值在記憶體。匯出大量 notes 時，不要一次把所有輸出字串塞進 list。",
+        table: ["list = 一次吃記憶體", "generator = 逐筆產生", "適用 = export", "驗收 = memory 不暴增"],
+        code: "def iter_markdown(notes):\n    for note in notes:\n        yield f\"- {note['title']}\\n\"\n\nfor line in iter_markdown([{\"title\": \"ship\"}]):\n    print(line.strip())",
+        steps: [["找大量資料路徑", "export、search、migration 都可能處理大量 notes。"], ["逐筆 yield", "generator 讓呼叫端逐筆寫檔，不必一次建完整字串。"], ["量測記憶體", "用大 fixture 比較 list 與 generator 的 memory profile。"]]
+      },
+      {
+        title: "decorator failure mode：橫切關注要保留錯誤",
+        summary: "decorator 可做 logging/retry/timing，但不能吞掉例外或改變函式語意。失敗模式要測。",
+        table: ["logging", "retry", "timing", "failure = swallow exception"],
+        code: "import functools\n\ndef trace_call(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        print(f\"call:{func.__name__}\")\n        return func(*args, **kwargs)\n    return wrapper",
+        steps: [["保留 metadata", "functools.wraps 讓測試與文件仍看到原函式名稱。"], ["不要吞例外", "logging 後仍要 raise，否則 CI 抓不到錯。"], ["測 decorator", "補一個函式丟錯，確認 decorator 不會吃掉例外。"]]
+      }
+    ];
+
+    const readinessChecklistData = [
+      {
+        title: "structured logging：log 要能被查",
+        summary: "print 給人看，structured logging 給系統查。command、duration、error_type、note_id 都應該是欄位。",
+        table: ["event", "command", "duration_ms", "error_type"],
+        code: "logger.info(\n    \"note_created\",\n    extra={\"command\": \"add\", \"note_id\": \"n1\", \"duration_ms\": 18},\n)",
+        steps: [["事件名穩定", "note_created 比一整句自然語言更容易查詢。"], ["欄位可篩選", "command、note_id、duration_ms 要是欄位，不只藏在 message。"], ["錯誤有 context", "corrupt JSON 要附 path，但不要印出 secret。"]]
+      },
+      {
+        title: "metrics：用數字看系統是否健康",
+        summary: "metrics 是量化訊號。CLI 工具也能記 command 成功率、執行時間、資料筆數與 migration 結果。",
+        table: ["success_count", "error_count", "latency_ms", "notes_total"],
+        code: "metrics = {\n    \"command\": \"list\",\n    \"success\": True,\n    \"duration_ms\": 42,\n    \"notes_total\": 1200,\n}\nprint(metrics[\"duration_ms\"])",
+        steps: [["先量核心命令", "add/list/search/export 是最有價值的 metrics。"], ["搭配 SLO", "duration_ms 能對回 list/search 的 SLO。"], ["不要過度收集", "初級專案先記最少但能判斷健康的數字。"]]
+      },
+      {
+        title: "secret handling：機密不進 git、不進 log",
+        summary: "API token、DB password、私有路徑都不應硬編碼。secret 從環境或 secret store 進來，錯誤訊息要遮罩。",
+        table: ["env var", "no git", "mask log", "rotation"],
+        code: "token = os.environ.get(\"NOTES_API_TOKEN\")\nif not token:\n    raise ConfigError(\"NOTES_API_TOKEN required\")\nprint(\"token loaded\")",
+        steps: [["不寫進設定檔範例", "教學可以示範變數名稱，但不要放真 token。"], ["log 要遮罩", "錯誤時印 token_loaded=false，不印 token 值。"], ["保留輪替想法", "secret rotation 是資深專案必問的維運問題。"]]
+      },
+      {
+        title: "SBOM / dependency scan / rollback drill",
+        summary: "交付前要知道用了哪些 dependency、是否有已知漏洞，以及出事怎麼退回。這是 supply chain 的基本功。",
+        table: ["SBOM", "pip-audit", "dependency scan", "rollback drill"],
+        code: "commands = [\n    \"pip-audit\",\n    \"cyclonedx-py environment -o sbom.json\",\n    \"notes --version\",\n    \"notes rollback --to notes.json.bak\",\n]\nprint(len(commands))",
+        steps: [["掃 dependency", "pip-audit 或 CI dependency scanning 先抓已知 CVE。"], ["產 SBOM", "SBOM 說明 release artifact 內含哪些套件。"], ["演練 rollback", "rollback drill 要有命令、資料備份與驗證步驟。"]]
+      }
+    ];
+
+    const exerciseData = [
+      {
+        title: "物件：統計購物車總價",
+        goal: "練習 int、list、dict 與 for 迴圈。",
+        input: "items = [{\"name\": \"book\", \"price\": 320}, {\"name\": \"pen\", \"price\": 40}]",
+        expected: "360",
+        hint: "先建立 total = 0，再逐筆把 item[\"price\"] 加進去。",
+        mistake: "把 price 當字串相加，會變成文字串接而不是數字加總。",
+        answer: "items = [{\"name\": \"book\", \"price\": 320}, {\"name\": \"pen\", \"price\": 40}]\ntotal = 0\nfor item in items:\n    total += item[\"price\"]\nprint(total)"
+      },
+      {
+        title: "條件：訂單折扣判斷",
+        goal: "練習 if / elif / else 的分流。",
+        input: "amount = 1200",
+        expected: "discount=120",
+        hint: "滿 1000 打 9 折，也就是折扣 amount * 0.1。",
+        mistake: "條件順序寫反，會讓高金額先被低門檻吃掉。",
+        answer: "amount = 1200\nif amount >= 1000:\n    discount = int(amount * 0.1)\nelif amount >= 500:\n    discount = int(amount * 0.05)\nelse:\n    discount = 0\nprint(f\"discount={discount}\")"
+      },
+      {
+        title: "迴圈：過濾及格分數",
+        goal: "練習 for、list append 與條件判斷。",
+        input: "scores = [50, 82, 91, 67]",
+        expected: "[82, 91, 67]",
+        hint: "建立 passed = []，只把 score >= 60 的分數 append 進去。",
+        mistake: "在迴圈中刪除原本 list 的元素，容易跳過資料。",
+        answer: "scores = [50, 82, 91, 67]\npassed = []\nfor score in scores:\n    if score >= 60:\n        passed.append(score)\nprint(passed)"
+      },
+      {
+        title: "函式：封裝格式化輸出",
+        goal: "練習 def、參數、return 與 f-string。",
+        input: "format_user(\"Ada\", 36)",
+        expected: "Ada (36)",
+        hint: "function 不要直接 print，先 return 字串比較好測試。",
+        mistake: "忘記 return，呼叫端會拿到 None。",
+        answer: "def format_user(name, age):\n    return f\"{name} ({age})\"\n\nprint(format_user(\"Ada\", 36))"
+      },
+      {
+        title: "class：建立 Counter",
+        goal: "練習 __init__、self 與 method。",
+        input: "counter.add(); counter.add()",
+        expected: "2",
+        hint: "__init__ 裡建立 self.value = 0，add 裡讓它加 1。",
+        mistake: "在 method 裡寫 value += 1 而不是 self.value += 1。",
+        answer: "class Counter:\n    def __init__(self):\n        self.value = 0\n\n    def add(self):\n        self.value += 1\n\ncounter = Counter()\ncounter.add()\ncounter.add()\nprint(counter.value)"
+      },
+      {
+        title: "module/package：拆出 service",
+        goal: "練習把規則放進 service module。",
+        input: "from notes_app.services import normalize_title",
+        expected: "first note",
+        hint: "services.py 放 normalize_title，CLI 只 import 使用。",
+        mistake: "把正規化規則寫在 CLI，未來 API 會複製一份。",
+        answer: "# src/notes_app/services.py\ndef normalize_title(title: str) -> str:\n    return title.strip().lower()\n\nprint(normalize_title(\"  First Note  \"))"
+      },
+      {
+        title: "需求變更：新增 note priority",
+        goal: "練習需求變更時如何改 service、repository 與測試。",
+        input: "service.create(\"ship\", \"body\", priority=\"high\")",
+        expected: "high",
+        hint: "不要只改 CLI，priority 應進入 service 規則與儲存資料。",
+        mistake: "只在 print 時顯示 priority，實際資料沒有保存。",
+        answer: "class NoteService:\n    def __init__(self, repo):\n        self.repo = repo\n\n    def create(self, title, body, priority=\"normal\"):\n        if priority not in {\"low\", \"normal\", \"high\"}:\n            raise ValueError(\"priority\")\n        note = {\"title\": title.strip(), \"body\": body.strip(), \"priority\": priority}\n        self.repo.save(note)\n        return note\n\nprint(NoteService(repo).create(\"ship\", \"body\", priority=\"high\")[\"priority\"])"
+      },
+      {
+        title: "Bug 修復：JSON 損毀要給清楚錯誤",
+        goal: "練習把底層 JSONDecodeError 轉成專案錯誤。",
+        input: "notes.json 內容是半截 JSON",
+        expected: "notes file is corrupted",
+        hint: "repository 捕捉 json.JSONDecodeError，raise RuntimeError 或自訂錯誤。",
+        mistake: "直接 except Exception 後回傳空 list，會讓資料損毀被靜默覆蓋。",
+        answer: "import json\n\nclass JsonNoteRepo:\n    def load_text(self, text):\n        try:\n            return json.loads(text)\n        except json.JSONDecodeError as exc:\n            raise RuntimeError(\"notes file is corrupted\") from exc\n\ntry:\n    JsonNoteRepo().load_text(\"{\")\nexcept RuntimeError as exc:\n    print(exc)"
+      },
+      {
+        title: "重構：用 fake repo 測 service",
+        goal: "練習把 service 測試從真檔案中拆出來。",
+        input: "FakeRepo + NoteService",
+        expected: "saved",
+        hint: "FakeRepo 只要提供 service 需要的方法，不需要真的寫檔。",
+        mistake: "service 測試還去讀寫 notes.json，導致測試慢且不穩。",
+        answer: "class FakeRepo:\n    def __init__(self):\n        self.saved = []\n    def save(self, note):\n        self.saved.append(note)\n        return note\n\nrepo = FakeRepo()\nservice = NoteService(repo)\nservice.create(\"ship\", \"tests\")\nprint(\"saved\" if repo.saved else \"missing\")"
+      },
+      {
+        title: "測試補強：parametrize 多組無效輸入",
+        goal: "練習用 pytest.mark.parametrize 減少重複測試。",
+        input: "title = \"\"、\"   \"",
+        expected: "2 cases checked",
+        hint: "同一個規則用多組輸入驗證，避免只測一種空值。",
+        mistake: "只測空字串，沒測全空白字串。",
+        answer: "import pytest\n\n@pytest.mark.parametrize(\"title\", [\"\", \"   \"])\ndef test_title_required(title, fake_repo):\n    service = NoteService(fake_repo)\n    with pytest.raises(ValueError):\n        service.create(title, \"body\")\n\nprint(\"2 cases checked\")"
+      },
+      {
+        title: "交付驗收：寫 release checklist",
+        goal: "練習把交付前要跑的命令與證據列成清單。",
+        input: "version = \"0.2.0\"",
+        expected: "ready:0.2.0",
+        hint: "release checklist 至少包含 test、coverage、smoke、rollback。",
+        mistake: "只寫功能完成，沒有任何可驗收證據。",
+        answer: "version = \"0.2.0\"\nchecklist = [\"pytest\", \"coverage\", \"notes --version\", \"rollback plan\"]\nif len(checklist) >= 4:\n    print(f\"ready:{version}\")"
+      }
+    ];
+
+    function iconSvg(type) {
+      const common = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+      const paths = {
+        number: `<path ${common} d="M8 5v14M16 5v14M5 9h14M5 15h14"/>`,
+        wave: `<path ${common} d="M4 15c3 0 3-6 6-6s3 6 6 6 3-6 6-6"/>`,
+        text: `<path ${common} d="M5 7h14M8 7v10M16 7v10M7 17h4M13 17h4"/>`,
+        toggle: `<path ${common} d="M8 12h8M9 8l-4 4 4 4M15 8l4 4-4 4"/>`,
+        empty: `<circle ${common} cx="12" cy="12" r="7"/><path ${common} d="M8 16 16 8"/>`,
+        list: `<path ${common} d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>`,
+        tuple: `<path ${common} d="M8 5c-3 2-3 12 0 14M16 5c3 2 3 12 0 14M10 9h4M10 15h4"/>`,
+        dict: `<path ${common} d="M6 5h12v14H6zM9 9h2M13 9h2M9 13h2M13 13h2"/>`,
+        set: `<path ${common} d="M7 8c2-4 8-4 10 0 4 1 4 7 0 8-2 4-8 4-10 0-4-1-4-7 0-8z"/>`,
+        range: `<path ${common} d="M5 12h14M7 9l-3 3 3 3M17 9l3 3-3 3M10 8h.01M14 16h.01"/>`,
+        bytes: `<path ${common} d="M5 7h14v10H5zM8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>`
+      };
+      return `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">${paths[type] || paths.number}</svg>`;
+    }
+
+    function visualSvg(type, title) {
+      const label = escapeHtml(title.split(" ")[0]);
+      const palette = {
+        assign: ["#e7f0fb", "#2f6fbb"], print: ["#e6f5ef", "#2d8a69"], operator: ["#fff4cf", "#c79a14"], inspect: ["#eee9f8", "#7257a8"], convert: ["#e7f0fb", "#2f6fbb"], length: ["#fae8e8", "#c34848"],
+        branch: ["#e6f5ef", "#2d8a69"], loop: ["#fff4cf", "#c79a14"], while: ["#fae8e8", "#c34848"],
+        function: ["#eee9f8", "#7257a8"], lambda: ["#e7f0fb", "#2f6fbb"], filter: ["#e6f5ef", "#2d8a69"], try: ["#fae8e8", "#c34848"],
+        file: ["#fff4cf", "#c79a14"], class: ["#eee9f8", "#7257a8"], module: ["#e7f0fb", "#2f6fbb"], package: ["#e6f5ef", "#2d8a69"],
+        typing: ["#fff4cf", "#c79a14"], decorator: ["#eee9f8", "#7257a8"], generator: ["#e7f0fb", "#2f6fbb"], context: ["#e6f5ef", "#2d8a69"], async: ["#fae8e8", "#c34848"]
+      };
+      const [soft, stroke] = palette[type] || palette.assign;
+      const arrow = `<marker id="arrow-${type}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="${stroke}"/></marker>`;
+      const shapes = {
+        assign: `<rect x="24" y="60" width="90" height="50" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="69" y="91" text-anchor="middle">name</text><path d="M120 85h70" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><circle cx="230" cy="85" r="34" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="230" y="91" text-anchor="middle">object</text>`,
+        print: `<rect x="42" y="42" width="220" height="92" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="152" y="78" text-anchor="middle"># comment</text><text x="152" y="108" text-anchor="middle">print(value)</text>`,
+        operator: `<circle cx="74" cy="84" r="30" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="74" y="90" text-anchor="middle">25</text><path d="M108 84h72" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="190" y="54" width="68" height="60" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="224" y="90" text-anchor="middle">// %</text>`,
+        inspect: `<rect x="48" y="48" width="92" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="94" y="92" text-anchor="middle">object</text><path d="M144 86h48" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="198" y="48" width="70" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="233" y="92" text-anchor="middle">type</text>`,
+        convert: `<rect x="42" y="54" width="78" height="58" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="81" y="89" text-anchor="middle">"42"</text><path d="M124 83h54" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="184" y="54" width="78" height="58" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="223" y="89" text-anchor="middle">42</text>`,
+        length: `<rect x="42" y="55" width="220" height="58" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M86 55v58M130 55v58M174 55v58M218 55v58" stroke="${stroke}" stroke-width="2"/><text x="152" y="144" text-anchor="middle">len = 5, index starts at 0</text>`,
+        branch: `<path d="M135 36l72 52-72 52-72-52z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="135" y="93" text-anchor="middle">True?</text><path d="M207 88h64" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><path d="M63 88H22" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/>`,
+        loop: `<rect x="30" y="40" width="80" height="48" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="70" y="70" text-anchor="middle">item</text><rect x="178" y="40" width="90" height="48" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="223" y="70" text-anchor="middle">work</text><path d="M110 64h60" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><path d="M223 90c0 62-153 62-153 5" fill="none" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/>`,
+        while: `<circle cx="92" cy="82" r="44" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="92" y="88" text-anchor="middle">condition</text><path d="M137 82h70" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="212" y="56" width="70" height="52" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="247" y="88" text-anchor="middle">update</text>`,
+        function: `<rect x="28" y="62" width="70" height="44" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="63" y="90" text-anchor="middle">input</text><path d="M104 84h45" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="154" y="40" width="86" height="88" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="197" y="90" text-anchor="middle">def</text><path d="M240 84h38" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/>`,
+        lambda: `<rect x="48" y="44" width="206" height="76" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="151" y="76" text-anchor="middle">lambda x</text><text x="151" y="102" text-anchor="middle">single expression</text>`,
+        filter: `<circle cx="55" cy="82" r="21" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="112" cy="82" r="21" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="169" cy="82" r="21" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M198 82h42" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="246" y="57" width="44" height="50" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="268" y="88" text-anchor="middle">new</text>`,
+        try: `<rect x="42" y="44" width="86" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="85" y="89" text-anchor="middle">try</text><path d="M128 82h50" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="184" y="44" width="90" height="76" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="229" y="76" text-anchor="middle">except</text><text x="229" y="100" text-anchor="middle">repair</text>`,
+        file: `<path d="M72 34h112l42 42v78H72z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M184 34v42h42" fill="none" stroke="${stroke}" stroke-width="3"/><text x="148" y="111" text-anchor="middle">with open</text>`,
+        class: `<rect x="54" y="38" width="190" height="100" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M54 76h190" stroke="${stroke}" stroke-width="3"/><text x="149" y="64" text-anchor="middle">class</text><text x="149" y="105" text-anchor="middle">state + method</text>`,
+        module: `<rect x="50" y="42" width="74" height="88" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="150" y="42" width="74" height="88" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M124 86h26" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="87" y="91" text-anchor="middle">.py</text><text x="187" y="91" text-anchor="middle">import</text>`,
+        package: `<path d="M45 55h86l16 20h110v74H45z" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="78" y="91" width="45" height="36" rx="5" fill="${soft}" stroke="${stroke}"/><rect x="138" y="91" width="45" height="36" rx="5" fill="${soft}" stroke="${stroke}"/><text x="151" y="76" text-anchor="middle">package</text>`,
+        typing: `<rect x="36" y="56" width="228" height="72" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="150" y="87" text-anchor="middle">value: int</text><text x="150" y="113" text-anchor="middle">-&gt; str</text>`,
+        decorator: `<rect x="75" y="66" width="150" height="58" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="150" y="101" text-anchor="middle">function</text><path d="M62 45h176v25H62z" fill="${soft}" stroke="${stroke}" stroke-width="3"/><text x="150" y="64" text-anchor="middle">@wrap</text>`,
+        generator: `<path d="M45 86h52" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><path d="M122 86h52" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><path d="M199 86h52" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><circle cx="45" cy="86" r="20" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="122" cy="86" r="20" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="199" cy="86" r="20" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="45" y="91" text-anchor="middle">1</text><text x="122" y="91" text-anchor="middle">2</text><text x="199" y="91" text-anchor="middle">3</text>`,
+        context: `<rect x="54" y="42" width="190" height="108" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M54 76h190M54 118h190" stroke="${stroke}" stroke-width="3"/><text x="149" y="66" text-anchor="middle">enter</text><text x="149" y="104" text-anchor="middle">work</text><text x="149" y="142" text-anchor="middle">exit</text>`,
+        async: `<rect x="42" y="62" width="72" height="48" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="78" y="92" text-anchor="middle">task</text><path d="M115 86c52-58 90 58 142 0" fill="none" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="186" y="60" text-anchor="middle">await</text>`
+      };
+      return `<svg viewBox="0 0 310 170" role="img" aria-label="${label} 概念圖">
+        <defs>${arrow}</defs>
+        <rect x="6" y="8" width="298" height="154" rx="14" fill="${soft}" stroke="#d8e2ec"/>
+        <g font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#18212f">${shapes[type] || shapes.assign}</g>
+      </svg>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderObjects() {
+      const grid = document.querySelector("#objectGrid");
+      grid.innerHTML = objectData.map((item) => `
+        <article class="object-card lesson-item" data-lesson-id="object-${escapeHtml(item.name)}" data-search="${escapeHtml(item.name + " " + item.label + " " + item.use)}">
+          <div class="object-top">
+            <div class="icon-box">${iconSvg(item.icon)}</div>
+            <div>
+              <h3>${escapeHtml(item.name)}</h3>
+              <span class="tag">${escapeHtml(item.label)}</span>
+            </div>
+          </div>
+          <p>${escapeHtml(item.use)}</p>
+          <pre class="code">${escapeHtml(item.example)}</pre>
+        </article>
+      `).join("");
+    }
+
+    function renderLengthList() {
+      const list = document.querySelector("#lengthList");
+      list.innerHTML = lengthData.map((item, index) => {
+        const outputId = `length-output-${index + 1}`;
+        return `
+        <article class="length-card lesson-item" id="length-${index + 1}" data-lesson-id="length-${index + 1}" data-search="${escapeHtml(item.object + " len 資料長度 " + item.meaning + " " + item.use + " " + item.mistake)}">
+          <div class="length-visual">
+            ${visualSvg("length", `${item.object} length`)}
+            <span class="tag">len(${escapeHtml(item.object)})</span>
+          </div>
+          <div class="length-body">
+            <div class="syntax-title">
+              <div>
+                <h3>${index + 1}. ${escapeHtml(item.object)}：${escapeHtml(item.meaning)}</h3>
+                <small>是否支援 len：${escapeHtml(item.lenSupport)}</small>
+              </div>
+              <div class="card-actions">
+                <label class="complete-toggle"><input type="checkbox" data-complete="length-${index + 1}">完成</label>
+                <a class="button" href="#length-${index + 1}" aria-label="連到 ${escapeHtml(item.object)} 資料長度">定位</a>
+              </div>
+            </div>
+            <div class="meta-table-wrap">
+              <table>
+                <thead><tr><th>Object</th><th>長度意義</th><th>實務用法</th><th>常見錯誤</th></tr></thead>
+                <tbody><tr><td><code>${escapeHtml(item.object)}</code></td><td>${escapeHtml(item.meaning)}</td><td>${escapeHtml(item.use)}</td><td>${escapeHtml(item.mistake)}</td></tr></tbody>
+              </table>
+            </div>
+            <div class="example-area">
+              <div class="code-head">
+                <strong>Python 範例</strong>
+                <button class="toggle-output" type="button" data-output="${outputId}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(item.example)}</pre>
+              <pre class="output" id="${outputId}">${escapeHtml(item.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(item.object)} 資料長度 step-by-step">
+              ${item.steps.map((step, stepIndex) => {
+                const panelId = `length-${index + 1}-step-${stepIndex + 1}`;
+                return `
+                <div class="step">
+                  <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">
+                    <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                    <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div>
+                </div>`;
+              }).join("")}
+            </div>
+          </div>
+        </article>`;
+      }).join("");
+    }
+
+    function renderSyntax() {
+      const list = document.querySelector("#syntaxList");
+      list.innerHTML = syntaxData.map((item, index) => `
+        <article class="syntax-card lesson-item" id="syntax-${index + 1}" data-lesson-id="syntax-${index + 1}" data-search="${escapeHtml(item.title + " " + item.keyword + " " + item.summary + " " + item.use)}">
+          <div class="syntax-visual">
+            ${visualSvg(item.visual, item.title)}
+            <span class="tag">${escapeHtml(item.keyword)}</span>
+          </div>
+          <div class="syntax-body">
+            <div class="syntax-title">
+              <div>
+                <h3>${escapeHtml(index + 1)}. ${escapeHtml(item.title)}</h3>
+                <small>${escapeHtml(item.keyword)}</small>
+              </div>
+              <div class="card-actions">
+                <label class="complete-toggle"><input type="checkbox" data-complete="syntax-${index + 1}">完成</label>
+                <a class="button" href="#syntax-${index + 1}" aria-label="連到 ${escapeHtml(item.title)}">定位</a>
+              </div>
+            </div>
+            <p class="syntax-summary">${escapeHtml(item.summary)}</p>
+            <div class="meta-table-wrap">
+              <table>
+                <thead>
+                  <tr><th>用途</th><th>格式</th><th>適用情境</th><th>常見錯誤</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>${escapeHtml(item.use)}</td>
+                    <td><code>${escapeHtml(item.format)}</code></td>
+                    <td>${escapeHtml(item.scenario)}</td>
+                    <td>${escapeHtml(item.mistake)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="example-area">
+              <div class="code-head">
+                <strong>Python 範例</strong>
+                <button class="toggle-output" type="button" data-output="output-${index}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(item.example)}</pre>
+              <pre class="output" id="output-${index}">${escapeHtml(item.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(item.title)} step-by-step">
+              ${item.steps.map((step, stepIndex) => {
+                const panelId = `syntax-${index + 1}-step-${stepIndex + 1}`;
+                return `
+                <div class="step">
+                  <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">
+                    <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                    <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div>
+                </div>
+              `}).join("")}
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderProjectSteps() {
+      const root = document.querySelector("#projectSteps");
+      root.innerHTML = projectStepData.map((step, index) => `
+        <div class="step ${index === 0 ? "is-open" : ""}">
+          <button class="step-toggle" type="button" aria-expanded="${index === 0 ? "true" : "false"}" aria-controls="project-step-${index + 1}">
+            <span><span class="step-number">${index + 1}</span>${escapeHtml(step[0])}</span>
+            <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="step-panel" id="project-step-${index + 1}">${escapeHtml(step[1])}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderCapstone() {
+      const root = document.querySelector("#capstoneList");
+      root.innerHTML = capstoneData.map((item, index) => `
+        <article class="capstone-card lesson-item" id="capstone-${index + 1}" data-lesson-id="capstone-${index + 1}" data-search="${escapeHtml(item.title + " " + item.body + " " + item.checks.join(" "))}">
+          <div class="syntax-title">
+            <div>
+              <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
+              <p class="syntax-summary">${escapeHtml(item.body)}</p>
+            </div>
+            <label class="complete-toggle"><input type="checkbox" data-complete="capstone-${index + 1}">完成</label>
+          </div>
+          <pre class="code">${escapeHtml(item.code)}</pre>
+          <div class="exercise-meta">
+            ${item.checks.map((check, checkIndex) => `<div class="mini-box"><strong>驗收 ${checkIndex + 1}</strong>${escapeHtml(check)}</div>`).join("")}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderEngineering() {
+      const root = document.querySelector("#engineeringList");
+      root.innerHTML = engineeringData.map((item, index) => `
+        <article class="engineering-card lesson-item" id="engineering-${index + 1}" data-lesson-id="engineering-${index + 1}" data-search="${escapeHtml(item.title + " " + item.summary + " " + item.table.join(" ") + " " + item.steps.map((step) => step.join(" ")).join(" "))}">
+          <div class="syntax-title">
+            <div>
+              <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
+              <p class="syntax-summary">${escapeHtml(item.summary)}</p>
+            </div>
+            <div class="card-actions">
+              <label class="complete-toggle"><input type="checkbox" data-complete="engineering-${index + 1}">完成</label>
+              <a class="button" href="#engineering-${index + 1}" aria-label="連到 ${escapeHtml(item.title)}">定位</a>
+            </div>
+          </div>
+          <div class="exercise-meta">
+            ${item.table.map((cell, cellIndex) => `<div class="mini-box"><strong>檢查 ${cellIndex + 1}</strong>${escapeHtml(cell)}</div>`).join("")}
+          </div>
+          <pre class="code">${escapeHtml(item.code)}</pre>
+          <div class="steps" aria-label="${escapeHtml(item.title)} step-by-step">
+            ${item.steps.map((step, stepIndex) => {
+              const panelId = `engineering-${index + 1}-step-${stepIndex + 1}`;
+              return `
+              <div class="step">
+                <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">
+                  <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                  <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div>
+              </div>`;
+            }).join("")}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderBridgeCards(rootSelector, data, prefix) {
+      const root = document.querySelector(rootSelector);
+      root.innerHTML = data.map((item, index) => `
+        <article class="engineering-card lesson-item" id="${prefix}-${index + 1}" data-lesson-id="${prefix}-${index + 1}" data-search="${escapeHtml(item.title + " " + item.summary + " " + item.table.join(" ") + " " + item.steps.map((step) => step.join(" ")).join(" "))}">
+          <div class="syntax-title">
+            <div>
+              <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
+              <p class="syntax-summary">${escapeHtml(item.summary)}</p>
+            </div>
+            <div class="card-actions">
+              <label class="complete-toggle"><input type="checkbox" data-complete="${prefix}-${index + 1}">完成</label>
+              <a class="button" href="#${prefix}-${index + 1}" aria-label="連到 ${escapeHtml(item.title)}">定位</a>
+            </div>
+          </div>
+          <div class="exercise-meta">
+            ${item.table.map((cell, cellIndex) => `<div class="mini-box"><strong>檢查 ${cellIndex + 1}</strong>${escapeHtml(cell)}</div>`).join("")}
+          </div>
+          <pre class="code">${escapeHtml(item.code)}</pre>
+          <div class="steps" aria-label="${escapeHtml(item.title)} step-by-step">
+            ${item.steps.map((step, stepIndex) => {
+              const panelId = `${prefix}-${index + 1}-step-${stepIndex + 1}`;
+              return `
+              <div class="step">
+                <button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">
+                  <span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span>
+                  <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div>
+              </div>`;
+            }).join("")}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderExercises() {
+      const root = document.querySelector("#exerciseList");
+      root.innerHTML = exerciseData.map((item, index) => {
+        const answerId = `exercise-answer-${index + 1}`;
+        return `
+        <article class="exercise-card lesson-item" id="exercise-${index + 1}" data-lesson-id="exercise-${index + 1}" data-search="${escapeHtml(item.title + " " + item.goal + " " + item.hint + " " + item.mistake)}">
+          <div class="syntax-title">
+            <div>
+              <h3>${index + 1}. ${escapeHtml(item.title)}</h3>
+              <p class="syntax-summary">${escapeHtml(item.goal)}</p>
+            </div>
+            <label class="complete-toggle"><input type="checkbox" data-complete="exercise-${index + 1}">完成</label>
+          </div>
+          <div class="exercise-meta">
+            <div class="mini-box"><strong>輸入</strong><code>${escapeHtml(item.input)}</code></div>
+            <div class="mini-box"><strong>預期輸出</strong><code>${escapeHtml(item.expected)}</code></div>
+            <div class="mini-box"><strong>提示</strong>${escapeHtml(item.hint)}</div>
+            <div class="mini-box"><strong>常見錯誤</strong>${escapeHtml(item.mistake)}</div>
+          </div>
+          <button class="button answer-toggle" type="button" aria-expanded="false" aria-controls="${answerId}">顯示答案解析</button>
+          <div class="answer-panel" id="${answerId}">
+            <pre class="code">${escapeHtml(item.answer)}</pre>
+          </div>
+        </article>
+      `}).join("");
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+
+        const answerButton = event.target.closest(".answer-toggle");
+        if (answerButton) {
+          const panel = document.getElementById(answerButton.getAttribute("aria-controls"));
+          const isOpen = panel.classList.toggle("is-open");
+          answerButton.setAttribute("aria-expanded", String(isOpen));
+          answerButton.textContent = isOpen ? "隱藏答案解析" : "顯示答案解析";
+          return;
+        }
+
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          const text = pre ? pre.textContent : "";
+          if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+          return;
+        }
+
+        const outputButton = event.target.closest(".toggle-output");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+        }
+      });
+
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const id = checkbox.dataset.complete;
+        const completed = getCompleted();
+        if (checkbox.checked) {
+          completed.add(id);
+        } else {
+          completed.delete(id);
+        }
+        localStorage.setItem("python-beginner-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    function getCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem("python-beginner-completed") || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = completed.has(checkbox.dataset.complete);
+      });
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      const progress = document.querySelector("#progressSummary");
+      if (progress) {
+        progress.textContent = `完成 ${done} / ${total}`;
+      }
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `code-block-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    renderObjects();
+    renderLengthList();
+    renderSyntax();
+    renderProjectSteps();
+    renderCapstone();
+    renderEngineering();
+    renderBridgeCards("#productionBridgeList", productionBridgeData, "production-bridge-card");
+    renderBridgeCards("#repositoryHardeningList", repositoryHardeningData, "repository-hardening-card");
+    renderBridgeCards("#testingDiagnosisList", testingDiagnosisData, "testing-diagnosis-card");
+    renderBridgeCards("#advancedSyntaxLabList", advancedSyntaxLabData, "advanced-syntax-card");
+    renderBridgeCards("#readinessChecklistList", readinessChecklistData, "readiness-card");
+    renderExercises();
+    enhanceCodeBlocks();
+    bindInteractions();
+    updateProgress();
+  </script>
+</body>
+</html>

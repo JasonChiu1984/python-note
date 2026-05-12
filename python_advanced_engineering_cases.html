@@ -1,0 +1,1586 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 高階工程師應用實戰教程 - 100 個實際案例分析</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --yellow: #f7c948;
+      --red: #c34848;
+      --violet: #7257a8;
+      --soft-blue: #e7f0fb;
+      --soft-green: #e6f5ef;
+      --soft-yellow: #fff4cf;
+      --soft-red: #fae8e8;
+      --soft-violet: #eee9f8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 36rem);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    .layout { display: grid; grid-template-columns: 18rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .brand strong { font-size: 1.02rem; line-height: 1.25; }
+    .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 750; }
+    .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      padding: 0.58rem 0.62rem;
+      border-radius: 7px;
+      color: var(--muted);
+      font-weight: 850;
+      text-decoration: none;
+    }
+    .nav a:hover, .nav a:focus-visible { background: var(--soft-blue); color: var(--ink); outline: none; }
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.6rem;
+      gap: 0.45rem;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(10px);
+    }
+    .mobile-nav a {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 0.86rem;
+    }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      padding: 0.32rem 0.55rem;
+      border: 1px solid rgba(47,111,187,0.25);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.72);
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 0.84rem;
+    }
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    .hero p, .lead { color: var(--muted); max-width: 58rem; margin: 0; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.2rem; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.5rem;
+      padding: 0.52rem 0.82rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero-visual { padding: 0.7rem; }
+    .hero-visual svg, .diagram svg { width: 100%; height: auto; display: block; }
+    .section { padding: 2.2rem clamp(1rem, 5vw, 4.8rem); }
+    .section h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.7rem); line-height: 1.12; letter-spacing: 0; }
+    .section-head { margin-bottom: 1rem; }
+    .learning-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.9rem;
+      align-items: center;
+      padding: 1rem;
+      margin: 0 clamp(1rem, 5vw, 4.8rem) 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow);
+    }
+    .search-box {
+      width: 100%;
+      min-height: 2.55rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 750;
+    }
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.5rem 0.72rem;
+      border-radius: 7px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .case-list { display: grid; gap: 1.4rem; }
+    .mindmap {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .mindmap svg { min-width: 60rem; width: 100%; height: auto; display: block; }
+    .mindmap-link { text-decoration: none; outline: none; }
+    .mindmap-link rect, .mindmap-link circle { transition: transform 160ms ease, filter 160ms ease, stroke-width 160ms ease; transform-box: fill-box; transform-origin: center; }
+    .mindmap-link:hover rect, .mindmap-link:focus-visible rect,
+    .mindmap-link:hover circle, .mindmap-link:focus-visible circle {
+      transform: scale(1.035);
+      filter: drop-shadow(0 10px 12px rgba(23, 32, 51, 0.16));
+      stroke-width: 4;
+    }
+    .case-group {
+      display: grid;
+      gap: 1rem;
+      padding-top: 0.35rem;
+      scroll-margin-top: 1rem;
+    }
+    .group-head {
+      display: grid;
+      gap: 0.35rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.92);
+    }
+    .group-head h3 { margin: 0; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.18; }
+    .group-meta { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+    .group-cases { display: grid; gap: 1rem; }
+    .case-card {
+      display: grid;
+      grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .case-card.is-deep { border-color: rgba(47,111,187,0.45); box-shadow: 0 20px 52px rgba(47,111,187,0.12); }
+    .case-visual {
+      padding: 1rem;
+      background: linear-gradient(180deg, var(--soft-blue), #fff);
+      border-right: 1px solid var(--line);
+    }
+    .case-visual svg { width: 100%; height: auto; min-height: 9.5rem; }
+    .case-body { min-width: 0; padding: 1rem; display: grid; gap: 0.85rem; }
+    .case-title { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+    .case-title h3 { margin: 0; font-size: 1.22rem; line-height: 1.22; }
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      padding: 0.14rem 0.42rem;
+      border-radius: 6px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+    .tag.deep { background: var(--soft-blue); color: var(--blue); }
+    .summary { margin: 0; color: var(--muted); }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+    .complete-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-height: 2.35rem;
+      padding: 0.45rem 0.62rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .complete-toggle input { width: 1rem; height: 1rem; accent-color: var(--green); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
+    table { width: 100%; min-width: 54rem; border-collapse: collapse; font-size: 0.91rem; }
+    th, td { padding: 0.66rem 0.7rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eef4fb; color: #31445b; font-weight: 900; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    code { font-family: var(--mono); }
+    td code, p code, li code {
+      padding: 0.08rem 0.28rem;
+      border-radius: 5px;
+      background: #edf3f8;
+      color: #1d446a;
+      font-size: 0.9em;
+    }
+    .code {
+      margin: 0;
+      padding: 0.9rem;
+      border-radius: 7px;
+      overflow-x: auto;
+      background: #172033;
+      color: #eef6ff;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      line-height: 1.58;
+      white-space: pre;
+      tab-size: 4;
+    }
+    .code-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; }
+    .copy-code {
+      min-height: 2.25rem;
+      padding: 0.38rem 0.58rem;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.12);
+      color: white;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .code-tools { display: flex; justify-content: flex-end; margin-bottom: -0.5rem; }
+    .output {
+      display: none;
+      margin: 0;
+      padding: 0.75rem 0.9rem;
+      border-left: 4px solid var(--green);
+      border-radius: 7px;
+      background: #f1fbf7;
+      color: #21483b;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+    }
+    .output.is-open { display: block; }
+    .deep-dive {
+      display: grid;
+      gap: 0.75rem;
+      padding: 0.9rem;
+      border: 1px solid rgba(47,111,187,0.25);
+      border-radius: 7px;
+      background: #f8fbfe;
+    }
+    .deep-dive h4 { margin: 0; font-size: 1rem; }
+    .deep-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.7rem;
+    }
+    .deep-note {
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+    }
+    .deep-note strong { display: block; margin-bottom: 0.25rem; color: #31445b; }
+    .deep-note ul { margin: 0.25rem 0 0; padding-left: 1.15rem; }
+    .deep-table table { min-width: 62rem; }
+    .walkthrough-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .walkthrough-card {
+      display: grid;
+      gap: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .walkthrough-card h3 { margin: 0; font-size: 1.12rem; line-height: 1.25; }
+    .walkthrough-card p { margin: 0; color: var(--muted); }
+    .walkthrough-flow { padding: 1rem; overflow-x: auto; }
+    .walkthrough-flow svg { min-width: 58rem; width: 100%; height: auto; display: block; }
+    .steps { display: grid; gap: 0.55rem; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .step-toggle {
+      width: 100%;
+      min-height: 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.68rem 0.82rem;
+      border: 0;
+      background: white;
+      font: inherit;
+      font-weight: 900;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+    .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; }
+    .step-number {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 6px;
+      background: var(--soft-yellow);
+      color: #735508;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+    .step-panel { display: none; padding: 0 0.9rem 0.9rem 3.15rem; color: #405268; font-size: 0.94rem; }
+    .step.is-open .step-panel { display: block; }
+    .chevron { transition: transform 180ms ease; }
+    .step.is-open .chevron { transform: rotate(180deg); }
+    .diagram { padding: 1rem; overflow-x: auto; }
+    .diagram svg.wide { min-width: 58rem; }
+    .hidden-by-search { display: none !important; }
+    footer { padding: 2rem clamp(1rem, 5vw, 4.8rem) 3rem; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 1080px) {
+      .layout { display: block; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex; }
+      .hero, .case-card { grid-template-columns: 1fr; }
+      .case-visual { border-right: 0; border-bottom: 1px solid var(--line); }
+      .deep-grid, .walkthrough-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .hero, .section, footer { padding-left: 0.85rem; padding-right: 0.85rem; }
+      h1 { max-width: 14ch; }
+      .case-title, .code-head, .learning-tools { display: block; }
+      .learning-tools { margin-left: 0.85rem; margin-right: 0.85rem; }
+      .button { width: 100%; margin-top: 0.45rem; }
+      .step-panel { padding-left: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-nav" aria-label="行動版章節導覽">
+    <a href="index.html">入口</a>
+    <a href="#map">地圖</a>
+    <a href="#mindmap">心智圖</a>
+    <a href="#cases">100案例</a>
+    <a href="#walkthrough">專案範本</a>
+    <a href="#ops">工程驗收</a>
+  </nav>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>Python 高階工程師應用實戰</strong>
+        <span>100 Production Cases</span>
+      </div>
+      <nav class="nav" aria-label="主要章節">
+        <a href="index.html">教材入口</a>
+        <a href="python_intermediate_engineering_tutorial.html">中級教材</a>
+        <a href="#map">高階能力地圖</a>
+        <a href="#mindmap">互動式心智圖</a>
+        <a href="#cases">100 個實際案例</a>
+        <a href="#walkthrough">Production Walkthrough</a>
+        <a href="#ops">工程驗收清單</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <div>
+          <span class="eyebrow">高階教材 / 20年專案工程師視角</span>
+          <h1>Python 高階工程實戰 100 案例</h1>
+          <p>這份教材不再只講語法，而是把語法放進真實工程場景：架構、可靠性、效能、資料、並發、安全、觀測、打包與交付。每個案例都用圖、表、程式碼和 step-by-step 拆解。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#cases">開始看 100 個案例</a>
+            <a class="button" href="#walkthrough">看完整專案範本</a>
+            <a class="button" href="#ops">看工程驗收</a>
+            <a class="button" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface hero-visual">
+          <svg viewBox="0 0 760 430" role="img" aria-labelledby="heroTitle heroDesc">
+            <title id="heroTitle">Python 高階案例能力地圖</title>
+            <desc id="heroDesc">從需求、架構、可靠性、效能、交付形成閉環。</desc>
+            <defs><marker id="heroArrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="18" y="20" width="724" height="390" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <path d="M110 220 C200 85 300 85 390 220 S580 355 660 220" fill="none" stroke="#2f6fbb" stroke-width="7" stroke-linecap="round" marker-end="url(#heroArrow)"></path>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
+              <g transform="translate(110 220)"><circle r="54" fill="#fff" stroke="#2f6fbb" stroke-width="3"></circle><text y="-5" font-size="16">Design</text><text y="20" font-size="13" fill="#5d6b7d">需求到邊界</text></g>
+              <g transform="translate(255 118)"><rect x="-65" y="-38" width="130" height="76" rx="12" fill="#fff" stroke="#2d8a69" stroke-width="3"></rect><text y="-5" font-size="16">Runtime</text><text y="20" font-size="13" fill="#5d6b7d">並發與資料</text></g>
+              <g transform="translate(390 220)"><circle r="55" fill="#fff" stroke="#7257a8" stroke-width="3"></circle><text y="-5" font-size="16">Reliability</text><text y="20" font-size="13" fill="#5d6b7d">重試與觀測</text></g>
+              <g transform="translate(535 322)"><rect x="-68" y="-38" width="136" height="76" rx="12" fill="#fff" stroke="#c79a14" stroke-width="3"></rect><text y="-5" font-size="16">Performance</text><text y="20" font-size="13" fill="#5d6b7d">profile / cache</text></g>
+              <g transform="translate(660 220)"><circle r="56" fill="#fff" stroke="#c34848" stroke-width="3"></circle><text y="-5" font-size="16">Delivery</text><text y="20" font-size="13" fill="#5d6b7d">CI / package</text></g>
+            </g>
+          </svg>
+        </div>
+      </header>
+
+      <section class="learning-tools" aria-label="教材互動工具">
+        <label>
+          <span class="tag">Search</span>
+          <input id="lessonSearch" class="search-box" type="search" placeholder="搜尋案例，例如 outbox、cache、profiling、security、CI">
+        </label>
+        <div class="progress-pill" id="progressSummary">完成 0 / 0</div>
+      </section>
+
+      <section id="map" class="section">
+        <div class="section-head">
+          <h2>高階能力地圖</h2>
+          <p class="lead">高階工程師的 Python 能力不是語法更多，而是能在限制下做選型，能讓系統出錯時可恢復、可觀測、可交付、可維護。</p>
+        </div>
+        <div class="surface diagram">
+          <svg class="wide" viewBox="0 0 1080 420" role="img" aria-labelledby="mapTitle mapDesc">
+            <title id="mapTitle">高階工程能力閉環</title>
+            <desc id="mapDesc">設計、資料、並發、可靠性、效能、交付的閉環。</desc>
+            <defs><marker id="mapArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#4d6d8c"></path></marker></defs>
+            <rect x="20" y="20" width="1040" height="380" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" font-weight="900" text-anchor="middle">
+              <rect x="70" y="80" width="150" height="80" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="145" y="126">Architecture</text>
+              <rect x="270" y="80" width="150" height="80" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="345" y="126">Data</text>
+              <rect x="470" y="80" width="150" height="80" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="545" y="126">Concurrency</text>
+              <rect x="670" y="80" width="150" height="80" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="745" y="126">Reliability</text>
+              <rect x="870" y="80" width="150" height="80" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="945" y="126">Delivery</text>
+              <path d="M220 120h42M420 120h42M620 120h42M820 120h42" stroke="#4d6d8c" stroke-width="3" marker-end="url(#mapArrow)"></path>
+              <text x="540" y="280" fill="#5d6b7d" font-size="18">每個案例都回答：問題是什麼、用哪個 Python pattern、如何失敗、如何驗收。</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section id="mindmap" class="section">
+        <div class="section-head">
+          <h2>Python 高階互動式心智圖</h2>
+          <p class="lead">點選任一節點可直接進入主題案例群。10 大主題對應 100 個案例，其中每章前 2 個是深度案例，會補上工程取捨、失敗模式、驗收計畫與落地片段。</p>
+        </div>
+        <div class="mindmap" role="group" aria-label="Python 高階案例心智圖">
+          <svg viewBox="0 0 1080 560" role="img" aria-labelledby="mindmapTitle mindmapDesc">
+            <title id="mindmapTitle">Python 高階互動式心智圖</title>
+            <desc id="mindmapDesc">中心是 Python production engineering，周圍十個可點選主題節點連到對應案例章節。</desc>
+            <defs>
+              <marker id="mindArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#4d6d8c"></path></marker>
+            </defs>
+            <rect x="16" y="18" width="1048" height="524" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g stroke="#4d6d8c" stroke-width="3" marker-end="url(#mindArrow)" opacity="0.75">
+              <path d="M540 280L194 98"></path><path d="M540 280L540 88"></path><path d="M540 280L886 98"></path>
+              <path d="M540 280L184 238"></path><path d="M540 280L896 238"></path>
+              <path d="M540 280L184 370"></path><path d="M540 280L896 370"></path>
+              <path d="M540 280L194 474"></path><path d="M540 280L540 480"></path><path d="M540 280L886 474"></path>
+            </g>
+            <g font-family="system-ui, sans-serif" text-anchor="middle">
+              <circle cx="540" cy="280" r="82" fill="#172033"></circle>
+              <text x="540" y="262" fill="#fff" font-size="22" font-weight="900">Python</text>
+              <text x="540" y="291" fill="#dce8f5" font-size="16" font-weight="850">Production</text>
+              <text x="540" y="318" fill="#dce8f5" font-size="16" font-weight="850">Engineering</text>
+
+              <a class="mindmap-link" href="#group-architecture" aria-label="Architecture cases 1 to 10">
+                <rect x="70" y="58" width="248" height="82" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+                <text x="194" y="90" font-size="19" font-weight="900" fill="#172033">Architecture</text>
+                <text x="194" y="117" font-size="14" font-weight="850" fill="#5d6b7d">Cases 1-10</text>
+              </a>
+              <a class="mindmap-link" href="#group-data" aria-label="Data cases 11 to 20">
+                <rect x="416" y="48" width="248" height="82" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+                <text x="540" y="80" font-size="19" font-weight="900" fill="#172033">Data</text>
+                <text x="540" y="107" font-size="14" font-weight="850" fill="#5d6b7d">Cases 11-20</text>
+              </a>
+              <a class="mindmap-link" href="#group-concurrency" aria-label="Concurrency cases 21 to 30">
+                <rect x="762" y="58" width="248" height="82" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect>
+                <text x="886" y="90" font-size="19" font-weight="900" fill="#172033">Concurrency</text>
+                <text x="886" y="117" font-size="14" font-weight="850" fill="#5d6b7d">Cases 21-30</text>
+              </a>
+              <a class="mindmap-link" href="#group-reliability" aria-label="Reliability cases 31 to 40">
+                <rect x="60" y="198" width="248" height="82" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect>
+                <text x="184" y="230" font-size="19" font-weight="900" fill="#172033">Reliability</text>
+                <text x="184" y="257" font-size="14" font-weight="850" fill="#5d6b7d">Cases 31-40</text>
+              </a>
+              <a class="mindmap-link" href="#group-performance" aria-label="Performance cases 41 to 50">
+                <rect x="772" y="198" width="248" height="82" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect>
+                <text x="896" y="230" font-size="19" font-weight="900" fill="#172033">Performance</text>
+                <text x="896" y="257" font-size="14" font-weight="850" fill="#5d6b7d">Cases 41-50</text>
+              </a>
+              <a class="mindmap-link" href="#group-security" aria-label="Security cases 51 to 60">
+                <rect x="60" y="330" width="248" height="82" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect>
+                <text x="184" y="362" font-size="19" font-weight="900" fill="#172033">Security</text>
+                <text x="184" y="389" font-size="14" font-weight="850" fill="#5d6b7d">Cases 51-60</text>
+              </a>
+              <a class="mindmap-link" href="#group-testing" aria-label="Testing cases 61 to 70">
+                <rect x="772" y="330" width="248" height="82" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect>
+                <text x="896" y="362" font-size="19" font-weight="900" fill="#172033">Testing</text>
+                <text x="896" y="389" font-size="14" font-weight="850" fill="#5d6b7d">Cases 61-70</text>
+              </a>
+              <a class="mindmap-link" href="#group-observability" aria-label="Observability cases 71 to 80">
+                <rect x="70" y="434" width="248" height="82" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect>
+                <text x="194" y="466" font-size="19" font-weight="900" fill="#172033">Observability</text>
+                <text x="194" y="493" font-size="14" font-weight="850" fill="#5d6b7d">Cases 71-80</text>
+              </a>
+              <a class="mindmap-link" href="#group-packaging" aria-label="Packaging cases 81 to 90">
+                <rect x="416" y="440" width="248" height="82" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect>
+                <text x="540" y="472" font-size="19" font-weight="900" fill="#172033">Packaging</text>
+                <text x="540" y="499" font-size="14" font-weight="850" fill="#5d6b7d">Cases 81-90</text>
+              </a>
+              <a class="mindmap-link" href="#group-platform" aria-label="Platform cases 91 to 100">
+                <rect x="762" y="434" width="248" height="82" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect>
+                <text x="886" y="466" font-size="19" font-weight="900" fill="#172033">Platform</text>
+                <text x="886" y="493" font-size="14" font-weight="850" fill="#5d6b7d">Cases 91-100</text>
+              </a>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section id="cases" class="section">
+        <div class="section-head">
+          <h2>100 個實際案例分析</h2>
+          <p class="lead">案例依 10 大主題分群。每章前 2 個是深度案例，快速案例則補上案例專屬取捨與驗收，方便你直接拿去做專案設計 review。</p>
+        </div>
+        <div id="caseList" class="case-list" aria-live="polite"></div>
+      </section>
+
+      <section id="walkthrough" class="section">
+        <div class="section-head">
+          <h2>Production Notes Platform：完整可交付專案範本</h2>
+          <p class="lead">這條 walkthrough 把 100 案例收斂成一個端到端專案：從需求、ADR、package、測試、CI、release 到 rollback。它不是新語法清單，而是資深工程師真正交付時會留下的證據鏈。</p>
+        </div>
+        <div class="surface walkthrough-flow">
+          <svg viewBox="0 0 1080 330" role="img" aria-labelledby="walkTitle walkDesc">
+            <title id="walkTitle">Production project walkthrough</title>
+            <desc id="walkDesc">需求、ADR、Package、Test、CI、Release、Rollback 的完整交付流程。</desc>
+            <defs><marker id="walkArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#4d6d8c"></path></marker></defs>
+            <rect x="18" y="22" width="1044" height="286" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
+              <g transform="translate(100 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text y="-10">Requirement</text><text y="18" font-size="13" fill="#5d6b7d">SLO / scope</text></g>
+              <g transform="translate(247 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text y="-10">ADR</text><text y="18" font-size="13" fill="#5d6b7d">tradeoff</text></g>
+              <g transform="translate(394 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect><text y="-10">Package</text><text y="18" font-size="13" fill="#5d6b7d">boundary</text></g>
+              <g transform="translate(541 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect><text y="-10">Test</text><text y="18" font-size="13" fill="#5d6b7d">unit / e2e</text></g>
+              <g transform="translate(688 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text y="-10">CI</text><text y="18" font-size="13" fill="#5d6b7d">quality gate</text></g>
+              <g transform="translate(835 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text y="-10">Release</text><text y="18" font-size="13" fill="#5d6b7d">artifact</text></g>
+              <g transform="translate(982 165)"><rect x="-70" y="-48" width="140" height="96" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="3"></rect><text y="-10">Rollback</text><text y="18" font-size="13" fill="#5d6b7d">restore</text></g>
+              <path d="M172 165h52M319 165h52M466 165h52M613 165h52M760 165h52M907 165h52" stroke="#4d6d8c" stroke-width="3" marker-end="url(#walkArrow)"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="walkthrough-grid" style="margin-top: 1rem;">
+          <article class="walkthrough-card">
+            <h3>1. Requirement 與 SLO</h3>
+            <p>需求不是「做 notes-cli」，而是能在本機可靠保存筆記、可追蹤錯誤、可在 release 後回復。</p>
+            <pre class="code"># docs/requirements.md
+Goal: local notes platform for CLI/API reuse
+SLO: 99.9% command success on valid input
+Data: JSON v1, migration-ready
+Failure: corrupted JSON must not be silently overwritten</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>2. ADR：資料儲存選型</h3>
+            <p>ADR 記錄為什麼此階段選 JSON repository，以及何時切到 SQLite。</p>
+            <pre class="code"># docs/adr/0001-storage.md
+Decision: JSON repository with atomic write
+Why: easy inspection, simple backup, no server
+Tradeoff: no concurrent multi-user writes
+Exit: move to SQLite when lock contention appears</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>3. Package 與邊界</h3>
+            <p>Package 讓 CLI/API 只依賴 service，repository 實作藏在 infrastructure。</p>
+            <pre class="code">src/notes_platform/
+  cli.py
+  config.py
+  domain.py
+  services.py
+  repositories/
+    protocol.py
+    json_repo.py
+  observability.py</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>4. Test matrix</h3>
+            <p>測試矩陣要能定位壞在哪一層：domain、service、repository、CLI 或 packaging。</p>
+            <pre class="code">pytest tests/unit -q
+pytest tests/integration -q
+pytest tests/cli -q
+coverage run -m pytest
+coverage report --fail-under=90</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>5. CI gate 與 artifact</h3>
+            <p>CI 不只跑 pytest，也要檢查 lint、type、build、SBOM、smoke command。</p>
+            <pre class="code">ruff check src tests
+mypy src
+python -m build
+python -m pip install dist/*.whl
+notes --version
+cyclonedx-py environment -o sbom.json</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>6. Release / Rollback</h3>
+            <p>Release note 必須附測試證據與回復方式，rollback 不是事後才想。</p>
+            <pre class="code">Release v0.3.0
+Evidence: tests passed, coverage 92%, smoke passed
+Backup: copy notes.json to notes.json.bak
+Rollback: pip install notes-platform==0.2.0
+Restore: notes repair --from notes.json.bak</pre>
+          </article>
+        </div>
+        <div class="steps" style="margin-top: 1rem;" aria-label="Production walkthrough step-by-step">
+          <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="walk-step-1"><span><span class="step-number">1</span>先定義可驗收需求</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="walk-step-1">需求要能落到測試與運維：資料是否可修復、命令是否有 exit code、錯誤是否能定位。</div></div>
+          <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="walk-step-2"><span><span class="step-number">2</span>用 ADR 保留取捨</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="walk-step-2">資深專案不是沒有取捨，而是讓後來的人知道為什麼當時選這條路，以及何時該換路。</div></div>
+          <div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="walk-step-3"><span><span class="step-number">3</span>交付前跑 release gate</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="walk-step-3">release gate 應同時檢查功能、品質、安全、產物與 rollback；缺一項就不是完整交付。</div></div>
+        </div>
+      </section>
+
+      <section id="ops" class="section">
+        <div class="section-head">
+          <h2>高階工程驗收清單</h2>
+          <p class="lead">完成案例後，用這份清單檢查自己是否從「會寫」走到「能交付」。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>面向</th><th>驗收問題</th><th>證據</th><th>常見缺口</th></tr></thead>
+            <tbody>
+              <tr><td>架構</td><td>核心規則是否不依賴框架？</td><td>service/domain 可用 unit test 驗證</td><td>CLI/API 直接寫規則</td></tr>
+              <tr><td>可靠性</td><td>外部失敗是否可重試、可降級？</td><td>timeout、retry、idempotency test</td><td>只 catch Exception 然後 pass</td></tr>
+              <tr><td>效能</td><td>是否有 profile 證據？</td><td>cProfile、benchmark、memory snapshot</td><td>憑感覺重構</td></tr>
+              <tr><td>安全</td><td>輸入、secret、檔案路徑是否被保護？</td><td>validation、secret source、path allowlist</td><td>把 token 寫進程式碼</td></tr>
+              <tr><td>交付</td><td>產物是否可重現？</td><td>lockfile、CI、smoke test、release note</td><td>只在自己電腦能跑</td></tr>
+              <tr><td>供應鏈</td><td>依賴與產物是否可追溯？</td><td>dependency scan、SBOM、checksum、版本鎖定</td><td>只相信 build success，沒有產物證據</td></tr>
+              <tr><td>權限</td><td>執行時權限是否最小化？</td><td>permission boundary、path allowlist、read-only config</td><td>工具用過大權限讀寫任意路徑</td></tr>
+              <tr><td>Secret</td><td>secret 是否可輪替且不落地？</td><td>secret rotation runbook、遮蔽 log、雙 key window</td><td>secret 寫進設定檔或 release artifact</td></tr>
+              <tr><td>Rollback</td><td>部署後如何安全回復？</td><td>backup、migration rollback、artifact pinning、smoke test</td><td>只會重部署，不知道資料如何復原</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer>
+        範例輸出為教學用預期結果，不會在瀏覽器中執行 Python。高階案例強調工程判斷、取捨與驗收證據。
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const cases = [
+      {
+        title: "Clean Architecture API：把框架隔離在外層",
+        pattern: "Protocol + Service",
+        visual: "layers",
+        problem: "API 專案常把 FastAPI/Flask handler、DB query、商業規則寫在同一層，最後難測也難搬。",
+        use: "大型 API、CLI/API 共用核心、框架替換",
+        syntax: "Protocol、dataclass、dependency injection",
+        risk: "handler 直接寫規則，重構時 API 與背景任務會複製 bug",
+        example: `from typing import Protocol
+from dataclasses import dataclass
+
+class UserRepo(Protocol):
+    def exists(self, email: str) -> bool: ...
+
+@dataclass
+class RegisterUser:
+    repo: UserRepo
+    def run(self, email: str) -> str:
+        if self.repo.exists(email):
+            raise ValueError("duplicate")
+        return "created"
+
+print("service ready")`,
+        output: "service ready",
+        steps: [["切邊界", "handler 只做 HTTP/CLI I/O，核心規則放 service。"], ["定契約", "用 Protocol 表達 repo 需要的行為，不綁具體 DB。"], ["驗收", "service 可用 fake repo 單測，不需要開 web server。"]]
+      },
+      {
+        title: "Unit of Work：交易一致性",
+        pattern: "context manager",
+        visual: "transaction",
+        problem: "一個 use case 同時寫多張表，某一步失敗時需要 rollback，否則資料會半完成。",
+        use: "訂單、付款、庫存、審核流程",
+        syntax: "with、__enter__/__exit__、try/except",
+        risk: "service 裡到處 commit，失敗時無法恢復一致狀態",
+        example: `class UnitOfWork:
+    def __enter__(self):
+        print("begin")
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        print("rollback" if exc else "commit")
+
+with UnitOfWork():
+    print("save order")`,
+        output: "begin\nsave order\ncommit",
+        steps: [["進入交易", "with 開始時建立 transaction 邊界。"], ["執行 use case", "service 在同一個 UoW 內呼叫多個 repository。"], ["離開決策", "有例外 rollback，無例外 commit。"]]
+      },
+      {
+        title: "Outbox Pattern：事件可靠送出",
+        pattern: "transactional outbox",
+        visual: "event",
+        problem: "資料庫寫成功但 message broker 發送失敗，系統會出現資料已變更但事件沒出去。",
+        use: "訂單建立、付款完成、跨服務同步",
+        syntax: "list queue、idempotency key、background worker",
+        risk: "直接在 request 裡發 message，遇到網路失敗會漏事件",
+        example: `outbox = []
+def create_order(order_id):
+    outbox.append({"type": "OrderCreated", "id": order_id})
+    return "saved"
+
+print(create_order("A001"))
+print(outbox[0]["type"])`,
+        output: "saved\nOrderCreated",
+        steps: [["同交易寫 outbox", "主資料與事件記錄一起保存。"], ["背景派送", "worker 掃描未送事件並送到 broker。"], ["冪等處理", "消費端用 event id 避免重複套用。"]]
+      },
+      {
+        title: "Idempotent API：重試不重複扣款",
+        pattern: "idempotency key",
+        visual: "shield",
+        problem: "客戶端 timeout 後重試付款，如果沒有 idempotency key，可能扣款兩次。",
+        use: "付款、建立訂單、外部 API webhook",
+        syntax: "dict cache、unique key、early return",
+        risk: "只靠前端防重送，遇到網路重試仍會重複執行",
+        example: `seen = {}
+def charge(key, amount):
+    if key in seen:
+        return seen[key]
+    seen[key] = f"charged:{amount}"
+    return seen[key]
+
+print(charge("req-1", 100))
+print(charge("req-1", 100))`,
+        output: "charged:100\ncharged:100",
+        steps: [["要求 key", "每個可重試請求都必須有 idempotency key。"], ["先查紀錄", "key 已存在就回傳舊結果。"], ["保存結果", "第一次執行後保存 response 摘要。"]]
+      },
+      {
+        title: "Async API Fan-out：多服務聚合",
+        pattern: "asyncio.gather + timeout",
+        visual: "async",
+        problem: "一個頁面需要同時查會員、庫存、推薦，但不能被最慢服務拖垮。",
+        use: "API gateway、BFF、dashboard 聚合",
+        syntax: "async def、await、wait_for、gather",
+        risk: "沒有 timeout，單一慢服務會拖住整個 request",
+        example: `import asyncio
+
+async def call(name):
+    await asyncio.sleep(0.01)
+    return f"ok:{name}"
+
+async def main():
+    result = await asyncio.wait_for(asyncio.gather(call("user"), call("stock")), timeout=1)
+    print(result)
+
+asyncio.run(main())`,
+        output: "['ok:user', 'ok:stock']",
+        steps: [["拆成 awaitable", "每個外部服務包成 coroutine。"], ["設定總期限", "wait_for 限制聚合最大等待時間。"], ["設計 fallback", "部分失敗時決定回預設值或錯誤。"]]
+      },
+      {
+        title: "Bounded Worker Pool：保護外部服務",
+        pattern: "Semaphore",
+        visual: "pool",
+        problem: "批次任務一次送出 1000 個 API request，容易打爆對方服務，也讓自己被 rate limit。",
+        use: "同步資料、批次上傳、爬取內部 API",
+        syntax: "asyncio.Semaphore、async with",
+        risk: "無限制 create_task 會讓連線、記憶體與 rate limit 失控",
+        example: `import asyncio
+
+async def main():
+    sem = asyncio.Semaphore(2)
+    async with sem:
+        print("limited-call")
+
+asyncio.run(main())`,
+        output: "limited-call",
+        steps: [["先決定併發上限", "上限來自外部服務 SLA 與本機資源。"], ["包住昂貴 I/O", "只把真正打外部 API 的區段放進 semaphore。"], ["量測吞吐", "用延遲與錯誤率調整 concurrency。"]]
+      },
+      {
+        title: "Threaded File Ingestion：檔案匯入管線",
+        pattern: "Queue + Thread",
+        visual: "queue",
+        problem: "大量小檔案匯入時，讀檔與解析可以管線化，但共享狀態要安全傳遞。",
+        use: "log 匯入、CSV 批次、資料落地前處理",
+        syntax: "queue.Queue、Thread、task_done、join",
+        risk: "多 thread 直接 append 同一個 list，容易 race condition",
+        example: `from queue import Queue
+
+q = Queue(maxsize=2)
+q.put("file-a.csv")
+print(q.get())`,
+        output: "file-a.csv",
+        steps: [["producer 放檔案路徑", "讀目錄的 thread 只負責 q.put。"], ["worker 取任務", "解析 thread 用 q.get 安全取出。"], ["backpressure", "maxsize 讓 producer 不會無限塞任務。"]]
+      },
+      {
+        title: "CPU-bound Report：ProcessPool 報表計算",
+        pattern: "ProcessPoolExecutor",
+        visual: "process",
+        problem: "大型報表計算吃 CPU，用 ThreadPool 不會真正平行，還可能增加切換成本。",
+        use: "報表、影像處理、壓縮、特徵計算",
+        syntax: "ProcessPoolExecutor、pure function、pickle",
+        risk: "把巨大物件傳進 process，序列化成本可能吃掉加速",
+        example: `from concurrent.futures import ProcessPoolExecutor
+
+def calc(n):
+    return n * n
+
+with ProcessPoolExecutor(max_workers=2) as pool:
+    print(list(pool.map(calc, [3, 4])))`,
+        output: "[9, 16]",
+        steps: [["拆純函式", "ProcessPool 的工作應該輸入輸出清楚。"], ["控制資料量", "傳小資料或 ids，不傳整個大 object graph。"], ["比較基準", "用 benchmark 比 single/thread/process。"]]
+      },
+      {
+        title: "TTL Cache：降低外部 API 成本",
+        pattern: "cache with expiry",
+        visual: "cache",
+        problem: "熱門資料每次都查外部服務，延遲高且成本高，但快取過久又會過期。",
+        use: "設定查詢、價格表、低變動參考資料",
+        syntax: "dict、time monotonic、tuple unpacking",
+        risk: "無 TTL 的 cache 會回傳過期資料，無上限 cache 會吃光記憶體",
+        example: `import time
+cache = {}
+def get_value(key):
+    now = time.monotonic()
+    value, expires = cache.get(key, (None, 0))
+    if now < expires:
+        return value
+    cache[key] = ("fresh", now + 60)
+    return "fresh"
+
+print(get_value("plan"))`,
+        output: "fresh",
+        steps: [["定義 TTL", "依資料可接受延遲決定過期秒數。"], ["cache hit", "未過期直接回傳。"], ["cache miss", "重新查來源並更新 expires。"]]
+      },
+      {
+        title: "Retry with Backoff：外部服務暫時失敗",
+        pattern: "retry + exponential backoff",
+        visual: "retry",
+        problem: "外部服務短暫 503 或網路抖動時，直接失敗會讓使用者體驗很差。",
+        use: "HTTP client、DB reconnect、message publish",
+        syntax: "for loop、exception、sleep policy",
+        risk: "無限制重試會放大流量，讓故障更嚴重",
+        example: `def delays(base=0.1, attempts=3):
+    return [base * (2 ** i) for i in range(attempts)]
+
+print(delays())`,
+        output: "[0.1, 0.2, 0.4]",
+        steps: [["只重試可恢復錯誤", "4xx validation error 不應重試。"], ["指數退避", "每次等待時間逐步拉長。"], ["設總上限", "限制總時間與次數，避免請求卡死。"]]
+      },
+      {
+        title: "Circuit Breaker：阻止連鎖故障",
+        pattern: "closed / open / half-open",
+        visual: "shield",
+        problem: "下游服務故障時，上游一直打請求會造成等待堆積與連鎖故障。",
+        use: "微服務呼叫、支付通道、第三方 API",
+        syntax: "state machine、counter、time window",
+        risk: "沒有半開探測，服務恢復後仍可能長時間不可用",
+        example: `state = "closed"
+failures = 3
+if failures >= 3:
+    state = "open"
+print(state)`,
+        output: "open",
+        steps: [["累計失敗", "短時間內失敗達門檻就 open。"], ["快速失敗", "open 時不打下游，直接 fallback。"], ["半開探測", "等冷卻後放少量流量測試恢復。"]]
+      },
+      {
+        title: "Structured Logging：讓 log 能查詢",
+        pattern: "JSON-like log context",
+        visual: "log",
+        problem: "純文字 log 很難查同一個 request 的全流程，也難做告警條件。",
+        use: "API、批次任務、背景 worker",
+        syntax: "logging extra、dict context、request_id",
+        risk: "只印錯誤字串，出事時無法知道使用者、訂單或 trace id",
+        example: `import logging
+logging.basicConfig(level=logging.INFO)
+logging.info("order_created", extra={"request_id": "r1"})
+print("logged")`,
+        output: "logged",
+        steps: [["決定關聯 id", "request_id/job_id/order_id 必須貫穿流程。"], ["用結構化欄位", "讓 log aggregation 能查欄位。"], ["避免敏感資料", "不要把 token/password 寫進 log。"]]
+      },
+      {
+        title: "Profiling Hot Path：不要憑感覺優化",
+        pattern: "cProfile / timeit",
+        visual: "profile",
+        problem: "效能問題常被誤判，先重構可能只是在優化不重要的路徑。",
+        use: "慢 API、批次任務、資料轉換",
+        syntax: "cProfile、pstats、timeit",
+        risk: "沒有 baseline，優化前後無法證明改善",
+        example: `import timeit
+cost = timeit.timeit("sum(range(100))", number=1000)
+print(cost > 0)`,
+        output: "True",
+        steps: [["建立 baseline", "先記錄目前耗時、資料量與環境。"], ["找 hot path", "用 profile 看時間花在哪個 function。"], ["小步驗證", "每次只改一個瓶頸並比較數據。"]]
+      },
+      {
+        title: "Memory Leak Triage：找出保留引用",
+        pattern: "tracemalloc",
+        visual: "memory",
+        problem: "服務跑久後記憶體只升不降，通常是全域 cache、closure 或 queue 保留引用。",
+        use: "長跑 worker、API server、資料 pipeline",
+        syntax: "tracemalloc snapshot、gc、weakref",
+        risk: "只重啟服務掩蓋問題，流量變大後仍會爆",
+        example: `items = []
+for i in range(3):
+    items.append({"id": i})
+print(len(items))`,
+        output: "3",
+        steps: [["重現成長", "固定流量與資料量，觀察 memory curve。"], ["比對 snapshot", "找出增加最多的 allocation。"], ["釋放引用", "限制 cache、清 queue、避免全域 list 無限長。"]]
+      },
+      {
+        title: "Plugin Architecture：可插拔匯出格式",
+        pattern: "registry",
+        visual: "plugin",
+        problem: "每新增一種 export 格式都改 if/elif，核心程式越來越難維護。",
+        use: "匯出器、通知 channel、資料來源 adapter",
+        syntax: "decorator、dict registry、callable",
+        risk: "plugin 可以做任何事，需限制介面與錯誤邊界",
+        example: `registry = {}
+def plugin(name):
+    def wrap(func):
+        registry[name] = func
+        return func
+    return wrap
+
+@plugin("json")
+def export_json(data):
+    return "json"
+
+print(registry["json"]({}))`,
+        output: "json",
+        steps: [["定義介面", "每個 plugin 都接收相同參數、回傳相同型別。"], ["註冊實作", "用 decorator 或 entry point 註冊。"], ["隔離失敗", "plugin error 不應拖垮核心流程。"]]
+      },
+      {
+        title: "Data Pipeline Generator：串流處理大檔",
+        pattern: "generator pipeline",
+        visual: "stream",
+        problem: "一次把大檔讀進 list 會爆記憶體，應改成逐筆流動。",
+        use: "CSV、log、ETL、資料清洗",
+        syntax: "yield、generator expression、for pipeline",
+        risk: "中途轉 list 會失去 streaming 優勢",
+        example: `def rows():
+    yield " ada "
+    yield " bob "
+
+clean = (row.strip().title() for row in rows())
+print(list(clean))`,
+        output: "['Ada', 'Bob']",
+        steps: [["逐筆讀", "來源 function 用 yield 產生 row。"], ["逐步轉換", "每個階段只處理一筆。"], ["最後落地", "只在輸出端寫 DB 或檔案。"]]
+      },
+      {
+        title: "Secure Config：設定與 secret 分離",
+        pattern: "environment + config file",
+        visual: "security",
+        problem: "把 token、DB password 寫進程式碼或教材範例，會讓 secret 進入 git history。",
+        use: "API key、DB URL、第三方服務憑證",
+        syntax: "os.environ、dataclass config、validation",
+        risk: "缺少啟動驗證，服務跑到一半才發現設定不存在",
+        example: `import os
+token = os.environ.get("APP_TOKEN", "")
+print("configured" if token else "missing")`,
+        output: "missing",
+        steps: [["分類設定", "非敏感設定可放檔案，secret 走 env 或 secret manager。"], ["啟動驗證", "服務啟動時就檢查必填設定。"], ["避免外洩", "log 中遮蔽 token/password。"]]
+      },
+      {
+        title: "Validation Boundary：外部輸入不可相信",
+        pattern: "DTO validation",
+        visual: "shield",
+        problem: "外部輸入若直接進 domain/service，會把髒資料帶到核心邏輯與資料庫。",
+        use: "HTTP request、CLI args、CSV import",
+        syntax: "dataclass、classmethod factory、ValueError",
+        risk: "在各層重複驗證，規則不一致",
+        example: `from dataclasses import dataclass
+
+@dataclass
+class CreateUser:
+    email: str
+    @classmethod
+    def from_raw(cls, raw):
+        email = raw.strip().lower()
+        if "@" not in email:
+            raise ValueError("email")
+        return cls(email)
+
+print(CreateUser.from_raw(" A@B.COM ").email)`,
+        output: "a@b.com",
+        steps: [["外層正規化", "先 trim、lower、轉型。"], ["邊界驗證", "錯誤輸入擋在 domain 外。"], ["核心假設乾淨", "service 收到的是已驗證 DTO。"]]
+      },
+      {
+        title: "Packaging Native Tool：交付給沒有 Python 的使用者",
+        pattern: "PyInstaller + smoke test",
+        visual: "package",
+        problem: "使用者環境沒有 Python，也不想處理 venv 與 pip install，需要交付執行檔。",
+        use: "內部工具、桌面 CLI、資料處理小程式",
+        syntax: "sys._MEIPASS、subprocess smoke test、asset path",
+        risk: "開發機能跑不代表 dist 能跑，尤其是 assets 與 hidden imports",
+        example: `import sys
+from pathlib import Path
+base = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+print(base.exists())`,
+        output: "True",
+        steps: [["先 onedir", "先選 onedir 方便除錯依賴與檔案。"], ["補 assets", "用 add-data 加入模板、設定預設檔。"], ["smoke test", "在乾淨環境跑 --version 與核心指令。"]]
+      },
+      {
+        title: "CI/CD Quality Gate：阻止壞程式進 main",
+        pattern: "ruff + mypy + pytest",
+        visual: "ci",
+        problem: "只靠人工 review 容易漏格式、型別與回歸錯誤，需要自動 gate。",
+        use: "團隊專案、開源套件、服務部署",
+        syntax: "subprocess commands、exit code、coverage threshold",
+        risk: "CI 太慢會被團隊忽略，太鬆又沒有保護效果",
+        example: `checks = ["ruff", "mypy", "pytest"]
+for check in checks:
+    print(f"run:{check}")`,
+        output: "run:ruff\nrun:mypy\nrun:pytest",
+        steps: [["本機先跑", "pre-commit 或 make check 讓錯誤早發現。"], ["CI 固定 gate", "ruff、mypy、pytest 必須通過才能合併。"], ["保存證據", "coverage、測試報告與 release note 串起來。"]]
+      }
+    ];
+
+    const additionalCaseSeeds = [
+      ["Rate Limited HTTP Client：保護第三方 API", "token bucket", "pool", "第三方 API 有每分鐘請求上限，無限制重試會被封鎖。", "外部 API client、批次同步、資料抓取", "time.monotonic、deque、sleep policy", "只在失敗後重試，沒有主動限流，仍會打爆對方服務"],
+      ["Request Coalescing：合併同 key 查詢", "single-flight", "cache", "同一秒內大量請求查同一個 key，造成 cache miss stampede。", "熱門商品、設定中心、會員資料", "dict inflight、Future、Lock", "每個 request 都打後端，尖峰時後端雪崩"],
+      ["Cache Stampede 防護：過期前刷新", "stale-while-revalidate", "cache", "熱門 cache 同時過期，所有 request 一起打資料庫。", "首頁資料、報表摘要、參考資料", "TTL、background refresh、fallback", "cache 過期瞬間形成流量尖峰"],
+      ["Database Connection Pool：控制連線數", "pool sizing", "pool", "每個請求都開新 DB 連線，延遲與資源消耗快速上升。", "API server、worker、資料服務", "context manager、max connections", "連線數超過 DB 上限導致整站失敗"],
+      ["Read Replica Routing：讀寫分離", "read/write split", "layers", "所有查詢都打主庫，報表讀取拖慢交易寫入。", "報表 API、後台查詢、讀多寫少系統", "repository routing、consistency window", "剛寫入後讀副本可能讀到舊資料"],
+      ["N+1 Query Detector：查詢爆炸偵測", "query counter", "metrics", "列表頁每筆資料再查一次明細，資料量變大後延遲暴增。", "ORM 專案、後台列表、API response 組裝", "counter、context manager、threshold", "測試資料太少時不容易發現 N+1"],
+      ["Schema Migration Gate：資料庫遷移保護", "expand/contract", "transaction", "直接刪欄位或改型別會讓舊程式與新程式不相容。", "持續部署、資料庫 schema 演進", "migration steps、backfill、compat code", "部署順序錯誤會造成 runtime error"],
+      ["Zero Downtime Deploy：雙版本相容", "backward compatibility", "ci", "新舊版本同時存在時，資料格式或 API 不相容會中斷服務。", "滾動部署、Kubernetes、藍綠部署", "feature flag、compatible schema", "只在單機測試通過，線上滾動時失敗"],
+      ["Blue Green Deployment：快速切換版本", "blue/green", "ci", "新版本需要能快速上線與回退，避免長時間維護窗口。", "Web service、API gateway、內部平台", "health check、traffic switch", "只切流量不驗證健康狀態會放大故障"],
+      ["Canary Release：小流量驗證", "canary", "flag", "高風險功能需要先讓少量使用者使用並觀測指標。", "推薦系統、支付流程、搜尋排序", "percentage rollout、metrics guard", "沒有自動停止條件，錯誤會擴散"],
+      ["Graceful Shutdown：安全停止 worker", "signal handling", "cli", "容器或系統停止時，worker 還在處理任務，可能造成半完成資料。", "background worker、queue consumer、批次服務", "signal、Event、drain loop", "直接 kill process 導致任務狀態不一致"],
+      ["Job Lease：避免多 worker 重複處理", "lease lock", "queue", "多個 worker 同時看到同一筆 pending job，可能重複執行。", "任務佇列、排程器、資料修復", "lease_until、compare-and-set", "沒有租約過期機制，worker 掛掉後任務永久卡住"],
+      ["Delayed Job Scheduler：延遲任務", "scheduled queue", "queue", "任務需要未來某個時間才執行，不能只靠 sleep 卡住 worker。", "提醒通知、重試、訂單逾期處理", "run_at、priority queue", "worker 重啟後遺失記憶體內排程"],
+      ["Priority Queue：重要任務先處理", "priority queue", "queue", "所有任務 FIFO 處理，緊急任務被大量低優先任務卡住。", "通知、資料同步、SLA 分級", "heapq、priority tuple", "優先級太多會讓低優先任務飢餓"],
+      ["Poison Message：壞任務隔離", "dead-letter queue", "shield", "同一筆壞資料一直重試，阻塞整個 queue。", "message consumer、ETL、通知服務", "retry_count、DLQ、error reason", "無限重試消耗資源且遮蔽真正問題"],
+      ["Exactly Once Illusion：用冪等達成近似", "at-least-once + idempotency", "event", "分散式系統很難真正 exactly once，應設計可重複處理。", "事件消費、付款 webhook、資料同步", "dedup key、processed table", "誤以為 broker 保證業務 exactly once"],
+      ["Webhook Receiver：簽章驗證與重放防護", "signature verification", "security", "外部 webhook 可能被偽造或重放，不能只看 payload。", "付款、第三方通知、SaaS integration", "HMAC、timestamp、nonce", "未檢查 timestamp 會被重放攻擊"],
+      ["API Pagination：穩定翻頁", "cursor pagination", "stream", "offset pagination 在資料變動時會漏資料或重複資料。", "列表 API、資料同步、後台查詢", "cursor、created_at、id tie-breaker", "只用 offset 在大表會慢且不穩定"],
+      ["Bulk Import Validation：批次匯入回報", "row-level errors", "stream", "CSV 匯入遇到一筆錯誤就全停，使用者不知道哪些列要修。", "後台匯入、資料遷移、ETL", "generator、error collection、report", "一次載入整份檔案造成記憶體壓力"],
+      ["Streaming Upload：大檔上傳", "chunked IO", "stream", "大檔一次讀進記憶體會造成 worker OOM。", "檔案服務、資料匯入、媒體平台", "iter chunks、Path、hash update", "先讀完整檔再處理導致記憶體暴增"],
+      ["Atomic File Write：避免半寫檔案", "write temp then rename", "transaction", "程式寫檔中途崩潰，留下半份 JSON 或設定檔。", "設定保存、cache file、報表輸出", "tempfile、Path.replace", "直接覆寫目標檔造成資料毀損"],
+      ["File Lock：多程序寫同一檔案", "inter-process lock", "shield", "兩個 process 同時寫同一檔，結果交錯或毀損。", "CLI 工具、排程任務、本機資料庫", "lock file、timeout、finally cleanup", "只用 thread Lock 無法保護多程序"],
+      ["Data Dedup Pipeline：去重處理", "set + stable key", "stream", "資料來源重送或重複匯出，導致下游重複計算。", "ETL、事件處理、批次匯入", "hash key、set、idempotency", "使用整列文字當 key，格式微變就失效"],
+      ["Data Quality Contract：資料品質門檻", "schema checks", "shield", "上游資料缺欄或型別變更，pipeline 靜默產生錯誤結果。", "資料平台、報表、機器學習特徵", "contract tests、required columns", "只在程式爆掉時才知道 schema 變了"],
+      ["Time Zone Normalization：時間正規化", "UTC boundary", "transaction", "跨時區資料混用本地時間，報表與排程出現偏差。", "全球服務、排程、付款截止", "datetime timezone、UTC storage", "naive datetime 混入資料庫"],
+      ["Clock Injection：可測試時間邏輯", "clock dependency", "layers", "測試到期、排程、TTL 時如果直接用 now，測試會不穩定。", "快取、訂單逾期、token 到期", "Protocol、DI、FakeClock", "時間依賴散在程式各處難測"],
+      ["Config Precedence：設定優先順序", "env > file > defaults", "security", "設定來源太多，開發、測試、正式環境行為不一致。", "服務啟動、CLI 工具、容器部署", "dataclass config、merge order", "不知道某個設定最後來自哪裡"],
+      ["Secret Rotation：密鑰輪替", "dual key window", "security", "只支援單一 secret，輪替時會造成舊 token 全部失效。", "API token、JWT signing、webhook secret", "key id、active/previous keys", "沒有過渡期導致部署瞬間中斷"],
+      ["RBAC Permission Check：權限模型", "role/action/resource", "shield", "程式散落 if user.is_admin，權限規則難以審計。", "後台、API、企業 SaaS", "policy function、enum、matrix", "權限檢查漏在某個入口"],
+      ["Audit Log：可追溯操作紀錄", "append-only log", "log", "敏感操作沒有 audit trail，事後無法知道誰改了什麼。", "管理後台、權限變更、金流設定", "append event、actor、before/after", "audit log 可被使用者修改或刪除"],
+      ["PII Masking：個資遮蔽", "masking policy", "security", "log、錯誤訊息或報表直接輸出 email、電話、身分證。", "客服工具、log pipeline、資料匯出", "mask function、allowlist fields", "只靠工程師手動記得不要印"],
+      ["Input Size Limit：防止資源耗盡", "guard clause", "shield", "使用者送超大 payload，解析前就耗光記憶體或 CPU。", "API、檔案匯入、搜尋條件", "content length、max rows、early reject", "等完整讀完才驗證大小"],
+      ["Path Traversal 防護：安全檔案讀取", "safe path join", "security", "使用者提供 ../ 路徑讀到系統檔或其他租戶資料。", "下載 API、模板讀取、檔案瀏覽", "Path.resolve、base directory check", "只用字串 replace 過濾路徑"],
+      ["Sandboxed Subprocess：外部命令隔離", "subprocess boundary", "shield", "Python 需要呼叫外部工具，但命令與參數若未隔離會有安全風險。", "轉檔、壓縮、系統工具", "subprocess.run list args、timeout", "shell=True 拼接使用者輸入"],
+      ["Subprocess Timeout：避免命令卡死", "timeout + capture", "cli", "外部命令可能永遠不返回，worker 被卡住。", "打包、轉檔、CI helper、資料處理", "subprocess.run(timeout=)", "沒有 timeout 與 stderr 保存，難排錯"],
+      ["Plugin Failure Isolation：插件錯誤隔離", "plugin boundary", "plugin", "第三方插件出錯不應拖垮核心流程。", "匯出器、通知、資料 connector", "try/except boundary、result object", "插件直接改核心狀態造成不可預期副作用"],
+      ["Command Bus：統一 use case 調度", "command handler", "layers", "入口越來越多，service 呼叫分散且難以加 tracing/transaction。", "DDD、後台任務、API/CLI 共用", "dataclass command、handler map", "過度抽象讓簡單專案變難懂"],
+      ["Event Sourcing Snapshot：事件快照", "snapshotting", "event", "事件累積太多，重建 aggregate 狀態變慢。", "帳務、審批、狀態機", "event list、snapshot version", "snapshot 與事件版本不一致"],
+      ["State Machine：流程狀態轉移", "finite state machine", "shield", "訂單、審批、任務狀態用散落 if 判斷，非法轉移很難防。", "訂單、工單、審核流程", "transition table、enum", "直接改 status 字串繞過規則"],
+      ["Saga Compensation：跨服務補償", "saga", "event", "跨服務流程無法用單一 DB transaction，需要補償動作。", "訂單付款庫存、旅遊預訂", "steps、compensating actions", "只做正向流程，失敗時無法回復"],
+      ["Distributed Lock：分散式鎖取捨", "lease + fencing token", "shield", "多個節點同時跑排程，可能重複執行全域任務。", "排程器、資料修復、唯一 worker", "lease、fencing token、expiry", "鎖過期後舊 worker 還繼續寫資料"],
+      ["Leader Election：選主執行任務", "leader lease", "flag", "多副本部署時，只希望一個 instance 執行管理任務。", "scheduler、cache warmer、outbox dispatcher", "lease renew、heartbeat", "leader 掛掉後沒有快速接手"],
+      ["Queue Lag Monitor：佇列延遲監控", "lag metric", "metrics", "queue 長度正常但最舊任務已等待太久，使用者感覺延遲。", "背景任務、通知、資料同步", "oldest age、histogram", "只看 queue size 不看等待時間"],
+      ["Adaptive Batch Size：動態批次大小", "adaptive batching", "metrics", "批次太小吞吐低，太大又造成 timeout 或記憶體壓力。", "ETL、bulk API、DB 寫入", "feedback loop、latency target", "固定 batch size 無法適應資料量"],
+      ["Backfill Job：歷史資料補齊", "checkpoint + id range", "cli", "補歷史資料可能跑很久，中斷後要能安全接續。", "資料修復、schema backfill、指標重算", "checkpoint、dry-run、idempotent write", "沒有 checkpoint 導致重跑成本高"],
+      ["Dry Run Mode：危險操作預演", "plan then apply", "cli", "批次刪改資料前需要先看影響範圍。", "資料修復、權限批次、清理任務", "dry_run flag、diff report", "直接 apply 沒有可審核計畫"],
+      ["Migration Rollback Plan：遷移回復", "rollback strategy", "transaction", "資料遷移失敗後若沒有回復策略，會卡在半更新狀態。", "資料庫遷移、批次重算、格式轉換", "backup、reverse migration、validation", "只寫 forward migration"],
+      ["Contract Test：服務契約測試", "consumer contract", "shield", "上游 API 改欄位，下游部署後才爆。", "微服務、第三方 API、SDK", "sample payload、schema validation", "只測 happy path，不測契約變更"],
+      ["Golden Master Test：重構保護", "approval test", "test", "重構舊系統時不知道哪些輸出不能變。", "legacy code、報表、格式化輸出", "snapshot file、diff review", "snapshot 太大導致 review 失焦"],
+      ["Property-Based Test：找邊界錯誤", "generated cases", "test", "手寫測試只覆蓋想到的案例，很多邊界沒被碰到。", "parser、金額計算、資料轉換", "invariant、random input", "生成資料不符合真實 domain"],
+      ["Mutation Testing：測試品質檢查", "mutant kill rate", "test", "coverage 很高不代表 assertion 有效。", "核心規則、計算模組、安全邏輯", "mutate operator、test fail", "只追 line coverage 造成假安全感"],
+      ["Fuzzing Parser：解析器防禦", "fuzz input", "shield", "自製 parser 遇到奇怪輸入可能 crash 或耗時過久。", "檔案格式、協定、CLI parser", "random bytes、timeout", "未限制輸入大小與解析時間"],
+      ["Snapshot API Response：回應格式保護", "response snapshot", "test", "API response 欄位被無意改掉，前端或外部客戶壞掉。", "Public API、BFF、SDK", "snapshot、schema、compat policy", "snapshot 沒有版本策略"],
+      ["OpenTelemetry Trace：跨服務追蹤", "trace context", "log", "單服務 log 無法看出跨服務請求在哪裡慢或失敗。", "微服務、API gateway、worker", "trace_id、span、context propagation", "背景任務遺失 trace context"],
+      ["Error Budget：以可靠性做取捨", "SLO budget", "metrics", "團隊只追功能速度，忽略錯誤率與延遲退化。", "SRE、平台服務、核心 API", "SLI、SLO、burn rate", "告警太多但無法指向行動"],
+      ["Alert Dedup：告警去重", "dedup key", "metrics", "同一個故障觸發數百封告警，值班者無法判斷主因。", "監控系統、排程任務、API", "fingerprint、grouping、cooldown", "每個錯誤都直接通知"],
+      ["Runbook Automation：故障手冊自動化", "runbook command", "cli", "故障處理只靠資深工程師記憶，新人值班難以操作。", "值班、平台工具、內部 CLI", "argparse、safe command、confirmation", "自動化命令沒有防呆與審計"],
+      ["Feature Toggle Debt：旗標債清理", "flag lifecycle", "flag", "功能旗標上線後沒移除，程式分支越來越難懂。", "灰度發布、A/B test、產品實驗", "owner、expiry、cleanup check", "flag 永久存在造成測試矩陣爆炸"],
+      ["Multi-Tenant Isolation：租戶隔離", "tenant scope", "shield", "查詢忘記 tenant_id，可能看到其他客戶資料。", "SaaS、後台、資料平台", "tenant context、repository guard", "只在 UI 過濾，後端查詢未隔離"],
+      ["Per-Tenant Rate Limit：租戶限流", "quota bucket", "pool", "單一大客戶流量可能壓垮整體服務。", "SaaS API、內部平台、多租戶 worker", "bucket per tenant、429 response", "全域限流無法保護小租戶"],
+      ["API Versioning：版本相容策略", "v1/v2 contract", "layers", "直接修改 API 欄位會破壞既有客戶端。", "Public API、mobile backend、SDK", "version route、deprecation header", "沒有 sunset policy，舊版無限維護"],
+      ["Backward Compatible DTO：資料轉換相容", "adapter DTO", "layers", "內部 model 演進後，外部 response 仍要維持相容。", "API、事件、SDK", "adapter、serializer、field default", "直接暴露 domain model 給外部"],
+      ["Search Index Sync：索引同步", "outbox to index", "event", "DB 更新後搜尋索引沒有同步，使用者查不到新資料。", "搜尋服務、商品、文件平台", "outbox、reindex job、version", "同步失敗沒有補償與重建策略"],
+      ["Reconciliation Job：對帳修復", "reconcile loop", "retry", "兩套系統狀態可能因網路或 bug 不一致，需要定期對帳。", "付款、庫存、外部同步", "compare source of truth、repair command", "只靠即時事件不做對帳"],
+      ["Data Retention：資料保留政策", "retention job", "cli", "資料無限保存增加成本與合規風險。", "log、audit、使用者資料、報表", "cutoff date、archive、delete", "刪除前沒有 dry-run 與備份"],
+      ["GDPR Delete Workflow：個資刪除流程", "privacy workflow", "security", "使用者要求刪除資料時，資料可能散在多個表與外部系統。", "SaaS、會員系統、客服平台", "tombstone、async deletion、audit", "刪主表但忘了備份或搜尋索引"],
+      ["Encryption at Rest：敏感欄位加密", "field encryption", "security", "資料庫外洩時，敏感欄位不應直接可讀。", "個資、token、金流資訊", "key management、encrypt/decrypt boundary", "把加密 key 跟資料放同一處"],
+      ["Safe Deserialization：反序列化防護", "safe loader", "security", "不可信資料用危險反序列化可能執行任意程式。", "設定檔、任務 payload、外部資料", "json、safe yaml、schema check", "pickle 載入不可信輸入"],
+      ["Dependency Vulnerability Gate：依賴風險", "dependency scan", "ci", "套件漏洞未被發現就進入生產環境。", "CI/CD、套件化專案、內部服務", "pip-audit、lockfile、upgrade policy", "依賴版本不固定，難以重現"],
+      ["Reproducible Build：可重現建置", "lockfile build", "package", "同一份程式在不同機器裝到不同依賴版本，結果不一致。", "CLI、服務、Docker、PyInstaller", "lockfile、hash、build metadata", "只保存 requirements 範圍而非鎖定版本"],
+      ["Docker Layer Cache：加速映像建置", "layer ordering", "package", "Docker build 每次都重新安裝依賴，CI 變慢。", "容器化 Python 服務", "COPY order、cache mount、wheel", "先 COPY 全部程式導致依賴層失效"],
+      ["Gunicorn Worker Tuning：Web worker 調校", "worker model", "pool", "worker 數太少吞吐低，太多又吃光記憶體。", "WSGI/ASGI 服務、API 部署", "worker count、threads、timeout", "照抄公式不看實際 memory 與 latency"],
+      ["ASGI Background Task：回應後處理", "background task", "async", "非關鍵工作不應拖慢 request，但仍需可靠與可觀測。", "寄信、記錄行為、輕量同步", "task queue、context capture", "背景任務失敗沒 log，使用者以為成功"],
+      ["WebSocket Heartbeat：連線保活", "heartbeat", "async", "長連線中斷後雙方可能不知道，資源一直佔用。", "WebSocket、內部控制台、即時通知", "ping/pong、timeout、disconnect cleanup", "沒有心跳導致殭屍連線累積"],
+      ["Streaming Response：逐步回傳結果", "iterator response", "stream", "大型結果一次組完再回傳，使用者等待久且記憶體高。", "報表下載、log tail、AI token stream", "generator、chunk、flush", "錯誤處理與中途斷線未設計"],
+      ["Large JSON Encoding：大回應序列化", "streaming JSON", "stream", "一次 json.dumps 大型資料會卡住 event loop 或吃光記憶體。", "資料 API、匯出、後台查詢", "iterencode、pagination、compression", "把所有 rows 先放 list"],
+      ["Compression Tradeoff：壓縮取捨", "cpu vs bandwidth", "profile", "壓縮可省頻寬，但 CPU 成本可能拖慢服務。", "API response、檔案下載、log 傳輸", "gzip level、benchmark", "所有 response 都用最高壓縮等級"],
+      ["Image Processing Pipeline：圖片處理", "process pipeline", "process", "圖片縮圖與壓縮是 CPU-bound，放在 web request 裡會拖慢回應。", "媒體平台、商品圖、文件預覽", "ProcessPool、queue、artifact path", "在 request thread 直接處理大圖"],
+      ["ML Batch Inference：批次推論", "batch inference", "pool", "逐筆呼叫模型吞吐低，但批次太大延遲高。", "推薦、分類、內部 ML 服務", "batch window、timeout、fallback", "只追吞吐不看單筆延遲"],
+      ["Vector Search Refresh：向量索引更新", "index rebuild", "event", "文件更新後向量索引未同步，搜尋結果不一致。", "RAG、文件搜尋、推薦", "embedding job、versioned index", "新舊 index 切換沒有回退策略"],
+      ["LLM Prompt Gateway：提示詞閘道", "prompt boundary", "shield", "業務程式到處拼 prompt，安全與版本不可控。", "AI 應用、客服、摘要工具", "template registry、version、guardrails", "prompt 與 secret 混在程式碼"],
+      ["Cost Guardrail：成本防護", "budget limit", "metrics", "外部 API 或 LLM 成本可能因 bug 暴增。", "AI、簡訊、第三方 API", "quota、counter、circuit breaker", "沒有 per-tenant 或 per-job 成本上限"],
+      ["Result Caching for Expensive Calls：昂貴呼叫快取", "semantic cache", "cache", "相同昂貴查詢重複計算，浪費成本與延遲。", "LLM、報表、搜尋、外部 API", "cache key、TTL、invalidations", "cache key 不含版本導致舊結果污染"],
+      ["Schema Registry：事件版本管理", "event schema registry", "event", "事件 payload 被改掉，下游 consumer 部署後才爆。", "事件驅動、資料平台、微服務", "schema version、compat check", "事件沒有版本與相容性測試"],
+      ["Consumer Lag Backpressure：消費延遲回壓", "consumer lag", "queue", "consumer 跟不上 producer，延遲逐步擴大。", "Kafka/queue、資料同步、事件處理", "lag metric、pause producer、scale consumer", "只加 consumer 不看瓶頸來源"],
+      ["Message Ordering：訊息順序保證", "partition key", "event", "同一訂單事件順序錯亂，狀態被舊事件覆蓋。", "訂單、帳務、狀態同步", "partition key、sequence number", "全域有序成本太高且不必要"],
+      ["Replay Tool：事件重放工具", "replay command", "cli", "修 bug 後需要重放歷史事件，但不能重複造成副作用。", "事件系統、資料修復、投影重建", "checkpoint、dry-run、idempotent handler", "重放直接打外部副作用系統"],
+      ["Read Model Rebuild：投影重建", "projection rebuild", "event", "查詢模型壞掉後，需要從事件或來源資料重建。", "CQRS、搜尋索引、報表表", "versioned projection、swap table", "直接覆寫線上 read model 造成中斷"],
+      ["Shadow Traffic：影子流量驗證", "shadow mode", "flag", "新服務要用真流量驗證，但不能影響使用者。", "重構服務、推薦模型、搜尋排序", "duplicate request、compare result", "影子請求仍產生寫入副作用"],
+      ["Dark Launch：功能暗啟動", "dark launch", "flag", "先部署功能但不對使用者開放，用來驗證效能與相依性。", "大型功能、重構、平台遷移", "flag off、background validation", "暗啟動路徑沒有監控"],
+      ["Kill Switch：緊急關閉開關", "global disable", "shield", "故障發生時需要立即關閉某功能，不等重新部署。", "支付、推薦、第三方 API", "config flag、fast reload", "kill switch 本身沒有測試過"],
+      ["Progressive Enhancement CLI：CLI 使用者體驗", "human friendly CLI", "cli", "內部工具只給堆疊錯誤，使用者不知道下一步。", "平台工具、資料修復、打包工具", "argparse help、exit code、stderr", "所有錯誤都直接印 traceback"],
+      ["Typed Error Model：錯誤分類", "domain exceptions", "shield", "所有錯誤都 ValueError 或 Exception，邊界無法轉成正確回應。", "API、CLI、service layer", "custom exception、error code", "錯誤訊息被當作程式判斷依據"],
+      ["Result Object：不用例外表達預期失敗", "Result type", "layers", "可預期失敗大量用 exception，控制流難讀且難批次處理。", "validation、批次匯入、domain rule", "dataclass Result、ok/error", "真正 bug 被包成普通錯誤吞掉"],
+      ["Domain Event Testing：領域事件測試", "event assertions", "test", "只測資料狀態，沒測應該發出的事件。", "DDD、Outbox、通知流程", "assert events、fake bus", "事件漏發但單元測試仍通過"],
+      ["Observability Correlation：log/metric/trace 關聯", "correlation id", "log", "log、metric、trace 分散，事故時無法串回同一請求。", "平台服務、微服務、背景任務", "correlation_id、contextvars", "thread/async 切換後 context 遺失"],
+      ["ContextVars：async 上下文傳遞", "contextvars", "async", "async task 之間需要保留 request_id，但全域變數會互相污染。", "ASGI、背景 task、logging", "ContextVar、middleware", "使用 module global 保存 request 狀態"],
+      ["Thread Local Pitfall：thread local 陷阱", "thread local", "thread", "thread local 在 async 或 worker reuse 情境容易留下舊狀態。", "Web server、背景 worker、SDK", "threading.local、cleanup", "request 結束未清理造成資料串租戶"],
+      ["Pydantic-like Boundary Without Dependency：手寫 DTO 邊界", "manual DTO", "shield", "不想引入外部依賴時，也要有清楚的輸入轉換與驗證邊界。", "CLI、內部工具、輕量 API", "dataclass、classmethod、ValueError", "直接把 raw dict 傳進核心邏輯"],
+      ["Package Public API：套件公開介面", "__all__ policy", "package", "內部 module 被外部直接 import，重構時破壞使用者。", "Python library、內部 SDK、平台工具", "__all__、facade module、deprecation", "沒有區分 public/private API"],
+      ["Deprecation Warning：淘汰策略", "warnings.warn", "package", "舊 API 要移除時，如果沒有警告期會直接破壞使用者。", "SDK、內部 library、CLI 指令", "DeprecationWarning、version policy", "警告太吵或沒有替代方案"],
+      ["Semantic Versioning：版本治理", "semver", "package", "版本號亂跳，使用者不知道升級風險。", "套件、SDK、CLI 工具", "major/minor/patch、changelog", "breaking change 放在 patch release"],
+      ["Release Artifact Verification：交付物驗證", "checksum + smoke test", "package", "打包成功不代表產物正確，下載後可能損毀或缺檔。", "PyInstaller、wheel、Docker image", "checksum、signature、smoke command", "只看 build success 不跑產物"],
+      ["Wheel Packaging：Python 套件交付", "build wheel", "package", "內部 library 用原始碼散裝分享，安裝與版本不可控。", "SDK、共用工具、內部套件", "pyproject.toml、wheel、twine", "沒有測試 wheel 安裝後是否可 import"],
+      ["Editable Install Workflow：開發安裝流程", "pip install -e", "package", "開發者直接改 PYTHONPATH，環境不可重現。", "library 開發、monorepo、教學專案", "editable install、extras dev", "本機能跑但 CI 找不到 package"],
+      ["Monorepo Import Boundary：單倉庫邊界", "workspace packages", "layers", "monorepo 裡不同 package 互相亂 import，邊界失效。", "平台團隊、多服務共倉、內部 SDK", "import rules、package ownership", "跨層 import 造成循環依賴"],
+      ["Circular Import Refactor：循環 import 拆解", "dependency inversion", "layers", "module A import B、B 又 import A，啟動時爆錯。", "大型 Python 專案、service/domain 拆層", "Protocol、interface module、late import", "用到處 late import 掩蓋架構問題"]
+    ];
+
+    function generatedAcceptance(visual, pattern, risk) {
+      const plans = {
+        security: `用惡意輸入、權限不足、secret 遮蔽與 audit log 四組測試證明：${risk} 已被擋在邊界外。`,
+        shield: `用重複請求、非法狀態、例外路徑與回復流程驗證：${risk} 不會變成資料破壞。`,
+        queue: `建立 producer/consumer 壓力測試，驗證 queue lag、retry count、DLQ 與重跑後結果一致。`,
+        event: `用事件重送、順序錯亂、重放與 idempotency key 測試，確認 ${pattern} 在故障後可補償。`,
+        package: `在乾淨環境執行安裝或 dist smoke test，驗證 import、assets、版本與核心指令可重現。`,
+        ci: `CI 必須跑 lint、type check、unit/integration test 與產物檢查，任何 gate 失敗不得合併。`,
+        metrics: `先定義 SLI，再用假資料或壓測觸發告警，確認 dashboard 能看出 ${pattern} 是否退化。`,
+        log: `用 request_id/job_id 串起 log、metric、trace，演練一次事故查詢可定位到失敗步驟。`,
+        pool: `用併發上限、超時、rate limit 與資源耗用曲線驗證吞吐提升但不壓垮下游。`,
+        stream: `用大檔、壞列、斷點續跑與記憶體曲線驗證 pipeline 不會一次載入全部資料。`
+      };
+      return plans[visual] || `用單元測試、失敗路徑、觀測訊號與可重跑流程證明：${risk} 已被控制。`;
+    }
+
+    function generatedTradeoff(visual, pattern) {
+      const tradeoffs = {
+        security: `${pattern} 會增加邊界程式碼與審計成本，但能把風險集中在少數可 review 的入口。`,
+        shield: `${pattern} 讓狀態更可控，但需要明確定義哪些錯誤可恢復、哪些應立即失敗。`,
+        queue: `${pattern} 提升解耦與削峰能力，但引入延遲、重試、重複處理與監控成本。`,
+        event: `${pattern} 適合跨服務一致性，但要接受 eventual consistency 與補償流程。`,
+        package: `${pattern} 降低使用者安裝門檻，但增加平台差異、hidden imports 與產物驗證成本。`,
+        ci: `${pattern} 可阻止壞程式進 main，但 gate 太慢會降低開發節奏，需要分層設計。`,
+        metrics: `${pattern} 讓決策有數據依據，但指標過多會稀釋注意力，應先綁定 SLO。`,
+        log: `${pattern} 提升事故追蹤能力，但必須避免個資與 secret 外洩。`,
+        pool: `${pattern} 提高吞吐，但上限設錯會造成飢餓、排隊或下游過載。`,
+        stream: `${pattern} 降低記憶體壓力，但 debug 需要保存 checkpoint 與 row-level error。`
+      };
+      return tradeoffs[visual] || `${pattern} 能讓設計更明確，但會增加抽象層，需用測試與文件抵消理解成本。`;
+    }
+
+    function generatedExample(visual, offset, pattern, risk) {
+      const safePattern = pattern.replaceAll('"', '\\"');
+      const safeRisk = risk.replaceAll('"', '\\"');
+      if (visual === "security" || visual === "shield") {
+        return `def validate(raw):
+    value = raw.strip()
+    if not value or ".." in value:
+        raise ValueError("blocked")
+    return value
+
+print(validate("case-${offset}"))`;
+      }
+      if (visual === "queue" || visual === "event") {
+        return `from queue import Queue
+
+jobs = Queue(maxsize=2)
+jobs.put({"case": ${offset}, "pattern": "${safePattern}"})
+job = jobs.get()
+print(f"process:{job['case']}")`;
+      }
+      if (visual === "package" || visual === "ci" || visual === "cli") {
+        return `checks = ["build", "smoke", "release-note"]
+for check in checks:
+    print(f"case-${offset}:{check}")`;
+      }
+      if (visual === "metrics" || visual === "profile" || visual === "memory" || visual === "log") {
+        return `signals = {"case": ${offset}, "latency_ms": 42, "risk": "${safeRisk}"}
+print(f"metric:{signals['case']}:{signals['latency_ms']}ms")`;
+      }
+      return `case_info = {
+    "id": ${offset},
+    "pattern": "${safePattern}",
+    "risk": "${safeRisk}"
+}
+
+def summarize(case):
+    return f"{case['id']}: {case['pattern']}"
+
+print(summarize(case_info))`;
+    }
+
+    function generatedOutput(visual, offset, pattern) {
+      if (visual === "security" || visual === "shield") return `case-${offset}`;
+      if (visual === "queue" || visual === "event") return `process:${offset}`;
+      if (visual === "package" || visual === "ci" || visual === "cli") return `case-${offset}:build\ncase-${offset}:smoke\ncase-${offset}:release-note`;
+      if (visual === "metrics" || visual === "profile" || visual === "memory" || visual === "log") return `metric:${offset}:42ms`;
+      return `${offset}: ${pattern}`;
+    }
+
+    function makeGeneratedCase(seed, offset) {
+      const [title, pattern, visual, problem, use, syntax, risk] = seed;
+      const acceptance = generatedAcceptance(visual, pattern, risk);
+      const tradeoff = generatedTradeoff(visual, pattern);
+      return {
+        title,
+        pattern,
+        visual,
+        problem,
+        use,
+        syntax,
+        risk,
+        acceptance,
+        tradeoff,
+        alternatives: `可替代為較簡單的 guard clause、排程批次或人工 runbook；若流量、風險或團隊規模尚小，先保留簡單設計也合理。`,
+        failureModes: [`${risk}`, "缺少 rollback 或重跑策略", "沒有 metric/log，事故時只剩猜測"],
+        validationPlan: ["補 happy path 與 failure path test", "建立 smoke command 或 replay command", "用 log/metric 證明異常可被發現"],
+        productionChecklist: ["定義 owner 與告警門檻", "確認部署、回復與資料修復流程", "把取捨寫入 README 或 ADR"],
+        example: generatedExample(visual, offset, pattern, risk),
+        output: generatedOutput(visual, offset, pattern),
+        steps: [
+          ["辨識問題", problem],
+          ["選擇模式", `使用 ${pattern}，並把技術焦點放在 ${syntax}；同時先確認這個抽象真的能降低事故成本。`],
+          ["驗收證據", acceptance]
+        ]
+      };
+    }
+
+    cases.push(...additionalCaseSeeds.slice(0, 80).map((seed, index) => makeGeneratedCase(seed, index + 21)));
+
+    const caseGroups = [
+      { id: "architecture", title: "Architecture：邊界、分層與演進", range: "1-10", focus: "把框架、domain、service、repository、事件與交易邊界畫清楚。", tags: ["Clean Architecture", "UoW", "Outbox"], caseNumbers: [1, 2, 15, 56, 57, 58, 59, 60, 81, 82] },
+      { id: "data", title: "Data：資料一致性與資料流", range: "11-20", focus: "處理 cache、streaming、validation、schema migration 與資料品質。", tags: ["Cache", "Stream", "Migration"], caseNumbers: [16, 24, 25, 26, 27, 38, 39, 40, 41, 43] },
+      { id: "concurrency", title: "Concurrency：thread、async、process 與回壓", range: "21-30", focus: "判斷 I/O-bound、CPU-bound、queue、rate limit 與 worker pool。", tags: ["asyncio", "Queue", "ProcessPool"], caseNumbers: [5, 6, 7, 8, 21, 22, 31, 32, 33, 34] },
+      { id: "reliability", title: "Reliability：重試、冪等與故障隔離", range: "31-40", focus: "讓服務在部分失敗下可恢復、可補償、可重跑。", tags: ["Retry", "Idempotency", "DLQ"], caseNumbers: [3, 4, 10, 11, 35, 36, 61, 62, 83, 84] },
+      { id: "performance", title: "Performance：profile、記憶體與吞吐", range: "41-50", focus: "用量測找到 hot path，控制資源與批次吞吐。", tags: ["Profiling", "Memory", "Batch"], caseNumbers: [9, 13, 14, 23, 42, 64, 65, 92, 96, 97] },
+      { id: "security", title: "Security：輸入、secret、權限與稽核", range: "51-60", focus: "把安全規則放在清楚邊界，讓操作可追蹤、可審計。", tags: ["Validation", "RBAC", "Audit"], caseNumbers: [17, 18, 37, 47, 48, 49, 50, 51, 52, 53] },
+      { id: "testing", title: "Testing：契約、性質與回歸防線", range: "61-70", focus: "不只追 coverage，而是讓測試能防住重要行為退化。", tags: ["Contract", "Golden Master", "Mutation"], caseNumbers: [20, 44, 46, 66, 67, 68, 69, 70, 71, 72] },
+      { id: "observability", title: "Observability：log、metric、trace 與值班", range: "71-80", focus: "事故發生時能快速定位、分級、去重與自動化處理。", tags: ["Trace", "SLO", "Runbook"], caseNumbers: [12, 63, 73, 74, 75, 76, 77, 78, 93, 94] },
+      { id: "packaging", title: "Packaging：打包、版本與交付驗證", range: "81-90", focus: "讓 wheel、PyInstaller、CLI、CI 產物在乾淨環境可重現。", tags: ["PyInstaller", "Wheel", "CI"], caseNumbers: [19, 28, 29, 30, 54, 55, 89, 90, 91, 95] },
+      { id: "platform", title: "Platform：平台化、相容與長期治理", range: "91-100", focus: "處理多租戶、API versioning、monorepo、循環 import 與 deprecation。", tags: ["Multi-tenant", "Versioning", "Boundary"], caseNumbers: [45, 79, 80, 85, 86, 87, 88, 98, 99, 100] }
+    ];
+
+    function escapeHtml(value) {
+      return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function visualSvg(type, title) {
+      const colors = {
+        layers: ["#e7f0fb", "#2f6fbb"], transaction: ["#e6f5ef", "#2d8a69"], event: ["#fff4cf", "#c79a14"], shield: ["#fae8e8", "#c34848"],
+        async: ["#eee9f8", "#7257a8"], pool: ["#e7f0fb", "#2f6fbb"], queue: ["#e6f5ef", "#2d8a69"], process: ["#fff4cf", "#c79a14"],
+        cache: ["#e7f0fb", "#2f6fbb"], retry: ["#eee9f8", "#7257a8"], log: ["#e6f5ef", "#2d8a69"], metrics: ["#fff4cf", "#c79a14"],
+        profile: ["#fae8e8", "#c34848"], memory: ["#eee9f8", "#7257a8"], plugin: ["#e7f0fb", "#2f6fbb"], stream: ["#e6f5ef", "#2d8a69"],
+        security: ["#fae8e8", "#c34848"], flag: ["#fff4cf", "#c79a14"], cli: ["#e7f0fb", "#2f6fbb"], package: ["#fae8e8", "#c34848"], ci: ["#e6f5ef", "#2d8a69"]
+      };
+      const [soft, stroke] = colors[type] || colors.layers;
+      const arrow = `<marker id="arrow-${type}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="${stroke}"/></marker>`;
+      const shapes = {
+        layers: `<rect x="50" y="34" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="50" y="78" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="50" y="122" width="190" height="32" rx="7" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="145" y="56" text-anchor="middle">API</text><text x="145" y="100" text-anchor="middle">Service</text><text x="145" y="144" text-anchor="middle">Repo</text>`,
+        transaction: `<rect x="55" y="48" width="180" height="82" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="145" y="82" text-anchor="middle">begin</text><path d="M80 102h130" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="145" y="124" text-anchor="middle">commit / rollback</text>`,
+        event: `<circle cx="75" cy="90" r="26" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M105 90h72" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><rect x="184" y="62" width="78" height="56" rx="9" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="75" y="96" text-anchor="middle">DB</text><text x="223" y="96" text-anchor="middle">Outbox</text>`,
+        shield: `<path d="M145 35l90 34v45c0 48-42 70-90 88-48-18-90-40-90-88V69z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="145" y="100" text-anchor="middle">guard</text><text x="145" y="128" text-anchor="middle">idempotent</text>`,
+        async: `<rect x="40" y="65" width="62" height="44" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M105 87c48-58 80 58 130 0" fill="none" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="70" y="94" text-anchor="middle">task</text><text x="164" y="62" text-anchor="middle">await</text><rect x="240" y="65" width="34" height="44" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/>`,
+        pool: `<rect x="38" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="122" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="206" y="50" width="70" height="72" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="73" y="91" text-anchor="middle">1</text><text x="157" y="91" text-anchor="middle">2</text><text x="241" y="91" text-anchor="middle">N</text>`,
+        queue: `<circle cx="62" cy="90" r="22" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="112" y="60" width="78" height="60" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="240" cy="90" r="22" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M84 90h26M190 90h26" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="151" y="96" text-anchor="middle">Queue</text>`,
+        process: `<rect x="44" y="50" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="178" y="50" width="82" height="78" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="85" y="95" text-anchor="middle">P1</text><text x="219" y="95" text-anchor="middle">P2</text><text x="152" y="148" text-anchor="middle">multi-core</text>`,
+        cache: `<rect x="58" y="52" width="190" height="90" rx="12" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="153" y="87" text-anchor="middle">key -> value</text><text x="153" y="118" text-anchor="middle">expires</text>`,
+        retry: `<path d="M90 60a55 55 0 1 1-16 39" fill="none" stroke="${stroke}" stroke-width="7" marker-end="url(#arrow-${type})"/><text x="150" y="105" text-anchor="middle">backoff</text>`,
+        log: `<rect x="54" y="42" width="196" height="104" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="152" y="78" text-anchor="middle">{ request_id }</text><text x="152" y="112" text-anchor="middle">{ event }</text>`,
+        metrics: `<path d="M58 132V55M58 132h190" stroke="${stroke}" stroke-width="4"/><rect x="84" y="92" width="30" height="40" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="134" y="72" width="30" height="60" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="184" y="48" width="30" height="84" fill="#fff" stroke="${stroke}" stroke-width="3"/>`,
+        profile: `<path d="M46 130h220" stroke="${stroke}" stroke-width="4"/><path d="M64 125c45-110 72 20 105-35 35-60 52 25 84-34" fill="none" stroke="${stroke}" stroke-width="5"/><text x="150" y="152" text-anchor="middle">hot path</text>`,
+        memory: `<rect x="54" y="42" width="190" height="104" rx="10" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M80 118h140M80 92h100M80 66h60" stroke="${stroke}" stroke-width="5"/><text x="150" y="148" text-anchor="middle">retained refs</text>`,
+        plugin: `<rect x="54" y="64" width="70" height="54" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="180" y="42" width="70" height="40" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="180" y="104" width="70" height="40" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M124 91h46M170 91v-29M170 91v33" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="89" y="97" text-anchor="middle">core</text>`,
+        stream: `<circle cx="55" cy="90" r="19" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="127" cy="90" r="19" fill="#fff" stroke="${stroke}" stroke-width="3"/><circle cx="199" cy="90" r="19" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M76 90h28M148 90h28M220 90h38" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/>`,
+        security: `<path d="M90 62h120v86H90z" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M112 62V46a38 38 0 0 1 76 0v16" fill="none" stroke="${stroke}" stroke-width="3"/><text x="150" y="114" text-anchor="middle">secret</text>`,
+        flag: `<path d="M82 148V42M82 48h130l-18 34 18 34H82" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="143" y="89" text-anchor="middle">flag</text>`,
+        cli: `<rect x="50" y="50" width="210" height="100" rx="10" fill="#172033" stroke="${stroke}" stroke-width="3"/><text x="155" y="92" text-anchor="middle" fill="#fff">$ run batch</text><text x="155" y="122" text-anchor="middle" fill="#fff">checkpoint</text>`,
+        package: `<path d="M54 50h80l18 24h110v82H54z" fill="#fff" stroke="${stroke}" stroke-width="3"/><text x="158" y="100" text-anchor="middle">dist/</text><text x="158" y="128" text-anchor="middle">exe</text>`,
+        ci: `<rect x="50" y="44" width="80" height="58" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><rect x="180" y="44" width="80" height="58" rx="8" fill="#fff" stroke="${stroke}" stroke-width="3"/><path d="M130 73h42" stroke="${stroke}" stroke-width="3" marker-end="url(#arrow-${type})"/><text x="90" y="79" text-anchor="middle">PR</text><text x="220" y="79" text-anchor="middle">Gate</text><text x="155" y="140" text-anchor="middle">ruff / mypy / test</text>`
+      };
+      return `<svg viewBox="0 0 310 180" role="img" aria-label="${escapeHtml(title)} 概念圖"><defs>${arrow}</defs><rect x="6" y="10" width="298" height="160" rx="14" fill="${soft}" stroke="#d8e2ec"/><g font-family="system-ui, sans-serif" font-size="15" font-weight="900" fill="#172033">${shapes[type] || shapes.layers}</g></svg>`;
+    }
+
+    function fieldAcceptance(item) {
+      return item.acceptance || `以單元測試、失敗路徑、觀測訊號與可重跑流程證明：${item.risk} 已被控制。`;
+    }
+
+    function fieldTradeoff(item) {
+      return item.tradeoff || `${item.pattern} 讓邊界與責任更清楚，但會增加抽象層；適合有測試、維運與多人協作需求的專案。`;
+    }
+
+    function fieldAlternatives(item) {
+      return item.alternatives || `小型專案可先用直接函式、清楚命名與少量 guard clause；當重複、風險或部署頻率上升，再導入 ${item.pattern}。`;
+    }
+
+    function fieldFailureModes(item) {
+      return item.failureModes || [item.risk, "測試只覆蓋 happy path，失敗時無法回復", "缺少 log/metric，事故時無法定位責任邊界"];
+    }
+
+    function fieldValidationPlan(item) {
+      return item.validationPlan || ["用 fake dependency 做 unit test", "加入 failure path 與 rollback/retry 測試", "補一個 smoke command 或觀測查詢作為交付證據"];
+    }
+
+    function fieldProductionChecklist(item) {
+      return item.productionChecklist || ["定義 owner、SLO 與告警門檻", "確認部署與回復路徑", "把設計取捨寫進 README、ADR 或 runbook"];
+    }
+
+    function listItems(items) {
+      return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    }
+
+    function landingSnippet(item, number) {
+      const testName = item.title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `case_${number}`;
+      return `# case ${number}: production landing slice
+# core implementation
+${item.example}
+
+# pytest acceptance idea
+def test_${testName}_acceptance():
+    assert "${item.pattern}".lower()
+
+# ops evidence
+# run: pytest tests/test_case_${number}.py -q
+# observe: log/metric contains case_id=${number}`;
+    }
+
+    function renderDeepDive(item, number) {
+      const failures = fieldFailureModes(item);
+      const validation = fieldValidationPlan(item);
+      const checklist = fieldProductionChecklist(item);
+      return `
+        <div class="deep-dive">
+          <h4>深度工程拆解：取捨、替代方案、失敗模式與驗收</h4>
+          <div class="table-wrap deep-table">
+            <table>
+              <thead><tr><th>何時適用</th><th>何時不適用</th><th>替代方案</th><th>維運成本</th><th>部署風險</th></tr></thead>
+              <tbody><tr>
+                <td>${escapeHtml(item.use)}</td>
+                <td>一次性腳本、單人維護、低風險流程；抽象成本可能高於收益。</td>
+                <td>${escapeHtml(fieldAlternatives(item))}</td>
+                <td>${escapeHtml(fieldTradeoff(item))}</td>
+                <td>${escapeHtml(item.risk)}</td>
+              </tr></tbody>
+            </table>
+          </div>
+          <div class="deep-grid">
+            <div class="deep-note"><strong>失敗模式</strong>${listItems(failures)}</div>
+            <div class="deep-note"><strong>驗收計畫</strong>${listItems(validation)}</div>
+            <div class="deep-note"><strong>Production checklist</strong>${listItems(checklist)}</div>
+          </div>
+          <div>
+            <div class="code-head"><strong>專案落地片段</strong></div>
+            <pre class="code">${escapeHtml(landingSnippet(item, number))}</pre>
+          </div>
+        </div>`;
+    }
+
+    function renderCaseCard(item, index, group, isDeep) {
+      const number = index + 1;
+      const outputId = `case-output-${number}`;
+      const searchText = `${item.title} ${item.pattern} ${item.problem} ${item.syntax} ${item.use} ${group.title} ${fieldAcceptance(item)} ${fieldTradeoff(item)}`;
+      return `
+        <article class="case-card lesson-item${isDeep ? " is-deep" : ""}" id="case-${number}" data-lesson-id="case-${number}" data-search="${escapeHtml(searchText)}">
+          <div class="case-visual">
+            ${visualSvg(item.visual, item.title)}
+            <span class="tag">${escapeHtml(item.pattern)}</span>
+            ${isDeep ? `<span class="tag deep">深度案例</span>` : ""}
+          </div>
+          <div class="case-body">
+            <div class="case-title">
+              <div>
+                <h3>${number}. ${escapeHtml(item.title)}</h3>
+                <p class="summary">${escapeHtml(item.problem)}</p>
+              </div>
+              <div class="card-actions">
+                <label class="complete-toggle"><input type="checkbox" data-complete="case-${number}">完成</label>
+                <a class="button" href="#case-${number}">定位</a>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>問題</th><th>Pattern</th><th>取捨</th><th>專屬驗收</th></tr></thead>
+                <tbody><tr><td>${escapeHtml(item.problem)}</td><td><code>${escapeHtml(item.pattern)}</code><br>${escapeHtml(item.syntax)}</td><td>${escapeHtml(fieldTradeoff(item))}</td><td>${escapeHtml(fieldAcceptance(item))}</td></tr></tbody>
+              </table>
+            </div>
+            ${isDeep ? renderDeepDive(item, number) : ""}
+            <div>
+              <div class="code-head">
+                <strong>Python 範例</strong>
+                <button class="button output-toggle" type="button" data-output="${outputId}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(item.example)}</pre>
+              <pre class="output" id="${outputId}">${escapeHtml(item.output)}</pre>
+            </div>
+            <div class="steps" aria-label="${escapeHtml(item.title)} step-by-step">
+              ${item.steps.map((step, stepIndex) => {
+                const panelId = `case-${number}-step-${stepIndex + 1}`;
+                return `<div class="step"><button class="step-toggle" type="button" aria-expanded="false" aria-controls="${panelId}"><span><span class="step-number">${stepIndex + 1}</span>${escapeHtml(step[0])}</span><svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-panel" id="${panelId}">${escapeHtml(step[1])}</div></div>`;
+              }).join("")}
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function renderCases() {
+      const root = document.querySelector("#caseList");
+      root.innerHTML = caseGroups.map((group, groupIndex) => {
+        const start = groupIndex * 10;
+        const groupCases = group.caseNumbers.map((caseNumber) => cases[caseNumber - 1]);
+        return `
+          <section class="case-group" id="group-${group.id}" aria-labelledby="group-title-${group.id}">
+            <div class="group-head">
+              <div class="group-meta">
+                <span class="tag">${escapeHtml(group.range)}</span>
+                ${group.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+              </div>
+              <h3 id="group-title-${group.id}">${escapeHtml(group.title)}</h3>
+              <p class="summary">${escapeHtml(group.focus)}</p>
+            </div>
+            <div class="group-cases">
+              ${groupCases.map((item, offset) => renderCaseCard(item, start + offset, group, offset < 2)).join("")}
+            </div>
+          </section>`;
+      }).join("");
+    }
+
+    function getCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem("python-advanced-completed") || "[]")); } catch { return new Set(); }
+    }
+
+    function updateProgress() {
+      const completed = getCompleted();
+      const checkboxes = document.querySelectorAll("[data-complete]");
+      checkboxes.forEach((checkbox) => checkbox.checked = completed.has(checkbox.dataset.complete));
+      const total = checkboxes.length;
+      const done = [...checkboxes].filter((checkbox) => checkbox.checked).length;
+      const progress = document.querySelector("#progressSummary");
+      if (progress) progress.textContent = `完成 ${done} / ${total}`;
+    }
+
+    function enhanceCodeBlocks() {
+      document.querySelectorAll("pre.code").forEach((pre, index) => {
+        if (pre.dataset.copyReady) return;
+        const id = pre.id || `advanced-code-${index + 1}`;
+        pre.id = id;
+        pre.dataset.copyReady = "true";
+        const tools = document.createElement("div");
+        tools.className = "code-tools";
+        tools.innerHTML = `<button class="copy-code" type="button" data-copy-target="${id}">複製</button>`;
+        pre.parentNode.insertBefore(tools, pre);
+      });
+    }
+
+    function bindInteractions() {
+      document.addEventListener("click", (event) => {
+        const stepButton = event.target.closest(".step-toggle");
+        if (stepButton) {
+          const step = stepButton.closest(".step");
+          const isOpen = step.classList.toggle("is-open");
+          stepButton.setAttribute("aria-expanded", String(isOpen));
+          return;
+        }
+        const outputButton = event.target.closest(".output-toggle");
+        if (outputButton) {
+          const output = document.getElementById(outputButton.dataset.output);
+          const isOpen = output.classList.toggle("is-open");
+          outputButton.textContent = isOpen ? "隱藏輸出" : "顯示輸出";
+          return;
+        }
+        const copyButton = event.target.closest(".copy-code");
+        if (copyButton) {
+          const pre = document.getElementById(copyButton.dataset.copyTarget);
+          if (navigator.clipboard && pre) {
+            navigator.clipboard.writeText(pre.textContent).then(() => {
+              copyButton.textContent = "已複製";
+              setTimeout(() => copyButton.textContent = "複製", 1200);
+            });
+          }
+        }
+      });
+      document.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-complete]");
+        if (!checkbox) return;
+        const completed = getCompleted();
+        if (checkbox.checked) completed.add(checkbox.dataset.complete); else completed.delete(checkbox.dataset.complete);
+        localStorage.setItem("python-advanced-completed", JSON.stringify([...completed]));
+        updateProgress();
+      });
+      const search = document.querySelector("#lessonSearch");
+      if (search) {
+        search.addEventListener("input", () => {
+          const query = search.value.trim().toLowerCase();
+          document.querySelectorAll(".lesson-item").forEach((item) => {
+            const text = (item.dataset.search || item.textContent).toLowerCase();
+            item.classList.toggle("hidden-by-search", query && !text.includes(query));
+          });
+        });
+      }
+    }
+
+    renderCases();
+    enhanceCodeBlocks();
+    bindInteractions();
+    updateProgress();
+  </script>
+</body>
+</html>
