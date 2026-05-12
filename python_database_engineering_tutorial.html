@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 資料庫工程教學 - SQLite、交易、遷移與 Repository</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --orange: #d16b28;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #e6f5ef; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+    .lesson-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">DB</span><span><strong>Database Engineering</strong><br><small>交易、遷移與 Repository</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#modeling">資料模型</a>
+        <a href="#migration">遷移</a>
+        <a href="#transaction">交易</a>
+        <a href="#repository">Repository</a>
+        <a href="#testing">測試</a>
+        <a href="#delivery">交付</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Database Engineering</span>
+          <h1>把資料庫做成可維護的專案邊界</h1>
+          <p>這條路線補齊 production Python 專案最常見的斷層：schema 設計、migration、transaction、repository、unit of work、seed data、查詢效能、測試隔離與 rollback。範例使用標準庫 SQLite，觀念可遷移到 SQLAlchemy、Alembic 與 PostgreSQL。</p>
+          <div class="status-strip"><span>v1.1.0</span><span>28 張互動卡</span><span>sqlite3 sample</span><span>Repository + Unit of Work</span></div>
+          <div class="hero-actions"><a class="button primary" href="#modeling">開始資料模型</a><a class="button blue" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 資料庫工程分層圖">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2d8a69"></path></marker></defs>
+            <rect x="30" y="42" width="700" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="82" y="86" width="160" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+            <text x="162" y="130" text-anchor="middle" font-size="22" font-weight="900">API / CLI</text>
+            <path d="M250 122h58" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="322" y="86" width="160" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+            <text x="402" y="130" text-anchor="middle" font-size="22" font-weight="900">Service</text>
+            <path d="M490 122h58" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="562" y="86" width="130" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect>
+            <text x="627" y="130" text-anchor="middle" font-size="22" font-weight="900">UoW</text>
+            <path d="M627 168v45" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="512" y="230" width="230" height="76" rx="12" fill="#fff4cf" stroke="#d16b28" stroke-width="4"></rect>
+            <text x="627" y="276" text-anchor="middle" font-size="22" font-weight="900">Repository</text>
+            <path d="M504 268H278" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+            <ellipse cx="176" cy="244" rx="96" ry="28" fill="#fae8e8" stroke="#c34848" stroke-width="4"></ellipse>
+            <path d="M80 244v64c0 15 43 28 96 28s96-13 96-28v-64" fill="#fae8e8" stroke="#c34848" stroke-width="4"></path>
+            <text x="176" y="294" text-anchor="middle" font-size="22" font-weight="900">Database</text>
+            <text x="380" y="364" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">交易邊界由 Unit of Work 控制，Repository 不自行 commit</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：schema、migration、transaction、repository、unit of work、seed、rollback、SQLite">
+        <div class="quick-links"><a href="#modeling">模型</a><a href="#migration">遷移</a><a href="#transaction">交易</a><a href="#repository">Repo</a><a href="#testing">測試</a></div>
+      </div>
+      <section class="section-block" id="modeling" data-group="modeling"><div class="section-head"><div><span class="eyebrow">Modeling</span><h2>先定義資料契約，再寫查詢</h2><p>資料庫不是儲存細節，而是專案契約的一部分。schema、constraint、index 與資料生命週期都要能被 review。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="migration" data-group="migration"><div class="section-head"><div><span class="eyebrow">Migration</span><h2>把 schema 演進做成可回放流程</h2><p>正式專案不能靠手動改資料表。每次欄位、索引與約束都要有版本、驗收與 rollback 思路。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="transaction" data-group="transaction"><div class="section-head"><div><span class="eyebrow">Transaction</span><h2>交易邊界要比函式邊界更清楚</h2><p>commit、rollback、retry、idempotency 與 lock 行為決定資料是否可靠。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="repository" data-group="repository"><div class="section-head"><div><span class="eyebrow">Repository</span><h2>讓業務邏輯不依賴 SQL 細節</h2><p>Repository 與 Unit of Work 讓 service 能被測試，也讓資料庫實作可以演進。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="testing" data-group="testing"><div class="section-head"><div><span class="eyebrow">Testing</span><h2>資料庫測試要隔離、可重跑、可診斷</h2><p>測試不是只跑 happy path，要覆蓋 constraint、rollback、concurrency 與 query regression。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>交付時要保留資料庫證據</h2><p>release note 應包含 migration、seed、backup、restore drill、query plan 與 rollback 限制。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>SQLite Unit of Work 範例專案</h2><p>`範例程式碼/database_unit_of_work/` 示範如何用標準庫 sqlite3 建立 schema、repository、transaction boundary 與 unittest。</p></div></div><pre><code>cd 範例程式碼/database_unit_of_work
+PYTHONPATH=src python3 -m database_unit_of_work.demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      modeling: [
+        ["model-schema-contract", "Schema", "Schema 是資料契約", "欄位、型別、nullable、unique 與 foreign key 要寫成 reviewable decision。", "CREATE TABLE notes (id INTEGER PRIMARY KEY, title TEXT NOT NULL UNIQUE);", "schema can be recreated from source."],
+        ["model-domain-invariant", "Invariant", "把不變條件放在資料庫與 domain 兩層", "資料庫 constraint 防止壞資料落地，domain validation 提供可讀錯誤。", "CHECK (length(title) > 0)", "invalid data is blocked before commit."],
+        ["model-index-budget", "Index", "索引是查詢契約，不是裝飾", "每個 index 都要對應查詢、排序或唯一性需求，避免寫入成本失控。", "CREATE INDEX idx_notes_status ON notes(status);", "query intent has an index owner."],
+        ["model-soft-delete", "Lifecycle", "刪除策略要先定義", "hard delete、soft delete、archive table 會影響 unique constraint、查詢與審計。", "UPDATE notes SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?;", "delete behavior is explicit."]
+      ],
+      migration: [
+        ["migration-version-table", "Version", "Migration 要有版本表", "用 schema_migrations 記錄已執行版本，讓部署可重跑且可診斷。", "CREATE TABLE schema_migrations(version TEXT PRIMARY KEY);", "migration history is queryable."],
+        ["migration-forward-only", "Forward", "優先設計 forward-only migration", "production rollback 常常回退程式，不一定回退資料。破壞性變更要用 expand/contract。", "ALTER TABLE notes ADD COLUMN archived_at TEXT;", "old app can still run during rollout."],
+        ["migration-backfill", "Backfill", "資料補值要分批且可重入", "大量 UPDATE 應該有 batch、checkpoint 與重試，不和 schema change 綁死。", "UPDATE notes SET status = 'active' WHERE status IS NULL LIMIT 500;", "backfill can resume safely."],
+        ["migration-drift-check", "Drift", "偵測 schema drift", "本機、CI、staging、production 的 schema 不一致會讓 bug 很難追。", "SELECT name, sql FROM sqlite_master WHERE type = 'table';", "schema diff is visible."]
+      ],
+      transaction: [
+        ["txn-boundary", "Boundary", "交易邊界由 use case 決定", "Repository 不自行 commit；service 或 Unit of Work 決定整個 use case 成功或失敗。", "with uow:\n    repo.add(note)\n    uow.commit()", "multi-step use case commits once."],
+        ["txn-rollback", "Rollback", "例外時 rollback 要自動發生", "交易 helper 應確保 exception path 不留下半套資料。", "try:\n    conn.commit()\nexcept Exception:\n    conn.rollback()\n    raise", "partial writes are reverted."],
+        ["txn-idempotency", "Idempotency", "重試前先設計 idempotency key", "API、job、message consumer 重試時，資料庫要能分辨同一筆請求。", "CREATE UNIQUE INDEX idx_key ON requests(idempotency_key);", "duplicate retry is safe."],
+        ["txn-locking", "Lock", "鎖與 timeout 是行為契約", "SQLite、PostgreSQL、MySQL 的 lock 行為不同，要在測試中顯示 timeout 與 retry 策略。", "sqlite3.connect(path, timeout=5.0)", "lock behavior is not accidental."]
+      ],
+      repository: [
+        ["repo-interface", "Interface", "Repository 對外提供語意方法", "service 呼叫 add_note、list_open，不直接拼 SQL。", "repo.add(Note(title='demo'))", "service stays database-agnostic."],
+        ["repo-query-object", "Query", "複雜查詢要命名", "把查詢條件包成 query object 或方法，避免 controller 到處傳 SQL 片段。", "repo.list_by_status(status='open', limit=50)", "query intent is readable."],
+        ["repo-row-mapper", "Mapper", "Row mapping 集中處理", "資料庫 row 轉 domain object 的邏輯要集中，避免欄位改名造成多處破壞。", "return Note(id=row['id'], title=row['title'])", "mapping changes in one place."],
+        ["repo-uow", "UoW", "Unit of Work 管理 connection lifecycle", "同一 use case 共享 connection、repository 與 transaction。", "with UnitOfWork.open(db_path) as uow:\n    uow.notes.add(note)", "transaction boundary is visible."]
+      ],
+      testing: [
+        ["test-memory-db", "Isolated DB", "每個測試使用隔離 DB", "使用 tempfile 或 in-memory DB，測試之間不共享狀態。", "with tempfile.TemporaryDirectory() as d:\n    db = Path(d) / 'test.db'", "tests are repeatable."],
+        ["test-constraint", "Constraint", "測 constraint failure", "unique、not null、foreign key 不只靠 ORM，要直接測資料庫拒絕壞資料。", "with self.assertRaises(sqlite3.IntegrityError):\n    repo.add(duplicate)", "database rules are proven."],
+        ["test-rollback", "Rollback", "測 rollback path", "故意在第二步丟錯，確認第一步沒有被 commit。", "with self.assertRaises(RuntimeError):\n    service.create_then_fail()", "no half-written data remains."],
+        ["test-query-plan", "Plan", "重要查詢要看 plan", "對高頻查詢保存 EXPLAIN 證據，避免 schema 演進造成全表掃描。", "EXPLAIN QUERY PLAN SELECT * FROM notes WHERE status = ?", "query regression is detectable."]
+      ],
+      delivery: [
+        ["delivery-backup", "Backup", "Migration 前要有 backup policy", "資料變更前確認 backup、restore drill 與責任人。", "sqlite3 app.db '.backup backup-before-v110.db'", "restore path is known."],
+        ["delivery-seed", "Seed", "Seed data 要可重入", "預設資料、權限、lookup table 應用 upsert 或 unique key 控制。", "INSERT OR IGNORE INTO statuses(name) VALUES ('open');", "seed can run multiple times."],
+        ["delivery-release-note", "Release Note", "Release note 要標註 DB 變更", "列出 migration version、資料補值、風險、驗收指令與 rollback 限制。", "DB migration: 20260513_add_notes_status", "reviewers see the data impact."],
+        ["delivery-observability", "Observability", "資料庫錯誤要可觀測", "記錄 query family、錯誤類型、duration、retry count，不記錄敏感值。", "logger.info('db.query', extra={'name': 'notes.list', 'ms': 12})", "incidents have evidence."]
+      ],
+      sample: [
+        ["sample-schema", "Sample", "範例用 schema.py 建表與 migration 記錄", "標準庫 sqlite3 已足夠示範 schema version 與可重建資料庫。", "initialize_database(conn)", "schema is created from code."],
+        ["sample-repository", "Sample", "NoteRepository 封裝 SQL", "service 不直接知道 notes table 欄位細節。", "uow.notes.add('first note')", "repository owns SQL."],
+        ["sample-uow", "Sample", "UnitOfWork 控制 commit / rollback", "context manager 讓成功與失敗路徑都清楚。", "with UnitOfWork.open(path) as uow:\n    ...", "transaction lifecycle is explicit."],
+        ["sample-tests", "Sample", "unittest 驗證交易與 constraint", "不用第三方套件即可跑完整資料庫教學驗收。", "python3 -m unittest discover -s tests -v", "3 database tests pass."]
+      ]
+    };
+    const completedKey = "python-database-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定義</strong><span>寫清楚資料契約與 owner。</span></div><div class="step"><strong>再驗證</strong><span>用測試證明正常與失敗路徑。</span></div><div class="step"><strong>留證據</strong><span>把 schema、log、測試結果放進交付紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query)));
+    });
+    renderAll();
+  </script>
+</body>
+</html>
