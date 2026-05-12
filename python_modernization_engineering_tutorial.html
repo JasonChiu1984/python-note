@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python 3.14 / 3.15 現代化工程教學 - 版本升級、CI 與交付治理</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f8fbfe;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --orange: #d16b28;
+      --red: #c34848;
+      --violet: #7257a8;
+      --teal: #0f8794;
+      font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef4f8; color: var(--ink); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 1.4rem; background: #fff; border-right: 1px solid var(--line); }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; margin-bottom: 1.5rem; }
+    .logo { width: 2.6rem; height: 2.6rem; border-radius: 10px; background: #e1f6f8; border: 2px solid var(--teal); display: grid; place-items: center; font-weight: 950; color: var(--teal); }
+    nav { display: grid; gap: 0.45rem; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 850; padding: 0.7rem 0.8rem; border-radius: 8px; }
+    nav a:hover { background: var(--paper); color: var(--ink); }
+    main { padding: 2rem; }
+    .hero, .section-block, .tool-panel, .pager { max-width: 1180px; margin: 0 auto 1.4rem; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: 1.4rem; align-items: stretch; }
+    .hero > div, .surface, .section-block, .tool-panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 18px 55px rgba(37, 61, 84, 0.08); }
+    .hero > div:first-child { padding: 2rem; }
+    h1 { font-size: clamp(2.1rem, 6vw, 4.2rem); line-height: 0.98; margin: 0.4rem 0 1rem; letter-spacing: 0; max-width: 11ch; }
+    h2, h3, p { margin-top: 0; }
+    p { color: var(--muted); line-height: 1.75; }
+    .eyebrow, .badge { color: var(--teal); font-weight: 950; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.78rem; }
+    .status-strip { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 1.2rem 0; }
+    .status-strip span, .progress-box { border: 1px solid var(--line); border-radius: 999px; padding: 0.45rem 0.7rem; font-weight: 900; color: var(--muted); background: var(--paper); }
+    .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+    .button { border: 0; border-radius: 8px; background: var(--ink); color: #fff; text-decoration: none; font-weight: 900; padding: 0.75rem 1rem; display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; }
+    .button.primary { background: var(--blue); }
+    .button.green { background: var(--green); }
+    .button.light { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .surface { padding: 1rem; }
+    svg { width: 100%; height: auto; display: block; }
+    .tool-panel { padding: 1rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 0.85rem 1rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { color: var(--blue); font-weight: 900; text-decoration: none; padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .section-block { padding: 1.25rem; }
+    .section-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: start; margin-bottom: 1rem; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; background: var(--paper); display: grid; grid-template-rows: auto auto 1fr; gap: 0.75rem; }
+    .lesson-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e1f6f8; color: var(--teal); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.15rem 0 0; font-size: 1.25rem; }
+    pre { margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    code { font-family: "SFMono-Regular", Consolas, monospace; }
+    .facts, .check-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.85rem; }
+    .mini { border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; background: #fff; }
+    .mini strong { display: block; margin-bottom: 0.4rem; }
+    .mini span { color: var(--muted); line-height: 1.55; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; background: #fff; }
+    th, td { padding: 0.8rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--paper); color: var(--ink); }
+    .back-to-top { position: fixed; right: 1rem; bottom: 1rem; width: 3.1rem; height: 3.1rem; border: 0; border-radius: 999px; background: var(--blue); color: #fff; font-size: 1.2rem; font-weight: 950; cursor: pointer; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .facts, .check-grid { grid-template-columns: 1fr; }
+      h1 { max-width: 13ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top">
+        <span class="logo">3.14</span>
+        <span><strong>Python 現代化</strong><br><small>版本升級與交付治理</small></span>
+      </a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#release">版本事實</a>
+        <a href="#features">3.14 特性</a>
+        <a href="#runtime">Runtime 取捨</a>
+        <a href="#upgrade">升級矩陣</a>
+        <a href="#delivery">交付治理</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 24</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python 3.14 / 3.15 Engineering</span>
+          <h1>Python 版本現代化與升級治理</h1>
+          <p>用 production 專案角度處理 Python 3.14 穩定版與 3.15 beta：不是看到新特性就立刻改寫，而是建立 feature policy、CI matrix、相容性驗收、canary 與 rollback。</p>
+          <div class="status-strip">
+            <span>v1.0.0</span>
+            <span>24 張互動卡</span>
+            <span>3.14.5 stable / 3.15 beta</span>
+            <span>CI matrix + readiness sample</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#release">看版本事實</a>
+            <a class="button green" href="#upgrade">看升級矩陣</a>
+            <a class="button light" href="index.html">回教材入口</a>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 版本升級治理流程圖">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="30" y="42" width="700" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <rect x="65" y="145" width="130" height="84" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+            <text x="130" y="180" text-anchor="middle" font-size="22" font-weight="900">Baseline</text>
+            <text x="130" y="207" text-anchor="middle" font-size="14" fill="#5d6b7d">3.12 / 3.13</text>
+            <path d="M205 187h62" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="280" y="110" width="190" height="154" rx="14" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect>
+            <text x="375" y="154" text-anchor="middle" font-size="27" font-weight="950">Python 3.14</text>
+            <text x="375" y="190" text-anchor="middle" font-size="15" font-weight="850" fill="#5d6b7d">features + runtime changes</text>
+            <text x="375" y="222" text-anchor="middle" font-size="15" font-weight="850" fill="#5d6b7d">policy before adoption</text>
+            <path d="M482 187h62" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="558" y="145" width="130" height="84" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+            <text x="623" y="180" text-anchor="middle" font-size="22" font-weight="900">Release</text>
+            <text x="623" y="207" text-anchor="middle" font-size="14" fill="#5d6b7d">canary / rollback</text>
+            <path d="M375 276v42" stroke="#7257a8" stroke-width="6" marker-end="url(#arrow)"></path>
+            <rect x="245" y="328" width="260" height="44" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="3"></rect>
+            <text x="375" y="356" text-anchor="middle" font-size="18" font-weight="900">CI: 3.12 / 3.13 / 3.14 / 3.15-dev</text>
+            <text x="375" y="74" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">版本升級是交付治理，不是語法展示</text>
+          </svg>
+        </div>
+      </section>
+
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：3.14、3.15、t-string、annotations、free-threaded、subinterpreters、zstd、GC、CI">
+        <div class="quick-links">
+          <a href="#release">版本</a>
+          <a href="#features">特性</a>
+          <a href="#runtime">Runtime</a>
+          <a href="#upgrade">升級</a>
+          <a href="#delivery">交付</a>
+        </div>
+      </div>
+
+      <section class="section-block" id="release" data-group="release">
+        <div class="section-head">
+          <div><span class="eyebrow">Release Baseline</span><h2>先固定版本事實，再談升級策略</h2><p>教材以 2026-05-13 查核到的官方資訊為基準：Python 3.14.5 是最新穩定版，3.15.0b1 是 beta preview。production 專案應採穩定主線，並把 3.15 放入預備測試 lane。</p></div>
+          <div class="progress-box" id="progressSummaryMobile">完成 0 / 24</div>
+        </div>
+        <div class="facts">
+          <div class="mini"><strong>Stable</strong><span>Python 3.14.5，維護版，適合規劃正式升級驗收。</span></div>
+          <div class="mini"><strong>Preview</strong><span>Python 3.15.0b1，可進 CI beta lane，不作正式 runtime baseline。</span></div>
+          <div class="mini"><strong>Policy</strong><span>每個新特性要有 adoption rule、fallback 與測試證據。</span></div>
+          <div class="mini"><strong>Evidence</strong><span>release note、CI log、schema diff、canary metrics 都要保存。</span></div>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="features" data-group="features">
+        <div class="section-head"><div><span class="eyebrow">Python 3.14 Features</span><h2>新特性要先變成工程規則</h2><p>template strings、deferred annotations、standard zstd 都有價值，但要教成可維護規則，而不是只示範語法。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="runtime" data-group="runtime">
+        <div class="section-head"><div><span class="eyebrow">Runtime Decisions</span><h2>free-threaded、subinterpreters 與 GC 需要風險分級</h2><p>runtime 改動會牽動 C extension、資料科學套件、web worker model 與記憶體行為，必須用獨立測試線驗證。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="upgrade" data-group="upgrade">
+        <div class="section-head"><div><span class="eyebrow">Upgrade Matrix</span><h2>把版本升級做成 CI 與 dependency matrix</h2><p>正式升級不是本機跑過一次，而是多版本、多依賴、多入口的可重複驗收。</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Gate</th><th>最低要求</th><th>失敗時處置</th><th>交付證據</th></tr></thead>
+            <tbody>
+              <tr><td>Runtime matrix</td><td>3.12 / 3.13 / 3.14 / 3.15-dev</td><td>3.15-dev 可 allow-failure，3.14 不可</td><td>CI run URL、版本列表</td></tr>
+              <tr><td>Static gates</td><td>ruff、mypy 或既有型別工具</td><td>修正 annotation / import / typing regression</td><td>log artifact</td></tr>
+              <tr><td>Runtime gates</td><td>pytest、coverage、integration smoke</td><td>補 regression test，不降門檻</td><td>coverage report</td></tr>
+              <tr><td>Dependency gates</td><td>wheel availability、C extension import smoke</td><td>pin 舊版或延後 runtime 切換</td><td>lock file diff</td></tr>
+              <tr><td>Release gates</td><td>canary、rollback、artifact metadata</td><td>回退 runtime image 或 package</td><td>release note</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="delivery" data-group="delivery">
+        <div class="section-head"><div><span class="eyebrow">Delivery Governance</span><h2>把版本決策寫入 release 與 rollback</h2><p>版本升級要能被審查、被回退、被追溯。每個 adoption 都要連到測試、風險與產物。</p></div></div>
+        <div class="cards"></div>
+      </section>
+
+      <section class="section-block" id="sample" data-group="sample">
+        <div class="section-head"><div><span class="eyebrow">Sample Project</span><h2>版本 readiness 範例專案</h2><p>`範例程式碼/python_version_readiness/` 示範如何把版本能力偵測、feature policy、CLI report 與 unittest 放進一個最小專案。</p></div></div>
+        <pre><code>cd 範例程式碼/python_version_readiness
+PYTHONPATH=src python3 -m version_readiness.cli
+PYTHONPATH=src python3 -m unittest discover -s tests</code></pre>
+        <div class="cards"></div>
+      </section>
+
+      <nav class="pager">
+        <a class="button light" href="index.html">回入口</a>
+        <a class="button primary" href="#top">回到最上層</a>
+      </nav>
+    </main>
+  </div>
+  <button class="back-to-top" type="button" aria-label="回到最上層">↑</button>
+
+  <script>
+    const lessonGroups = {
+      release: [
+        { id: "release-stable-3145", tag: "Stable", title: "Python 3.14.5 作為穩定升級基準", summary: "把 3.14.5 視為本輪 production readiness 的穩定版本基準，先驗證相容性，再決定是否切換 runtime image。", code: "python3.14 -VV\npython3.14 -m pytest -q\npython3.14 -m pip freeze > artifacts/py314-lock.txt", output: "stable baseline verified with test and lock evidence.", steps: [["固定版本", "記錄 exact patch version。"], ["跑完整 gate", "pytest、typing、package smoke 都要過。"], ["保存證據", "把 log 與 lock file 放進 release artifact。"]] },
+        { id: "release-315-beta-lane", tag: "Beta", title: "Python 3.15 beta 放進預備測試線", summary: "3.15.0b1 是 feature freeze preview，適合提早抓相容性問題，但不應直接當正式 production baseline。", code: "strategy:\n  matrix:\n    python-version: ['3.12', '3.13', '3.14', '3.15-dev']\ncontinue-on-error: ${{ matrix.python-version == '3.15-dev' }}", output: "3.15-dev finds early compatibility issues without blocking stable release.", steps: [["加 beta lane", "讓依賴與型別問題提早浮現。"], ["允許預覽失敗", "避免 beta 波動阻塞穩定版 release。"], ["建立 issue", "把失敗整理成升級 backlog。"]] },
+        { id: "release-version-policy", tag: "Policy", title: "版本支援政策", summary: "團隊要寫清楚最低 Python、推薦 Python、預覽 Python。這會影響 wheel、Docker base image、文件與 support SLA。", code: "[project]\nrequires-python = '>=3.11'\n\n[tool.project-runtime]\nrecommended = '3.14'\npreview = '3.15-dev'", output: "runtime policy is reviewable in repository metadata.", steps: [["宣告最低版本", "避免使用者在不支援版本安裝。"], ["宣告推薦版本", "文件與 Docker image 對齊。"], ["宣告 preview", "把前瞻測試和正式支援分開。"]] },
+        { id: "release-risk-register", tag: "Risk", title: "升級風險清單", summary: "每次 Python minor upgrade 都要列出 C extension、typing、async、GC、serialization、packaging 的風險與 owner。", code: "risk_register = {\n    'typing': 'schema regression owner: api-team',\n    'c-extension': 'wheel smoke owner: platform-team',\n    'gc': 'memory canary owner: sre-team',\n}", output: "risk register assigns owners before runtime rollout.", steps: [["列風險", "不是等 CI 紅了才想。"], ["指定 owner", "每個風險有人處理。"], ["連到 gate", "每個風險都有測試或 canary。"]] }
+      ],
+      features: [
+        { id: "feature-template-strings", tag: "t-string", title: "Template string literals 的採用規則", summary: "template strings 適合建立安全模板 boundary，但不能變成任意 SQL、shell 或 HTML 拼接捷徑。", code: "def render_user_message(template, values):\n    # Keep escaping and allow-listing at the boundary.\n    return safe_template_engine.render(template, values)", output: "template adoption requires escaping and review rules.", steps: [["定義用途", "只放在已審查的模板邊界。"], ["禁止直拼", "SQL/shell/HTML 不直接字串插值。"], ["補測試", "測 escaping、空值、惡意輸入。"]] },
+        { id: "feature-deferred-annotations", tag: "annotations", title: "Deferred annotations 與 runtime introspection", summary: "延遲註解會影響依賴 type hints 的框架與外掛。升級時要跑 schema generation、plugin discovery 與 get_type_hints regression。", code: "from typing import get_type_hints\n\ndef resolve_model_types(model: type) -> dict[str, object]:\n    return get_type_hints(model, include_extras=True)", output: "runtime typing resolution remains explicit and testable.", steps: [["找使用點", "Pydantic、FastAPI、plugin loader。"], ["集中解析", "不要到處直接讀 __annotations__。"], ["加 regression", "測 forward ref 與 Annotated。"]] },
+        { id: "feature-zstd", tag: "zstd", title: "標準庫 Zstandard 壓縮邊界", summary: "3.14 的 compression.zstd 可降低第三方依賴，但資料格式要保持清楚，避免新 runtime 產物讓舊服務讀不了。", code: "def compress_artifact(data: bytes, codec: str = 'zstd') -> bytes:\n    if codec == 'zstd':\n        return zstd_adapter.compress(data)\n    return gzip_adapter.compress(data)", output: "compression choice is hidden behind a compatibility adapter.", steps: [["包 adapter", "不要讓呼叫端知道 runtime 細節。"], ["標記 metadata", "artifact 要記 codec。"], ["保留 fallback", "舊環境仍能走 gzip。"]] },
+        { id: "feature-stdlib-introspection", tag: "stdlib", title: "標準庫改動要轉成相容層", summary: "新 module 或 API 應先放在 compatibility layer，讓主程式不直接依賴單一 Python minor。", code: "try:\n    from compression import zstd\nexcept ImportError:\n    zstd = None", output: "feature detection replaces fragile version guessing.", steps: [["先偵測能力", "能 import 才啟用。"], ["集中 fallback", "fallback 寫一處。"], ["測兩條路", "available/unavailable 都要測。"]] }
+      ],
+      runtime: [
+        { id: "runtime-free-threaded", tag: "threading", title: "Free-threaded Python 不能直接等同加速", summary: "free-threaded runtime 需要 C extension、資料結構、鎖策略與效能測試配合。對資料科學與 extension 專案要先做相容性 lane。", code: "pytest -q tests/thread_safety\npython -m pyperf compare_to baseline.json free_threaded.json", output: "thread safety and benchmark evidence decide adoption.", steps: [["確認依賴", "C extension 是否支援 free-threaded。"], ["測資料競爭", "補 thread safety regression。"], ["跑 benchmark", "吞吐、延遲、記憶體都看。"]] },
+        { id: "runtime-subinterpreters", tag: "interpreters", title: "Subinterpreters 與 process/thread 取捨", summary: "standard-library subinterpreters 適合隔離部分工作，但不取代所有 multiprocessing 或 asyncio 場景。要先定義共享資料與失敗模型。", code: "execution_options = ['asyncio', 'thread_pool', 'process_pool', 'subinterpreters']\nprint('choose by isolation, data sharing, startup cost')", output: "runtime choice is based on isolation and data movement.", steps: [["比較隔離", "process 最強，thread 最輕。"], ["估資料搬移", "大型物件跨邊界成本高。"], ["設失敗策略", "worker crash 如何回報與重試。"]] },
+        { id: "runtime-gc-3145", tag: "GC", title: "3.14.5 GC 回調提醒", summary: "3.14.5 回調了早期 3.14 incremental GC 行為。教材與 benchmark 不應引用 3.14.0-3.14.4 的 GC 結論作長期依據。", code: "python -X dev -m pytest tests/memory\npython scripts/canary_memory.py --duration 30m", output: "memory canary validates the actual patch version.", steps: [["標註 patch", "GC 行為和 patch version 綁定。"], ["重跑記憶體測試", "升級後不要沿用舊數據。"], ["看 canary", "RSS、GC pause、latency 都要看。"]] },
+        { id: "runtime-asyncio-introspection", tag: "asyncio", title: "asyncio introspection 改善要用於除錯工具", summary: "新版 asyncio introspection 能幫助任務追蹤，但 production 教材要教如何接到 debug endpoint、log 與 incident runbook。", code: "async def dump_tasks():\n    return [task.get_name() for task in asyncio.all_tasks()]", output: "debug data is exposed only through protected diagnostics.", steps: [["保護入口", "debug endpoint 不公開。"], ["只輸出摘要", "避免 secrets 與大量 payload。"], ["連到 runbook", "incident 時知道怎麼判讀。"]] }
+      ],
+      upgrade: [
+        { id: "upgrade-ci-matrix", tag: "CI", title: "CI runtime matrix", summary: "版本升級的第一個交付物是 CI matrix。3.14 必須是 blocking lane，3.15-dev 可先當 allow-failure。", code: "python -m pytest -q\npython -m compileall src tests\npython -m build", output: "each runtime lane builds, tests, and packages the project.", steps: [["多版本測", "至少保留目前與目標版本。"], ["建 package", "只跑 test 不代表可交付。"], ["保存 artifact", "每條 lane 都有 log。"]] },
+        { id: "upgrade-dependency-matrix", tag: "deps", title: "Dependency 與 wheel availability", summary: "NumPy、Pandas、Cython、FastAPI、Pydantic、uvicorn 等依賴要先確認在目標 Python 有 wheel 與測試結果。", code: "python -m pip install --only-binary=:all: -r requirements.txt\npython -c 'import numpy, pandas, fastapi'", output: "binary wheel availability is verified before runtime rollout.", steps: [["鎖依賴", "記錄 lock file diff。"], ["強制 wheel", "避免 CI 暗中從 source build。"], ["import smoke", "每個重依賴都 smoke。"]] },
+        { id: "upgrade-schema-regression", tag: "schema", title: "OpenAPI 與 Pydantic schema regression", summary: "deferred annotations 和 typing 行為可能改變 schema。FastAPI 專案升級時要把 OpenAPI diff 納入 gate。", code: "curl -s localhost:8000/openapi.json > artifacts/openapi-py314.json\ndiff -u artifacts/openapi-main.json artifacts/openapi-py314.json", output: "schema drift is reviewed before release.", steps: [["輸出 schema", "每個 runtime 都產 OpenAPI。"], ["做 diff", "變更要人工 review。"], ["更新 SDK", "契約變更要同步下游。"]] },
+        { id: "upgrade-c-extension", tag: "extension", title: "C extension 與 binary smoke", summary: "Cython 或原生 extension 在 Python minor upgrade 時要重新 build wheel、安裝 wheel、import smoke、跑邊界測試。", code: "python -m build\npython -m pip install dist/*.whl\npython -c 'import fastmath; print(fastmath.sum_squares([1,2,3]))'", output: "wheel installs and imports on the target runtime.", steps: [["重建 wheel", "不要拿舊 ABI 產物測。"], ["安裝 wheel", "測使用者實際路徑。"], ["跑 smoke", "import 與核心函式都要測。"]] }
+      ],
+      delivery: [
+        { id: "delivery-feature-policy", tag: "policy", title: "Feature adoption policy", summary: "每個新特性都要有採用條件、禁止用法、fallback、測試與 owner。這比單純說新版語法更可維護。", code: "policy = {\n  'feature': 'template strings',\n  'allowed': 'safe UI copy templates',\n  'blocked': 'SQL or shell command construction',\n  'owner': 'platform-review'\n}", output: "feature policy makes adoption reviewable.", steps: [["寫 allowed", "什麼場景可以用。"], ["寫 blocked", "什麼場景禁止用。"], ["指定 owner", "誰負責 review。"]] },
+        { id: "delivery-canary", tag: "canary", title: "Canary rollout", summary: "runtime 升級應先對小流量或內部 job rollout，收集錯誤率、延遲、記憶體與重啟次數。", code: "deploy --runtime python3.14 --traffic 5%\nwatch error_rate p95_latency rss_mb restarts", output: "canary metrics decide whether to expand rollout.", steps: [["小流量", "先 5% 或內部 job。"], ["看四指標", "error、latency、memory、restart。"], ["逐步擴大", "每步都有停損條件。"]] },
+        { id: "delivery-rollback", tag: "rollback", title: "Runtime rollback runbook", summary: "升級前就要寫回退方式：Docker base image、package marker、lock file、artifact 與資料格式如何回到上一版。", code: "rollback:\n  image: app:python3.13-prev\n  lockfile: requirements-previous.txt\n  command: deploy --image app:python3.13-prev", output: "rollback path is known before rollout starts.", steps: [["保存舊產物", "image、wheel、lock file。"], ["驗證回退", "staging 先跑 rollback drill。"], ["記錄限制", "資料格式不可逆要特別標出。"]] },
+        { id: "delivery-release-note", tag: "release", title: "Release note 要標註 runtime 變更", summary: "版本標籤不只寫新增功能，也要寫 runtime baseline、CI matrix、dependency risk、canary 結果與 rollback。", code: "Runtime: Python 3.14.5\nCI: 3.12/3.13/3.14 passed; 3.15-dev allowed failure\nRollback: app:python3.13-prev", output: "release note links runtime decision to evidence.", steps: [["寫 baseline", "明確版本與 patch。"], ["寫證據", "CI、canary、smoke。"], ["寫回退", "出事時不用臨場找。"]] }
+      ],
+      sample: [
+        { id: "sample-runtime-profile", tag: "sample", title: "RuntimeProfile 集中版本判斷", summary: "範例專案用 RuntimeProfile 封裝 sys.version_info，讓版本判斷可測試、可替換，不散落在各模組。", code: "profile = RuntimeProfile(3, 14, 5, 'CPython')\nassert profile.at_least(3, 14)\nassert profile.version_label == '3.14.5'", output: "version checks are deterministic in tests.", steps: [["集中封裝", "不要到處讀 sys.version_info。"], ["可注入測試", "測 3.13/3.14 不必真的切 runtime。"], ["輸出 label", "release report 可讀。"]] },
+        { id: "sample-feature-policy", tag: "sample", title: "FeaturePolicy 讓採用規則資料化", summary: "每個 feature 都有最低版本、production action 與 fallback。這讓 code review 能討論政策，而不是只看 if 判斷。", code: "FeaturePolicy(\n    name='standard_zstd',\n    min_version=(3, 14),\n    production_action='use adapter boundary',\n    fallback='keep gzip adapter',\n)", output: "feature policy is explicit and reviewable.", steps: [["寫最低版本", "明確何時可用。"], ["寫 action", "可用時也要有使用規則。"], ["寫 fallback", "不可用時保持可交付。"]] },
+        { id: "sample-readiness-report", tag: "sample", title: "Readiness report 作為 CI artifact", summary: "CLI 輸出 JSON，讓 CI 可以保存 runtime、implementation、recommended_ci 與 feature readiness。", code: "PYTHONPATH=src python3 -m version_readiness.cli > readiness.json\npython -m json.tool readiness.json", output: "readiness.json can be attached to release artifacts.", steps: [["跑 CLI", "由同一套 policy 產 report。"], ["保存 JSON", "CI 與 release note 可引用。"], ["檢查欄位", "runtime、features、recommended_ci 都要有。"]] },
+        { id: "sample-unittest", tag: "sample", title: "用 unittest 測升級規則", summary: "範例不依賴第三方套件，直接用 unittest 測 version gate、fallback 與 report 欄位，確保乾淨環境也能驗收。", code: "PYTHONPATH=src python3 -m unittest discover -s tests -v", output: "3 tests pass without external dependencies.", steps: [["測 profile", "版本比較與 label。"], ["測 policy", "available/unavailable 兩條路。"], ["測 report", "fallback action 正確輸出。"]] }
+      ]
+    };
+
+    const completedKey = "python-modernization-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+
+    function loadCompleted() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]"));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveCompleted(completed) {
+      localStorage.setItem(completedKey, JSON.stringify([...completed]));
+    }
+
+    function updateProgress() {
+      const done = loadCompleted().size;
+      const text = `完成 ${done} / ${allLessons.length}`;
+      document.querySelectorAll("#progressSummary, #progressSummaryMobile").forEach((el) => { el.textContent = text; });
+    }
+
+    function renderLesson(lesson) {
+      const completed = loadCompleted();
+      const isDone = completed.has(lesson.id);
+      const el = document.createElement("article");
+      el.className = "lesson-card";
+      el.dataset.lessonText = `${lesson.title} ${lesson.tag} ${lesson.summary}`.toLowerCase();
+      el.innerHTML = `
+        <div class="lesson-top">
+          <div><span class="badge">${lesson.tag}</span><h3>${lesson.title}</h3></div>
+          <span class="tag">${isDone ? "已完成" : "待練習"}</span>
+        </div>
+        <p>${lesson.summary}</p>
+        <pre><code>${lesson.code}</code></pre>
+        <p><strong>預期輸出：</strong>${lesson.output}</p>
+        <div class="check-grid">${lesson.steps.map(([name, text]) => `<div class="mini"><strong>${name}</strong><span>${text}</span></div>`).join("")}</div>
+        <button class="button primary" type="button" data-complete="${lesson.id}">${isDone ? "取消完成" : "標記完成"}</button>
+      `;
+      return el;
+    }
+
+    function renderAll() {
+      for (const [group, lessons] of Object.entries(lessonGroups)) {
+        const container = document.querySelector(`[data-group="${group}"] .cards`);
+        if (container) {
+          container.replaceChildren(...lessons.map(renderLesson));
+        }
+      }
+      updateProgress();
+    }
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const completed = loadCompleted();
+      const id = button.dataset.complete;
+      if (completed.has(id)) completed.delete(id); else completed.add(id);
+      saveCompleted(completed);
+      renderAll();
+    });
+
+    document.querySelector(".back-to-top").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const q = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-card").forEach((card) => {
+        card.style.display = !q || card.dataset.lessonText.includes(q) ? "" : "none";
+      });
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
