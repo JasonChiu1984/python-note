@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python 高階工程師應用實戰教程 - 100 個實際真實案例分析 v1.3.0</title>
+  <title>Python 高階工程師應用實戰教程 - 100 個實際真實案例分析 v1.4.0</title>
   <style>
     :root {
       color-scheme: light;
@@ -666,7 +666,7 @@
         </div>
         <div class="brand-copy">
           <strong>Python 高階工程師應用實戰</strong>
-          <span>v1.3.0 · 100 Production Cases · 40 案例已語意校閱</span>
+          <span>v1.4.0 · 100 Production Cases · 50 案例已語意校閱</span>
         </div>
       </div>
       <nav class="nav" aria-label="主要章節">
@@ -686,9 +686,9 @@
     <main>
       <header class="hero">
         <div>
-          <span class="eyebrow">v1.3.0 / 高階教材 / 語意校閱批次 40/100 / 20年專案工程師視角</span>
-          <h1>Python 高階工程實戰 100 案例（40 案例已語意校閱）</h1>
-          <p>狀態：高階語意校閱進行中。這份教材不再只講語法，而是把語法放進真實工程場景：架構、可靠性、效能、資料、並發、安全、觀測、打包與交付。本版修正 v1.2.0 metadata 對題性，並把每章第 4 個案例納入 v1.3.0 人工語意校閱批次，讓案例從 template starter 推進到可 review 的 production slice。</p>
+          <span class="eyebrow">v1.4.0 / 高階教材 / 語意校閱批次 50/100 / 20年專案工程師視角</span>
+          <h1>Python 高階工程實戰 100 案例（50 案例已語意校閱）</h1>
+          <p>狀態：高階語意校閱持續推進。這份教材不再只講語法，而是把語法放進真實工程場景：架構、可靠性、效能、資料、並發、安全、觀測、打包與交付。本版把每章第 5 個案例納入 v1.4.0 人工語意校閱批次，讓案例從 template starter 推進到可 review 的 production slice。</p>
           <div class="hero-actions">
             <a class="button primary" href="#cases">開始看 100 個案例</a>
             <a class="button" href="#type-picks">依主題快選</a>
@@ -729,7 +729,7 @@
       <section id="quality" class="section">
         <div class="section-head">
           <h2>教材品質檢查與審查狀態</h2>
-          <p class="lead">狀態：結構檢查通過、語意審查分批推進。這個區塊由頁面資料即時計算 100 案例、10 主題、20 深度案例、20 個批次語意深化案例、60 個仍待深度化案例與 10 條 production slice；它不把自動結構檢查誤標成全部案例已人工語意審查。</p>
+          <p class="lead">狀態：結構檢查通過、語意審查分批推進。這個區塊由頁面資料即時計算 100 案例、10 主題、20 深度案例、30 個批次語意深化案例、50 個仍待深度化案例與 10 條 production slice；它不把自動結構檢查誤標成全部案例已人工語意審查。</p>
         </div>
         <div id="qualityPanel" class="quality-panel" aria-live="polite"></div>
       </section>
@@ -793,7 +793,7 @@
       <section id="cases" class="section">
         <div class="section-head">
           <h2>100 個實際案例分析與審查狀態</h2>
-          <p class="lead">案例依 10 大工程主題分群。每章 10 個案例，前 2 個是人工深度校閱案例；v1.2.0 與 v1.3.0 已將每章第 3、4 個案例納入語意校閱批次，補強案例對題性、失敗路徑、驗收證據與 rollback 說明。其餘快速案例仍明確標示為待逐案深度化的 template starter。</p>
+          <p class="lead">案例依 10 大工程主題分群。每章 10 個案例，前 2 個是人工深度校閱案例；v1.2.0、v1.3.0 與 v1.4.0 已將每章第 3、4、5 個案例納入語意校閱批次，補強案例對題性、失敗路徑、驗收證據與 rollback 說明。其餘快速案例仍明確標示為待逐案深度化的 template starter。</p>
         </div>
         <div id="caseList" class="case-list" aria-live="polite"></div>
       </section>
@@ -986,7 +986,7 @@ runbook: verify data count, version, and audit log</pre>
             <p>每次標版本都要能回看修改內容、測試證據、產物與回復路徑，不能只留下 git tag。</p>
             <pre class="code">| Evidence | Required |
 | --- | --- |
-| tag | v1.3.0 |
+| tag | v1.4.0 |
 | tests | ruff, mypy, pytest, coverage |
 | package | wheel + dist smoke |
 | security | pip-audit + SBOM |
@@ -1941,12 +1941,66 @@ print(summarize(case_info))`;
       }
     };
 
+    const semanticReviewBatchV140 = {
+      57: {
+        focus: "Command Bus 要把多入口 use case 調度、transaction、tracing 與 handler ownership 收斂到可審查邊界。",
+        failurePath: "pytest tests/production/test_command_bus.py -q；覆蓋未知 command、handler exception、transaction rollback 與 trace id 傳遞。",
+        implementation: "補 Command Protocol、handler registry、unit-of-work wrapper、trace context 與 command audit log，避免 API/CLI/worker 分別繞過 service 規則。"
+      },
+      27: {
+        focus: "Schema Migration Gate 要把 expand/contract、backfill、雙版本相容與 schema drift 納入 release gate。",
+        failurePath: "pytest tests/production/test_schema_migration_gate.py -q；覆蓋 forward migration、舊程式相容、backfill checkpoint 與 drift detect。",
+        implementation: "補 migration manifest、compatibility checklist、preflight schema diff、backfill progress table 與 rollback note。"
+      },
+      21: {
+        focus: "Rate Limited HTTP Client 要在送出前主動限流，並把 retry budget 與第三方配額分開治理。",
+        failurePath: "pytest tests/production/test_rate_limited_http_client.py -q；覆蓋 token refill、burst cap、429 retry-after、timeout 與 quota exhausted。",
+        implementation: "補 token bucket、monotonic clock、request queue、retry-after parser 與 per-provider rate metric，避免尖峰流量打爆第三方 API。"
+      },
+      35: {
+        focus: "Poison Message 要把壞任務隔離到 DLQ，避免同一筆資料無限重試拖垮整條 queue。",
+        failurePath: "pytest tests/production/test_poison_message.py -q；覆蓋 retry_count、DLQ move、error reason 保存、重放任務與正常任務不被阻塞。",
+        implementation: "補 retry policy、dead-letter repository、quarantine reason、operator replay command 與 poison-message metric，讓壞資料可追蹤、可修復。"
+      },
+      42: {
+        focus: "File Lock 要處理多程序同寫同一資源，不能只靠 threading.Lock 或樂觀假設排程不重疊。",
+        failurePath: "pytest tests/production/test_file_lock.py -q；覆蓋 lock acquire timeout、stale lock cleanup、crash recovery 與並行寫入不交錯。",
+        implementation: "補 lock file protocol、timeout policy、owner pid metadata、finally cleanup 與 corruption recovery runbook，保護本機檔案與 CLI cache。"
+      },
+      48: {
+        focus: "Secret Rotation 要支援 active/previous 雙 key 窗口，讓部署與外部 webhook/JWT 客戶端能平滑切換。",
+        failurePath: "pytest tests/production/test_secret_rotation.py -q；覆蓋 active key、previous key、key id missing、expired key 與 audit log redaction。",
+        implementation: "補 key ring、kid lookup、rotation window、secret source metadata 與 redacted startup report，避免輪替瞬間中斷服務。"
+      },
+      67: {
+        focus: "Migration Rollback Plan 要先定義可回復與不可回復邊界，避免遷移失敗後才臨時找備份。",
+        failurePath: "pytest tests/production/test_migration_rollback_plan.py -q；覆蓋 preflight backup、reverse migration、partial failure、validation fail 與 rollback evidence。",
+        implementation: "補 rollback manifest、backup checksum、reverse step registry、post-rollback validation 與 release note rollback section。"
+      },
+      75: {
+        focus: "Error Budget 要把 SLI/SLO 與 release decision 接起來，讓可靠性退化能影響是否繼續發版。",
+        failurePath: "pytest tests/production/test_error_budget.py -q；覆蓋 burn rate、alert threshold、release freeze、budget recovery 與 incident annotation。",
+        implementation: "補 SLO policy、burn-rate calculator、release gate adapter、incident annotation 與 dashboard link evidence。"
+      },
+      54: {
+        focus: "Sandboxed Subprocess 要把外部命令放在明確邊界內，使用 list args、timeout、工作目錄與輸出限制降低風險。",
+        failurePath: "pytest tests/production/test_sandboxed_subprocess.py -q；覆蓋 shell injection、timeout、stderr capture、cwd escape 與 allowed command policy。",
+        implementation: "補 subprocess adapter、allow-list policy、resource timeout、captured output redaction 與 command audit log，避免 shell=True 拼接使用者輸入。"
+      },
+      86: {
+        focus: "GDPR Delete Workflow 要把主資料、備份、索引、外部系統與 audit tombstone 串成可驗收流程。",
+        failurePath: "pytest tests/production/test_gdpr_delete_workflow.py -q；覆蓋 dry-run、async deletion、external failure、tombstone audit 與 re-run idempotency。",
+        implementation: "補 deletion plan、tombstone record、outbox delete task、external connector status 與 compliance evidence export。"
+      }
+    };
+
     function reviewedCaseNumbers() {
       const baseline = caseGroups.flatMap((group) => group.caseNumbers.slice(0, 2));
       return [
         ...baseline,
         ...Object.keys(semanticReviewBatchV120).map(Number),
-        ...Object.keys(semanticReviewBatchV130).map(Number)
+        ...Object.keys(semanticReviewBatchV130).map(Number),
+        ...Object.keys(semanticReviewBatchV140).map(Number)
       ];
     }
 
@@ -2125,6 +2179,7 @@ print(summarize(case_info))`;
       const evidence = fieldEvidence(item, number);
       const semanticBatch = semanticReviewBatchV120[number];
       const semanticBatchV130 = semanticReviewBatchV130[number];
+      const semanticBatchV140 = semanticReviewBatchV140[number];
       if (isDeep) {
         return {
           sourceType: "人工深度案例",
@@ -2149,6 +2204,15 @@ print(summarize(case_info))`;
           semanticReviewStatus: "已人工校閱",
           caseSpecificImplementation: `${semanticBatchV130.focus} ${semanticBatchV130.implementation}`,
           failurePathTest: semanticBatchV130.failurePath,
+          incidentLog: evidence.failureLog
+        };
+      }
+      if (semanticBatchV140) {
+        return {
+          sourceType: "v1.4.0 語意深化案例",
+          semanticReviewStatus: "已人工校閱",
+          caseSpecificImplementation: `${semanticBatchV140.focus} ${semanticBatchV140.implementation}`,
+          failurePathTest: semanticBatchV140.failurePath,
           incidentLog: evidence.failureLog
         };
       }
@@ -2207,6 +2271,7 @@ print(summarize(case_info))`;
       const quickCases = quickCaseNumbers.map((caseNumber) => cases[caseNumber - 1]);
       const semanticBatchCount = Object.keys(semanticReviewBatchV120).length;
       const semanticBatchV130Count = Object.keys(semanticReviewBatchV130).length;
+      const semanticBatchV140Count = Object.keys(semanticReviewBatchV140).length;
       const quickEvidenceCount = quickCases.filter((item, index) => {
         const evidence = fieldEvidence(item, quickCaseNumbers[index]);
         return evidence.failureLog || evidence.pytest || evidence.ciCommand || evidence.runbook;
@@ -2235,6 +2300,7 @@ print(summarize(case_info))`;
           <div class="quality-item"><strong>深度案例</strong><span>${deepCount} / 20</span></div>
           <div class="quality-item"><strong>v1.2.0 語意深化</strong><span>${semanticBatchCount} / 10</span></div>
           <div class="quality-item"><strong>v1.3.0 語意深化</strong><span>${semanticBatchV130Count} / 10</span></div>
+          <div class="quality-item"><strong>v1.4.0 語意深化</strong><span>${semanticBatchV140Count} / 10</span></div>
           <div class="quality-item"><strong>人工語意校閱</strong><span>${reviewedCaseCount} / 100</span></div>
           <div class="quality-item"><strong>快速案例待深度化</strong><span>${quickPendingCount} / 80</span></div>
           <div class="quality-item"><strong>快速案例工程證據</strong><span>${quickEvidenceCount} / 80</span></div>
@@ -2242,7 +2308,7 @@ print(summarize(case_info))`;
           <div class="quality-item"><strong>Production slice</strong><span>${caseGroups.length} / 10</span></div>
           <div class="quality-item"><strong>500 案例殘留生成器</strong><span>0</span></div>
         </div>
-        ${issues.length ? `<div class="deep-note"><strong>需要處理</strong>${listItems(issues)}</div>` : `<p class="summary">目前資料已限制在 100 個案例：10 主題、20 深度案例、10 個 v1.2.0 語意深化案例、10 個 v1.3.0 語意深化案例、60 個仍待深度化快速案例。自動檢查只代表結構、證據欄位與互動資料完整；下一輪應繼續把 pending 案例補成真實 failure log、pytest output 與案例專屬 patch。</p>`}`;
+        ${issues.length ? `<div class="deep-note"><strong>需要處理</strong>${listItems(issues)}</div>` : `<p class="summary">目前資料已限制在 100 個案例：10 主題、20 深度案例、10 個 v1.2.0 語意深化案例、10 個 v1.3.0 語意深化案例、10 個 v1.4.0 語意深化案例、50 個仍待深度化快速案例。自動檢查只代表結構、證據欄位與互動資料完整；下一輪應繼續把 pending 案例補成真實 failure log、pytest output 與案例專屬 patch。</p>`}`;
     }
 
     function landingSnippet(item, number) {
