@@ -312,6 +312,8 @@
       font-weight: 900;
     }
     .tag.deep { background: var(--soft-blue); color: var(--blue); }
+    .tag.reviewed { background: var(--soft-green); color: var(--green); }
+    .tag.pending { background: var(--soft-yellow); color: #735508; }
     .summary { margin: 0; color: var(--muted); }
     .card-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
     .complete-toggle {
@@ -466,6 +468,7 @@
       font-weight: 950;
     }
     .quality-status.fail { background: var(--soft-red); color: var(--red); }
+    .quality-status.pending { background: var(--soft-yellow); color: #735508; }
     .quality-grid, .evidence-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
@@ -663,7 +666,7 @@
         </div>
         <div class="brand-copy">
           <strong>Python 高階工程師應用實戰</strong>
-          <span>100 Production Cases · 高階待確認</span>
+          <span>v0.4.0 · 100 Production Cases · 高階待確認</span>
         </div>
       </div>
       <nav class="nav" aria-label="主要章節">
@@ -683,7 +686,7 @@
     <main>
       <header class="hero">
         <div>
-          <span class="eyebrow">高階教材 / 高階待確認 / 20年專案工程師視角</span>
+          <span class="eyebrow">v0.4.0 / 高階教材 / 高階待確認 / 20年專案工程師視角</span>
           <h1>Python 高階工程實戰 100 案例（待確認）</h1>
           <p>狀態：高階待確認。這份教材不再只講語法，而是把語法放進真實工程場景：架構、可靠性、效能、資料、並發、安全、觀測、打包與交付。每個案例都用圖、表、程式碼和 step-by-step 拆解。</p>
           <div class="hero-actions">
@@ -725,8 +728,8 @@
 
       <section id="quality" class="section">
         <div class="section-head">
-          <h2>教材品質檢查通過（高階待確認）</h2>
-          <p class="lead">狀態：高階待確認。這個區塊由頁面資料即時計算，檢查 100 案例、10 主題、20 深度案例、80 快速案例專案級脈絡、10 條 production slice，以及舊版 500 案例生成器殘留是否已移除。</p>
+          <h2>教材品質檢查與審查狀態</h2>
+          <p class="lead">狀態：結構檢查通過、語意審查待補。這個區塊由頁面資料即時計算 100 案例、10 主題、20 深度案例、80 快速案例專案級脈絡與 10 條 production slice；它不把自動結構檢查誤標成全部案例已人工語意審查。</p>
         </div>
         <div id="qualityPanel" class="quality-panel" aria-live="polite"></div>
       </section>
@@ -789,8 +792,8 @@
 
       <section id="cases" class="section">
         <div class="section-head">
-          <h2>100 個實際真實案例分析</h2>
-          <p class="lead">案例依 10 大工程主題分群。每章 10 個案例，前 2 個是深度案例；其餘快速案例也補上專案 ticket、落地 module、事故訊號、測試檔、CI gate、runbook 與 rollback，不再只是泛用範例。</p>
+          <h2>100 個實際案例分析與審查狀態</h2>
+          <p class="lead">案例依 10 大工程主題分群。每章 10 個案例，前 2 個是人工深度校閱案例；其餘快速案例已補上專案 ticket、落地 module、事故訊號、測試檔、CI gate、runbook 與 rollback，但仍明確標示為待逐案深度化的 template starter。</p>
         </div>
         <div id="caseList" class="case-list" aria-live="polite"></div>
       </section>
@@ -830,7 +833,42 @@ Failure: corrupted JSON must not be silently overwritten
 ADR: start with JSON repository, move to SQLite at lock contention</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>2. Code：service/repository 邊界</h3>
+            <h3>2. Package Tree 與 pyproject</h3>
+            <p>可交付教材要能讓讀者看見檔案邊界；src layout、tests、docs、runbooks 與 CI 必須能對回同一條 release gate。</p>
+            <pre class="code">notes-platform/
+  pyproject.toml
+  src/notes_platform/
+    __init__.py
+    cli.py
+    config.py
+    domain.py
+    service.py
+    repositories/json_repo.py
+    errors.py
+  tests/unit/test_service.py
+  tests/integration/test_json_repo.py
+  tests/cli/test_commands.py
+  docs/adr/0001-json-repository.md
+  runbooks/release.md
+  .github/workflows/ci.yml</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>3. pyproject.toml：版本與入口</h3>
+            <p>版本號、依賴、測試工具與 CLI entrypoint 由同一份 metadata 管理，release note 才能和產物一致。</p>
+            <pre class="code">[project]
+name = "notes-platform"
+version = "0.4.0"
+requires-python = ">=3.11"
+dependencies = ["typer>=0.12"]
+
+[project.scripts]
+notes = "notes_platform.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>4. Code：service/repository 邊界</h3>
             <p>核心規則放在 service，儲存細節放在 repository；CLI/API 只負責組裝輸入與輸出。</p>
             <pre class="code">from dataclasses import dataclass
 
@@ -851,7 +889,39 @@ class NoteService:
         return note</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>3. Test：pytest 驗收</h3>
+            <h3>5. Config / Env Precedence</h3>
+            <p>設定優先順序要寫成可測規則：defaults 保證本機可跑，config file 給使用者調整，env 覆寫 CI/部署環境。</p>
+            <pre class="code">from dataclasses import dataclass
+import os
+
+@dataclass(frozen=True)
+class Settings:
+    data_path: str = "notes.json"
+    log_level: str = "INFO"
+
+def load_settings(file_config: dict[str, str]) -> Settings:
+    return Settings(
+        data_path=os.getenv("NOTES_DATA_PATH", file_config.get("data_path", "notes.json")),
+        log_level=os.getenv("NOTES_LOG_LEVEL", file_config.get("log_level", "INFO")),
+    )</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>6. Repository Migration 與錯誤分類</h3>
+            <p>JSON repository 不是玩具時，要有 schema_version、migration、資料毀損錯誤與不支援版本錯誤，CLI 才能給出修復指令。</p>
+            <pre class="code">class NotesError(Exception): ...
+class DataCorruptionError(NotesError): ...
+class UnsupportedSchemaError(NotesError): ...
+
+def migrate(doc: dict) -> dict:
+    version = doc.get("schema_version", 1)
+    if version == 1:
+        doc = {"schema_version": 2, "notes": doc.get("items", [])}
+    if doc.get("schema_version") != 2:
+        raise UnsupportedSchemaError(doc.get("schema_version"))
+    return doc</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>7. Test：pytest 驗收</h3>
             <p>測試先鎖住 service 規則，再用 tmp_path 驗證 JSON repository 的實際檔案行為。</p>
             <pre class="code">class FakeRepo:
     def __init__(self):
@@ -867,18 +937,24 @@ def test_add_note_trims_text():
     assert repo.saved == [note]</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>4. CI：品質門禁</h3>
+            <h3>8. GitHub Actions：品質門禁</h3>
             <p>CI 要能判讀壞在哪一層：lint/type 是工程規格，unit/integration 是行為規格，coverage 是缺口訊號。</p>
-            <pre class="code">ruff check src tests
-mypy src
-pytest tests/unit -q
-pytest tests/integration -q
-pytest tests/cli -q
-coverage run -m pytest
-coverage report --fail-under=90</pre>
+            <pre class="code">name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python -m pip install -e .[dev]
+      - run: ruff check src tests
+      - run: mypy src
+      - run: pytest tests -q --cov=notes_platform --cov-fail-under=90</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>5. Package：可重現產物</h3>
+            <h3>9. Package：可重現產物</h3>
             <p>package 階段要在乾淨環境安裝 wheel，PyInstaller 則用 onedir 先排查 assets 與 hidden imports。</p>
             <pre class="code">python -m pip install build
 python -m build
@@ -887,7 +963,7 @@ notes --version
 pyinstaller --onedir src/notes_platform/cli.py --name notes</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>6. Release：版本與證據</h3>
+            <h3>10. Release：版本與證據</h3>
             <p>Release note 必須附測試證據、產物位置、SBOM/dependency scan 與 smoke command。</p>
             <pre class="code">Release v0.3.0
 Evidence: tests passed, coverage 92%, smoke passed
@@ -897,13 +973,25 @@ SBOM: sbom-notes-platform-0.3.0.json
 Smoke: notes --version && notes add n1 "hello"</pre>
           </article>
           <article class="walkthrough-card">
-            <h3>7. Rollback：演練與回復</h3>
+            <h3>11. Rollback：演練與回復</h3>
             <p>rollback 不是重新部署舊版而已，還要知道資料、設定與使用者操作如何復原。</p>
             <pre class="code">pip install notes-platform==0.2.0
 notes repair --from notes.json.bak
 notes doctor --strict
 pytest tests/smoke/test_release.py -q
 runbook: verify data count, version, and audit log</pre>
+          </article>
+          <article class="walkthrough-card">
+            <h3>12. Release Artifact Table</h3>
+            <p>每次標版本都要能回看修改內容、測試證據、產物與回復路徑，不能只留下 git tag。</p>
+            <pre class="code">| Evidence | Required |
+| --- | --- |
+| tag | v0.4.0 |
+| tests | ruff, mypy, pytest, coverage |
+| package | wheel + dist smoke |
+| security | pip-audit + SBOM |
+| rollback | backup path + old artifact pin |
+| owner | release captain + on-call |</pre>
           </article>
         </div>
         <div class="steps" style="margin-top: 1rem;" aria-label="Production walkthrough step-by-step">
@@ -1912,6 +2000,28 @@ print(summarize(case_info))`;
       };
     }
 
+    function fieldReviewMeta(item, number, isDeep) {
+      const slug = caseSlug(item.title, number);
+      const profile = fieldProjectProfile(item, number);
+      const evidence = fieldEvidence(item, number);
+      if (isDeep) {
+        return {
+          sourceType: "人工深度案例",
+          semanticReviewStatus: "已人工校閱",
+          caseSpecificImplementation: `深度案例直接對應 ${profile.modulePath}、取捨表、失敗模式與驗收計畫。`,
+          failurePathTest: `至少覆蓋 ${profile.testFile} 的 happy path、failure path 與 rollback drill。`,
+          incidentLog: evidence.failureLog
+        };
+      }
+      return {
+        sourceType: "專案化 template starter",
+        semanticReviewStatus: "待逐案深度化",
+        caseSpecificImplementation: `${slug} 已有專屬 ticket、module path、CI gate 與 runbook；下一輪要把程式碼從 starter 補成案例專屬 patch。`,
+        failurePathTest: `待補真實失敗輸入與 pytest log；目前先用 ${profile.testFile} 作為驗收入口。`,
+        incidentLog: evidence.failureLog
+      };
+    }
+
     function listItems(items) {
       return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
     }
@@ -1930,18 +2040,22 @@ print(summarize(case_info))`;
         </div>`;
     }
 
-    function renderProjectContext(item, number) {
+    function renderProjectContext(item, number, isDeep) {
       const profile = fieldProjectProfile(item, number);
+      const review = fieldReviewMeta(item, number, isDeep);
       return `
         <div class="project-context">
           <h4>真實專案落地脈絡：不是泛用範例，而是可進 PR 的 production case</h4>
           <div class="project-context-grid">
             <div class="project-context-card"><strong>Ticket / Owner</strong><span>${escapeHtml(profile.ticket)} / ${escapeHtml(profile.owner)}</span></div>
+            <div class="project-context-card"><strong>審查狀態</strong><span>${escapeHtml(review.semanticReviewStatus)} / ${escapeHtml(review.sourceType)}</span></div>
             <div class="project-context-card"><strong>落地 Module</strong><code>${escapeHtml(profile.modulePath)}</code></div>
             <div class="project-context-card"><strong>系統情境</strong><span>${escapeHtml(profile.system)}</span></div>
             <div class="project-context-card"><strong>事故訊號</strong><span>${escapeHtml(profile.productionIncident)}</span></div>
             <div class="project-context-card"><strong>資料與邊界契約</strong><span>${escapeHtml(profile.dataContract)}</span></div>
             <div class="project-context-card"><strong>Rollback Drill</strong><span>${escapeHtml(profile.rollback)}</span></div>
+            <div class="project-context-card"><strong>程式碼對題說明</strong><span>${escapeHtml(review.caseSpecificImplementation)}</span></div>
+            <div class="project-context-card"><strong>失敗路徑測試</strong><span>${escapeHtml(review.failurePathTest)}</span></div>
           </div>
         </div>`;
     }
@@ -1960,24 +2074,32 @@ print(summarize(case_info))`;
         const profile = fieldProjectProfile(item, quickCaseNumbers[index]);
         return profile.modulePath && profile.testFile && profile.runbook && profile.rollback;
       }).length;
+      const reviewedCaseCount = caseGroups.flatMap((group) => group.caseNumbers.slice(0, 2)).length;
+      const quickPendingCount = quickCaseNumbers.filter((caseNumber) => {
+        const group = caseGroups.find((item) => item.caseNumbers.includes(caseNumber));
+        const isDeep = group ? group.caseNumbers.slice(0, 2).includes(caseNumber) : false;
+        return fieldReviewMeta(cases[caseNumber - 1], caseNumber, isDeep).semanticReviewStatus === "待逐案深度化";
+      }).length;
       const pass = issues.length === 0;
       panel.classList.toggle("is-pass", pass);
       panel.classList.toggle("is-fail", !pass);
       panel.innerHTML = `
         <div class="quality-head">
-          <strong>${pass ? "教材品質檢查通過" : "教材品質檢查需要修正"}</strong>
-          <span class="quality-status${pass ? "" : " fail"}">${pass ? "PASS" : `${issues.length} issue(s)`}</span>
+          <strong>${pass ? "結構品質檢查通過，語意審查持續追蹤" : "教材品質檢查需要修正"}</strong>
+          <span class="quality-status${pass ? " pending" : " fail"}">${pass ? "STRUCTURE PASS" : `${issues.length} issue(s)`}</span>
         </div>
         <div class="quality-grid">
           <div class="quality-item"><strong>案例總數</strong><span>${TOTAL_CASES} / 100</span></div>
           <div class="quality-item"><strong>主題章節</strong><span>${caseGroups.length} / 10</span></div>
           <div class="quality-item"><strong>深度案例</strong><span>${deepCount} / 20</span></div>
+          <div class="quality-item"><strong>人工語意校閱</strong><span>${reviewedCaseCount} / 100</span></div>
+          <div class="quality-item"><strong>快速案例待深度化</strong><span>${quickPendingCount} / 80</span></div>
           <div class="quality-item"><strong>快速案例工程證據</strong><span>${quickEvidenceCount} / 80</span></div>
           <div class="quality-item"><strong>快速案例專案級脈絡</strong><span>${quickProjectProfileCount} / 80</span></div>
           <div class="quality-item"><strong>Production slice</strong><span>${caseGroups.length} / 10</span></div>
           <div class="quality-item"><strong>500 案例殘留生成器</strong><span>0</span></div>
         </div>
-        ${issues.length ? `<div class="deep-note"><strong>需要處理</strong>${listItems(issues)}</div>` : `<p class="summary">目前資料已限制在 100 個案例：10 主題、20 深度案例、80 快速案例。每個快速案例都具備 ticket、module path、事故訊號、test file、CI gate、runbook、rollback 與 release evidence，不再停留在泛用生成式範例。</p>`}`;
+        ${issues.length ? `<div class="deep-note"><strong>需要處理</strong>${listItems(issues)}</div>` : `<p class="summary">目前資料已限制在 100 個案例：10 主題、20 深度案例、80 快速案例。自動檢查只代表結構、證據欄位與互動資料完整；80 個快速案例仍明確標示為待逐案深度化，下一輪應補真實 failure log、pytest output 與案例專屬 patch。</p>`}`;
     }
 
     function landingSnippet(item, number) {
@@ -2038,6 +2160,7 @@ def test_${testName}_acceptance():
             ${visualSvg(item.visual, item.title)}
             <span class="tag">${escapeHtml(item.pattern)}</span>
             ${isDeep ? `<span class="tag deep">深度案例</span>` : ""}
+            ${isDeep ? `<span class="tag reviewed">已人工校閱</span>` : `<span class="tag pending">待深度化</span>`}
           </div>
           <div class="case-body">
             <div class="case-title">
@@ -2056,7 +2179,7 @@ def test_${testName}_acceptance():
                 <tbody><tr><td>${escapeHtml(item.problem)}</td><td><code>${escapeHtml(item.pattern)}</code><br>${escapeHtml(item.syntax)}</td><td>${escapeHtml(fieldTradeoff(item))}</td><td>${escapeHtml(fieldAcceptance(item))}</td></tr></tbody>
               </table>
             </div>
-            ${renderProjectContext(item, number)}
+            ${renderProjectContext(item, number, isDeep)}
             ${isDeep ? renderDeepDive(item, number) : ""}
             <div>
               <div class="code-head">
