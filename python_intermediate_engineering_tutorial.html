@@ -50,13 +50,24 @@
     }
     .brand {
       display: grid;
-      gap: 0.35rem;
-      padding: 0.8rem;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.55rem;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: white;
       box-shadow: var(--shadow);
     }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .brand-copy { display: grid; gap: 0.18rem; min-width: 0; }
     .brand strong { font-size: 1rem; line-height: 1.25; }
     .brand span { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
     .nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
@@ -137,6 +148,33 @@
       cursor: pointer;
     }
     .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .back-to-top {
+      position: fixed;
+      right: clamp(1rem, 3vw, 1.6rem);
+      bottom: clamp(1rem, 3vw, 1.6rem);
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.15rem;
+      height: 3.15rem;
+      border: 1px solid rgba(47,111,187,0.32);
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      box-shadow: 0 16px 34px rgba(23, 32, 51, 0.22);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.6rem);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .back-to-top.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-to-top svg { width: 1.25rem; height: 1.25rem; }
     .surface {
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -249,8 +287,9 @@
     }
     .step-toggle span:first-child { display: inline-flex; align-items: center; gap: 0.58rem; }
     .step-number {
-      display: grid;
-      place-items: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       flex: 0 0 auto;
       width: 1.75rem;
       height: 1.75rem;
@@ -260,6 +299,9 @@
       font-family: var(--mono);
       font-size: 0.78rem;
       font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      padding: 0;
     }
     .step-panel { display: none; padding: 0 0.9rem 0.9rem 3.15rem; color: #405268; font-size: 0.94rem; }
     .step.is-open .step-panel { display: block; }
@@ -407,8 +449,20 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="brand">
-        <strong>Python 中級工程教材</strong>
-        <span>Architecture / Concurrency / Packaging</span>
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="27" height="27" viewBox="0 0 32 32" role="img" aria-label="Python icon">
+            <rect x="6" y="3" width="18" height="12" rx="5" fill="#ffd85a"></rect>
+            <rect x="8" y="17" width="18" height="12" rx="5" fill="#76b7f2"></rect>
+            <circle cx="11" cy="8" r="1.4" fill="#172033"></circle>
+            <circle cx="21" cy="24" r="1.4" fill="#172033"></circle>
+            <path d="M15 15h9a4 4 0 0 1 0 8h-3" fill="none" stroke="#172033" stroke-width="2"></path>
+            <path d="M17 17H8a4 4 0 0 1 0-8h3" fill="none" stroke="#172033" stroke-width="2"></path>
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <strong>Python 中級工程教材</strong>
+          <span>Architecture / Concurrency / Packaging</span>
+        </div>
       </div>
       <nav class="nav" aria-label="主要章節">
         <a href="index.html">教材入口</a>
@@ -442,20 +496,19 @@
           </div>
         </div>
         <div class="surface hero-visual">
-          <svg viewBox="0 0 740 430" role="img" aria-labelledby="heroTitle heroDesc">
-            <title id="heroTitle">Python 中級工程路線圖</title>
+          <svg viewBox="0 0 740 340" role="img" aria-label="Python 中級工程路線圖" aria-describedby="heroDesc">
             <desc id="heroDesc">從架構、工程化、並發、平行運算到打包交付。</desc>
             <defs>
               <marker id="heroArrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker>
             </defs>
-            <rect x="18" y="20" width="704" height="390" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <path d="M95 218 C185 92 285 92 374 218 S555 344 642 218" fill="none" stroke="#2f6fbb" stroke-width="7" stroke-linecap="round" marker-end="url(#heroArrow)"></path>
+            <rect x="18" y="20" width="704" height="300" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <path d="M95 176 C184 70 284 70 374 176 S554 282 642 176" fill="none" stroke="#2f6fbb" stroke-width="7" stroke-linecap="round" marker-end="url(#heroArrow)"></path>
             <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
-              <g transform="translate(95 218)"><circle r="52" fill="#fff" stroke="#2f6fbb" stroke-width="3"></circle><text y="-5" font-size="16">Architecture</text><text y="20" font-size="13" fill="#5d6b7d">分層邊界</text></g>
-              <g transform="translate(245 118)"><rect x="-62" y="-38" width="124" height="76" rx="12" fill="#fff" stroke="#2d8a69" stroke-width="3"></rect><text y="-5" font-size="16">Engineering</text><text y="20" font-size="13" fill="#5d6b7d">測試與日誌</text></g>
-              <g transform="translate(374 218)"><circle r="54" fill="#fff" stroke="#7257a8" stroke-width="3"></circle><text y="-5" font-size="16">Concurrency</text><text y="20" font-size="13" fill="#5d6b7d">thread / async</text></g>
-              <g transform="translate(520 318)"><rect x="-68" y="-38" width="136" height="76" rx="12" fill="#fff" stroke="#c79a14" stroke-width="3"></rect><text y="-5" font-size="16">Parallelism</text><text y="20" font-size="13" fill="#5d6b7d">process / CPU</text></g>
-              <g transform="translate(642 218)"><circle r="54" fill="#fff" stroke="#c34848" stroke-width="3"></circle><text y="-5" font-size="16">Packaging</text><text y="20" font-size="13" fill="#5d6b7d">PyInstaller</text></g>
+              <g transform="translate(95 176)"><circle r="48" fill="#fff" stroke="#2f6fbb" stroke-width="3"></circle><text y="-5" font-size="15">Architecture</text><text y="20" font-size="13" fill="#5d6b7d">分層邊界</text></g>
+              <g transform="translate(245 88)"><rect x="-62" y="-36" width="124" height="72" rx="12" fill="#fff" stroke="#2d8a69" stroke-width="3"></rect><text y="-5" font-size="15">Engineering</text><text y="20" font-size="13" fill="#5d6b7d">測試與日誌</text></g>
+              <g transform="translate(374 176)"><circle r="50" fill="#fff" stroke="#7257a8" stroke-width="3"></circle><text y="-5" font-size="15">Concurrency</text><text y="20" font-size="13" fill="#5d6b7d">thread / async</text></g>
+              <g transform="translate(520 264)"><rect x="-66" y="-36" width="132" height="72" rx="12" fill="#fff" stroke="#c79a14" stroke-width="3"></rect><text y="-5" font-size="15">Parallelism</text><text y="20" font-size="13" fill="#5d6b7d">process / CPU</text></g>
+              <g transform="translate(642 176)"><circle r="50" fill="#fff" stroke="#c34848" stroke-width="3"></circle><text y="-5" font-size="15">Packaging</text><text y="20" font-size="13" fill="#5d6b7d">PyInstaller</text></g>
             </g>
           </svg>
         </div>
@@ -516,8 +569,7 @@
           <p class="lead">不要先問「哪個比較快」，先問工作在等什麼。等網路或檔案，多半是 concurrency；燒 CPU，才需要真正 parallelism。</p>
         </div>
         <div class="surface diagram">
-          <svg class="wide" viewBox="0 0 1080 520" role="img" aria-labelledby="decisionTitle decisionDesc">
-            <title id="decisionTitle">Thread、Async、Process 選型流程圖</title>
+          <svg class="wide" viewBox="0 0 1080 520" role="img" aria-label="Thread、Async、Process 選型流程圖" aria-describedby="decisionDesc">
             <desc id="decisionDesc">依照 I/O-bound、CPU-bound、共享狀態、部署限制選擇並發工具。</desc>
             <defs><marker id="decArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
             <rect x="20" y="20" width="1040" height="480" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
@@ -526,9 +578,9 @@
               <rect x="95" y="260" width="210" height="100" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="3"></rect><text x="200" y="303">asyncio</text><text x="200" y="330" font-size="14" fill="#5d6b7d">大量 socket / API</text>
               <rect x="395" y="260" width="210" height="100" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="3"></rect><text x="500" y="303">ThreadPool</text><text x="500" y="330" font-size="14" fill="#5d6b7d">包同步 I/O 函式庫</text>
               <rect x="735" y="260" width="230" height="100" rx="12" fill="#fff4cf" stroke="#c79a14" stroke-width="3"></rect><text x="850" y="303">ProcessPool</text><text x="850" y="330" font-size="14" fill="#5d6b7d">CPU-bound / 繞過 GIL</text>
-              <path d="M540 208v44" stroke="#2f6fbb" stroke-width="3" marker-end="url(#decArrow)"></path><text x="575" y="238" fill="#5d6b7d" font-size="14">是，但函式庫同步</text>
-              <path d="M410 130H240c-30 0-40 25-40 55v67" stroke="#2d8a69" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="300" y="118" fill="#5d6b7d" font-size="14">是，且可 await</text>
-              <path d="M670 130h180c35 0 45 25 45 55v67" stroke="#c79a14" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="790" y="118" fill="#5d6b7d" font-size="14">否，CPU 計算</text>
+              <path d="M540 208v44" stroke="#2f6fbb" stroke-width="3" marker-end="url(#decArrow)"></path><text x="628" y="238" fill="#5d6b7d" font-size="14">是，但函式庫同步</text>
+              <path d="M410 130H240c-30 0-40 25-40 55v67" stroke="#2d8a69" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="310" y="116" fill="#5d6b7d" font-size="14">是，且可 await</text>
+              <path d="M670 130h180c35 0 45 25 45 55v67" stroke="#c79a14" stroke-width="3" fill="none" marker-end="url(#decArrow)"></path><text x="810" y="116" fill="#5d6b7d" font-size="14">否，CPU 計算</text>
               <text x="540" y="430" font-size="16" fill="#5d6b7d">GIL 提醒：thread 對 CPU-bound Python bytecode 不會真正平行；process 才能多核心計算。</text>
             </g>
           </svg>
@@ -586,25 +638,31 @@
           <p class="lead">資深工程師不是只把功能寫出來，而是把需求、決策、邊界、測試、CI、release 與 rollback 串成可交付流程。</p>
         </div>
         <div class="flow-note">
-          <svg viewBox="0 0 1120 310" role="img" aria-labelledby="prodTitle prodDesc">
-            <title id="prodTitle">Production notes-cli 交付流程</title>
+          <svg viewBox="0 0 1120 330" role="img" aria-label="Production notes-cli 交付流程" aria-describedby="prodDesc">
             <desc id="prodDesc">從需求、ADR、package boundary、config、repository migration、tests、CI、release 到 rollback 的流程。</desc>
-            <defs><marker id="prodArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
-            <rect x="16" y="18" width="1088" height="274" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <defs><marker id="prodArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1l6 3-6 3z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="16" y="18" width="1088" height="294" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
             <g font-family="system-ui, sans-serif" text-anchor="middle" font-weight="900">
-              <rect x="42" y="84" width="116" height="76" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="100" y="116">需求</text><text x="100" y="140" font-size="13" fill="#5d6b7d">SLO / CLI UX</text>
-              <rect x="182" y="84" width="116" height="76" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="240" y="116">ADR</text><text x="240" y="140" font-size="13" fill="#5d6b7d">取捨紀錄</text>
-              <rect x="322" y="84" width="116" height="76" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="380" y="116">Boundary</text><text x="380" y="140" font-size="13" fill="#5d6b7d">package</text>
-              <rect x="462" y="84" width="116" height="76" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="520" y="116">Config</text><text x="520" y="140" font-size="13" fill="#5d6b7d">env precedence</text>
-              <rect x="602" y="84" width="116" height="76" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="660" y="116">Migration</text><text x="660" y="140" font-size="13" fill="#5d6b7d">schema</text>
-              <rect x="742" y="84" width="116" height="76" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="800" y="116">Tests</text><text x="800" y="140" font-size="13" fill="#5d6b7d">unit / integ</text>
-              <rect x="882" y="84" width="116" height="76" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="940" y="116">CI</text><text x="940" y="140" font-size="13" fill="#5d6b7d">gates</text>
-              <rect x="742" y="206" width="116" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="800" y="241">Release</text>
-              <rect x="882" y="206" width="116" height="58" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="940" y="241">Rollback</text>
+              <rect x="44" y="82" width="122" height="74" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="105" y="114">需求</text><text x="105" y="138" font-size="13" fill="#5d6b7d">SLO / CLI UX</text>
+              <rect x="184" y="82" width="122" height="74" rx="10" fill="#eee9f8" stroke="#7257a8" stroke-width="2"></rect><text x="245" y="114">ADR</text><text x="245" y="138" font-size="13" fill="#5d6b7d">取捨紀錄</text>
+              <rect x="324" y="82" width="122" height="74" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="385" y="114">Boundary</text><text x="385" y="138" font-size="13" fill="#5d6b7d">package</text>
+              <rect x="464" y="82" width="122" height="74" rx="10" fill="#fff4cf" stroke="#c79a14" stroke-width="2"></rect><text x="525" y="114">Config</text><text x="525" y="138" font-size="12" fill="#5d6b7d">env precedence</text>
+              <rect x="604" y="82" width="122" height="74" rx="10" fill="#fae8e8" stroke="#c34848" stroke-width="2"></rect><text x="665" y="114">Migration</text><text x="665" y="138" font-size="13" fill="#5d6b7d">schema</text>
+              <rect x="744" y="82" width="122" height="74" rx="10" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="2"></rect><text x="805" y="114">Tests</text><text x="805" y="138" font-size="13" fill="#5d6b7d">unit / integ</text>
+              <rect x="884" y="82" width="122" height="74" rx="10" fill="#e6f5ef" stroke="#2d8a69" stroke-width="2"></rect><text x="945" y="114">CI</text><text x="945" y="138" font-size="13" fill="#5d6b7d">gates</text>
+              <rect x="744" y="214" width="122" height="64" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="805" y="252">Release</text>
+              <rect x="884" y="214" width="122" height="64" rx="10" fill="#fff" stroke="#8da0b6" stroke-width="2"></rect><text x="945" y="252">Rollback</text>
             </g>
-            <path d="M158 122h16M298 122h16M438 122h16M578 122h16M718 122h16M858 122h16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
-            <path d="M940 160v38" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
-            <path d="M882 235h-16" stroke="#2f6fbb" stroke-width="3" marker-end="url(#prodArrow)"></path>
+            <g fill="none" stroke="#2f6fbb" stroke-width="2.6" stroke-linecap="round" marker-end="url(#prodArrow)">
+              <path d="M168 119h10"></path>
+              <path d="M308 119h10"></path>
+              <path d="M448 119h10"></path>
+              <path d="M588 119h10"></path>
+              <path d="M728 119h10"></path>
+              <path d="M868 119h10"></path>
+              <path d="M945 158v48"></path>
+              <path d="M884 246h-12"></path>
+            </g>
           </svg>
         </div>
         <div class="grid two" style="margin-top: 1rem;">
@@ -1013,6 +1071,11 @@ ModuleNotFoundError: No module named 'notes_app.templates'</pre>
         範例輸出為教學用預期結果，不會在瀏覽器中執行 Python。中級教材定位為工程實戰導向，適合已熟悉初級語法後使用。
       </footer>
     </main>
+    <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </button>
   </div>
 
   <script>
@@ -1503,9 +1566,19 @@ ModuleNotFoundError: No module named 'notes_app.templates'</pre>
       });
     }
 
+    function bindBackToTop() {
+      const button = document.querySelector(".back-to-top");
+      if (!button) return;
+      const toggle = () => button.classList.toggle("is-visible", window.scrollY > 420);
+      button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      window.addEventListener("scroll", toggle, { passive: true });
+      toggle();
+    }
+
     renderTopics();
     enhanceCodeBlocks();
     bindInteractions();
+    bindBackToTop();
     updateProgress();
   </script>
 </body>
