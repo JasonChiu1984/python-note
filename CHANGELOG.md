@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.6.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.5.0 added the industrial data gateway route.
+- Confirmed the next highest-value project-depth gap was a standalone deployment runtime route covering Dockerfile, Compose, environment configuration, health/readiness, structured logging, signal handling, resource limits, restart policy, image tag/digest, deployment smoke, and rollback evidence.
+- Added `python_deployment_runtime_tutorial.html` with 28 interactive lesson cards covering runtime contract, Docker build boundary, `.dockerignore`, non-root user, env config validation, secret redaction, `/healthz`, `/readyz`, dependency degraded state, draining, graceful shutdown, resource limits, network exposure, deployment evidence, and rollback limits.
+- Added `範例程式碼/deployment_runtime_service/` as a zero-dependency standard-library sample with runtime config loading, HTTP health/readiness contracts, structured JSON logging, signal-aware shutdown state, Dockerfile/Compose/static deployment contract validation, unittest coverage, and a smoke script.
+- Updated `index.html` to show sixteen tutorial routes, deployment runtime progress, a new route-map node, and the updated v2.6.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.5.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.4.0 added the packaging and release engineering route.

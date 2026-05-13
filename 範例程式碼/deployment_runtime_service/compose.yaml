@@ -1,0 +1,24 @@
+services:
+  deployment-runtime-service:
+    build:
+      context: .
+    image: deployment-runtime-service:0.1.0
+    environment:
+      APP_NAME: deployment-runtime-service
+      APP_ENV: local-compose
+      APP_PORT: "8080"
+      DEPENDENCY_STATUS: healthy
+      SHUTDOWN_TIMEOUT_SECONDS: "10"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "deployment_runtime_service.healthcheck"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M

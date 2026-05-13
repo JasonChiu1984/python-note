@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Deployment Runtime 教學 - Docker、Health、Readiness 與 Rollback v2.6.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #43566f;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #edf2f7 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #edf2f7; border: 2px solid var(--slate); color: var(--slate); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(67,86,111,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--slate); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #edf2f7; color: var(--slate); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--slate); color: white; border-color: #33445a; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--slate); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #edf2f7; color: var(--slate); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">RUN</span><span><strong>Deployment Runtime</strong><br><small>Docker、health、readiness、rollback</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#runtime">Runtime</a>
+        <a href="#docker">Docker</a>
+        <a href="#config">Config</a>
+        <a href="#health">Health</a>
+        <a href="#operations">Operations</a>
+        <a href="#delivery">Delivery</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Deployment Runtime</span>
+          <h1>把 Python 服務放進可驗證的執行環境</h1>
+          <p>這條路線把 Python 專案從 artifact 推進到可部署 runtime：Dockerfile、Compose、env config、health/readiness、structured log、SIGTERM graceful shutdown、resource limit、restart policy、image tag/digest、rollback 與 site handover。範例專案只使用標準庫，可在沒有 Docker daemon 的環境先驗證 runtime contract。</p>
+          <div class="status-strip"><span>v2.6.0</span><span>28 張互動卡</span><span>standard library sample</span><span>Dockerfile + Compose contract</span></div>
+          <div class="hero-actions"><a class="button primary" href="#runtime">開始部署課程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python deployment runtime 閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#43566f"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="64" y="96" width="144" height="72" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="136" y="139">Image</text>
+              <path d="M218 132h42" stroke="#43566f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="276" y="96" width="144" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="348" y="139">Config</text>
+              <path d="M430 132h42" stroke="#43566f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="488" y="96" width="144" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="560" y="139">Service</text>
+              <path d="M560 178v45" stroke="#43566f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="470" y="240" width="180" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="560" y="283">Health Gate</text>
+              <path d="M460 276H304" stroke="#43566f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="112" y="240" width="184" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="204" y="283">Rollback</text>
+              <path d="M204 230V182" stroke="#43566f" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">deployment 是 runtime contract，不只是 docker build 成功</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：Dockerfile、Compose、env、healthz、readyz、SIGTERM、resource、rollback、edge">
+        <div class="quick-links"><a href="#docker">Docker</a><a href="#config">Config</a><a href="#health">Health</a><a href="#delivery">Delivery</a></div>
+      </div>
+      <section class="section-block" id="runtime" data-group="runtime"><div class="section-head"><div><span class="eyebrow">Runtime</span><h2>先定義服務在執行環境中的責任</h2><p>runtime contract 要說清楚 process、port、config、log、health 與 shutdown 行為。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="docker" data-group="docker"><div class="section-head"><div><span class="eyebrow">Docker</span><h2>Dockerfile 是可稽核的執行環境規格</h2><p>base image、layer、non-root、copy boundary 與 healthcheck 都會影響 production 風險。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="config" data-group="config"><div class="section-head"><div><span class="eyebrow">Config</span><h2>設定要從 image 中分離出來</h2><p>環境變數、secret、site config 與 dependency 狀態要有驗證規則與錯誤輸出。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="health" data-group="health"><div class="section-head"><div><span class="eyebrow">Health</span><h2>liveness 和 readiness 不是同一件事</h2><p>健康檢查決定平台是否重啟 process；就緒檢查決定是否接流量。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>容器上線後要可診斷、可停止、可限制</h2><p>log、signal、resource、restart 與網路邊界是 runtime 維運的核心。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>部署要保留 tag、digest、smoke 與 rollback 證據</h2><p>交付記錄要能回答部署了哪個 image、怎麼驗、失敗怎麼退。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Deployment Runtime Service 範例專案</h2><p>`範例程式碼/deployment_runtime_service/` 示範標準庫 HTTP health/readiness、config、log 與部署檔契約驗證。</p></div></div><pre><code>cd 範例程式碼/deployment_runtime_service
+python3 -m py_compile src/deployment_runtime_service/*.py scripts/run_deployment_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_deployment_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      runtime: [
+        ["runtime-boundary", "Runtime", "Runtime contract 比啟動指令更重要", "服務需要明確 port、config、log、health、shutdown 與 dependency 行為，部署平台才能正確管理它。", "contract = port + env + health + signals", "operator knows how the service behaves."],
+        ["runtime-process", "Runtime", "一個 container 優先跑一個主要 process", "把 web service、scheduler、worker 混在同一個 process 會讓 health 與 shutdown 難以判斷。", "CMD [\"python\", \"-m\", \"app.server\"]", "process ownership is clear."],
+        ["runtime-stdout", "Runtime", "Container log 應輸出到 stdout/stderr", "不要只寫本機檔案；平台通常從 stdout/stderr 收集、切割與轉送 log。", "print(json_log, flush=True)", "logs are collected by runtime."],
+        ["runtime-edge", "Runtime", "Edge site 需要離線與維護模式", "工業 gateway 部署在現場時，要能在 broker 或 SCADA 暫時離線時保守運作。", "mode=edge offline_buffer=bounded", "site failure mode is explicit."]
+      ],
+      docker: [
+        ["docker-base", "Docker", "Base image 要鎖定到可維護版本", "使用 Python 3.14 slim 可降低 image 體積，但仍要追蹤安全更新與相容性。", "FROM python:3.14-slim", "runtime baseline is visible."],
+        ["docker-layer", "Docker", "Layer 順序影響 build cache 與風險", "先複製 metadata，再複製 source，可讓 dependency 與 source 變動分開。", "COPY pyproject.toml README.md ./", "image rebuild is predictable."],
+        ["docker-nonroot", "Docker", "正式 runtime 不應用 root 執行", "建立 appuser 並切換 USER，可降低 container escape 或誤寫系統路徑的影響。", "USER appuser", "process runs with reduced privilege."],
+        ["docker-ignore", "Docker", ".dockerignore 阻止秘密與垃圾進 image", "venv、cache、dist、.env、key、secrets 都不應進入 build context。", ".env\nsecrets\n*.pem", "build context stays clean."]
+      ],
+      config: [
+        ["config-env", "Config", "環境變數需要驗證，不只是讀取", "port、timeout、dependency status 等設定應在啟動時 fail fast。", "APP_PORT=8080", "bad config stops before serving traffic."],
+        ["config-secret", "Config", "Secret 不能寫進 image 或 log", "token/password/API key 應由 runtime secret manager 注入，log helper 需遮罩敏感欄位。", "token=***", "credential leakage is reduced."],
+        ["config-site", "Config", "Site config 要和 image 分離", "同一個 image 應可部署到 lab、staging、factory，不應為每個場域重新 build。", "APP_ENV=factory-a", "promotion does not rebuild code."],
+        ["config-dependency", "Config", "Dependency 狀態要能被 runtime 模擬", "把 dependency health 變成設定或 probe 結果，可測試 degraded readiness。", "DEPENDENCY_STATUS=degraded", "readiness failure is testable."]
+      ],
+      health: [
+        ["health-liveness", "Health", "/healthz 只表示 process 還活著", "dependency degraded 不一定要讓 liveness 失敗，否則平台可能反覆重啟。", "GET /healthz -> 200", "process health is separated."],
+        ["health-readiness", "Health", "/readyz 決定是否接流量", "dependency down、migration 未完成或 draining 時，readiness 應回 503。", "GET /readyz -> 503", "traffic gate is explicit."],
+        ["health-startup", "Health", "Startup gate 避免服務太早接流量", "初始化 schema、cache warmup、protocol reconnect 完成前不應 ready。", "startup_ready=false", "platform waits before routing."],
+        ["health-drain", "Health", "Draining 狀態要讓 readiness 先失敗", "rolling update 收到 SIGTERM 後，先停止接新流量，再完成既有工作。", "state.draining = true", "shutdown is graceful."]
+      ],
+      operations: [
+        ["ops-signal", "Operations", "SIGTERM 是部署平台的停止通知", "服務需攔截 SIGTERM/SIGINT，進入 draining 並在 timeout 內結束。", "signal.signal(SIGTERM, handler)", "rolling update can stop cleanly."],
+        ["ops-resource", "Operations", "Resource limit 要與 timeout 一起看", "CPU/memory 限制會影響 latency、worker count 與 health timeout。", "memory: 256M cpus: 0.50", "capacity assumption is visible."],
+        ["ops-restart", "Operations", "Restart policy 不能替代錯誤處理", "unless-stopped 可恢復短暫錯誤，但 config error 應 fail fast 並告警。", "restart: unless-stopped", "runtime recovery has boundaries."],
+        ["ops-network", "Operations", "Network 與 port 要最小暴露", "只發布需要的 port；資料庫、broker、PLC subnet 應透過 network policy 控制。", "ports: 8080:8080", "attack surface is limited."]
+      ],
+      delivery: [
+        ["delivery-tag", "Delivery", "Image tag 要對應 Git tag 與版本", "v2.6.0、commit SHA、build time 應進入 release evidence。", "image: app:v2.6.0", "deployed version is traceable."],
+        ["delivery-digest", "Delivery", "Digest 比 mutable tag 更可稽核", "正式 promotion 應記錄 image digest，避免同名 tag 被覆蓋。", "sha256:...", "artifact identity is immutable."],
+        ["delivery-smoke", "Delivery", "Deployment smoke 應驗證 runtime contract", "health、ready、config、log、deployment file contract 都要在發布前驗。", "run_deployment_smoke.py", "deployment gate has evidence."],
+        ["delivery-rollback", "Delivery", "Rollback 要定義資料與設定邊界", "service image 可降版，不代表 schema、queue message、site config 都可直接回退。", "rollback image + config + migration note", "operator knows rollback limits."]
+      ],
+      sample: [
+        ["sample-config", "Sample", "範例驗證 env config", "load_config 會檢查 port、host、dependency status 與 shutdown timeout。", "load_config({\"APP_PORT\":\"8080\"})", "config validation passes."],
+        ["sample-health", "Sample", "範例分開 health 與 readiness", "dependency degraded 時 health 仍可 200，但 readiness 會 503。", "health_report(); readiness_report()", "platform semantics are correct."],
+        ["sample-contract", "Sample", "範例檢查部署檔契約", "validate_deployment_files 會確認 Dockerfile、Compose 與 .dockerignore 的必要內容。", "validate_deployment_files(project_root)", "deployment files are auditable."],
+        ["sample-smoke", "Sample", "smoke script 串起部署驗收", "run_deployment_smoke.py 驗證 config、health、readiness、log redaction 與部署檔。", "python3 scripts/run_deployment_smoke.py", "deployment runtime smoke passed."]
+      ]
+    };
+    const completedKey = "python-deployment-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>定義契約</strong><span>先寫清楚 runtime、config 與 health。</span></div><div class="step"><strong>限制風險</strong><span>non-root、secret、resource 與 network 都要有邊界。</span></div><div class="step"><strong>保留證據</strong><span>tag、digest、smoke、rollback 要能追溯。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", keyword && !item.dataset.search.includes(keyword)));
+    });
+    renderAll();
+  </script>
+</body>
+</html>
