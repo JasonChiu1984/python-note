@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.9.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective.
+- Confirmed the broad route set remains sufficient; the highest-value local gap was the final 10 high-level advanced cases still marked as pending semantic deepening.
+- Added v1.9.0 case-specific focus, failure path, and implementation notes for Backward Compatible DTO, Data Dedup Pipeline, Priority Queue, Reconciliation Job, Compression Tradeoff, Path Traversal Guard, Fuzzing Parser, WebSocket Heartbeat, Streaming Response, and Vector Search Refresh.
+- Advanced the high-level 100-case review state from 90/100 to 100/100.
+- Updated `index.html`, `python_advanced_engineering_cases.html`, and `VERSION` to show v1.9.0 and the 100/100 reviewed state.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v1.8.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective.
