@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.2.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.1.0 added the observability and operations route.
+- Confirmed the next highest-value project-depth gap was a standalone security engineering route rather than another syntax or case-expansion route.
+- Added `python_security_engineering_tutorial.html` with 28 interactive lesson cards covering threat modeling, authentication, authorization, input validation, secret handling, supply-chain evidence, runtime controls, audit logs, and security incident evidence.
+- Added `範例程式碼/security_engineering/` as a zero-dependency standard-library sample with PBKDF2 password hashing, constant-time token comparison, deny-by-default RBAC policy, validation, rate limiting, redacted audit logs, manifest gate, unittest coverage, and a smoke script.
+- Updated `index.html` to show twelve tutorial routes, security engineering progress, a new route-map node, and the updated v2.2.0 status while preserving the latest route-map layout corrections.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.1.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.0.0 added the testing engineering route.

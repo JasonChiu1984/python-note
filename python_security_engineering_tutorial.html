@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 安全工程教學 - Threat Model、Auth、Secrets、Supply Chain 與 Audit v2.2.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #fae8e8 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #fae8e8; border: 2px solid var(--red); color: var(--red); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #fae8e8; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(195,72,72,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--red); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #fae8e8; color: var(--red); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--red); color: white; border-color: #9b3636; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--red); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #fae8e8; color: var(--red); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">SEC</span><span><strong>Security Engineering</strong><br><small>威脅建模、權限、Secrets 與供應鏈</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#threat">Threat Model</a>
+        <a href="#identity">Identity</a>
+        <a href="#input">Input</a>
+        <a href="#secrets">Secrets</a>
+        <a href="#supply">Supply Chain</a>
+        <a href="#runtime">Runtime</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Security Engineering</span>
+          <h1>把安全做進需求、程式、交付與維運</h1>
+          <p>這條路線把安全從零散 checklist 拉成工程流程：threat model、authn/authz、input validation、secret handling、dependency pinning、audit log、secure error response 與 incident evidence。範例專案使用標準庫，示範 PBKDF2 密碼雜湊、role policy、rate limit、redacted audit 與 supply-chain manifest 檢查。</p>
+          <div class="status-strip"><span>v2.2.0</span><span>28 張互動卡</span><span>standard library sample</span><span>auth + policy + audit + manifest</span></div>
+          <div class="hero-actions"><a class="button primary" href="#threat">開始安全工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 安全工程閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#c34848"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="70" y="96" width="132" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="136" y="139">Threat</text>
+              <path d="M212 132h50" stroke="#c34848" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="278" y="96" width="132" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="344" y="139">Auth</text>
+              <path d="M420 132h50" stroke="#c34848" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="486" y="96" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="552" y="139">Validation</text>
+              <path d="M552 178v45" stroke="#c34848" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="468" y="240" width="168" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="552" y="283">Supply Chain</text>
+              <path d="M458 276H302" stroke="#c34848" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="112" y="240" width="182" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="203" y="283">Audit / Incident</text>
+              <path d="M203 230V182" stroke="#c34848" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">安全證據必須能串回風險、控制、測試與版本</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：threat model、RBAC、PBKDF2、secret、audit、dependency、rate limit、incident">
+        <div class="quick-links"><a href="#threat">Threat</a><a href="#identity">Identity</a><a href="#input">Input</a><a href="#secrets">Secrets</a><a href="#supply">Supply</a></div>
+      </div>
+      <section class="section-block" id="threat" data-group="threat"><div class="section-head"><div><span class="eyebrow">Threat Model</span><h2>先定義資產、入口與失敗模式</h2><p>安全設計要從資料、使用者、外部依賴與濫用路徑開始，不是等弱掃報告才補洞。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="identity" data-group="identity"><div class="section-head"><div><span class="eyebrow">Identity</span><h2>身分驗證與授權要明確分層</h2><p>登入只回答你是誰，授權才回答你能不能執行某個動作。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="input" data-group="input"><div class="section-head"><div><span class="eyebrow">Input</span><h2>輸入驗證要保護邊界與資源</h2><p>API、CLI、檔案與外部 payload 都是不可信入口，必須有格式、長度、類型與錯誤回應策略。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="secrets" data-group="secrets"><div class="section-head"><div><span class="eyebrow">Secrets</span><h2>Secrets 不應進入程式碼、log 或測試 fixture</h2><p>密碼、token、private key 要有來源、遮罩、輪替與事故處理流程。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="supply" data-group="supply"><div class="section-head"><div><span class="eyebrow">Supply Chain</span><h2>套件與建置流程要可追蹤、可重現</h2><p>lock file、hash、SBOM、弱點掃描與版本標註是 Python 交付安全的基本證據。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="runtime" data-group="runtime"><div class="section-head"><div><span class="eyebrow">Runtime</span><h2>執行期要能限制濫用並留下審計線索</h2><p>rate limit、secure error、audit log 與 incident playbook 讓安全控制能被驗證與維運。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Security Engineering 範例專案</h2><p>`範例程式碼/security_engineering/` 示範 PBKDF2 password hash、RBAC policy、input guard、rate limiter、redacted audit 與 manifest gate。</p></div></div><pre><code>cd 範例程式碼/security_engineering
+PYTHONPATH=src python3 -m security_engineering.demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_security_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      threat: [
+        ["threat-assets", "Threat", "列出需要保護的資產", "先列出帳號、token、訂單、稽核紀錄與部署產物，才能判斷哪些控制必要。", "assets = ['user_token', 'order', 'audit_log']", "security scope is explicit."],
+        ["threat-entrypoints", "Threat", "標記所有不可信入口", "HTTP body、query string、file upload、CLI args、message queue payload 都要被視為不可信。", "entrypoints = ['api', 'cli', 'csv', 'webhook']", "validation boundaries are visible."],
+        ["threat-abuse-case", "Threat", "用濫用案例設計測試", "例如越權讀取、重放請求、暴力嘗試、secret 洩漏，應轉成測試與監控條件。", "abuse_case = 'user reads another tenant order'", "test target follows risk."],
+        ["threat-risk-rating", "Threat", "用 impact 與 likelihood 排優先級", "安全工作也要排序，先處理高影響且容易被觸發的風險。", "risk = impact * likelihood", "backlog is risk-based."]
+      ],
+      identity: [
+        ["identity-password-hash", "Auth", "密碼只存不可逆雜湊", "使用 PBKDF2、bcrypt 或 Argon2；標準庫 baseline 可用 pbkdf2_hmac 示範 salt 與迭代。", "hash = pbkdf2_hmac('sha256', password, salt, 200000)", "plain password is never stored."],
+        ["identity-compare", "Auth", "驗證 token 使用 constant-time compare", "避免以普通字串比較造成 timing side channel。", "hmac.compare_digest(expected, actual)", "comparison leaks less timing signal."],
+        ["identity-rbac", "AuthZ", "授權規則寫成 policy", "controller 不應散落 if admin；把 role、action、resource 集中成可測規則。", "policy.can(user, 'delete', 'order')", "authorization is testable."],
+        ["identity-deny-default", "AuthZ", "授權預設拒絕", "未知 role、未知 action、缺少 tenant context 都應 fail closed。", "return False for unknown permission", "missing rule does not grant access."]
+      ],
+      input: [
+        ["input-schema", "Input", "輸入要有 schema 與型別邊界", "即使不用外部框架，也應檢查必填欄位、型別、長度與允許值。", "validate_payload({'email': value, 'role': role})", "bad shape is rejected."],
+        ["input-size", "Input", "限制 payload 與欄位長度", "無限制字串、檔案或 JSON 會造成記憶體與 log 污染風險。", "if len(name) > 80: reject", "resource use is bounded."],
+        ["input-path", "Input", "路徑輸入要防止 traversal", "`../`、絕對路徑與 symlink 風險要在讀寫檔案前處理。", "resolve().is_relative_to(base)", "file access stays in sandbox."],
+        ["input-error", "Input", "錯誤回應不要洩漏內部細節", "對外回傳安全錯誤碼；內部 log 才保留 trace id 與診斷上下文。", "return {'error':'invalid_request','trace_id': trace_id}", "client sees safe detail level."]
+      ],
+      secrets: [
+        ["secret-env", "Secret", "Secrets 從環境或 secret manager 載入", "不要把 token 寫在程式碼、README、測試 fixture 或 HTML 範例。", "os.environ['APP_SECRET']", "source is outside code."],
+        ["secret-redaction", "Secret", "log 與 audit 要遮罩敏感欄位", "password、token、secret、authorization header 都要在輸出前 redaction。", "redact({'token':'abc'}) -> {'token':'***'}", "evidence is safe to share."],
+        ["secret-rotation", "Secret", "設計輪替與雙 key 過渡", "API key、JWT signing key、DB password 要有換新、舊 key 失效與驗證流程。", "active_key='k2'; grace_key='k1'", "rotation has no downtime surprise."],
+        ["secret-test", "Secret", "測試使用假 secrets", "測試資料要明確標記 fake，避免把真實 token 帶進 repo 或 CI log。", "FAKE_TEST_SECRET = 'test-only-not-real'", "fixtures are non-sensitive."]
+      ],
+      supply: [
+        ["supply-pin", "Supply", "dependency 要 pin 版本與來源", "requirements、lock file 或 uv/pip-tools 應讓建置可重現。", "package==1.2.3 --hash=sha256:...", "install inputs are reproducible."],
+        ["supply-sbom", "Supply", "交付產物要有 SBOM 或 dependency manifest", "至少要列出套件、版本、來源與 hash，方便事故追蹤。", "manifest = {'name':'fastapi','version':'...'}", "artifact has inventory."],
+        ["supply-vuln", "Supply", "弱點掃描結果要進 release evidence", "pip-audit、safety、Dependabot 或平台掃描都應產生可追蹤紀錄。", "pip-audit -r requirements.txt", "known CVEs are visible."],
+        ["supply-build", "Supply", "建置腳本避免隱藏下載與動態執行", "setup、post-install、CI script 應避免 curl pipe shell 或未固定來源。", "reject remote script without checksum", "build path is reviewable."]
+      ],
+      runtime: [
+        ["runtime-rate-limit", "Runtime", "登入與高風險操作要限流", "rate limit 不是只保護效能，也降低暴力嘗試與濫用。", "limiter.allow(user, now)", "abuse is throttled."],
+        ["runtime-audit", "Runtime", "高風險操作要留下 audit event", "登入失敗、權限拒絕、secret 讀取、設定變更都要能回溯。", "audit.record('permission.denied', actor, resource)", "security decisions are auditable."],
+        ["runtime-alert", "Runtime", "安全告警要連到 runbook", "暴力嘗試、token 驗證失敗、權限異常要有 owner 與下一步。", "alert -> owner + query + containment step", "on-call can act."],
+        ["runtime-incident", "Runtime", "安全事故要保存證據與封鎖步驟", "token revoke、key rotation、tenant impact、log export 與 postmortem action 要有紀錄。", "revoke token; rotate key; verify audit", "recovery is evidence-based."]
+      ],
+      sample: [
+        ["sample-auth", "Sample", "範例 auth 模組使用 PBKDF2", "示範 salt、iterations、hash encoding 與 compare_digest 驗證。", "PasswordHasher().verify(password, encoded)", "password workflow is testable."],
+        ["sample-policy", "Sample", "範例 policy 採 deny-by-default", "RolePolicy 只允許已宣告 role/action/resource 組合。", "policy.can('operator','read','order')", "unknown permission is denied."],
+        ["sample-audit", "Sample", "Audit log 自動 redaction", "範例 audit event 保留 trace id 與 action，但遮罩 token/password。", "audit.record(..., token='secret')", "sensitive fields are masked."],
+        ["sample-gate", "Sample", "security smoke 串起驗收命令", "smoke script 檢查 auth、policy、rate limit、manifest 與 audit。", "python3 scripts/run_security_smoke.py", "security baseline passes."]
+      ]
+    };
+    const completedKey = "python-security-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定義風險</strong><span>把資產、入口與濫用案例寫清楚。</span></div><div class="step"><strong>再加控制</strong><span>用 auth、validation、secrets 與供應鏈 gate 落地。</span></div><div class="step"><strong>留下證據</strong><span>用 audit、測試與 release note 支撐驗收。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", Boolean(keyword) && !item.dataset.search.includes(keyword));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
