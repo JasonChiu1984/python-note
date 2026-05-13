@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Type Contract Engineering 教學 - Type Hints、Dataclass、Protocol 與 Runtime Validation v2.8.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #43566f;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e8f1f3 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e7f0fb; border: 2px solid var(--blue); color: var(--blue); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(47,111,187,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--blue); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 13ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e7f0fb; color: var(--blue); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e7f0fb; color: var(--blue); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">TC</span><span><strong>Type Contract</strong><br><small>hints、schema、Protocol</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Type Contract Engineering</span>
+          <h1>把型別提示變成可維護的工程契約</h1>
+          <p>這條路線把 type hints 從語法裝飾提升到團隊級契約：TypedDict 描述外部 payload，dataclass 承載已驗證 domain state，Protocol 隔離依賴邊界，runtime validation 保護現場輸入，contract evidence 進入 CI 與 release 記錄。</p>
+          <div class="status-strip"><span>v2.8.0</span><span>32 張互動卡</span><span>standard library sample</span><span>industrial payload contract</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始型別契約課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python type contract engineering flow">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="56" y="100" width="122" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="117" y="142">Payload</text>
+              <path d="M188 135h42" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="246" y="100" width="138" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="315" y="142">Validation</text>
+              <path d="M394 135h42" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="452" y="100" width="146" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="525" y="142">Dataclass</text>
+              <path d="M525 180v48" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="432" y="246" width="186" height="70" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="525" y="288">Protocol</text>
+              <path d="M422 281H272" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="90" y="246" width="174" height="70" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="177" y="288">Evidence</text>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">型別契約的重點是邊界清楚、非法狀態不可進入核心邏輯</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：TypedDict、dataclass、Protocol、validation、alarm、fail-safe、CI、evidence">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>型別提示要對齊專案風險</h2><p>先決定要保護的邊界，再選 TypedDict、dataclass、Protocol 或 runtime validation。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把外部 payload 和 domain state 分開</h2><p>外部資料可能不可信；核心 model 應只接收已驗證資料。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>從標準庫開始驗證契約流程</h2><p>先用 unittest 與 smoke script 建立可重複驗收，再接 mypy 或 pyright。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>型別策略要分 blocking 與 warning</h2><p>核心 schema 與 runtime validation 應阻擋 release；全域 strictness 可漸進導入。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Type Contract 範例專案</h2><p>範例用工業溫度點位示範 schema、alarm 與 fail-safe，但保持純 Python 標準庫。</p></div></div><pre><code>cd 範例程式碼/type_contract_engineering
+python3 -m py_compile src/type_contract_engineering/*.py scripts/run_type_contract_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_type_contract_smoke.py</code></pre><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時看靜態契約與 runtime 行為</h2><p>type hints、payload validation、alarm、fail-safe、report 都要能被測試。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>常見問題多半來自邊界混用</h2><p>不要讓外部 payload 直接流進核心 business logic。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓型別契約支援重構與交付</h2><p>型別策略應能幫團隊更快改、更穩交付，而不是增加無效儀式。</p></div></div><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-purpose", "Overview", "型別契約要先回答要保護什麼", "核心目標不是把所有變數都標型別，而是保護 API、資料庫、MQTT、PLC payload 與 service boundary。", "contract = boundary + invariant + evidence", "maintenance risk is explicit."],
+        ["overview-static-runtime", "Overview", "Static contract 與 runtime validation 要分工", "type checker 幫開發期重構，runtime validation 保護外部輸入，兩者不能互相取代。", "TypedDict != runtime validator", "external input is still checked."],
+        ["overview-domain", "Overview", "Domain model 不應允許非法狀態", "建立 dataclass 時就檢查 schema、unit、range、timestamp，避免錯誤進入後續流程。", "__post_init__ validates invariants", "invalid state is rejected."],
+        ["overview-team", "Overview", "型別策略要能被團隊採用", "新專案可以 strict；既有專案可先從核心 domain 與 API boundary 漸進導入。", "core=strict legacy=warning", "adoption is practical."]
+      ],
+      architecture: [
+        ["architecture-payload", "Architecture", "TypedDict 描述外部 payload", "它適合描述 JSON、CSV row、MQTT message、PLC point payload 的欄位形狀。", "class ReadingPayload(TypedDict): ...", "payload shape is documented."],
+        ["architecture-dataclass", "Architecture", "dataclass 承載已驗證資料", "frozen dataclass 可降低意外修改，讓 domain state 更容易被測試與追蹤。", "@dataclass(frozen=True)", "domain state is stable."],
+        ["architecture-protocol", "Architecture", "Protocol 放在外部依賴邊界", "publisher、repository、gateway client 使用 Protocol，可讓測試用 fake implementation 替換。", "class AlarmPublisher(Protocol): ...", "dependency boundary is swappable."],
+        ["architecture-flow", "Architecture", "Signal flow 要可追蹤", "工業資料從 IO mapping 到 alarm/fail-safe，每一步都應保留欄位、單位與狀態。", "raw -> validate -> model -> alarm", "field flow is auditable."]
+      ],
+      setup: [
+        ["setup-standard", "Setup", "先用標準庫跑通契約概念", "unittest、dataclasses、typing 已足以示範核心流程，不需要一開始就安裝第三方工具。", "python -m unittest discover -s tests -v", "baseline is reproducible."],
+        ["setup-typechecker", "Setup", "再接 mypy 或 pyright", "靜態分析工具應放在 CI policy 中，而不是只靠開發者手動執行。", "mypy src or pyright", "static check can be automated."],
+        ["setup-smoke", "Setup", "smoke script 驗證契約閉環", "一支 smoke script 要同時跑 schema、alarm、fail-safe 與 evidence report。", "python scripts/run_type_contract_smoke.py", "contract path is executable."],
+        ["setup-path", "Setup", "範例路徑要固定", "教材範例使用 PYTHONPATH=src，讓學生清楚知道 import boundary。", "PYTHONPATH=src", "imports are predictable."]
+      ],
+      configuration: [
+        ["config-schema", "Configuration", "schema_version 是契約的一部分", "payload 欄位變更時，schema version 與 release note 都要同步更新。", "schema_version = 1.0", "schema drift is visible."],
+        ["config-threshold", "Configuration", "alarm threshold 要可設定", "工業點位的高溫、壓力、流量門檻不應硬寫在流程深處。", "alarm_threshold_c = 38", "operation policy is explicit."],
+        ["config-timeout", "Configuration", "stale timeout 對應通訊逾時", "Modbus、OPC UA、BACnet、MQTT 都可能 stale，型別契約要帶入 status 與 timestamp。", "stale_timeout_seconds = 30", "fail-safe timing is clear."],
+        ["config-ci", "Configuration", "CI policy 分成 blocking 和 warning", "核心 model、schema smoke、runtime validation 應 blocking；全專案 strict type check 可分階段導入。", "contract smoke = blocking", "release gate stays workable."]
+      ],
+      example: [
+        ["example-payload", "Example", "範例 payload 包含工業點位欄位", "device_id、point、value、unit、timestamp、status 對應現場訊號、單位與狀態。", "AI_Temp_Supply value=39.2 unit=C", "IO mapping is preserved."],
+        ["example-validation", "Example", "validate_payload 建立 domain model", "缺少必要欄位、錯誤 unit、錯誤 status 都會在進入 service 前失敗。", "validate_payload(payload) -> SensorReading", "bad payload is blocked."],
+        ["example-alarm", "Example", "GatewayService 評估 alarm", "高於 threshold 會 publish warning event，保持控制邏輯可測試。", "value >= alarm_threshold_c", "alarm path is tested."],
+        ["example-failsafe", "Example", "stale 或 fault 觸發 fail-safe", "timestamp 過舊或 status fault 時，不假設讀值仍安全，改發 critical event。", "fail_safe_required=True", "unsafe stale data is handled."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "py_compile 是最低成本檢查", "先排除語法錯誤與明顯 import 問題，讓後續測試訊號更乾淨。", "python -m py_compile src/type_contract_engineering/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "unittest 驗證正常與錯誤路徑", "測試要覆蓋 schema 正常、缺欄位、alarm、fail-safe 與 evidence output。", "python -m unittest discover -s tests -v", "regression tests pass."],
+        ["verify-report", "Verification", "contract report 是 release evidence", "報告需包含 schema version、required keys、type hints、alarm 與 fail-safe 狀態。", "type_contract_report.json", "contract evidence exists."],
+        ["verify-html", "Verification", "HTML 教材也要做 script parse", "互動教材改版後，用 Node 解析 script，避免入口或卡片 JavaScript 中斷。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-typedict", "Troubleshooting", "TypedDict 不會自動驗證 runtime", "如果外部 JSON 少欄位，TypedDict 本身不會在執行時阻擋，仍要寫 validator。", "validate_payload before dataclass", "runtime input is protected."],
+        ["trouble-any", "Troubleshooting", "Any 會讓契約失效", "大量使用 Any 等於把風險往後丟；只在邊界解析前短暫使用。", "dict[str, Any] only at boundary", "unknown data is contained."],
+        ["trouble-protocol", "Troubleshooting", "Protocol 不要包裝所有東西", "它適合外部依賴邊界，不適合把每個小函式都抽象化。", "Publisher/Repository/Client", "abstraction stays useful."],
+        ["trouble-industrial", "Troubleshooting", "現場資料要處理 stale 與 fault", "不要只看數值範圍；timestamp、status、timeout 才能決定讀值是否可用。", "status in stale,fault", "communication failure is handled."]
+      ],
+      bestPractices: [
+        ["best-boundary", "Best", "邊界先驗證，核心再處理", "把 parser/validator 與 business logic 分開，後續重構才不會牽一髮動全身。", "boundary -> domain -> service", "logic remains maintainable."],
+        ["best-contract", "Best", "契約變更要有版本與紀錄", "schema、Protocol、public dataclass 欄位變更，都應進 changelog 或 release note。", "schema v1.0 -> v1.1", "consumer impact is visible."],
+        ["best-ci", "Best", "CI gate 先保護核心契約", "不要第一天就要求全專案 strict；先把 API、domain、gateway payload 擋住。", "core contracts blocking", "adoption does not stall."],
+        ["best-industrial", "Best", "工業資料契約要包含安全語意", "單位、range、timeout、alarm、fail-safe 比單純型別更接近現場風險。", "C, 0-50, timeout=30s", "engineering safety is explicit."]
+      ]
+    };
+    const completedKey = "python-type-contract-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>定義邊界</strong><span>說清楚資料來源、欄位與單位。</span></div><div class="step"><strong>保護狀態</strong><span>validation 後才建立 domain model。</span></div><div class="step"><strong>留下證據</strong><span>contract report 進入驗收紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((card) => {
+        card.classList.toggle("hidden-by-search", keyword && !card.dataset.search.includes(keyword));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>

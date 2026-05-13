@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.8.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.7.0 added the CI/CD quality gate route.
+- Confirmed the next highest-value project-depth gap was a standalone type contract engineering route covering type hints, `TypedDict`, `dataclass`, `Protocol`, runtime validation, schema boundary, static-analysis policy, alarm handling, fail-safe behavior, and contract evidence.
+- Added `python_type_contract_engineering_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/type_contract_engineering/` as a zero-dependency standard-library sample with payload validation, domain dataclass invariants, Protocol-based alarm publisher, fail-safe evaluation, contract report output, unittest coverage, and a smoke script.
+- Updated `index.html` to show eighteen tutorial routes, type contract progress, a new route-map node, and the updated v2.8.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.7.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.6.0 added the deployment runtime route.
