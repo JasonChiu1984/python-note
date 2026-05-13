@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Industrial Data Gateway 教學 - Modbus、OPC UA、BACnet、MQTT 與 Fail-safe v2.5.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e6f5ef 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #e6f5ef; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">GW</span><span><strong>Industrial Gateway</strong><br><small>Modbus、OPC UA、BACnet、MQTT</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#mapping">IO Mapping</a>
+        <a href="#modbus">Modbus</a>
+        <a href="#opcua">OPC UA</a>
+        <a href="#bacnet">BACnet</a>
+        <a href="#mqtt">MQTT</a>
+        <a href="#operations">Operations</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Industrial Data Gateway</span>
+          <h1>把現場點位變成可診斷的工程資料流</h1>
+          <p>這條路線把 Python 放到 PLC / DDC / SCADA 的資料採集場景：IO mapping、Modbus register、OPC UA NodeId、BACnet object、MQTT topic、polling、timeout、alarm、fail-safe、VLAN 與維運診斷。範例專案只使用標準庫，示範本機可重跑的 gateway contract。</p>
+          <div class="status-strip"><span>v2.5.0</span><span>32 張互動卡</span><span>standard library sample</span><span>Modbus + OPC UA + BACnet + MQTT</span></div>
+          <div class="hero-actions"><a class="button primary" href="#architecture">開始 Gateway 課程</a><a class="button blue" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="工業資料採集 gateway 架構圖">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2d8a69"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="58" y="92" width="138" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="127" y="136">PLC / DDC</text>
+              <path d="M206 129h40" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="262" y="92" width="152" height="74" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="338" y="136">Gateway</text>
+              <path d="M424 129h40" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="480" y="92" width="154" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="557" y="136">SCADA / MQTT</text>
+              <path d="M338 176v44" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="228" y="238" width="220" height="82" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="338" y="274">Alarm</text><text x="338" y="300" font-size="15" fill="#5d6b7d">Timeout / Fail-safe</text>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">先定義點位契約，再談協定與資料平台</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：Modbus、FC03、FC16、OPC UA、NodeId、BACnet、BBMD、MQTT、alarm、fail-safe">
+        <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#operations">Operations</a></div>
+      </div>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>Gateway 先解決資料流與責任邊界</h2><p>不要從 library 開始選型，先確定現場點位、資料品質、告警與維運邊界。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>IO map 必須包含 register、datatype、unit、alarm、fail-safe 與上層資料名稱。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="modbus" data-group="modbus"><div class="section-head"><div><span class="eyebrow">Modbus</span><h2>Modbus 要明確標註 function code 與 endian</h2><p>40001 Holding Register、FC03、FC16、word order 與 timeout 是現場常見錯誤來源。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="opcua" data-group="opcua"><div class="section-head"><div><span class="eyebrow">OPC UA</span><h2>OPC UA 以 NodeId 與 subscription 建資料模型</h2><p>endpoint、namespace、Security Mode、publish interval、keepalive 與 reconnect 要成為設定。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet 需保留 object 與 routing 語意</h2><p>object type、object instance、BBMD、foreign device 與跨網段 routing 必須寫入設計。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="mqtt" data-group="mqtt"><div class="section-head"><div><span class="eyebrow">MQTT</span><h2>MQTT topic 與 payload 是上雲契約</h2><p>topic naming、QoS、retain、store-and-forward 與 payload schema 會影響 SCADA/雲端整合。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>現場部署要把失效情境寫清楚</h2><p>timeout、retry、stale、alarm、fail-safe、VLAN、firewall 與維護流程都需要可驗證。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Industrial Data Gateway 範例專案</h2><p>`範例程式碼/industrial_data_gateway/` 示範 Modbus register 模擬、alarm、fail-safe 與 protocol payload contract。</p></div></div><pre><code>cd 範例程式碼/industrial_data_gateway
+python3 -m py_compile src/industrial_data_gateway/*.py scripts/run_gateway_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_gateway_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      architecture: [
+        ["arch-boundary", "Architecture", "Gateway 是協定與資料品質邊界", "Gateway 負責 polling、decode、quality、alarm 與上層 payload，不應把 SCADA 業務規則混在驅動層。", "PLC -> Gateway -> SCADA / Historian / MQTT", "signal flow is explicit."],
+        ["arch-timeout", "Architecture", "通訊 timeout 是控制策略的一部分", "timeout 不只是例外處理，它會決定資料 quality、alarm 與 fail-safe output。", "timeout=2s retry=2 stale=15s", "abnormal condition has behavior."],
+        ["arch-buffer", "Architecture", "store-and-forward 需要容量與清除策略", "離線暫存要限制筆數、時間與磁碟使用，避免 gateway 自己造成停機。", "buffer.max_records=10000", "offline data is bounded."],
+        ["arch-maintenance", "Architecture", "維護模式要和生產模式分開", "手動測試、register scan、debug log 應避免直接進入 production telemetry。", "mode=maintenance", "operators can diagnose safely."]
+      ],
+      mapping: [
+        ["map-io", "IO Mapping", "IO map 要包含現場名稱與工程名稱", "把 MCC、AHU、Boiler、Pump 的實體點位對應到 Python point_id。", "boiler_supply_temp -> 40001", "field and software names match."],
+        ["map-signal", "IO Mapping", "Signal flow 要標出 source、transform、sink", "每個點位應知道從哪個設備來、怎麼轉換、送到哪裡。", "register -> float32 -> OPC UA node", "data lineage is visible."],
+        ["map-alarm", "IO Mapping", "Alarm 門檻要跟 unit 一起定義", "溫度、壓力、電流的 high/low alarm 沒有 unit 就不可驗收。", "high_alarm=80 degC", "alarm meaning is testable."],
+        ["map-failsafe", "IO Mapping", "Fail-safe 值必須保守", "timeout 或 stale 時，輸出要回到安全狀態，不可假設最後一次資料仍有效。", "pump_enable=False", "unsafe command is not held."]
+      ],
+      modbus: [
+        ["modbus-fc03", "Modbus", "FC03 讀 Holding Register", "40001 Holding Register 常以 offset 0 或 1 表示，專案需統一寫法。", "40001 Holding Register / FC03", "read contract is unambiguous."],
+        ["modbus-fc16", "Modbus", "FC16 寫 Multiple Registers", "寫入 setpoint 或 command 時要標出範圍、權限與 rollback。", "FC16 write 40021 setpoint", "write operation has guardrails."],
+        ["modbus-float", "Modbus", "float32 需要兩個 16-bit register", "必須標註 word order，例如 big word 或 little word，否則現場值會錯。", "words 0x422A 0x0000 -> 42.5", "float conversion is deterministic."],
+        ["modbus-multidevice", "Modbus", "多設備 polling 要限制並發", "同一 RS-485 segment 不可無限制並發，Modbus TCP 也要限制 socket 與重試。", "max_inflight_per_segment=1", "polling does not overload devices."]
+      ],
+      opcua: [
+        ["opcua-endpoint", "OPC UA", "Endpoint URL 要成為設定", "預設教學使用 Security=None、port 4840；正式現場再改憑證與加密。", "opc.tcp://192.168.10.20:4840", "client can locate server."],
+        ["opcua-nodeid", "OPC UA", "NodeId 要包含 namespace", "NodeId 範例：ns=2;s=Boiler.SupplyTemperature，避免只寫 display name。", "ns=2;s=Boiler.SupplyTemperature", "monitored item is precise."],
+        ["opcua-subscription", "OPC UA", "Subscription/Pubish 要設定節奏", "publish interval、sampling interval 與 queue size 影響延遲與資料量。", "publish=1000ms keepalive=10s", "data freshness is controlled."],
+        ["opcua-reconnect", "OPC UA", "Reconnect 要有 backoff 與 quality", "斷線時資料應標成 BAD/STALE，重連成功後再恢復 GOOD。", "backoff=[1,5,15]", "client recovers without hiding faults."]
+      ],
+      bacnet: [
+        ["bacnet-object", "BACnet", "BACnet object 要寫 type + instance", "例如 analog-input,1 對應 supply temperature，不要只寫點位名稱。", "object=analog-input instance=1", "BACnet address is explicit."],
+        ["bacnet-bbmd", "BACnet", "跨 subnet 要規劃 BBMD", "BACnet broadcast 不會自然穿越 router，需要 BBMD 或 routing design。", "BBMD=192.168.10.2", "discovery works across VLANs."],
+        ["bacnet-foreign", "BACnet", "Foreign device 需要 TTL", "遠端 gateway 註冊 foreign device 時需設定 TTL 與續約策略。", "foreign_device_ttl=60s", "remote registration is maintained."],
+        ["bacnet-sc", "BACnet", "BACnet/SC Gateway 要標出信任邊界", "若現場使用 BACnet SC，需區分 IP side、SC hub、憑證與路由責任。", "BACnet/IP + BACnet/SC Gateway", "secure topology is documented."]
+      ],
+      mqtt: [
+        ["mqtt-topic", "MQTT", "Topic naming 要反映 site 與 asset", "topic 建議包含 plant、line、equipment、point，避免扁平命名。", "plant/tw01/boiler/supply_temperature", "subscriber can route data."],
+        ["mqtt-payload", "MQTT", "Payload 要包含 value、unit、quality", "資料平台不能只收到數值，還需要單位、品質、時間與來源。", "{\"value\":42.5,\"unit\":\"degC\",\"quality\":\"GOOD\"}", "payload is self-describing."],
+        ["mqtt-qos", "MQTT", "QoS 要依資料重要性選擇", "一般 telemetry 可 QoS 0/1；alarm 或 command ack 需更保守設計。", "telemetry qos=1", "delivery tradeoff is explicit."],
+        ["mqtt-offline", "MQTT", "離線暫存要避免無限成長", "store-and-forward 應限制筆數，並在 reconnect 後按順序補送。", "max_records=10000 ttl=24h", "offline behavior is bounded."]
+      ],
+      operations: [
+        ["ops-vlan", "Operations", "VLAN 分區保護控制網", "PLC VLAN、SCADA VLAN、DMZ 與 IT 網段應用 firewall rule 串接。", "PLC VLAN20 -> SCADA VLAN30", "network path is intentional."],
+        ["ops-firewall", "Operations", "Firewall 只開必要 port", "Modbus TCP 502、OPC UA 4840、MQTT 8883/1883 應按實際需求允許。", "allow tcp/4840 to OPC UA server", "attack surface is reduced."],
+        ["ops-diagnostics", "Operations", "診斷要能回答哪個設備壞了", "log 必須包含 device、register、nodeId、timeout、retry 與 quality。", "device=boiler-plc register=40001 quality=STALE", "maintenance can isolate faults."],
+        ["ops-handover", "Operations", "交付文件要包含現場維護事項", "包含 IP、VLAN、register map、NodeId、BBMD、alarm、fail-safe 與備援流程。", "handover: map + config + smoke evidence", "site team can maintain it."]
+      ],
+      sample: [
+        ["sample-convert", "Sample", "範例驗證 Modbus float conversion", "decode_float32_words 會把兩個 16-bit register 轉成工程值。", "0x422A 0x0000 -> 42.5", "conversion test passes."],
+        ["sample-poll", "Sample", "範例執行 poll_once", "IndustrialGateway 會讀取 mock register，輸出 PointReading 與 AlarmEvent。", "readings, alarms = gateway.poll_once()", "poll cycle is testable."],
+        ["sample-report", "Sample", "範例產生協定契約 report", "report 包含 OPC UA endpoint、BACnet object、MQTT topic 與 alarm 狀態。", "gateway.build_gateway_report(readings, alarms)", "integration payload is visible."],
+        ["sample-smoke", "Sample", "smoke script 驗證完整資料流", "run_gateway_smoke.py 驗證 Modbus、OPC UA、BACnet、MQTT 與 fail-safe 狀態。", "python3 scripts/run_gateway_smoke.py", "gateway smoke passed."]
+      ]
+    };
+    const completedKey = "python-industrial-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>定義點位</strong><span>先確認 register、unit、alarm 與 fail-safe。</span></div><div class="step"><strong>處理品質</strong><span>timeout、retry、stale 與 alarm 必須可追蹤。</span></div><div class="step"><strong>交付契約</strong><span>OPC UA、BACnet、MQTT payload 都要明確。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", keyword && !item.dataset.search.includes(keyword)));
+    });
+    renderAll();
+  </script>
+</body>
+</html>

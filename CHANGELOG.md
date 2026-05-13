@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.5.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.4.0 added the packaging and release engineering route.
+- Confirmed the next highest-value project-depth gap was an industrial data gateway route aligned with PLC/DDC/SCADA, Modbus, OPC UA, BACnet, MQTT, alarm handling, fail-safe behavior, and site deployment.
+- Added `python_industrial_data_gateway_tutorial.html` with 32 interactive lesson cards covering gateway architecture, IO mapping, Modbus FC03/FC16 and float conversion, OPC UA endpoint and NodeId, BACnet object/routing, MQTT payloads, timeout, retry, stale data, alarm handling, fail-safe, VLAN, firewall, handover evidence, and sample-project operation.
+- Added `範例程式碼/industrial_data_gateway/` as a zero-dependency standard-library sample with Modbus holding-register simulation, 16-bit to 32-bit float conversion, polling, alarm evaluation, fail-safe output, OPC UA/BACnet/MQTT contract report, unittest coverage, and a smoke script.
+- Updated `index.html` to show fifteen tutorial routes, industrial gateway progress, a new route-map node, and the updated v2.5.0 status while preserving the existing SVG connector color/layout corrections.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.4.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.3.0 added the async concurrency engineering route.
