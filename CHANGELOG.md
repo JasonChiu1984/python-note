@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.7.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.6.0 added the deployment runtime route.
+- Confirmed the next highest-value project-depth gap was a standalone CI/CD quality gate route covering workflow triggers, local gate commands, runtime matrix, coverage policy, blocking/non-blocking checks, artifact evidence, release decision, and rollback notes.
+- Added `python_ci_quality_gate_tutorial.html` with 28 interactive lesson cards covering gate contract, `py_compile`, `unittest`, smoke entrypoint, fail-fast behavior, Python 3.14 stable lane, Python 3.15 beta preview lane, coverage policy, GitHub Actions workflow, artifact traceability, and industrial deployment evidence.
+- Added `範例程式碼/ci_quality_gate/` as a zero-dependency standard-library sample with compile gate, unittest gate, simplified coverage policy, runtime matrix policy, workflow contract validation, fail-fast pipeline behavior, evidence manifest output, and a GitHub Actions workflow template.
+- Updated `index.html` to show seventeen tutorial routes, CI/CD quality gate progress, a new route-map node, and the updated v2.7.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.6.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.5.0 added the industrial data gateway route.

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python CI/CD Quality Gate 教學 - Workflow、Matrix、Coverage 與 Evidence v2.7.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #43566f;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e8f1f3 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">CI</span><span><strong>CI/CD Quality Gate</strong><br><small>workflow、matrix、evidence</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#contract">Contract</a>
+        <a href="#local">Local Gate</a>
+        <a href="#matrix">Matrix</a>
+        <a href="#coverage">Coverage</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#release">Release</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python CI/CD Quality Gate</span>
+          <h1>把品質檢查變成可交付的工程閘門</h1>
+          <p>這條路線把 Python 專案從「本機測試通過」推進到可重複的 CI/CD gate：py_compile、unittest、coverage policy、runtime matrix、GitHub Actions workflow、artifact evidence、release decision 與 rollback note。範例專案只使用標準庫，可在沒有網路與第三方套件的環境先驗證 gate contract。</p>
+          <div class="status-strip"><span>v2.7.0</span><span>28 張互動卡</span><span>standard library sample</span><span>GitHub Actions contract</span></div>
+          <div class="hero-actions"><a class="button primary" href="#contract">開始 CI/CD 課程</a><a class="button blue" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python CI/CD quality gate 閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2d8a69"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="58" y="106" width="132" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="124" y="148">Source</text>
+              <path d="M200 141h42" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="258" y="106" width="132" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="324" y="148">Local Gate</text>
+              <path d="M400 141h42" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="458" y="106" width="150" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="533" y="148">CI Matrix</text>
+              <path d="M533 186v48" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="440" y="252" width="186" height="70" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="533" y="294">Evidence</text>
+              <path d="M430 287H274" stroke="#2d8a69" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="106" y="252" width="160" height="70" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="186" y="294">Release Gate</text>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">CI/CD gate 的重點是可重複、可阻擋、可回溯</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：workflow、matrix、coverage、unittest、py_compile、artifact、release、rollback">
+        <div class="quick-links"><a href="#local">Local</a><a href="#matrix">Matrix</a><a href="#workflow">Workflow</a><a href="#release">Release</a></div>
+      </div>
+      <section class="section-block" id="contract" data-group="contract"><div class="section-head"><div><span class="eyebrow">Contract</span><h2>先定義品質閘門要阻擋什麼風險</h2><p>CI/CD 不是把指令塞進 YAML，而是把專案可以交付的條件寫清楚。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="local" data-group="local"><div class="section-head"><div><span class="eyebrow">Local Gate</span><h2>本機 gate 要和 CI 使用同一組命令</h2><p>開發者在提交前執行的檢查，應盡量等同 CI 的阻擋條件。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="matrix" data-group="matrix"><div class="section-head"><div><span class="eyebrow">Matrix</span><h2>版本矩陣要分清 blocking 與 preview</h2><p>stable runtime 應阻擋 release；beta preview 適合作為升級預警。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="coverage" data-group="coverage"><div class="section-head"><div><span class="eyebrow">Coverage</span><h2>Coverage 是風險訊號，不是唯一品質指標</h2><p>coverage gate 要搭配 error path、contract test 與 smoke evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="workflow" data-group="workflow"><div class="section-head"><div><span class="eyebrow">Workflow</span><h2>Workflow 要包含 trigger、matrix 與 artifact policy</h2><p>PR、main、tag 與 manual dispatch 的行為要在教學中說清楚。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="release" data-group="release"><div class="section-head"><div><span class="eyebrow">Release</span><h2>發布決策要留下 gate evidence</h2><p>release note 應能說明版本、commit、命令、結果、例外與 rollback 邊界。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>CI Quality Gate 範例專案</h2><p>`範例程式碼/ci_quality_gate/` 示範標準庫 py_compile、unittest、coverage policy、matrix policy、workflow contract 與 evidence manifest。</p></div></div><pre><code>cd 範例程式碼/ci_quality_gate
+python3 -m py_compile src/ci_quality_gate/*.py scripts/run_ci_gate.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_ci_gate.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      contract: [
+        ["contract-risk", "Contract", "Gate 要對應可交付風險", "compile、test、coverage、security、artifact 都應能回答它阻擋哪一類 release 風險。", "gate = risk + command + blocking policy", "release condition is explicit."],
+        ["contract-command", "Contract", "每個 gate 都要有可重複命令", "只寫品質原則無法驗收；命令、working directory、env 與輸出都要固定。", "python -m unittest discover -s tests -v", "developer and CI run the same check."],
+        ["contract-blocking", "Contract", "Blocking gate 與 warning gate 要分開", "stable lane、compile、unit test 通常阻擋；beta preview 可先作為預警。", "blocking=true preview=false", "release is not blocked by preview noise."],
+        ["contract-evidence", "Contract", "Gate 結果要能進 release evidence", "pass/fail 不夠，還要保留版本、commit、命令、原因與例外。", "ci_gate_evidence.json", "audit trail is preserved."]
+      ],
+      local: [
+        ["local-compile", "Local", "py_compile 是最低成本語法 gate", "它不能取代測試，但能快速抓出 syntax error 與 import-time 風險。", "python -m py_compile src/pkg/*.py", "syntax gate is fast."],
+        ["local-unit", "Local", "unittest gate 驗證核心行為", "標準庫 unittest 可讓教材不依賴第三方套件，先把 gate 概念跑通。", "PYTHONPATH=src python -m unittest discover -s tests -v", "behavior gate is repeatable."],
+        ["local-smoke", "Local", "smoke script 串起開發者入口", "一支 run_ci_gate.py 可以讓本機與 CI 共用同一組檢查。", "python scripts/run_ci_gate.py", "local gate matches CI."],
+        ["local-fastfail", "Local", "Fail-fast 要用在阻擋型錯誤", "compile 失敗時不需要繼續跑後續 release gate，避免噪音。", "if blocking and failed: stop", "failure is easy to triage."]
+      ],
+      matrix: [
+        ["matrix-stable", "Matrix", "Stable runtime lane 是正式交付基準", "目前教材以 Python 3.14.5 作為 stable baseline，正式 release 應以 stable lane 阻擋。", "python-version: 3.14", "production baseline is clear."],
+        ["matrix-beta", "Matrix", "Beta lane 是升級預警，不是 production gate", "Python 3.15.0b1 可提前抓相容性，但不應讓 preview 問題阻擋正式交付。", "continue-on-error: true", "future readiness is visible."],
+        ["matrix-os", "Matrix", "OS matrix 要跟部署環境對齊", "Linux service、Windows tool、macOS desktop package 的 matrix 不應完全相同。", "runs-on: ubuntu-latest", "CI reflects deployment target."],
+        ["matrix-dependency", "Matrix", "Dependency matrix 不要無限制膨脹", "只挑風險最高的 Python 與 dependency 組合，避免 CI 太慢失去回饋價值。", "min + current + beta", "feedback remains practical."]
+      ],
+      coverage: [
+        ["coverage-floor", "Coverage", "Coverage floor 是最低門檻", "80% 可以作為示範門檻，但高風險模組需要更嚴格的 error path coverage。", "coverage >= 80", "quality floor is measurable."],
+        ["coverage-branch", "Coverage", "分支覆蓋比行覆蓋更接近風險", "if/else、timeout、retry、rollback path 沒測到時，line coverage 可能仍然很好看。", "branch coverage required for risk paths", "hidden paths are tested."],
+        ["coverage-exception", "Coverage", "Coverage 例外要有理由", "排除 generated code 或平台特定 glue code 時，要寫在 release evidence。", "exclude with reason", "coverage policy is auditable."],
+        ["coverage-contract", "Coverage", "Coverage 不能取代 contract test", "API schema、message format、artifact manifest 需要 contract-level verification。", "assert schema_version == expected", "integration assumptions are guarded."]
+      ],
+      workflow: [
+        ["workflow-trigger", "Workflow", "Trigger 決定 gate 何時執行", "PR、main push、tag、manual dispatch 各自對應不同交付情境。", "on: [pull_request, push, workflow_dispatch]", "workflow runs at the right time."],
+        ["workflow-workingdir", "Workflow", "working-directory 要避免路徑誤判", "monorepo 或教材範例目錄中，CI 步驟要明確指定路徑。", "working-directory: 範例程式碼/ci_quality_gate", "CI commands run in the right folder."],
+        ["workflow-cache", "Workflow", "Cache 是加速，不是正確性來源", "依賴快取失效時，workflow 仍應能從乾淨環境成功。", "cache pip but verify lock", "CI remains reproducible."],
+        ["workflow-secret", "Workflow", "教材 workflow 不應暴露 secret", "deploy token、API key、production credential 不應出現在範例 YAML。", "secrets.PROD_TOKEN", "credential handling stays safe."]
+      ],
+      release: [
+        ["release-decision", "Release", "Release decision 要引用 gate report", "版本標註時要能指出哪些 gate 通過、哪些 preview 例外被接受。", "release_notes.gate = ci_gate_evidence.json", "approval has evidence."],
+        ["release-artifact", "Release", "Artifact evidence 連到 build 產物", "wheel、sdist、container image、checksum 與 manifest 要對應同一個 commit。", "artifact sha256 + commit", "artifact identity is traceable."],
+        ["release-rollback", "Release", "Rollback note 是 gate 的一部分", "如果 gate 通過但部署風險高，release note 仍要標註回退方法與資料邊界。", "rollback image + config + data note", "operator knows recovery steps."],
+        ["release-industrial", "Release", "工業場域要保留現場限制", "PLC/DDC/SCADA 系統還要記錄網路、timeout、fail-safe 與人工驗收狀態。", "site smoke + fail-safe note", "field deployment risk is explicit."]
+      ],
+      sample: [
+        ["sample-compile", "Sample", "範例執行 py_compile gate", "run_ci_gate.py 會編譯 src 與 scripts，先排除語法錯誤。", "run_py_compile(paths)", "compile gate passes."],
+        ["sample-tests", "Sample", "範例執行 unittest gate", "範例測試 coverage policy、matrix policy、non-blocking failure 與 pipeline fail-fast。", "python -m unittest discover -s tests -v", "unit gate passes."],
+        ["sample-workflow", "Sample", "範例檢查 workflow contract", "workflow contract 會確認 trigger、stable/beta matrix、compile 與 test token。", "check_workflow_contract(path)", "workflow contract is present."],
+        ["sample-evidence", "Sample", "範例輸出 evidence manifest", "ci_gate_evidence.json 保存版本、commit、每個 gate 結果與 blocking 狀態。", "build_release_evidence(report)", "release evidence is written."]
+      ]
+    };
+    const completedKey = "python-ci-quality-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>定義 gate</strong><span>說清楚風險、命令與阻擋條件。</span></div><div class="step"><strong>執行驗證</strong><span>本機與 CI 共用同一組檢查。</span></div><div class="step"><strong>保留證據</strong><span>版本、commit、結果與例外都要可追溯。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((card) => {
+        card.classList.toggle("hidden-by-search", keyword && !card.dataset.search.includes(keyword));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>

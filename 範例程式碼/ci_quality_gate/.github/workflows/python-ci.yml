@@ -1,0 +1,28 @@
+name: python-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.14", "3.15-dev"]
+    continue-on-error: ${{ matrix.python-version == '3.15-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: compile
+        run: python -m py_compile src/ci_quality_gate/*.py scripts/run_ci_gate.py
+      - name: test
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: local gate
+        run: python scripts/run_ci_gate.py
