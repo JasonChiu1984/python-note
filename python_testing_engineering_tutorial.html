@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 測試工程教學 - unittest、品質閘門與交付證據 v2.0.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e7f0fb; border: 2px solid var(--blue); color: var(--blue); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #e7f0fb; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(47,111,187,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--blue); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e7f0fb; color: var(--blue); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+    .lesson-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e7f0fb; color: var(--blue); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">QA</span><span><strong>Testing Engineering</strong><br><small>測試策略、品質閘門與證據</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#strategy">策略</a>
+        <a href="#fixtures">Fixtures</a>
+        <a href="#unit">Unit</a>
+        <a href="#integration">Integration</a>
+        <a href="#quality">品質</a>
+        <a href="#ci">CI Gate</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 30</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Testing Engineering</span>
+          <h1>把測試做成可交付的品質迴路</h1>
+          <p>這條路線把測試從語法練習拉到專案工程：測試分層、fixture、test double、錯誤路徑、整合測試、品質閘門、CI exit code 與 release evidence。範例專案刻意使用標準庫，讓讀者在乾淨環境也能完成第一個可驗收 gate。</p>
+          <div class="status-strip"><span>v2.0.0</span><span>30 張互動卡</span><span>unittest sample</span><span>compile + test gate</span></div>
+          <div class="hero-actions"><a class="button primary" href="#strategy">開始測試策略</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 測試工程品質迴路">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="74" y="110" width="128" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="138" y="154">Unit</text>
+              <path d="M212 147h62" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="288" y="110" width="128" height="74" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="352" y="154">Integration</text>
+              <path d="M426 147h62" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="502" y="110" width="150" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="577" y="154">Quality Gate</text>
+              <path d="M577 194v52" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="492" y="262" width="170" height="74" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="577" y="306">Release Evidence</text>
+              <path d="M482 299H278" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="92" y="262" width="178" height="74" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="181" y="306">Fix Regression</text>
+              <path d="M181 252V198" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="390" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">每次修改都應回到測試、品質閘門與交付證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：fixture、fake、contract、coverage、mutation、CI、quality gate、release smoke">
+        <div class="quick-links"><a href="#strategy">策略</a><a href="#unit">Unit</a><a href="#integration">Integration</a><a href="#quality">品質</a><a href="#ci">CI</a></div>
+      </div>
+      <section class="section-block" id="strategy" data-group="strategy"><div class="section-head"><div><span class="eyebrow">Strategy</span><h2>先決定風險，再決定測試形狀</h2><p>資深工程師不追求測試數量，而是讓高風險行為有快速、穩定、可診斷的回饋。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="fixtures" data-group="fixtures"><div class="section-head"><div><span class="eyebrow">Fixtures</span><h2>測試資料要可讀、可重跑、可定位</h2><p>穩定測試從可控資料、時間、檔案與外部依賴開始。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="unit" data-group="unit"><div class="section-head"><div><span class="eyebrow">Unit Tests</span><h2>Unit test 鎖住業務規則與錯誤路徑</h2><p>好的 unit test 應該快、窄、對題，並且能指出是哪個規則壞掉。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="integration" data-group="integration"><div class="section-head"><div><span class="eyebrow">Integration</span><h2>整合測試驗證邊界，不取代 unit test</h2><p>資料庫、檔案、API、message queue 都是邊界；測試要證明邊界契約可用。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="quality" data-group="quality"><div class="section-head"><div><span class="eyebrow">Quality</span><h2>測試品質要能被量測與改進</h2><p>coverage 只是一個訊號，還要看 assertion、mutation thinking、flaky triage 與缺口紀錄。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="ci" data-group="ci"><div class="section-head"><div><span class="eyebrow">CI Gate</span><h2>品質閘門要快速、清楚、可重現</h2><p>CI 應把 compile、unit、integration、smoke 與 release evidence 串成可追蹤的交付流程。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Testing Quality Gate 範例專案</h2><p>`範例程式碼/testing_quality_gate/` 示範一個可測 order service、fake repository、unittest 與標準庫 quality gate。</p></div></div><pre><code>cd 範例程式碼/testing_quality_gate
+PYTHONPATH=src python3 -m testing_quality_gate.demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_quality_gate.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      strategy: [
+        ["strategy-risk-map", "Risk", "用風險地圖決定測試投資", "金流、權限、資料修復、部署 rollback 要比低風險 UI 文案有更強測試證據。", "risk = impact * probability", "high-risk behavior has direct tests."],
+        ["strategy-pyramid", "Pyramid", "測試金字塔不是固定比例", "unit test 快速保護規則，integration test 保護邊界，smoke test 保護交付入口。", "unit -> integration -> smoke", "each layer has a purpose."],
+        ["strategy-dod", "DoD", "Definition of Done 要包含測試命令", "完成不是程式能跑，而是變更附上本機與 CI 可重現的檢查。", "make check\npython -m unittest discover -s tests -v", "reviewer can rerun evidence."],
+        ["strategy-test-plan", "Plan", "測試計畫先列失敗模式", "先問資料會如何壞、外部服務如何失敗、重試如何重複，再寫測試。", "failure_modes = ['duplicate', 'timeout', 'invalid input']", "tests target real failures."]
+      ],
+      fixtures: [
+        ["fixture-factory", "Factory", "Factory 建立可讀測試資料", "測試資料應清楚呈現重點，預設值隱藏無關欄位。", "order = make_order(total=1000)", "test data shows intent."],
+        ["fixture-clock", "Clock", "時間要注入，不要直接呼叫 now", "到期、排程、重試與快取測試若依賴真實時間，會變成不穩定測試。", "service = Service(clock=FakeClock('2026-05-13'))", "time behavior is deterministic."],
+        ["fixture-temp-path", "Temp Path", "檔案測試使用隔離目錄", "每個測試用 temporary directory，避免污染工作目錄與前一次測試結果。", "with tempfile.TemporaryDirectory() as path:", "file tests are repeatable."],
+        ["fixture-idempotency-key", "Idempotency", "重試測試要有固定 idempotency key", "背景任務、API retry、message consumer 都要證明重送不會重複副作用。", "service.place_order(key='req-001')", "duplicate retry returns prior result."]
+      ],
+      unit: [
+        ["unit-happy-path", "Rule", "正常路徑只測一個主要規則", "一個測試同時檢查太多規則會讓失敗難定位。", "self.assertEqual(order.total_cents, 1500)", "business rule is locked."],
+        ["unit-error-path", "Error", "錯誤路徑要和正常路徑同級", "空輸入、負數、未知狀態、權限不足都要直接測，而不是等整合測試碰巧觸發。", "with self.assertRaises(OrderValidationError):", "bad input is rejected."],
+        ["unit-boundary", "Boundary", "邊界值測試寫成表格", "0、1、上限、超限、空集合、重複值通常比隨機 happy path 更重要。", "for quantity in [0, -1]: ...", "edge cases are visible."],
+        ["unit-fake-repo", "Fake", "Fake repository 要保留真實語意", "fake 不是萬能 mock，它應保留 unique、idempotency 或查詢語意，否則測試會失真。", "repo = InMemoryOrderRepository()", "unit test still reflects domain constraints."]
+      ],
+      integration: [
+        ["integration-repository", "Repo", "Repository 整合測試驗證 mapping", "SQL row、JSON file、外部 API payload 到 domain object 的 mapping 要被測到。", "repo.save(order)\nself.assertEqual(repo.get(id).total, 1000)", "boundary mapping is proven."],
+        ["integration-contract", "Contract", "Contract sample 固定外部契約", "第三方 API 或內部 service 變更欄位時，consumer contract 應在 CI 先失敗。", "payload = load_json('samples/order-created.json')", "schema drift is detected."],
+        ["integration-failure-injection", "Failure", "整合測試要注入邊界失敗", "timeout、disk full、duplicate event、invalid payload 要有可重現測試。", "gateway.fail_next_call = TimeoutError()", "failure path is not theoretical."],
+        ["integration-smoke", "Smoke", "Smoke test 驗證交付入口", "release 前至少要證明 CLI、API health、migration 或主要 command 可以啟動。", "python -m package.demo", "artifact entrypoint is alive."]
+      ],
+      quality: [
+        ["quality-coverage", "Coverage", "Coverage 是缺口訊號，不是品質保證", "高 coverage 仍可能沒有 assertion；低 coverage 可用來找未保護的高風險模組。", "coverage fail-under = 90", "coverage is reviewed with risk."],
+        ["quality-mutation", "Mutation", "Mutation thinking 檢查 assertion 是否有效", "把條件反轉或移除例外後，測試應該失敗；否則 assertion 太弱。", "if quantity <= 0 -> if quantity < 0", "survived mutant becomes a task."],
+        ["quality-flaky", "Flaky", "不穩定測試要隔離與分類", "時間、網路、共享狀態、順序依賴是常見 flaky 來源，要先分類再修。", "rerun failed test with seed and verbose logs", "flaky tests do not get ignored."],
+        ["quality-test-names", "Names", "測試名稱描述行為與條件", "好名稱能在 CI log 直接顯示壞掉的規則。", "test_duplicate_idempotency_key_returns_existing_order", "failure log is readable."]
+      ],
+      ci: [
+        ["ci-local-first", "Local", "CI 命令先能在本機跑", "本機無法重現的 CI gate 會拖慢修復速度。", "python3 scripts/run_quality_gate.py", "developer and CI run same gate."],
+        ["ci-exit-code", "Exit Code", "品質閘門用 exit code 擋錯", "compile、unit、integration、smoke 任一步失敗都要回傳非 0。", "subprocess.run(cmd, check=True)", "bad change cannot pass gate."],
+        ["ci-artifacts", "Artifacts", "CI 失敗要保留診斷資訊", "test log、coverage、contract diff、smoke output 應成為 review 證據。", "save junit.xml and quality-gate.log", "debugging starts from evidence."],
+        ["ci-release-note", "Release", "Release note 要列測試命令與結果", "版本標註應包含測試命令、通過時間、產物與 rollback 限制。", "Tests: py_compile passed; unittest 7 passed", "release is auditable."]
+      ],
+      sample: [
+        ["sample-domain", "Sample", "範例 domain 鎖住訂單規則", "OrderService 驗證 customer、line item、金額與冪等鍵。", "service.place_order(...)", "business rules have unit tests."],
+        ["sample-repo", "Sample", "InMemory repository 支援 fake 邊界", "標準庫範例用 fake repository 保留 idempotency 語意。", "repo.find_by_idempotency_key(key)", "fake behavior is meaningful."],
+        ["sample-tests", "Sample", "unittest 覆蓋正常與失敗路徑", "不依賴 pytest 也能示範測試工程最小閉環。", "python3 -m unittest discover -s tests -v", "7 tests pass."],
+        ["sample-gate", "Sample", "quality gate 串起 compile 與測試", "gate script 先 py_compile，再跑 unittest，任何失敗都中止。", "python3 scripts/run_quality_gate.py", "compile and tests pass."],
+        ["sample-release-evidence", "Sample", "範例 README 保留驗收命令", "教材交付要讓讀者能直接重跑，而不是只看截圖。", "README.md -> Verification", "handoff is reproducible."],
+        ["sample-next-step", "Sample", "後續可升級 pytest / coverage / ruff", "標準庫 baseline 通過後，再加入工具鏈才不會把學習門檻拉太高。", "pytest -q --cov", "tooling is incremental."]
+      ]
+    };
+    const completedKey = "python-testing-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先鎖風險</strong><span>把最容易出事的規則寫成測試。</span></div><div class="step"><strong>再跑 gate</strong><span>讓同一組命令保護本機與 CI。</span></div><div class="step"><strong>留下證據</strong><span>把命令、結果與限制放進交付紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query)));
+    });
+    renderAll();
+  </script>
+</body>
+</html>

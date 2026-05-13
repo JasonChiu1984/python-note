@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.0.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v1.9.0 completed the high-level 100-case semantic review.
+- Confirmed the next highest-value project-depth gap was a standalone testing engineering route rather than more advanced-case expansion.
+- Added `python_testing_engineering_tutorial.html` with 30 interactive lesson cards covering testing strategy, fixtures, unit tests, integration tests, quality signals, CI gates, and release evidence.
+- Added `範例程式碼/testing_quality_gate/` as a zero-dependency standard-library sample with domain rules, fake repository, `unittest` coverage, demo smoke, and a `py_compile + unittest` quality gate script.
+- Updated `index.html` to show ten tutorial routes, testing engineering progress, the testing route map node, and the updated v2.0.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v1.9.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective.
