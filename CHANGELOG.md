@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.9.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.8.0 added the type contract engineering route.
+- Confirmed the next highest-value project-depth gap was a standalone API integration resilience route covering timeout budget, retry policy, idempotency, rate limiting, circuit breaker, response schema validation, metrics, degraded behavior, and integration evidence.
+- Added `python_integration_resilience_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/integration_resilience/` as a zero-dependency standard-library sample with `HttpTransport` Protocol, fake transport, retry policy, fixed-window rate limiter, circuit breaker, idempotency enforcement, response schema validation, unittest coverage, and a smoke script.
+- Updated `index.html` to show nineteen tutorial routes, API integration resilience progress, a new route-map node, and the updated v2.9.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.8.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.7.0 added the CI/CD quality gate route.

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Integration Resilience 教學 - Timeout、Retry、Idempotency 與 Circuit Breaker v2.9.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #43566f;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e8f1f3 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e7f0fb; border: 2px solid var(--blue); color: var(--blue); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(47,111,187,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--blue); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 13ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e7f0fb; color: var(--blue); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e7f0fb; color: var(--blue); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">IR</span><span><strong>Integration Resilience</strong><br><small>timeout、retry、circuit</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Integration Resilience Engineering</span>
+          <h1>把外部整合做成可控的工程邊界</h1>
+          <p>這條路線把 API client、設備 gateway 與第三方服務呼叫整理成可驗收流程：timeout 先定義等待預算，retry 只處理可重試錯誤，idempotency 保護寫入，rate limit 避免壓垮依賴，circuit breaker 讓故障快速失敗，schema validation 與 evidence report 進入 release gate。</p>
+          <div class="status-strip"><span>v2.9.0</span><span>32 張互動卡</span><span>standard library sample</span><span>API / gateway resilience</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始整合韌性課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python integration resilience engineering flow">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="58" y="100" width="118" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="117" y="142">Request</text>
+              <path d="M186 135h38" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="240" y="100" width="130" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="305" y="128">Timeout</text><text x="305" y="152">Retry</text>
+              <path d="M380 135h38" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="434" y="100" width="138" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="503" y="128">Idempotency</text><text x="503" y="152">Rate limit</text>
+              <path d="M503 180v48" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="410" y="246" width="186" height="70" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="503" y="288">Circuit Breaker</text>
+              <path d="M400 281H274" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="92" y="246" width="174" height="70" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="179" y="274">Schema</text><text x="179" y="298">Evidence</text>
+            </g>
+            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">整合韌性的重點是明確失敗、保護依賴、保留交付證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：timeout、retry、idempotency、rate limit、circuit breaker、schema、evidence">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>外部依賴是最常見的不穩定來源</h2><p>先把呼叫邊界、等待預算、重試條件與失敗處理定清楚。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把 policy、transport 與 schema 分層</h2><p>業務邏輯不應直接散落 HTTP 呼叫與 retry loop。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>先用 fake transport 驗證失敗路徑</h2><p>本機測試要能穩定重現 503、schema drift、rate limit 與 circuit open。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>韌性參數要有可追蹤預設值</h2><p>timeout、retry、backoff、rate limit 與 circuit threshold 都應進設定與 release note。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Integration Resilience 範例專案</h2><p>範例用標準庫與 fake transport 示範 API / gateway 呼叫韌性，不需外網或第三方服務。</p></div></div><pre><code>cd 範例程式碼/integration_resilience
+python3 -m py_compile src/integration_resilience/*.py scripts/run_integration_resilience_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_integration_resilience_smoke.py</code></pre><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要覆蓋成功與失敗控制面</h2><p>只測 happy path 無法證明外部整合能上線。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>整合問題要先分類再修</h2><p>timeout、429、5xx、schema drift、非冪等寫入與 circuit open 的處理不同。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓整合韌性支援交付決策</h2><p>韌性策略不只是程式碼技巧，也要進監控、告警、release gate 與回退依據。</p></div></div><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-boundary", "Overview", "整合邊界要被設計，不是隨手呼叫", "外部 API、PLC gateway、雲端服務都可能慢、錯、限流或改 schema。", "client boundary = policy + transport + schema", "dependency risk is explicit."],
+        ["overview-timeout", "Overview", "timeout 是第一個安全契約", "沒有 timeout 的呼叫會拖垮 worker、queue 與 request thread。", "timeout_seconds = 2.0", "waiting budget is bounded."],
+        ["overview-retry", "Overview", "retry 只處理暫時性錯誤", "408、429、502、503、504 可以重試；schema error 或權限錯誤不應盲目重試。", "retry_statuses = (408, 429, 502, 503, 504)", "transient failures are isolated."],
+        ["overview-evidence", "Overview", "韌性結果要能成為 release evidence", "attempts、retries、blocked、schema_errors 應寫入更新紀錄或 artifact。", "integration_resilience_report.json", "release decision has evidence."]
+      ],
+      architecture: [
+        ["architecture-transport", "Architecture", "Transport 用 Protocol 隔離", "真實 HTTP client、設備 SDK、fake transport 都應符合相同介面。", "class HttpTransport(Protocol): send(...)", "dependency is swappable."],
+        ["architecture-policy", "Architecture", "Policy 不要散落在業務邏輯", "RetryPolicy、RateLimiter、CircuitBreaker 應是獨立元件，方便測試與調參。", "client = policy + breaker + limiter", "failure control is testable."],
+        ["architecture-idempotency", "Architecture", "寫入重試必須檢查 idempotency", "POST 沒有 idempotency key 時，重試可能造成重複命令、重複付款或重複寫入。", "POST + idempotency_key", "duplicate side effects are avoided."],
+        ["architecture-schema", "Architecture", "Response schema 是整合契約", "上游回傳缺欄位或語意改變時，要阻擋並留下 schema_error。", "status + payload required", "schema drift is visible."]
+      ],
+      setup: [
+        ["setup-standard", "Setup", "先以標準庫跑通核心行為", "dataclass、Protocol、unittest 足以建立可重複驗收的最小範例。", "python -m unittest discover -s tests -v", "baseline is reproducible."],
+        ["setup-fake", "Setup", "FakeTransport 重現外部故障", "不要依賴真實外部服務來測 retry、circuit 與 schema drift。", "FakeTransport([503, 200])", "failure path is deterministic."],
+        ["setup-smoke", "Setup", "smoke script 驗證整合閉環", "一支 smoke script 要同時跑 retry、idempotency、circuit、schema 與 evidence report。", "python scripts/run_integration_resilience_smoke.py", "integration path is executable."],
+        ["setup-path", "Setup", "範例路徑要固定", "教材範例使用 PYTHONPATH=src，讓學生清楚知道 package import boundary。", "PYTHONPATH=src", "imports are predictable."]
+      ],
+      configuration: [
+        ["config-timeout", "Configuration", "timeout 要比上游 SLA 更小", "避免單一依賴耗盡 worker；現場 gateway 也要搭配 polling interval。", "timeout_seconds = 2.0", "latency budget is controlled."],
+        ["config-attempts", "Configuration", "max_attempts 要限制總等待時間", "每次 retry 都會消耗 queue 與外部依賴容量。", "max_attempts = 3", "retry storm is reduced."],
+        ["config-rate", "Configuration", "rate limit 保護外部服務", "對工業場域，過高 polling 會壓垮 gateway 或造成現場網路噪音。", "limit = 60 per minute", "dependency load is bounded."],
+        ["config-circuit", "Configuration", "circuit threshold 要對齊 fail-safe", "連續失敗後快速失敗，讓上層轉 degraded、告警或 fallback。", "failure_threshold = 2", "fail-safe behavior is explicit."]
+      ],
+      example: [
+        ["example-client", "Example", "ResilientIntegrationClient 管理呼叫流程", "client 先做 rate limit 與 circuit 檢查，再送 transport，最後驗證 schema。", "client.call(request, now_epoch)", "call flow is centralized."],
+        ["example-retry", "Example", "503 後成功要保留 attempt_count", "retry 成功不是隱藏錯誤；attempt_count 與 metrics 要留下證據。", "503 -> retry -> 200", "transient recovery is visible."],
+        ["example-write", "Example", "POST 寫入需要 idempotency key", "重試寫入類命令前，必須知道重送是否會造成重複副作用。", "idempotency_key='write-1'", "write retry is safe."],
+        ["example-report", "Example", "IntegrationReport 彙整 release evidence", "報告包含 policy version、timeout、max attempts、schema validation 與 metrics。", "write_integration_report(path, report)", "evidence is persisted."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "py_compile 先排除語法錯誤", "先讓基本語法與 import 問題浮出，避免測試訊號被污染。", "python -m py_compile src/integration_resilience/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "unittest 覆蓋失敗控制面", "測試要包含 retry 成功、非冪等 POST 拒絕、circuit open、rate limit 與 schema error。", "python -m unittest discover -s tests -v", "policy regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 驗收跨元件路徑", "smoke 應輸出固定成功訊息，方便 CI/CD gate 與 release note 引用。", "integration resilience smoke passed", "release smoke is clear."],
+        ["verify-html", "Verification", "HTML 教材也要做 script parse", "互動教材改版後，用 Node 解析 script，避免卡片或搜尋功能中斷。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-timeout", "Troubleshooting", "timeout 太長會拖垮 worker", "縮短 timeout、降低 max_attempts，或把呼叫放入 bounded queue。", "timeout * attempts <= SLA", "system remains responsive."],
+        ["trouble-429", "Troubleshooting", "429 代表上游限流", "不要只增加 retry；應降低 polling interval 或加入 token bucket。", "rate limiter before transport", "upstream is protected."],
+        ["trouble-circuit", "Troubleshooting", "circuit open 是保護，不是成功", "開路時應回 degraded、發告警、觸發 runbook，而不是吞掉錯誤。", "CircuitOpenError -> alert", "failure is visible."],
+        ["trouble-schema", "Troubleshooting", "schema drift 不應重試", "回應格式不符通常是版本或契約問題，應阻擋 release 或協調上游。", "schema_error != transient", "contract mismatch is escalated."]
+      ],
+      bestPractices: [
+        ["best-budget", "Best", "先算總等待預算", "timeout、attempts、backoff 要一起看，不能只看單一參數。", "total_wait <= caller_sla", "latency remains bounded."],
+        ["best-idempotency", "Best", "寫入整合先定義冪等語意", "API、MQTT command、gateway write 都要知道重送是否安全。", "idempotency key or no retry", "duplicate writes are avoided."],
+        ["best-observe", "Best", "metrics 與 logs 要能分辨錯誤類型", "timeout、429、5xx、schema_error、circuit_open 需要不同 runbook。", "error_type in logs", "triage is faster."],
+        ["best-industrial", "Best", "工業整合要納入 fail-safe", "外部設備不可用時，要明確處理 alarm、fallback output、手動接管與維護通知。", "degraded -> alarm -> fail-safe", "engineering safety is explicit."]
+      ]
+    };
+    const completedKey = "python-integration-resilience-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>定義預算</strong><span>timeout、attempts、rate limit 都要可追蹤。</span></div><div class="step"><strong>分類失敗</strong><span>暫時性錯誤、schema drift、非冪等寫入分開處理。</span></div><div class="step"><strong>留下證據</strong><span>metrics 與 report 進入交付紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
