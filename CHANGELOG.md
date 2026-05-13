@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.0.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.9.0 added the API integration resilience route.
+- Confirmed the next highest-value project-depth gap was a standalone performance and memory engineering route covering benchmark baseline, `cProfile`, `pstats`, `tracemalloc`, latency budget, memory budget, regression gate, and release evidence.
+- Added `python_performance_memory_engineering_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/performance_memory_engineering/` as a zero-dependency standard-library sample with reproducible workload generation, slow/optimized aggregation paths, benchmark measurement, profile report, memory snapshot, budget decision, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty tutorial routes, performance/memory progress, a new route-map node, and the updated v3.0.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.9.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.8.0 added the type contract engineering route.

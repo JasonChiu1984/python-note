@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Performance and Memory Engineering 教學 - Profiling、Benchmark 與 Tracemalloc v3.0.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #43566f;
+      --amber: #b7791f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #edf2f7 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #fff4cf; border: 2px solid var(--amber); color: var(--amber); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(183,121,31,0.32); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--amber); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 13ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #fff4cf; color: var(--amber); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--amber); color: white; border-color: #8f5d18; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--amber); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #fff4cf; color: var(--amber); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">PM</span><span><strong>Performance Memory</strong><br><small>benchmark、profile、memory</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Performance and Memory Engineering</span>
+          <h1>把效能問題變成可驗收證據</h1>
+          <p>這條路線把 benchmark、CPU profiling、memory snapshot 與 regression budget 整理成 production workflow。先定義 workload 與 baseline，再用 `cProfile` 找 hotspot，用 `tracemalloc` 看 allocation peak，最後把效能預算與報告放進 release gate。</p>
+          <div class="status-strip"><span>v3.0.0</span><span>32 張互動卡</span><span>standard library sample</span><span>profiling / memory gate</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始效能工程課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python performance and memory engineering flow">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#b7791f"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="58" y="100" width="126" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="121" y="128">Workload</text><text x="121" y="152">Question</text>
+              <path d="M194 135h36" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="246" y="100" width="132" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="312" y="128">Benchmark</text><text x="312" y="152">Baseline</text>
+              <path d="M388 135h36" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="440" y="100" width="132" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="506" y="128">cProfile</text><text x="506" y="152">Hotspot</text>
+              <path d="M506 180v48" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="410" y="246" width="192" height="70" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="506" y="274">Tracemalloc</text><text x="506" y="298">Memory Peak</text>
+              <path d="M400 281H282" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="86" y="246" width="188" height="70" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="180" y="274">Budget Gate</text><text x="180" y="298">Release Evidence</text>
+            </g>
+            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">效能結論必須能重現、能比較、能進交付紀錄</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：benchmark、cProfile、tracemalloc、latency、memory、budget、regression">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>效能問題先變成可回答的工程問題</h2><p>不要先猜優化點；先定義 workload、baseline 與成功標準。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把測量、剖析、預算與證據分層</h2><p>效能工程不是單次測速，而是可重複的交付流程。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用標準庫建立最小可驗收範例</h2><p>`time`、`cProfile`、`pstats`、`tracemalloc`、`unittest` 足以建立基礎 gate。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>效能參數要能進 release note</h2><p>資料量、iterations、threshold、profile top N 與 memory budget 都要可追蹤。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Performance Memory 範例專案</h2><p>範例用可重現 sensor readings 示範 slow path、optimized path、profile、memory 與 budget report。</p></div></div><pre><code>cd 範例程式碼/performance_memory_engineering
+python3 -m py_compile src/performance_memory_engineering/*.py scripts/run_performance_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_performance_smoke.py</code></pre><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時證明正確性與效能風險</h2><p>效能優化不能只看速度，也要證明輸出一致、memory peak 可控、threshold 合理。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>效能診斷先排除測量錯誤</h2><p>資料量、測量區間、cache 狀態、I/O 與 CI 環境都會影響結論。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>效能證據要支援交付決策</h2><p>把 benchmark、profile、memory 與 budget decision 寫進 release evidence。</p></div></div><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-question", "Overview", "先定義 performance question", "問題要具體到 workload、資料量、延遲或記憶體指標。", "question = '1200 readings aggregate latency'", "measurement has a target."],
+        ["overview-baseline", "Overview", "baseline 是效能結論的起點", "沒有基準值就無法判斷優化、回退或容量風險。", "baseline_median_seconds", "comparison is possible."],
+        ["overview-correctness", "Overview", "效能優化不能破壞輸出", "slow path 與 optimized path 必須先在同一 dataset 上比對。", "assert slow_result == optimized_result", "optimization remains correct."],
+        ["overview-evidence", "Overview", "效能結果要能被 release gate 引用", "benchmark、profile、memory peak 與 budget decision 應輸出成 evidence。", "performance_evidence.json", "release decision has proof."]
+      ],
+      architecture: [
+        ["architecture-workload", "Architecture", "Workload 要可重現", "固定資料產生器可降低測量雜訊，讓 regression test 有意義。", "build_dataset(size=1200)", "data shape is stable."],
+        ["architecture-benchmark", "Architecture", "Benchmark 負責比較延遲", "使用 perf_counter、重複測量與 median 避免單次結果誤導。", "median(durations)", "latency signal is less noisy."],
+        ["architecture-profile", "Architecture", "Profile 負責找 CPU hotspot", "`cProfile` 與 `pstats` 可指出 cumulative time 最高的函式。", "sort_stats('cumulative')", "hotspot is visible."],
+        ["architecture-memory", "Architecture", "Memory snapshot 負責找 allocation peak", "`tracemalloc` 看 Python allocation，不等同 RSS，但適合本機 regression gate。", "tracemalloc.get_traced_memory()", "allocation risk is measured."]
+      ],
+      setup: [
+        ["setup-standard", "Setup", "先用標準庫建立可攜流程", "標準庫工具可在無額外依賴的 CI 或教學環境中執行。", "time + cProfile + tracemalloc", "setup remains simple."],
+        ["setup-slow-fast", "Setup", "保留 slow path 當 correctness oracle", "慢版不一定上 production，但可作為優化版的輸出校驗。", "slow_group_totals(readings)", "regression test has oracle."],
+        ["setup-smoke", "Setup", "smoke script 串起完整驗收", "一支指令產出 benchmark、profile、memory 與 budget evidence。", "python scripts/run_performance_smoke.py", "workflow is executable."],
+        ["setup-path", "Setup", "範例路徑要固定", "使用 `PYTHONPATH=src` 讓 package boundary 與測試路徑清楚。", "PYTHONPATH=src", "imports are predictable."]
+      ],
+      configuration: [
+        ["config-size", "Configuration", "dataset size 影響測量訊號", "資料量太小會讓 timing noise 大於程式差異。", "dataset_size = 1200", "signal is measurable."],
+        ["config-iterations", "Configuration", "iterations 不宜只跑一次", "多次測量取 median，降低排程與暫態影響。", "iterations = 7", "noise is reduced."],
+        ["config-threshold", "Configuration", "CI threshold 要保守", "CI 只擋明顯回退，不應把正式容量結論建立在共享 runner 上。", "max_latency_ratio = 1.15", "gate is practical."],
+        ["config-memory", "Configuration", "memory budget 要對齊資料量", "peak KiB 必須與 workload size 一起解讀，避免誤判。", "max_peak_kib = 512", "memory risk is bounded."]
+      ],
+      example: [
+        ["example-dataset", "Example", "SensorReading 模擬工業資料", "範例用 group、value、quality 模擬現場資料聚合。", "SensorReading(group='ahu', quality='good')", "domain shape is realistic."],
+        ["example-optimized", "Example", "一次掃描取代重複掃描", "optimized path 用 dict 累加，避免每個 group 都掃一次 readings。", "totals[group] += value", "algorithmic cost is lower."],
+        ["example-profile", "Example", "Profile report 保留 top functions", "保留前 N 個 cumulative hotspot，方便 release note 引用。", "profile.top_functions", "hotspot evidence is compact."],
+        ["example-report", "Example", "Evidence JSON 留下交付資料", "報告包含 baseline、candidate、profile、memory 與 budget decision。", "performance_evidence.json", "delivery record is durable."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "py_compile 先排除語法問題", "先讓 syntax/import 問題浮出，避免污染測試訊號。", "python -m py_compile src/performance_memory_engineering/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "unittest 覆蓋 correctness 與 budget", "測試要包含輸出一致、profile、memory、budget pass 與 budget fail。", "python -m unittest discover -s tests -v", "regressions are caught."],
+        ["verify-smoke", "Verification", "smoke 驗收完整流程", "smoke 成功訊息要固定，方便 CI/CD 與更新紀錄引用。", "performance memory smoke passed", "release smoke is clear."],
+        ["verify-html", "Verification", "HTML 教材要做 script parse", "互動教材改版後，用 Node 解析 script，避免卡片與搜尋功能中斷。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-noise", "Troubleshooting", "benchmark 浮動先看資料量", "資料量太小、iterations 太少或背景負載都會造成誤判。", "increase size and iterations", "measurement is stabilized."],
+        ["trouble-wrong-hotspot", "Troubleshooting", "profile 熱點不代表 production 熱點", "workload 若不接近真實資料分布，hotspot 會失真。", "profile production-like workload", "diagnosis is relevant."],
+        ["trouble-memory", "Troubleshooting", "tracemalloc 不等於 RSS", "`tracemalloc` 看 Python allocation；container RSS 仍需部署環境觀測。", "allocation != RSS", "memory evidence is interpreted correctly."],
+        ["trouble-ci", "Troubleshooting", "CI gate 偶發失敗要調整 threshold", "共享 runner 不適合貼近式效能判斷，應只擋明顯回退。", "use loose threshold", "gate remains stable."]
+      ],
+      bestPractices: [
+        ["best-measure", "Best", "先測量再優化", "沒有 baseline、profile 或 memory evidence 的優化通常不可審查。", "measure -> optimize -> verify", "change is defensible."],
+        ["best-correct", "Best", "正確性測試優先於速度", "優化版必須先與基準輸出一致，再談效能。", "assert baseline == candidate", "business behavior is preserved."],
+        ["best-separate", "Best", "CPU、memory、I/O 要分開診斷", "不同瓶頸需要不同工具與修法，不能用單一 benchmark 下結論。", "cProfile / tracemalloc / latency", "root cause is clearer."],
+        ["best-industrial", "Best", "工業場域要把效能與安全策略一起看", "輪詢間隔、timeout、batch size、memory peak、alarm 與 fail-safe 需要一起驗收。", "polling + timeout + memory + fail-safe", "engineering safety is explicit."]
+      ]
+    };
+    const completedKey = "python-performance-memory-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>固定 workload</strong><span>資料量與資料分布要能重現。</span></div><div class="step"><strong>保留 baseline</strong><span>先證明輸出一致，再比較速度。</span></div><div class="step"><strong>留下 evidence</strong><span>profile、memory 與 budget 進交付紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
