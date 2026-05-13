@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.3.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.2.0 added the security engineering route.
+- Confirmed the next highest-value project-depth gap was a standalone async concurrency engineering route rather than another security, testing, or syntax expansion route.
+- Added `python_async_concurrency_engineering_tutorial.html` with 28 interactive lesson cards covering event loop, coroutine/task ownership, TaskGroup, bounded queue, backpressure, timeout, retry, cancellation, async testing, worker metrics, and release smoke evidence.
+- Added `範例程式碼/async_concurrency_engineering/` as a zero-dependency standard-library sample with `asyncio.Queue`, bounded workers, per-item timeout, retryable error handling, cancellation-safe shutdown, `unittest.IsolatedAsyncioTestCase`, and a smoke script.
+- Updated `index.html` to show thirteen tutorial routes, async concurrency progress, a new route-map node, and the updated v2.3.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.2.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.1.0 added the observability and operations route.

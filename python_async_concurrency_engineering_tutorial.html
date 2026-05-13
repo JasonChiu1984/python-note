@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 非同步與並發工程教學 - asyncio、Backpressure、Timeout 與 Worker v2.3.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e1f6f8 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e1f6f8; border: 2px solid var(--teal); color: var(--teal); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #e1f6f8; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(15,135,148,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--teal); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e1f6f8; color: var(--teal); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--teal); color: white; border-color: #0b6d77; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--teal); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e1f6f8; color: var(--teal); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">ASY</span><span><strong>Async Concurrency</strong><br><small>asyncio、queue、timeout 與 worker</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#model">Model</a>
+        <a href="#tasks">Tasks</a>
+        <a href="#flow">Flow Control</a>
+        <a href="#failure">Failure</a>
+        <a href="#testing">Testing</a>
+        <a href="#delivery">Delivery</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Async Concurrency Engineering</span>
+          <h1>把非同步做成可控、可測、可交付的 worker 系統</h1>
+          <p>這條路線把 `asyncio` 從語法練習拉到 production engineering：event loop、task lifecycle、timeout、cancellation、backpressure、bounded queue、worker drain、failure injection、thread/process 邊界與 release smoke。範例專案只使用標準庫，示範可重跑的 async worker pipeline。</p>
+          <div class="status-strip"><span>v2.3.0</span><span>28 張互動卡</span><span>standard library sample</span><span>queue + timeout + retry + metrics</span></div>
+          <div class="hero-actions"><a class="button primary" href="#model">開始非同步工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 非同步並發工程閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#0f8794"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="70" y="96" width="132" height="72" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect><text x="136" y="139">Producer</text>
+              <path d="M212 132h50" stroke="#0f8794" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="278" y="96" width="132" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="344" y="139">Queue</text>
+              <path d="M420 132h50" stroke="#0f8794" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="486" y="96" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="552" y="139">Workers</text>
+              <path d="M552 178v45" stroke="#0f8794" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="468" y="240" width="168" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="552" y="283">Timeout</text>
+              <path d="M458 276H302" stroke="#0f8794" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="112" y="240" width="182" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="203" y="283">Metrics / Tests</text>
+              <path d="M203 230V182" stroke="#0f8794" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">非同步系統必須同時管理流量、失敗、取消與證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：event loop、TaskGroup、timeout、cancellation、queue、backpressure、worker、retry、testing">
+        <div class="quick-links"><a href="#model">Model</a><a href="#tasks">Tasks</a><a href="#flow">Flow</a><a href="#failure">Failure</a><a href="#testing">Testing</a></div>
+      </div>
+      <section class="section-block" id="model" data-group="model"><div class="section-head"><div><span class="eyebrow">Model</span><h2>先理解 event loop，不要只背 await</h2><p>非同步的核心不是更快，而是在等待 I/O 時把控制權交回 event loop。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="tasks" data-group="tasks"><div class="section-head"><div><span class="eyebrow">Tasks</span><h2>Task lifecycle 要有 owner 與退出條件</h2><p>每個 background task 都應知道誰建立、如何取消、錯誤去哪裡。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="flow" data-group="flow"><div class="section-head"><div><span class="eyebrow">Flow Control</span><h2>用 backpressure 保護記憶體與下游</h2><p>沒有邊界的 queue 會把瞬間流量變成延遲、記憶體與事故。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="failure" data-group="failure"><div class="section-head"><div><span class="eyebrow">Failure</span><h2>Timeout、retry 與 cancellation 必須被設計</h2><p>外部 I/O 沒有 timeout 就沒有可靠性；取消被吞掉會讓 shutdown 不可信。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="testing" data-group="testing"><div class="section-head"><div><span class="eyebrow">Testing</span><h2>並發測試要可重跑、可診斷</h2><p>測試要鎖住順序、失敗注入與邊界，不要依賴碰巧的 timing。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>交付前要留下 worker 系統證據</h2><p>release note 要包含 queue size、timeout、worker count、smoke result 與 rollback 限制。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Async Concurrency Engineering 範例專案</h2><p>`範例程式碼/async_concurrency_engineering/` 示範 bounded queue、worker pool、timeout、retry、metrics 與 async tests。</p></div></div><pre><code>cd 範例程式碼/async_concurrency_engineering
+python3 -m py_compile src/async_concurrency_engineering/*.py scripts/run_async_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_async_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      model: [
+        ["model-event-loop", "Model", "event loop 是排程器，不是平行 CPU", "event loop 在 I/O 等待時切換 coroutine；CPU-bound 仍會阻塞 loop。", "await asyncio.sleep(0)", "coroutine yields control."],
+        ["model-coroutine", "Model", "coroutine 需要被 await 或包成 task", "只呼叫 async function 會得到 coroutine object，不會自動執行。", "result = await fetch()", "work is actually scheduled."],
+        ["model-io-bound", "Model", "async 適合 I/O-bound，不適合直接跑重 CPU", "HTTP、DB、queue、檔案等待常適合 async；壓縮、影像、巨量計算要考慮 process。", "await client.get(url)", "I/O wait is overlapped."],
+        ["model-contract", "Model", "非同步邊界也要有契約", "每個 async function 應說明 timeout、取消語意、回傳值與錯誤類型。", "async def send(event) -> Ack", "caller knows failure mode."]
+      ],
+      tasks: [
+        ["task-create", "Task", "create_task 必須保存 owner", "fire-and-forget 容易遺失例外；建立 task 後要有 lifecycle 管理。", "task = asyncio.create_task(worker())", "task can be awaited or cancelled."],
+        ["task-group", "Task", "TaskGroup 適合結構化並發", "同一批子任務應一起啟動、一起等待、一起處理失敗。", "async with asyncio.TaskGroup() as tg:\n    tg.create_task(job())", "child tasks are scoped."],
+        ["task-gather", "Task", "gather 適合收斂固定任務集合", "gather 不是 worker pool；大量未知工作應使用 queue。", "await asyncio.gather(*calls)", "fixed fan-out returns together."],
+        ["task-names", "Task", "task name 與 trace id 讓診斷可行", "log 中要能知道是哪個 worker、哪個 item、哪次 retry。", "create_task(run(), name='worker-1')", "failure log points to owner."]
+      ],
+      flow: [
+        ["flow-queue", "Queue", "bounded queue 是 backpressure 的起點", "設定 maxsize 讓 producer 在系統滿載時等待，而不是無限制累積記憶體。", "queue = asyncio.Queue(maxsize=100)", "producer blocks when full."],
+        ["flow-worker-count", "Workers", "worker count 是容量設定", "worker 太少會積壓，太多會打爆下游；要跟 timeout、SLO 與連線池一起設計。", "workers = 4", "capacity is explicit."],
+        ["flow-drain", "Shutdown", "shutdown 要先 drain 再停止", "停止前等待 queue.join()，再送 sentinel 結束 worker。", "await queue.join()", "submitted work is not dropped."],
+        ["flow-sentinel", "Shutdown", "每個 worker 都要收到停止訊號", "有幾個 worker 就送幾個 sentinel，避免 worker 永遠等待。", "for _ in workers: await queue.put(None)", "all workers can exit."]
+      ],
+      failure: [
+        ["failure-timeout", "Timeout", "外部 I/O 必須包 timeout", "沒有 timeout 的 await 會讓 worker 卡住並耗盡容量。", "await asyncio.wait_for(call(), timeout=0.5)", "hung call becomes failure."],
+        ["failure-retry", "Retry", "只重試可重試錯誤", "timeout、429、暫時性網路錯誤可重試；validation error 與權限錯誤不應重試。", "except RetryableJobError: retry()", "retry does not hide bad input."],
+        ["failure-jitter", "Retry", "retry 要有 backoff 與 jitter", "大量 task 同時重試會造成 thundering herd。", "await asyncio.sleep(base * attempt + jitter)", "retry load is spread."],
+        ["failure-cancel", "Cancel", "CancelledError 不應被吞掉", "取消是控制流程，不是一般錯誤；吞掉會讓部署停止不乾淨。", "except asyncio.CancelledError:\n    raise", "shutdown stays reliable."]
+      ],
+      testing: [
+        ["test-isolated", "Test", "使用 IsolatedAsyncioTestCase", "標準庫已能提供每個 test 隔離 event loop。", "class T(unittest.IsolatedAsyncioTestCase)", "async tests are isolated."],
+        ["test-failure", "Test", "測 timeout 與 retry，不只測成功", "非同步系統最容易壞在慢、卡、取消與重送。", "with self.assertRaises(...)", "failure path is locked."],
+        ["test-backpressure", "Test", "測 queue 滿載行為", "用 maxsize=1 驗證第二次 submit 會等待，確保 backpressure 真的存在。", "self.assertFalse(submit_task.done())", "producer pressure is observable."],
+        ["test-deterministic", "Test", "避免依賴長 sleep", "測試用短 timeout、event、queue 狀態與明確同步點，降低 flaky。", "await asyncio.wait_for(done.wait(), 0.1)", "test timing is bounded."]
+      ],
+      delivery: [
+        ["delivery-metrics", "Metrics", "worker 要輸出核心 metrics", "submitted、succeeded、failed、timed_out、retried、cancelled 是基本營運訊號。", "metrics.timed_out += 1", "operations can see behavior."],
+        ["delivery-config", "Config", "queue size 與 timeout 應可設定", "不同環境容量不同，不應把所有設定寫死在程式內。", "WORKER_COUNT=4 QUEUE_SIZE=100", "deployment can tune safely."],
+        ["delivery-smoke", "Smoke", "release smoke 要跑完整 pipeline", "smoke 應驗證至少一個成功、一個 retry 與 metrics。", "python3 scripts/run_async_smoke.py", "release evidence is reproducible."],
+        ["delivery-boundary", "Boundary", "CPU-bound 要切出 process 或 native path", "async 不會讓 CPU 計算變平行；需要 ProcessPool、Cython 或外部服務。", "loop.run_in_executor(process_pool, fn)", "event loop remains responsive."]
+      ],
+      sample: [
+        ["sample-pipeline", "Sample", "範例 pipeline 使用 bounded queue", "AsyncWorkerPipeline 用 queue maxsize 示範 producer backpressure。", "AsyncWorkerPipeline(handler, max_queue_size=8)", "flow control is built in."],
+        ["sample-timeout", "Sample", "範例對每筆 job 設 timeout", "每個 WorkItem 都經過 wait_for，避免單筆工作卡住 worker。", "wait_for(handler(item), timeout=0.25)", "stuck item is classified."],
+        ["sample-tests", "Sample", "unittest 覆蓋並發邊界", "範例測試包含 success、retry、timeout、backpressure 與 close drain。", "python3 -m unittest discover -s tests -v", "5 async tests pass."],
+        ["sample-smoke", "Sample", "smoke script 串起交付驗收", "run_async_smoke.py 驗證 bounded workers、retry 與 metrics。", "python3 scripts/run_async_smoke.py", "async smoke passed."]
+      ]
+    };
+    const completedKey = "python-async-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定義容量</strong><span>寫清楚 worker、queue 與 timeout。</span></div><div class="step"><strong>再處理失敗</strong><span>分類 timeout、retry、取消與永久錯誤。</span></div><div class="step"><strong>留下證據</strong><span>用 metrics、測試與 smoke 支撐交付。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", Boolean(keyword) && !item.dataset.search.includes(keyword));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
