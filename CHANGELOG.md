@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.4.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.3.0 added the async concurrency engineering route.
+- Confirmed the next highest-value project-depth gap was a standalone packaging and release engineering route rather than another syntax, testing, security, or async expansion route.
+- Added `python_packaging_release_engineering_tutorial.html` with 28 interactive lesson cards covering `pyproject.toml`, src layout, entry points, semantic versioning, changelog gate, deterministic source archives, checksums, release manifest, CI gates, rollback, token scope, and audit evidence.
+- Added `範例程式碼/packaging_release_engineering/` as a zero-dependency standard-library sample with metadata validation, package version checks, changelog verification, deterministic source archive creation, SHA-256 checksum generation, release manifest writing, unittest coverage, and a smoke script.
+- Updated `index.html` to show fourteen tutorial routes, packaging release progress, a new route-map node, and the updated v2.4.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.3.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.2.0 added the security engineering route.

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Packaging 與 Release Engineering 教學 - Metadata、Artifact、Checksum 與 Gate v2.4.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #fff4cf 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #fff4cf; border: 2px solid var(--amber); color: var(--amber); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #fff4cf; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(183,121,31,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--amber); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #fff4cf; color: var(--amber); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--amber); color: white; border-color: #916017; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--amber); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #fff4cf; color: var(--amber); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">PKG</span><span><strong>Packaging Release</strong><br><small>metadata、artifact、checksum 與 gate</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#metadata">Metadata</a>
+        <a href="#layout">Layout</a>
+        <a href="#artifact">Artifact</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#operations">Operations</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Packaging / Release Engineering</span>
+          <h1>把 Python 專案交付成可驗證的 release artifact</h1>
+          <p>這條路線把 package 發布從指令記憶拉到 production release engineering：metadata contract、src layout、entry point、semantic version、changelog gate、source archive、checksum、manifest、CI gate、smoke、rollback 與外部發布權限分界。範例專案只使用標準庫，示範可重跑的 release gate。</p>
+          <div class="status-strip"><span>v2.4.0</span><span>28 張互動卡</span><span>standard library sample</span><span>metadata + archive + checksum + manifest</span></div>
+          <div class="hero-actions"><a class="button primary" href="#metadata">開始發布工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python packaging release gate 閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#b7791f"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="64" y="96" width="144" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="136" y="139">Metadata</text>
+              <path d="M218 132h42" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="276" y="96" width="144" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="348" y="139">Tests</text>
+              <path d="M430 132h42" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="488" y="96" width="144" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="560" y="139">Artifact</text>
+              <path d="M560 178v45" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="470" y="240" width="180" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="560" y="283">Checksum</text>
+              <path d="M460 276H304" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="112" y="240" width="184" height="72" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect><text x="204" y="283">Manifest</text>
+              <path d="M204 230V182" stroke="#b7791f" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">release 不是檔案名稱，而是可重跑的證據鏈</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：pyproject、version、entry point、archive、checksum、manifest、SBOM、rollback、publish">
+        <div class="quick-links"><a href="#metadata">Metadata</a><a href="#artifact">Artifact</a><a href="#evidence">Evidence</a><a href="#pipeline">Pipeline</a></div>
+      </div>
+      <section class="section-block" id="metadata" data-group="metadata"><div class="section-head"><div><span class="eyebrow">Metadata</span><h2>先把 package 身分變成契約</h2><p>發布工程的第一步不是 build，而是確認名稱、版本、Python 版本與入口點都有明確來源。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="layout" data-group="layout"><div class="section-head"><div><span class="eyebrow">Layout</span><h2>src layout 讓 import 邊界更可靠</h2><p>包裝結構會影響測試可信度、import 行為與使用者安裝後的錯誤面。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="artifact" data-group="artifact"><div class="section-head"><div><span class="eyebrow">Artifact</span><h2>artifact 要能重建、可比對、可追蹤</h2><p>sdist、wheel、executable 的用途不同，但都需要 checksum 與 manifest 支撐交付。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="evidence" data-group="evidence"><div class="section-head"><div><span class="eyebrow">Evidence</span><h2>release note 要連到測試與風險證據</h2><p>發布紀錄應回答改了什麼、怎麼驗、失敗如何回退。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="pipeline" data-group="pipeline"><div class="section-head"><div><span class="eyebrow">Pipeline</span><h2>CI gate 決定哪些 artifact 可以被推送</h2><p>測試、metadata、build、smoke 與簽核要有清楚順序。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>發布後仍要能診斷、回復與稽核</h2><p>外部 PyPI/GitHub Release 權限、token、promotion 與 rollback 都要有邊界。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Packaging Release Engineering 範例專案</h2><p>`範例程式碼/packaging_release_engineering/` 示範 metadata validation、deterministic archive、checksum 與 manifest。</p></div></div><pre><code>cd 範例程式碼/packaging_release_engineering
+python3 -m py_compile src/packaging_release_engineering/*.py scripts/run_release_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_release_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      metadata: [
+        ["metadata-pyproject", "Metadata", "pyproject.toml 是 package 契約", "名稱、版本、Python 版本、readme、license 與 scripts 都應集中在 metadata 中。", "[project]\nname = \"my-tool\"\nversion = \"1.2.0\"", "release identity is explicit."],
+        ["metadata-version", "Metadata", "__version__ 要和 project version 一致", "使用者 import package 看到的版本必須和 artifact 版本一致。", "__version__ = \"1.2.0\"", "runtime version matches artifact."],
+        ["metadata-python", "Metadata", "requires-python 是相容性閘門", "不要讓不支援的 Python 版本安裝後才壞掉。", "requires-python = \">=3.11\"", "installer can reject unsupported runtime."],
+        ["metadata-entry", "Metadata", "console script 要指向穩定函式", "entry point 應指向薄 CLI adapter，不要把業務邏輯塞進 argparse。", "my-tool = \"pkg.cli:main\"", "installed command has a stable boundary."]
+      ],
+      layout: [
+        ["layout-src", "Layout", "src layout 降低本地 import 假陽性", "測試必須驗證安裝後的 package，不應只靠目前工作目錄碰巧 import 成功。", "src/my_tool/__init__.py", "import boundary is visible."],
+        ["layout-package-data", "Layout", "資料檔案要明確納入 package", "template、schema、靜態檔案若沒被宣告，release 後會缺檔。", "importlib.resources.files(\"pkg\")", "runtime data can be found."],
+        ["layout-exports", "Layout", "公開 API 要少而穩定", "__all__、入口函式與例外類型應清楚，避免使用者依賴內部模組。", "__all__ = [\"run\", \"Config\"]", "public surface is controlled."],
+        ["layout-config", "Layout", "建置設定不要和環境變數混在一起", "build metadata、runtime config、deploy secrets 是不同層級。", "tool.release_gate.dist_dir = \"dist\"", "build behavior is reproducible."]
+      ],
+      artifact: [
+        ["artifact-sdist", "Artifact", "sdist 是源碼交付證據", "source archive 應包含 pyproject、README、changelog、src 與必要資料檔。", "python -m build --sdist", "source release can be rebuilt."],
+        ["artifact-wheel", "Artifact", "wheel 是安裝速度與二進位邊界", "純 Python wheel 風險低；native wheel 要加平台矩陣與 ABI 策略。", "python -m build --wheel", "install artifact is explicit."],
+        ["artifact-deterministic", "Artifact", "deterministic archive 方便比對", "固定檔案排序、mtime、owner，可降低同內容多次建置的差異。", "tar_info.mtime = 0", "artifact diff is meaningful."],
+        ["artifact-exclude", "Artifact", "不要把產物打包回產物", "dist、__pycache__、.pyc、coverage output、local env 都應排除。", "exclude = [\"dist\", \"__pycache__\"]", "archive stays clean."]
+      ],
+      evidence: [
+        ["evidence-checksum", "Evidence", "checksum 是 artifact 的基本指紋", "發布紀錄應包含 SHA-256，讓接收端能確認檔案未被替換。", "sha256sum dist/pkg.tar.gz", "artifact integrity is checkable."],
+        ["evidence-manifest", "Evidence", "manifest 串起版本、檔案與 gate", "manifest 應記錄 name、version、artifact、checksum、files 與通過的 gates。", "release-manifest.json", "release evidence is machine-readable."],
+        ["evidence-changelog", "Evidence", "changelog gate 防止無紀錄發布", "每個 tag 對應 changelog 條目，讓維運與使用者知道改動範圍。", "## v1.2.0 - 2026-05-13", "release notes exist before publish."],
+        ["evidence-sbom", "Evidence", "dependency evidence 要能被稽核", "即使是 zero dependency，也應說明依賴狀態；有第三方套件時要輸出 SBOM 或 lock evidence。", "sbom.spdx.json", "supply chain is visible."]
+      ],
+      pipeline: [
+        ["pipeline-order", "Pipeline", "release gate 要有固定順序", "先測試，再驗 metadata，再 build，再 smoke artifact，最後才 publish。", "test -> verify -> build -> smoke -> publish", "bad release stops early."],
+        ["pipeline-smoke", "Pipeline", "artifact smoke 比原始碼 smoke 更接近真實", "發布前應安裝或檢查產物，而不是只在 source tree 跑測試。", "python scripts/run_release_smoke.py", "artifact path is exercised."],
+        ["pipeline-tag", "Pipeline", "Git tag 應指向已驗證 commit", "annotated tag 可保留版本說明與審查脈絡。", "git tag -a v1.2.0 -m \"Release v1.2.0\"", "version points to reviewed code."],
+        ["pipeline-promotion", "Pipeline", "promotion 要分開 build 與 publish", "同一份 artifact 從 staging 推到 production，避免 publish 時重新建置。", "promote dist/pkg.tar.gz", "published file is the tested file."]
+      ],
+      operations: [
+        ["ops-token", "Operations", "發布 token 權限要最小化", "PyPI、GitHub Release、registry token 應限制範圍並定期輪替。", "trusted publishing / scoped token", "credential blast radius is limited."],
+        ["ops-rollback", "Operations", "rollback 要說清楚能不能降版", "library、CLI、database migration、API service 的 rollback 條件不同。", "rollback: install v1.1.3", "operator knows recovery path."],
+        ["ops-yank", "Operations", "壞掉的 package 要有處置策略", "PyPI yanked release、GitHub release note、hotfix tag 都要在 runbook 中定義。", "yank v1.2.0 and publish v1.2.1", "bad release can be contained."],
+        ["ops-audit", "Operations", "發布紀錄要可稽核", "保留 commit、tag、manifest、test log、審查報告與發布者。", "commit + tag + manifest + log", "release can be reconstructed."]
+      ],
+      sample: [
+        ["sample-metadata", "Sample", "範例驗證 pyproject 與 __version__", "release gate 會讀取 metadata 並檢查 package 版本一致。", "validate_release_metadata(project_root)", "metadata gate passes."],
+        ["sample-archive", "Sample", "範例建立 deterministic source archive", "tar.gz 只包含必要 source 與文件，排除 generated output。", "build_source_archive(project_root)", "clean archive is created."],
+        ["sample-manifest", "Sample", "範例寫出 release manifest", "manifest 記錄 artifact、SHA-256、files 與 gates。", "write_release_manifest(project_root, archive)", "machine-readable evidence exists."],
+        ["sample-smoke", "Sample", "smoke script 串起交付驗收", "run_release_smoke.py 驗證 metadata、archive、checksum 與 manifest。", "python3 scripts/run_release_smoke.py", "release smoke passed."]
+      ]
+    };
+    const completedKey = "python-packaging-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定義契約</strong><span>鎖定 metadata、版本與公開入口。</span></div><div class="step"><strong>再產生證據</strong><span>建立 artifact、checksum 與 manifest。</span></div><div class="step"><strong>最後控管發布</strong><span>用 CI、tag、smoke 與 rollback 降低風險。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", Boolean(keyword) && !item.dataset.search.includes(keyword));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
