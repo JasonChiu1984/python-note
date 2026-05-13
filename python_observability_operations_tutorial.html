@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 可觀測性與維運工程教學 - Logging、Metrics、Tracing、Health 與 SLO v2.1.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e7f0fb; border: 2px solid var(--blue); color: var(--blue); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #e7f0fb; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.86fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(47,111,187,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--blue); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 1.03; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e7f0fb; color: var(--blue); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+    .lesson-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e7f0fb; color: var(--blue); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">OPS</span><span><strong>Observability</strong><br><small>可觀測性、健康檢查與維運證據</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#logging">Logging</a>
+        <a href="#metrics">Metrics</a>
+        <a href="#tracing">Tracing</a>
+        <a href="#health">Health</a>
+        <a href="#slo">SLO</a>
+        <a href="#incident">Incident</a>
+        <a href="#sample">範例專案</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 28</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Observability Operations</span>
+          <h1>讓上線後的系統可診斷、可告警、可回復</h1>
+          <p>這條路線把可觀測性從工具名詞拉回工程閉環：structured logging、metrics、trace id、health/readiness、SLO、incident timeline、runbook 與 rollback evidence。範例專案使用標準庫，讓讀者先理解 telemetry 資料與維運判斷，再接 OpenTelemetry、Prometheus 或雲端監控。</p>
+          <div class="status-strip"><span>v2.1.0</span><span>28 張互動卡</span><span>standard library sample</span><span>logs + metrics + health + SLO</span></div>
+          <div class="hero-actions"><a class="button primary" href="#logging">開始可觀測性</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 760 430" role="img" aria-label="Python 可觀測性與維運閉環">
+            <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M2 2l8 4-8 4z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="70" y="96" width="132" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="136" y="139">Logs</text>
+              <path d="M212 132h50" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="278" y="96" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="344" y="139">Metrics</text>
+              <path d="M420 132h50" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="486" y="96" width="132" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="552" y="139">Traces</text>
+              <path d="M552 178v45" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="468" y="240" width="168" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="552" y="283">SLO / Alert</text>
+              <path d="M458 276H302" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+              <rect x="112" y="240" width="182" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="203" y="283">Runbook / Rollback</text>
+              <path d="M203 230V182" stroke="#2f6fbb" stroke-width="6" marker-end="url(#arrow)"></path>
+            </g>
+            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">事件發生時，證據必須能串回 request、dependency 與版本</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：JSON log、trace id、latency、readiness、SLO、runbook、rollback、incident">
+        <div class="quick-links"><a href="#logging">Logging</a><a href="#metrics">Metrics</a><a href="#tracing">Tracing</a><a href="#health">Health</a><a href="#slo">SLO</a></div>
+      </div>
+      <section class="section-block" id="logging" data-group="logging"><div class="section-head"><div><span class="eyebrow">Logging</span><h2>先讓每個事件可搜尋、可串聯、可保護敏感資訊</h2><p>好的 log 不是多，而是能回答誰、何時、哪個 request、哪個版本、哪個 dependency 壞掉。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="metrics" data-group="metrics"><div class="section-head"><div><span class="eyebrow">Metrics</span><h2>Metrics 要支援告警與 SLO，不只是 dashboard</h2><p>request count、error rate、latency 與 dependency timeout 是最小可用訊號。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="tracing" data-group="tracing"><div class="section-head"><div><span class="eyebrow">Tracing</span><h2>Trace 把單一 request 的跨邊界行為串起來</h2><p>當 API、DB、cache、queue 都在不同層，trace id 是事件定位的主線。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="health" data-group="health"><div class="section-head"><div><span class="eyebrow">Health</span><h2>健康檢查要區分活著、可接流量與依賴降級</h2><p>process alive 不代表服務可用；dependency failure 也不一定代表要重啟程序。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="slo" data-group="slo"><div class="section-head"><div><span class="eyebrow">SLO</span><h2>SLO 把維運討論從感覺改成門檻與證據</h2><p>告警應該連到使用者影響、錯誤預算與可執行 runbook。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="incident" data-group="incident"><div class="section-head"><div><span class="eyebrow">Incident</span><h2>事故處理要留下時間線、決策與回復證據</h2><p>好的 incident record 能讓團隊下次更快定位，而不是只留下聊天截圖。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Observability Operations 範例專案</h2><p>`範例程式碼/observability_operations/` 示範 request simulation、JSON logs、metrics snapshot、health report 與 SLO evaluation。</p></div></div><pre><code>cd 範例程式碼/observability_operations
+PYTHONPATH=src python3 -m observability_operations.demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_observability_smoke.py</code></pre><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      logging: [
+        ["log-json", "Log", "輸出 JSON structured log", "JSON log 才能被 search、filter、aggregation 與 alert pipeline 穩定處理。", "logger.info({event:'request.completed', trace_id, duration_ms})", "event fields are machine readable."],
+        ["log-correlation", "Log", "每個 request 都要有 correlation id", "跨 API、worker、DB 與 queue 的問題，需要同一個 trace id 串回完整路徑。", "trace_id = request.headers.get('x-trace-id') or uuid4()", "all events share the same id."],
+        ["log-context", "Log", "錯誤 log 要附上可診斷上下文", "只記 exception message 不足以定位，還要有 dependency、operation、version 與 safe identifiers。", "log_error(event='db.timeout', dependency='orders-db')", "triage has enough context."],
+        ["log-redaction", "Log", "敏感資料要在輸出前遮罩", "email、token、個資與商業資料不應直接進入集中式 log。", "redact({'token':'abc'}) -> {'token':'***'}", "logs remain useful and safe."]
+      ],
+      metrics: [
+        ["metric-request-count", "Metric", "request count 是流量基準", "沒有 request count 就無法判斷錯誤率是偶發還是大量影響。", "requests_total{route='/orders'} += 1", "traffic baseline is visible."],
+        ["metric-latency", "Metric", "latency 要看分布與門檻", "平均值容易掩蓋 tail latency；教材 baseline 先示範 threshold，再延伸 histogram。", "duration_ms <= 250", "slow request is detectable."],
+        ["metric-errors", "Metric", "error count 要按類型分類", "validation error、dependency timeout、unexpected exception 的處理策略不同。", "errors_total{type='dependency_timeout'} += 1", "alert points to the right class."],
+        ["metric-timeout", "Metric", "dependency timeout 是維運核心訊號", "timeout 增加通常比整體錯誤率更早顯示外部依賴退化。", "dependency_timeout_total += 1", "degradation is detected early."]
+      ],
+      tracing: [
+        ["trace-span", "Trace", "span boundary 標出關鍵工作段", "DB query、cache call、HTTP downstream、serialization 都應有明確 span。", "with span('repository.save_order'):", "hot path is visible."],
+        ["trace-downstream", "Trace", "外部呼叫要帶 trace id", "沒有向下傳遞 trace id，跨服務調查會在第一個邊界斷線。", "headers['x-trace-id'] = trace_id", "downstream logs can be joined."],
+        ["trace-status", "Trace", "span 要標記 success 或 error", "只記開始與結束不夠，錯誤分類與耗時才是診斷重點。", "span.status = 'error'; span.error_type = 'TimeoutError'", "failed segment is visible."],
+        ["trace-sampling", "Trace", "sampling policy 要保留錯誤樣本", "高流量服務不能全量 trace，但 error 與 slow request 應提高保留率。", "sample if error or duration_ms > threshold", "debug evidence is retained."]
+      ],
+      health: [
+        ["health-liveness", "Health", "liveness 只回答程序是否活著", "liveness 失敗通常代表 process 應重啟，不應拿來檢查所有外部依賴。", "GET /health/live -> 200", "orchestrator has restart signal."],
+        ["health-readiness", "Health", "readiness 回答是否能接流量", "DB migration、cache warmup 或 dependency outage 時，readiness 可暫停流量導入。", "GET /health/ready -> 503 when dependency down", "traffic routing is safe."],
+        ["health-dependency", "Health", "dependency check 要有 timeout", "健康檢查本身不能卡住，否則會造成級聯問題。", "check_dependency(timeout_ms=100)", "health endpoint is bounded."],
+        ["health-degraded", "Health", "降級狀態要和死亡狀態分開", "部分功能不可用時可標 degraded，讓 runbook 決定是否切流或關閉功能。", "status = 'degraded'", "operators know the impact level."]
+      ],
+      slo: [
+        ["slo-definition", "SLO", "SLO 要以使用者可感知行為定義", "例如 99% requests under 250ms，比 CPU 使用率更接近使用者影響。", "success_rate >= 99.5 and p95 < 250ms", "quality target is concrete."],
+        ["slo-error-budget", "SLO", "error budget 決定是否暫停發布", "當錯誤預算燃燒過快，應優先穩定性而不是新功能。", "budget_remaining = target_errors - actual_errors", "release risk is visible."],
+        ["slo-alert", "SLO", "告警要能導向行動", "沒有 runbook、owner、影響範圍的告警會造成疲勞。", "alert -> owner + dashboard + rollback command", "alert has next action."],
+        ["slo-review", "SLO", "SLO review 要回到趨勢與事故", "每次 incident 後檢查 SLO 是否太寬、太窄或缺少重要 signal。", "review last 7 days errors and slow requests", "threshold evolves with evidence."]
+      ],
+      incident: [
+        ["incident-timeline", "Incident", "事故時間線要記錄觀測與決策", "開始時間、偵測時間、緩解時間、回復時間是 MTTR 分析基礎。", "13:01 alert fired; 13:06 rollback started", "timeline is auditable."],
+        ["incident-runbook", "Incident", "runbook 寫可執行步驟", "好的 runbook 包含檢查命令、判斷門檻、回復步驟與升級聯絡人。", "check health; compare error rate; run rollback", "on-call can act quickly."],
+        ["incident-rollback", "Incident", "rollback 要有驗證條件", "回退完成不是指令結束，而是 health、error rate、latency 回到門檻內。", "rollback done when readiness=ok and errors drop", "recovery is evidence-based."],
+        ["incident-postmortem", "Incident", "postmortem 聚焦系統改善", "避免個人歸咎，改追蹤測試缺口、告警缺口、runbook 缺口與架構風險。", "action_items = ['add timeout metric', 'improve readiness']", "learning becomes backlog."]
+      ],
+      sample: [
+        ["sample-collector", "Sample", "範例 collector 收集 log、metric、trace", "標準庫 baseline 讓讀者先看懂 telemetry event 結構。", "collector.record_log(...)", "events can be inspected."],
+        ["sample-service", "Sample", "Service simulator 示範成功與 timeout", "範例 request 會產生成功、慢查詢與 dependency timeout。", "service.handle_request('/orders', fail_dependency=True)", "failure evidence is produced."],
+        ["sample-health", "Sample", "Health report 分開 live、ready、degraded", "範例可驗證 dependency failure 時 readiness 失敗但 liveness 仍正常。", "health.readiness == 'fail'", "routing decision is explicit."],
+        ["sample-tests", "Sample", "unittest 驗證維運訊號", "測試不只驗證回傳值，也驗證 log、metric、trace 與 SLO 結果。", "python3 -m unittest discover -s tests -v", "operations signals are tested."]
+      ]
+    };
+    const completedKey = "python-observability-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定義訊號</strong><span>確認事件、指標與健康狀態要回答的問題。</span></div><div class="step"><strong>再串回 request</strong><span>用 trace id 將跨邊界行為串起來。</span></div><div class="step"><strong>留下回復證據</strong><span>讓 incident、runbook 與 release note 有可驗收結果。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>

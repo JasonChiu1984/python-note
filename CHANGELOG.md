@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v2.0.0 added the testing engineering route.
+- Confirmed the next highest-value project-depth gap was production observability and operations rather than another syntax or case-expansion route.
+- Added `python_observability_operations_tutorial.html` with 28 interactive lesson cards covering structured logging, metrics, tracing, health checks, SLO, alert triage, runbooks, rollback evidence, and incident records.
+- Added `範例程式碼/observability_operations/` as a zero-dependency standard-library sample with telemetry collector, observed service, health report, SLO evaluation, unittest coverage, and a smoke script.
+- Updated `index.html` to show eleven tutorial routes, observability operations progress, a new route-map node, and the updated v2.1.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v2.0.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v1.9.0 completed the high-level 100-case semantic review.
