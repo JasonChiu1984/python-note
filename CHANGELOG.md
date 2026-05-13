@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.8.0 - 2026-05-13
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective.
+- Confirmed the broad route set remains sufficient; the highest-value local gap is still high-level advanced-case semantic maturity.
+- Added v1.8.0 case-specific focus, failure path, and implementation notes for API Versioning, Atomic File Write, Delayed Job Scheduler, Search Index Sync, Large JSON Encoding, Input Size Limit, Mutation Testing, ASGI Background Task, Docker Layer Cache, and ML Batch Inference.
+- Advanced the high-level 100-case review state from 80/100 to 90/100.
+- Updated `index.html` and `python_advanced_engineering_cases.html` to show v1.8.0 and the 90/100 reviewed state.
+
 ## v1.7.0 - 2026-05-13
 
 - Corrected the v1.6.0 semantic metadata mismatch for case 61 from Saga Compensation to Distributed Lock.
