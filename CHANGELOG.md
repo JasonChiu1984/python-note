@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.2.0 - 2026-05-14
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.1.0 added the event-driven reliability route.
+- Confirmed the next highest-value project-depth gap was a standalone configuration governance route covering env precedence, secret boundary, typed settings, feature flags, validation, redacted config evidence, and multi-environment handoff.
+- Added `python_configuration_governance_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/configuration_governance/` as a zero-dependency standard-library sample with configuration loader, precedence rules, secret-file override, CLI override, config validation, redacted report output, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty-two tutorial routes, configuration governance progress, a new route card, and the updated v3.2.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.1.0 - 2026-05-14
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.0.0 added the performance and memory engineering route.

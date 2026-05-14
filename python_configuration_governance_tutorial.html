@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Configuration Governance 教學 - 多環境設定、Secrets 與 Feature Flags v3.2.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --amber: #b7791f;
+      --slate: #43566f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #edf6f4 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 13ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.2rem); line-height: 1.06; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">CG</span><span><strong>Configuration</strong><br><small>settings、flags、secrets</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Configuration Governance Engineering</span>
+          <h1>把多環境設定做成可驗證的專案邊界</h1>
+          <p>很多 Python 專案不是壞在 business logic，而是壞在設定漂移：`.env` 覆蓋順序不明、secret 混進 log、feature flag 沒有生命週期、staging 與 production 行為不一致。這條路線把 defaults、env、secret file、CLI override、typed settings、redaction 與 config evidence 串成完整工程流程。</p>
+          <div class="status-strip"><span>v3.2.0</span><span>32 張互動卡</span><span>standard library sample</span><span>config evidence / secret boundary</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始設定治理課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python configuration governance flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="54" y="96" width="126" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="117" y="126">Defaults</text><text x="117" y="151">Schema</text>
+              <path d="M191 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="248" y="74" width="136" height="76" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="316" y="104">Env Vars</text><text x="316" y="129">Feature Flags</text>
+              <rect x="248" y="182" width="136" height="76" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="316" y="212">Secret File</text><text x="316" y="237">Vault Mount</text>
+              <path d="M395 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="452" y="96" width="144" height="74" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="524" y="126">Typed Loader</text><text x="524" y="151">Validation</text>
+              <path d="M524 181v46" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="438" y="232" width="172" height="74" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="524" y="262">Redacted Report</text><text x="524" y="287">Release Evidence</text>
+            </g>
+            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">設定治理的核心不是把值讀進來，而是讓來源、優先序、風險與證據都可被驗收</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 settings、secret、feature flag、env precedence、redaction">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>設定先做成工程契約，再談部署便利</h2><p>不要把設定視為散落的字串。設定治理要先定義 schema、優先序、風險分級與驗收方式。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把來源、解析、驗證與證據分層</h2><p>defaults、env、secret mount、CLI override 與 feature flags 應有穩定 precedence，並輸出紅acted evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬多環境設定流</h2><p>用標準庫範例就能驗證 loader、secret boundary、flag lifecycle 與 config drift。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>明確寫出 precedence、required 與 fail-safe 行為</h2><p>沒有 precedence contract 的專案，部署越多環境越容易出錯。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 typed settings sample 展示完整閉環</h2><p>範例專案示範 defaults、env、secret file、CLI override、feature flag、config report 與 smoke evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋 precedence、validation 與 redaction</h2><p>設定治理不是 `print(os.getenv())`；要驗證來源、風險與輸出證據都正確。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先排除 drift，再看程式碼</h2><p>大量「只有某環境才壞」的問題，本質上都是設定契約不清楚。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓設定變成可交付、可稽核資產</h2><p>版本發布時，設定證據、secret 邊界與 flag 狀態都應可回溯。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-contract", "Overview", "設定不是字串集合，而是交付契約", "設定值的型別、範圍、來源與 fallback 要明確定義，否則部署一多就會漂移。", "AppConfig(debug=false, timeout=5.0)", "config contract is explicit."],
+        ["overview-sources", "Overview", "先列出來源，再決定 precedence", "defaults、env、secret file、CLI 與 feature flag 不應靠團隊默契隱性決定。", "defaults < env < secret file < cli", "source order is visible."],
+        ["overview-risk", "Overview", "設定值要分 risk class", "像 API token、BACnet device password、MQTT credential 與普通 timeout 不應用同一處理方式。", "secret vs non-secret", "risk handling differs."],
+        ["overview-evidence", "Overview", "設定治理也要有 release evidence", "每次版本發布要能說明本版設定 schema、flag 狀態與 redaction 後的報告。", "config_report.json", "handoff is auditable."]
+      ],
+      architecture: [
+        ["architecture-loader", "Architecture", "loader 只做組裝，不做業務邏輯", "設定載入器負責 merge、驗證與 redaction，不要混進 service startup 流程。", "load_config(...)", "config path stays testable."],
+        ["architecture-schema", "Architecture", "typed settings 是最小安全邊界", "dataclass 或 TypedDict 可讓數值解析、range 驗證與欄位缺失提早失敗。", "@dataclass(frozen=True)", "invalid config fails early."],
+        ["architecture-secret", "Architecture", "secret 來源與顯示要分離", "讀取 secret 與輸出設定報告是兩條不同責任線，報告必須紅acted。", "redact_fields={'api_token'}", "secret boundary is explicit."],
+        ["architecture-flag", "Architecture", "feature flag 要有生命週期", "flag 不只是 bool，還要有 owner、expiry 與 rollout note，避免永久殘留。", "feature_flags={'new_parser': True}", "flag debt is visible."]
+      ],
+      setup: [
+        ["setup-stdlib", "Setup", "標準庫就足夠做設定治理教材", "dataclass、json、argparse、tempfile 與 unittest 就能驗證 precedence 與 redaction。", "python3 -m unittest discover -s tests -v", "baseline is reproducible."],
+        ["setup-env", "Setup", "env 模擬要可重現", "測試中用 dict 模擬環境變數，避免依賴開發機器的真實 shell state。", "env = {'APP_PORT': '9100'}", "tests stay deterministic."],
+        ["setup-secret", "Setup", "secret file 要明確格式", "範例用 JSON secret mount，表示容器、K8s secret volume 或 vault export 的最小可驗收方式。", "secrets.json", "secret input is inspectable."],
+        ["setup-smoke", "Setup", "smoke script 要輸出紅acted evidence", "執行後要留下 config_report.json，證明 precedence、secret boundary 與 flag 狀態。", "python3 scripts/run_configuration_governance_smoke.py", "release smoke is visible."]
+      ],
+      configuration: [
+        ["config-precedence", "Configuration", "明確寫出 precedence contract", "本教材建議順序為 defaults < env < secret file < CLI override。", "cli_timeout overrides env", "override order is stable."],
+        ["config-required", "Configuration", "required secret 缺失要 fail fast", "像 token、設備密碼、租戶金鑰缺失時，不要默默用空字串啟動。", "raise ConfigError('API token required')", "unsafe startup is blocked."],
+        ["config-failsafe", "Configuration", "fail-safe 設定要有安全預設", "工業 polling、command write 或 alarm 通道若設定缺漏，應選擇保守停用而不是盲目啟動。", "write_enabled = false", "unsafe behavior is avoided."],
+        ["config-redaction", "Configuration", "紅acted 報告只能顯示必要資訊", "要保留來源與是否存在，但不能把 secret 原值寫入 log 或 release note。", "\"api_token\": \"***REDACTED***\"", "sensitive data stays protected."]
+      ],
+      example: [
+        ["example-defaults", "Example", "BaseConfig 定義穩定 defaults", "預設值包含 host、port、timeout、feature flags 與 write_enabled。", "defaults = ConfigSource(...)", "baseline behavior is explicit."],
+        ["example-merge", "Example", "ConfigurationLoader 負責 merge 與型別轉換", "它把 env、secret file 與 CLI 值轉成強型別設定，而不是在 app 啟動各處手動 parse。", "loader.load(...)", "settings are normalized once."],
+        ["example-secret", "Example", "secret file 優先於 env", "模擬正式環境常見的 secret mount，避免把敏感值永遠留在 `.env`。", "api_token from secrets.json", "runtime secret source is preferred."],
+        ["example-flag", "Example", "Feature flag 需要 owner 與到期日", "範例用 metadata 記錄 flag 的 owner 與 expires_on，避免旗標永久遺留。", "new_parser: {owner: 'platform'}", "flag lifecycle is visible."],
+        ["example-report", "Example", "ConfigReport 產出紅acted JSON", "報告包含 schema version、source precedence、effective values、flags 與 redacted secrets。", "write_config_report(path, loaded)", "evidence is persisted."],
+        ["example-industrial", "Example", "工業 gateway 設定示範 fail-safe", "像 `write_enabled`、`poll_interval_seconds`、`device_timeout_seconds` 都應被驗證。", "write_enabled=false", "automation safety is explicit."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先捕捉語法與 import 問題，避免誤判為設定邏輯錯誤。", "python3 -m py_compile src/configuration_governance/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試要覆蓋 precedence 與驗證", "至少要驗 env 覆蓋 defaults、secret 覆蓋 env、CLI 覆蓋 secret、secret redaction 與 invalid range。", "python3 -m unittest discover -s tests -v", "regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 產出報告檔", "執行後應輸出 `configuration governance smoke passed` 與 `config_report.json`。", "configuration governance smoke passed", "release smoke is clear."],
+        ["verify-html", "Verification", "HTML 教材 script 也要 parse", "互動教材更新後，用 Node 檢查 script，避免搜尋與完成狀態功能壞掉。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-drift", "Troubleshooting", "同版不同環境行為不同，多半是 precedence 漏洞", "先比較 effective config report，而不是先懷疑 runtime library。", "diff config_report.json", "drift becomes visible."],
+        ["trouble-secret", "Troubleshooting", "secret 出現在 log 代表 redaction 邊界壞了", "檢查 report writer、exception formatter 與 debug dump 是否直接序列化整個 settings object。", "safe_dump(settings)", "secret leak path is narrowed."],
+        ["trouble-flag", "Troubleshooting", "flag 過期未清理會放大維運負擔", "若不知道某旗標何時該移除，代表缺 owner 與 expiry。", "expires_on", "flag debt is trackable."],
+        ["trouble-range", "Troubleshooting", "timeout 與 port 問題常是型別或範圍未驗證", "用 string 直接流入 runtime，最後只會在最遠的地方爆錯。", "validate_port(1..65535)", "config error fails earlier."]
+      ],
+      bestPractices: [
+        ["best-version", "Best", "設定 schema 要版本化", "設定欄位新增或移除時，要能對應 release note 與 migration note。", "schema_version = 1", "config changes are traceable."],
+        ["best-owner", "Best", "高風險設定要有 owner", "像寫入控制、外部 token、設備 timeout 應明確對應維運責任人。", "owner='gateway-team'", "operational responsibility is explicit."],
+        ["best-runbook", "Best", "設定 drift 要有排查 runbook", "報告怎麼看、異常值怎麼回退、何時重啟服務，都要文件化。", "rollback to previous config package", "maintenance stays controlled."],
+        ["best-release", "Best", "版本交付要附設定證據", "更新紀錄與 release note 應標註本版新增設定、flag 變更與 redacted 報告位置。", "CHANGELOG + 更新資料", "handoff quality increases."]
+      ]
+    };
+    const completedKey = "python-configuration-governance-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>明確來源</strong><span>defaults、env、secret 與 CLI 必須可追溯。</span></div><div class="step"><strong>提早失敗</strong><span>缺 required secret 或非法值要在 startup 前失敗。</span></div><div class="step"><strong>留下證據</strong><span>只輸出紅acted 後的 effective config 報告。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
