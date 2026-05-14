@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.1.0 - 2026-05-14
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.0.0 added the performance and memory engineering route.
+- Confirmed the next highest-value project-depth gap was a standalone event-driven reliability route covering transactional outbox, idempotent consumer, dead-letter queue, replay, ordering boundary, operator runbook, and release evidence.
+- Added `python_event_driven_reliability_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/event_reliability/` as a zero-dependency standard-library sample with in-memory outbox, fake broker, idempotent consumer, DLQ handling, replay flow, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty-one tutorial routes, event reliability progress, a new route card, and the updated v3.1.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.0.0 - 2026-05-13
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v2.9.0 added the API integration resilience route.

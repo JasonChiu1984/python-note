@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Event-Driven Reliability 教學 - Outbox、DLQ、Replay 與 Idempotent Consumer v3.1.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --amber: #b7791f;
+      --slate: #43566f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eef4f7 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e7f0fb; border: 2px solid var(--blue); color: var(--blue); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(47,111,187,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--blue); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 13ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.2rem); line-height: 1.06; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e7f0fb; color: var(--blue); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--blue); color: white; border-color: #245b99; }
+    .button.green { background: var(--green); color: white; border-color: #217255; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--blue); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e7f0fb; color: var(--blue); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">ER</span><span><strong>Event Reliability</strong><br><small>outbox、DLQ、replay</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Event-Driven Reliability Engineering</span>
+          <h1>把事件流做成可重送可驗收的工程邊界</h1>
+          <p>這條路線聚焦真實專案常見的訊息可靠性問題：資料先寫成功但事件沒送出、consumer 重複處理、poison message 卡住整條管線、順序被打亂、修正後如何 replay。教材以 outbox、idempotent consumer、dead-letter queue、replay policy、ordering 與 evidence report 組成完整閉環。</p>
+          <div class="status-strip"><span>v3.1.0</span><span>32 張互動卡</span><span>standard library sample</span><span>event delivery / replay</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始事件可靠性課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python event reliability flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2f6fbb"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="62" y="102" width="118" height="68" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="121" y="142">DB Write</text>
+              <path d="M190 136h50" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="248" y="102" width="138" height="68" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="317" y="131">Outbox</text><text x="317" y="155">Dispatcher</text>
+              <path d="M398 136h46" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="452" y="102" width="126" height="68" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="515" y="142">Broker</text>
+              <path d="M515 182v48" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="420" y="236" width="190" height="68" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="515" y="264">Consumer</text><text x="515" y="288">Idempotency</text>
+              <path d="M408 270H280" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="104" y="236" width="166" height="68" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="187" y="264">DLQ</text><text x="187" y="288">Replay</text>
+            </g>
+            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">可靠事件流的核心是可重送、可隔離、可追蹤，而不是只求送出一次</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋關鍵字，例如 outbox、DLQ、replay、ordering、consumer">
+        <div class="quick-links">
+          <a href="#overview">Overview</a>
+          <a href="#example">Example</a>
+          <a href="#verification">Verification</a>
+        </div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先承認 at-least-once，再設計可靠處理</h2><p>事件驅動系統的現實不是 magically exactly once，而是用可重複處理與故障隔離，把風險轉成可治理流程。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把寫入、派送、消費與重放拆成可驗證元件</h2><p>資料庫交易、outbox 派送器、broker、consumer、DLQ 與 replay command 都應有清楚責任邊界。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>先用標準庫做 deterministic 範例</h2><p>以 in-memory event store、fake broker 與 unittest 把可靠性行為做成可本機重現的最小專案。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>重試、順序、DLQ 門檻都要明確設定</h2><p>沒有可見的門檻與 runbook，事件管線只會變成難以排錯的黑盒子。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>範例專案示範 outbox 到 replay 的完整閉環</h2><p>範例包含 domain event、outbox dispatcher、idempotent consumer、poison message 隔離與 replay evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋重試、重複、壞訊息與重放</h2><p>可靠性不是 happy path 測一次而已，要驗證 delivery、dedup、DLQ、replay 與報告輸出。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>故障要能被定位，不要讓 queue 默默卡死</h2><p>queue lag、DLQ 堆積、重複事件與順序錯亂都需要清楚的診斷步驟與保守處理。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>可靠性結論必須來自證據，不是口頭保證</h2><p>事件驅動設計應產生可追溯的交付證據，能被 release note、營運 runbook 與事故檢討直接引用。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-once", "Overview", "不要假設 exactly once", "大多數 broker 與網路環境只能保證 at-least-once；業務正確性要靠 idempotency。", "delivery_semantics = 'at-least-once'", "duplicate delivery is expected."],
+        ["overview-outbox", "Overview", "資料寫入與事件派送要拆開", "同一個交易先寫主資料與 outbox，再由 dispatcher 非同步送出，避免資料已變更但事件消失。", "save_order(); append_outbox(event)", "write and publish are coordinated."],
+        ["overview-dlq", "Overview", "壞訊息需要隔離區", "poison message 不應無限重試阻塞整條 queue，要移入 DLQ 並保留錯誤原因。", "max_attempts = 3 -> DLQ", "bad payload stops hurting healthy traffic."],
+        ["overview-evidence", "Overview", "事件可靠性要有交付證據", "dispatch count、duplicate skip、DLQ move、replay result 都要寫入報告。", "event_reliability_report.json", "release decision has evidence."]
+      ],
+      architecture: [
+        ["architecture-domain", "Architecture", "Event schema 先穩定再談擴充", "event_id、stream_key、event_type、version、payload 與 occurred_at 是最低限度。", "DomainEvent(...)", "event identity is explicit."],
+        ["architecture-dispatch", "Architecture", "dispatcher 只負責派送，不做業務判斷", "讓 dispatcher 保持單一責任，consumer 再處理業務與 idempotency。", "dispatcher.dispatch_pending()", "delivery path stays testable."],
+        ["architecture-consumer", "Architecture", "consumer 需要 processed table 概念", "同一事件重送時，consumer 必須能快速判斷已處理並安全略過。", "processed_event_ids.add(event_id)", "duplicate side effects are blocked."],
+        ["architecture-replay", "Architecture", "DLQ replay 是獨立操作流程", "重放前要先修正資料或程式，不能直接把壞訊息丟回去賭運氣。", "replay_dlq_entry(entry_id)", "operator action is explicit."]
+      ],
+      setup: [
+        ["setup-stdlib", "Setup", "標準庫就能做最小可靠性驗收", "dataclass、json、unittest、collections.deque 足夠模擬 dispatcher、broker 與 consumer。", "python3 -m unittest discover -s tests -v", "baseline is reproducible."],
+        ["setup-broker", "Setup", "Fake broker 用腳本化失敗重現故障", "用預設結果序列模擬 publish failure、暫時性故障與重送。", "FakeBroker([False, True])", "failure path is deterministic."],
+        ["setup-replay", "Setup", "smoke script 要覆蓋 replay", "只驗 happy path 不足以驗收事件系統，smoke 至少要走一次 DLQ -> replay。", "python3 scripts/run_event_reliability_smoke.py", "recovery path is executable."],
+        ["setup-path", "Setup", "固定 src layout 與 import boundary", "教材範例使用 `PYTHONPATH=src`，讓 package 邊界與 CLI 執行方式清楚。", "PYTHONPATH=src", "imports are predictable."]
+      ],
+      configuration: [
+        ["config-dispatch", "Configuration", "dispatcher batch size 要有上限", "避免一次掃太多 pending 事件造成記憶體或延遲尖峰。", "dispatch_batch_size = 50", "drain speed is controlled."],
+        ["config-attempts", "Configuration", "DLQ threshold 要反映 runbook", "重試次數太少容易放大暫時性故障，太多則會拖累整體吞吐。", "max_delivery_attempts = 3", "failure isolation is explicit."],
+        ["config-order", "Configuration", "同 stream 的順序策略要講清楚", "訂單、帳務、設備命令等序列通常不能亂序處理。", "stream_key='order-1001'", "ordering boundary is visible."],
+        ["config-replay", "Configuration", "replay 要記錄操作人與原因", "正式系統需保留 replay reason、operator、timestamp 與結果。", "replay_reason='fixed schema v2'", "recovery is auditable."]
+      ],
+      example: [
+        ["example-store", "Example", "InMemoryEventStore 模擬 transactional outbox", "建立 domain record 時同步追加 outbox entry，表現同交易寫入的概念。", "store.record_change(event)", "pending event is persisted."],
+        ["example-broker", "Example", "FakeBroker 模擬 publish 失敗", "第一次送出失敗、第二次成功，驗證 dispatcher 重試後仍能送達。", "broker = FakeBroker([False, True])", "transient publish failure is recoverable."],
+        ["example-dedup", "Example", "IdempotentConsumer 阻擋重複副作用", "相同 event_id 再送一次時，只增加 duplicate 計數，不再重複執行 handler。", "consumer.consume(event)", "duplicate event is skipped safely."],
+        ["example-dlq", "Example", "Poison message 進入 DLQ", "handler 持續失敗達門檻後，entry 被移入 DLQ 並保留錯誤摘要。", "dlq_entries.append(entry)", "failure is isolated for repair."],
+        ["example-replay", "Example", "修正 handler 後 replay 成功", "把 DLQ entry 重新送回 consumer，驗證恢復後的交付路徑。", "pipeline.replay_dlq(entry_id)", "recovery is proven."],
+        ["example-report", "Example", "ReliabilityReport 彙整發布證據", "報告包含 dispatched、duplicates、dlq_count、replayed 與 processed ids。", "write_reliability_report(path, report)", "evidence is persisted."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先讓語法與 import 問題浮出，避免測試訊號被污染。", "python3 -m py_compile src/event_reliability/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "unittest 覆蓋 delivery 與 repair", "測試要包含 publish retry、consumer dedup、DLQ、replay、ordering 與報告。", "python3 -m unittest discover -s tests -v", "reliability regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 走完整閉環", "smoke 要固定輸出成功訊息，方便 CI 與更新紀錄引用。", "event reliability smoke passed", "release smoke is clear."],
+        ["verify-html", "Verification", "HTML 教材也要 parse script", "互動教材更新後，用 Node 解析 script，避免搜尋與勾選功能壞掉。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-stuck", "Troubleshooting", "pending outbox 一直不減", "檢查 broker 可用性、dispatcher 排程、batch size 與 publish exception。", "pending_count > 0", "dispatch blockage is visible."],
+        ["trouble-duplicate", "Troubleshooting", "重複資料通常是 dedup key 缺失", "如果 event_id 不穩定或 processed set 沒持久化，就會重複套用副作用。", "processed_event_ids persisted", "duplicate root cause is clear."],
+        ["trouble-dlq", "Troubleshooting", "DLQ 堆積代表修復流程不足", "不要只清空 DLQ；要追查 schema drift、handler bug 或資料汙染來源。", "dlq_count alarm", "operator action is required."],
+        ["trouble-order", "Troubleshooting", "順序錯亂要先定義 stream", "不同 stream 可並行，但同一設備命令或同一訂單通常要保持序。", "stream_key partition", "ordering scope is explicit."]
+      ],
+      bestPractices: [
+        ["best-contract", "Best", "事件 schema 要版本化", "新增欄位、修改 payload 結構或 consumer 行為，都要有 version 與遷移說明。", "event_version = 2", "consumer impact is visible."],
+        ["best-failsafe", "Best", "工業命令事件要有 fail-safe", "設備 write command 重送前，必須確認是否會造成重複動作或危險狀態。", "command idempotency or manual confirm", "engineering safety is explicit."],
+        ["best-runbook", "Best", "replay 需要 runbook", "誰可以 replay、何時 replay、失敗後怎麼回退，都要有文件。", "operator checklist", "maintenance stays safe."],
+        ["best-evidence", "Best", "可靠性數據要能進 release note", "每次版本發布都應有 dispatch、DLQ、replay 與 duplicate 統計。", "release note cites report", "operational confidence increases."]
+      ]
+    };
+    const completedKey = "python-event-reliability-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>保留事件身分</strong><span>event_id、stream_key 與 version 必須穩定。</span></div><div class="step"><strong>隔離失敗</strong><span>publish failure、poison message、duplicate 要分流處理。</span></div><div class="step"><strong>留下證據</strong><span>dispatch、DLQ 與 replay 統計進入交付紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
