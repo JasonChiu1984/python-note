@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>四種工業協定同圖工程地圖專業報告</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #58677a;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --teal: #0f8794;
+      --slate: #33445a;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #edf4ef 0, var(--paper) 28rem);
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: var(--mono); }
+    .layout {
+      display: grid;
+      grid-template-columns: 18rem minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 1.2rem;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+    }
+    .brand {
+      display: grid;
+      grid-template-columns: 2.8rem 1fr;
+      gap: 0.8rem;
+      align-items: center;
+      color: inherit;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 2.8rem;
+      height: 2.8rem;
+      border-radius: 10px;
+      background: #e6f5ef;
+      border: 2px solid var(--green);
+      color: var(--green);
+      font-weight: 950;
+    }
+    .meta {
+      display: grid;
+      gap: 0.45rem;
+      margin: 1rem 0 1.2rem;
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbfe;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    nav {
+      display: grid;
+      gap: 0.36rem;
+    }
+    nav a {
+      padding: 0.55rem 0.62rem;
+      border-radius: 7px;
+      color: var(--slate);
+      font-weight: 850;
+    }
+    nav a:hover { background: #e8f0fb; text-decoration: none; }
+    main { min-width: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.98fr);
+      gap: clamp(1rem, 4vw, 3rem);
+      align-items: center;
+      padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 5vw, 4.8rem) 2rem;
+    }
+    .eyebrow {
+      display: inline-flex;
+      min-height: 2rem;
+      padding: 0.3rem 0.62rem;
+      border: 1px solid rgba(45,138,105,0.3);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.74);
+      color: var(--green);
+      font-weight: 950;
+      font-size: 0.9rem;
+    }
+    h1 {
+      max-width: 11ch;
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2.1rem, 4.8vw, 4.2rem);
+      line-height: 1.06;
+    }
+    h2 {
+      margin: 0;
+      font-size: clamp(1.7rem, 4vw, 3rem);
+      line-height: 1.12;
+    }
+    h3 {
+      margin: 0;
+      font-size: 1.12rem;
+      line-height: 1.25;
+    }
+    p { margin: 0; color: var(--muted); }
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1rem;
+    }
+    .status-strip span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.05rem;
+      padding: 0.28rem 0.6rem;
+      border-radius: 7px;
+      background: #e6f5ef;
+      color: var(--green);
+      font-weight: 900;
+    }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .surface svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .section {
+      padding: 2rem clamp(1rem, 5vw, 4.8rem);
+      scroll-margin-top: 1rem;
+    }
+    .section-head {
+      display: grid;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+    .section-head p {
+      max-width: 68rem;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel);
+      box-shadow: 0 10px 28px rgba(23, 32, 51, 0.05);
+      padding: 1rem;
+    }
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 1rem;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 1rem;
+    }
+    .card p + p, .panel p + p { margin-top: 0.65rem; }
+    .tag {
+      display: inline-flex;
+      margin-bottom: 0.55rem;
+      padding: 0.28rem 0.56rem;
+      border-radius: 999px;
+      background: #eef5fd;
+      color: var(--blue);
+      font-size: 0.76rem;
+      font-weight: 950;
+    }
+    .note {
+      border-left: 4px solid var(--blue);
+      padding: 0.85rem 0.95rem;
+      border-radius: 7px;
+      background: #eef5fd;
+      color: var(--slate);
+    }
+    .warning { border-left-color: var(--amber); background: #fff8e8; }
+    .danger { border-left-color: var(--red); background: #fff1f1; }
+    .ok { border-left-color: var(--green); background: #edf8f3; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      min-width: 42rem;
+    }
+    th, td {
+      padding: 0.78rem 0.72rem;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f6fb;
+      font-weight: 900;
+      color: var(--ink);
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    ul {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: var(--muted);
+    }
+    li + li { margin-top: 0.45rem; }
+    pre {
+      margin: 0;
+      padding: 0.95rem;
+      background: #101827;
+      color: #eaf1ff;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .footer-space { height: 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+      table { min-width: 36rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top">
+        <span class="logo">IR</span>
+        <span><strong>Industrial Report</strong><br><small>Modbus / OPC UA / BACnet / MQTT</small></span>
+      </a>
+      <div class="meta">
+        <div>報告日期：2026-05-16</div>
+        <div>完整時間：2026-05-16 13:38:05 CST</div>
+        <div>定位：工程決策與整合部署</div>
+        <div>形式：網頁版專業報告</div>
+      </div>
+      <nav aria-label="章節導覽">
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#engineering-map">Engineering Map</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#modbus-fc">Modbus FC</a>
+        <a href="#opcua-role">OPC UA Role</a>
+        <a href="#bacnet-role">BACnet Role</a>
+        <a href="#mqtt-role">MQTT Role</a>
+        <a href="#comparison">Comparison</a>
+        <a href="#speed">Speed Comparison</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+        <a href="#risk-notes">Risk Notes</a>
+        <a href="#summary">Summary</a>
+      </nav>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Industrial Protocol Engineering Report</span>
+          <h1>把四種工業協定放在同一張工程地圖</h1>
+          <p>這份網頁版報告的目的，不是拆成四篇獨立 API 教學，而是把 `Modbus`、`OPC UA`、`BACnet`、`MQTT` 放回同一個工業/樓控專案內，清楚說明各自的網路位置、責任邊界、部署風險、速度感知與 Python 的合理角色。</p>
+          <div class="status-strip">
+            <span>4 種協定同圖</span>
+            <span>Modbus FC 實作</span>
+            <span>BACnet SC / BBMD / FD / routing</span>
+            <span>3 張比較表</span>
+          </div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 940 420" role="img" aria-label="四種工業協定工程地圖總覽">
+            <defs>
+              <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0.7 0.7l5.3 2.8-5.3 2.8z" fill="#2d8a69"></path>
+              </marker>
+            </defs>
+            <rect x="22" y="24" width="896" height="332" rx="20" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-family="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif" text-anchor="middle">
+              <rect x="48" y="96" width="170" height="90" rx="14" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+              <text x="133" y="129" font-size="23" font-weight="900" fill="#172033">Modbus</text>
+              <text x="133" y="156" font-size="14" fill="#5d6b7d">Field Device / PLC / RTU</text>
+              <text x="133" y="176" font-size="14" fill="#5d6b7d">FC01..FC16 / register / coil</text>
+
+              <path d="M220 141h76" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="304" y="96" width="182" height="90" rx="14" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+              <text x="395" y="129" font-size="23" font-weight="900" fill="#172033">Python Gateway</text>
+              <text x="395" y="156" font-size="14" fill="#5d6b7d">decode / normalize / quality</text>
+              <text x="395" y="176" font-size="14" fill="#5d6b7d">alarm / fail-safe / report</text>
+
+              <path d="M488 116h74" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="570" y="70" width="158" height="78" rx="14" fill="#eef5fd" stroke="#2f6fbb" stroke-width="4"></rect>
+              <text x="649" y="103" font-size="21" font-weight="900" fill="#172033">OPC UA</text>
+              <text x="649" y="126" font-size="14" fill="#5d6b7d">NodeId / namespace</text>
+
+              <path d="M488 164h74" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="570" y="156" width="158" height="78" rx="14" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
+              <text x="649" y="189" font-size="21" font-weight="900" fill="#172033">BACnet</text>
+              <text x="649" y="212" font-size="14" fill="#5d6b7d">object / property / routing</text>
+
+              <path d="M730 103h72" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="808" y="70" width="88" height="78" rx="14" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
+              <text x="852" y="104" font-size="21" font-weight="900" fill="#172033">SCADA</text>
+              <text x="852" y="126" font-size="13" fill="#5d6b7d">Historian / MES</text>
+
+              <path d="M730 195h72" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="808" y="156" width="88" height="78" rx="14" fill="#eef8f9" stroke="#0f8794" stroke-width="4"></rect>
+              <text x="852" y="189" font-size="21" font-weight="900" fill="#172033">MQTT</text>
+              <text x="852" y="212" font-size="13" fill="#5d6b7d">Broker / Cloud</text>
+            </g>
+            <rect x="548" y="258" width="318" height="62" rx="12" fill="#ffffff" stroke="#d8e2ec"></rect>
+            <text x="707" y="284" text-anchor="middle" font-size="14" font-weight="900" fill="#172033">BACnet 補充：BBMD / Foreign Device / Routing / BACnet SC</text>
+            <text x="707" y="305" text-anchor="middle" font-size="13" fill="#5d6b7d">樓控整合成敗常由網路拓樸與安全邊界決定，而不只看 object 名稱</text>
+          </svg>
+        </div>
+      </section>
+
+      <section class="section" id="overview">
+        <div class="section-head">
+          <h2>Overview</h2>
+          <p>這四種協定在真實專案中通常是共存關係，而不是互斥關係。正確做法是先定義誰負責設備採集、誰負責語意建模、誰負責樓控整合、誰負責平台發布，再決定程式實作與通訊治理方式。</p>
+        </div>
+        <div class="grid-4">
+          <article class="card"><span class="tag">Modbus</span><h3>設備採集層</h3><p>最常落在設備採集邊界，重點是 `FC`、`register/coil`、`datatype`、`word order`。</p></article>
+          <article class="card"><span class="tag">OPC UA</span><h3>語意整合層</h3><p>重點是 `NodeId`、`namespace`、`subscription`，負責穩定的語意節點整合。</p></article>
+          <article class="card"><span class="tag">BACnet</span><h3>樓控網路層</h3><p>重點不只在 `object/property`，也在 `BBMD`、`foreign device`、`routing`、`BACnet SC`。</p></article>
+          <article class="card"><span class="tag">MQTT</span><h3>上行分發層</h3><p>重點在 `topic`、`payload schema`、`QoS` 與 broker 行為，常作為 uplink 與分發通道。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="architecture">
+        <div class="section-head">
+          <h2>Architecture</h2>
+          <p>比較四種協定時，先看它解決哪一層問題，再看 library、port 與 API。真正的差異在責任邊界，不在命名表面。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>協定</th><th>主要工程位置</th><th>主要責任</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>Modbus</code></td><td>Field device / PLC / RTU / meter 採集邊界</td><td>讀寫 bit / register，取得現場原始資料</td></tr>
+              <tr><td><code>OPC UA</code></td><td>SCADA / historian / MES / edge semantic integration</td><td>提供語意節點模型、訂閱更新、跨系統一致命名</td></tr>
+              <tr><td><code>BACnet</code></td><td>DDC / BMS / building automation subnet</td><td>提供樓控 object/property 模型與跨子網路整合</td></tr>
+              <tr><td><code>MQTT</code></td><td>Edge uplink / broker / platform integration</td><td>提供發布/訂閱式資料分發與事件上送</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="engineering-map">
+        <div class="section-head">
+          <h2>Engineering Map</h2>
+          <p>同一個專案裡，資料採集、樓控整合、語意整合與平台發布經常同時存在。Python 最有價值的位置通常是邊界層：adapter、normalizer、poller、publisher，而不是盲目替代所有控制器。</p>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>同一專案中的責任切分</h3>
+            <div class="table-wrap" style="margin-top:0.8rem;">
+              <table>
+                <thead>
+                  <tr><th>工程層</th><th>典型系統</th><th>主要協定</th><th>Python 最適合角色</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>設備採集層</td><td>meter / VFD / PLC / RTU</td><td><code>Modbus</code></td><td>poller、decoder、register mapper</td></tr>
+                  <tr><td>樓控整合層</td><td>DDC / BMS / HVAC</td><td><code>BACnet</code></td><td>gateway、integration adapter、report bridge</td></tr>
+                  <tr><td>語意整合層</td><td>SCADA / historian / MES</td><td><code>OPC UA</code></td><td>client、agent、normalizer</td></tr>
+                  <tr><td>平台發布層</td><td>broker / cloud / analytics</td><td><code>MQTT</code></td><td>publisher、subscriber、buffer manager</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>控制與觀測邊界</h3>
+            <div class="note warning" style="margin-top:0.8rem;">工業專案不應把 command path 與 telemetry path 混為一談。即使協定提供寫入能力，也不代表可直接放進和觀測相同的預設流程。</div>
+            <div class="grid-2" style="margin-top:1rem;">
+              <article class="card">
+                <span class="tag">Telemetry</span>
+                <h3>觀測路徑</h3>
+                <p>重點是資料完整性、時間戳、品質碼與可追蹤性。</p>
+              </article>
+              <article class="card">
+                <span class="tag">Command</span>
+                <h3>控制路徑</h3>
+                <p>重點是 interlock、權限、寫入安全、timeout、retry 上限與 fail-safe。</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="workflow">
+        <div class="section-head">
+          <h2>Workflow</h2>
+          <p>現場資料流不應從 library 呼叫開始思考，而應從設備所在網段、資料來源協定、資料表示方式與安全邊界開始判斷。</p>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 1100 420" role="img" aria-label="工業資料流與協定決策流程圖">
+            <defs>
+              <marker id="flow-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0.7 0.7l5.3 2.8-5.3 2.8z" fill="#2f6fbb"></path>
+              </marker>
+            </defs>
+            <rect x="20" y="24" width="1060" height="368" rx="18" fill="#fbfdff" stroke="#d8e2ec"></rect>
+            <g font-family="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif">
+              <rect x="48" y="148" width="150" height="82" rx="14" fill="#eef5fd" stroke="#2f6fbb" stroke-width="4"></rect>
+              <text x="123" y="183" text-anchor="middle" font-size="19" font-weight="900" fill="#172033">確認網段</text>
+              <text x="123" y="206" text-anchor="middle" font-size="13" fill="#5d6b7d">device / controller / subnet</text>
+
+              <path d="M198 189h56" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+              <rect x="258" y="60" width="198" height="74" rx="14" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+              <text x="357" y="92" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">Modbus</text>
+              <text x="357" y="114" text-anchor="middle" font-size="13" fill="#5d6b7d">FC / address / datatype / word order</text>
+
+              <rect x="258" y="150" width="198" height="74" rx="14" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+              <text x="357" y="182" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">OPC UA</text>
+              <text x="357" y="204" text-anchor="middle" font-size="13" fill="#5d6b7d">endpoint / namespace / NodeId / subscription</text>
+
+              <rect x="258" y="240" width="198" height="74" rx="14" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
+              <text x="357" y="272" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">BACnet</text>
+              <text x="357" y="294" text-anchor="middle" font-size="13" fill="#5d6b7d">object / subnet / BBMD / FD / routing / SC</text>
+
+              <path d="M456 97h84" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+              <path d="M456 187h84" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+              <path d="M456 277h84" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+
+              <rect x="544" y="148" width="182" height="82" rx="14" fill="#eef8f9" stroke="#0f8794" stroke-width="4"></rect>
+              <text x="635" y="182" text-anchor="middle" font-size="19" font-weight="900" fill="#172033">正規化</text>
+              <text x="635" y="205" text-anchor="middle" font-size="13" fill="#5d6b7d">decode / scaling / normalize</text>
+
+              <path d="M726 189h66" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+              <rect x="796" y="148" width="154" height="82" rx="14" fill="#f8fbfe" stroke="#7a8aa0" stroke-width="4"></rect>
+              <text x="873" y="182" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">品質補齊</text>
+              <text x="873" y="205" text-anchor="middle" font-size="13" fill="#5d6b7d">timestamp / quality / source / unit</text>
+
+              <path d="M950 189h56" stroke="#2f6fbb" stroke-width="4" marker-end="url(#flow-arrow)"></path>
+              <rect x="1008" y="120" width="52" height="138" rx="14" fill="#fff1f1" stroke="#c34848" stroke-width="4"></rect>
+              <text x="1034" y="172" text-anchor="middle" font-size="18" font-weight="900" fill="#172033">告警</text>
+              <text x="1034" y="197" text-anchor="middle" font-size="13" fill="#5d6b7d">stale</text>
+              <text x="1034" y="216" text-anchor="middle" font-size="13" fill="#5d6b7d">timeout</text>
+              <text x="1034" y="235" text-anchor="middle" font-size="13" fill="#5d6b7d">fail-safe</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="section" id="modbus-fc">
+        <div class="section-head">
+          <h2>Modbus FC Implementation</h2>
+          <p>`Modbus` 在設備採集層最容易「通訊成功但資料錯」。真正決定正確性的不是 socket 是否連通，而是 `FC`、資料區、位址、資料型別與字序是否全部定義清楚。</p>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>FC 類型總表</h3>
+            <div class="table-wrap" style="margin-top:0.8rem;">
+              <table>
+                <thead>
+                  <tr><th>類型</th><th>FC</th><th>名稱</th><th>常見資料區</th><th>讀/寫</th><th>資料單位</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Bit Read</td><td><code>FC01</code></td><td>Read Coils</td><td>coil</td><td>讀</td><td>bit</td></tr>
+                  <tr><td>Bit Read</td><td><code>FC02</code></td><td>Read Discrete Inputs</td><td>discrete input</td><td>讀</td><td>bit</td></tr>
+                  <tr><td>Word Read</td><td><code>FC03</code></td><td>Read Holding Registers</td><td>holding register</td><td>讀</td><td>16-bit register</td></tr>
+                  <tr><td>Word Read</td><td><code>FC04</code></td><td>Read Input Registers</td><td>input register</td><td>讀</td><td>16-bit register</td></tr>
+                  <tr><td>Bit Write</td><td><code>FC05</code></td><td>Write Single Coil</td><td>coil</td><td>寫</td><td>bit</td></tr>
+                  <tr><td>Word Write</td><td><code>FC06</code></td><td>Write Single Register</td><td>holding register</td><td>寫</td><td>16-bit register</td></tr>
+                  <tr><td>Bit Write</td><td><code>FC15</code></td><td>Write Multiple Coils</td><td>coil</td><td>寫</td><td>bit array</td></tr>
+                  <tr><td>Word Write</td><td><code>FC16</code></td><td>Write Multiple Registers</td><td>holding register</td><td>寫</td><td>register array</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>工程實作必記欄位</h3>
+            <ul style="margin-top:0.8rem;">
+              <li><code>function code</code></li>
+              <li><code>register type</code></li>
+              <li><code>register address</code></li>
+              <li><code>quantity</code></li>
+              <li><code>datatype</code></li>
+              <li><code>endian</code></li>
+              <li><code>word order</code></li>
+              <li><code>scaling</code></li>
+              <li><code>engineering unit</code></li>
+            </ul>
+            <div class="note danger" style="margin-top:1rem;">若缺少上述任一欄位，現場就很容易出現「通訊成功但值錯」的假成功狀態。</div>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:1rem;">
+          <div class="panel">
+            <h3>FC03、FC04、FC06、FC16 的實務差異</h3>
+            <div class="table-wrap" style="margin-top:0.8rem;">
+              <table>
+                <thead>
+                  <tr><th>項目</th><th>實務重點</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>FC03</code></td><td>最常用來讀 <code>holding register</code>，常見於可配置或可映射的工程值讀取。</td></tr>
+                  <tr><td><code>FC04</code></td><td>讀 <code>input register</code>，不應假設與 <code>FC03</code> 可互換，必須依設備文件定義。</td></tr>
+                  <tr><td><code>FC06</code></td><td>單一 register 寫入，適合單點設定，但不適合需要成組一致性的多寄存器更新。</td></tr>
+                  <tr><td><code>FC16</code></td><td>多寄存器成組寫入，較適合需要整體一致性的參數更新與 32-bit / 多欄位寫入。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Python/Gateway 實作流程</h3>
+            <pre style="margin-top:0.8rem;"><code>選定 FC
+  -> 確認 register/coil 類型
+  -> 確認 address / quantity
+  -> 確認 datatype / endian / word order
+  -> decode / scaling
+  -> 補 timestamp / quality / source
+  -> 判斷 alarm / fail-safe
+  -> 轉成 OPC UA node / BACnet object / MQTT payload</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="opcua-role">
+        <div class="section-head">
+          <h2>OPC UA Role</h2>
+          <p><code>OPC UA</code> 回答的不是「某個 bit 在哪裡」，而是「這筆資料在系統內是什麼節點、什麼語意、如何穩定被訂閱」。它更靠近語意資料層，而不是設備寄存器層。</p>
+        </div>
+        <div class="grid-4">
+          <article class="card"><span class="tag">定位</span><h3>語意一致整合</h3><p>適合 SCADA、historian、MES 與跨 vendor 語意整合。</p></article>
+          <article class="card"><span class="tag">欄位</span><h3>NodeId 必須可追蹤</h3><p>必須記錄 endpoint、namespace、NodeId，而不是只記 display name。</p></article>
+          <article class="card"><span class="tag">行為</span><h3>Subscription 優先</h3><p>常用 subscription + publish，不應只用高頻 polling 硬模擬更新。</p></article>
+          <article class="card"><span class="tag">Python</span><h3>Client / Bridge</h3><p>常扮演 client、bridge、integration agent、payload normalizer。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="bacnet-role">
+        <div class="section-head">
+          <h2>BACnet Network and SC Role</h2>
+          <p><code>BACnet</code> 在工業/樓控專案中的難點，往往不只在 <code>object/property</code>，而是在跨子網路、broadcast、router、BBMD、foreign device 與 BACnet SC 的整體拓樸。</p>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>資料模型與網路部署</h3>
+            <div class="table-wrap" style="margin-top:0.8rem;">
+              <table>
+                <thead>
+                  <tr><th>項目</th><th>工程重點</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>object type / instance / property</code></td><td>只記點位名稱不足以支撐可維護整合。</td></tr>
+                  <tr><td>local subnet discovery</td><td>同網段能看到設備，不代表跨網段也會成功。</td></tr>
+                  <tr><td><code>BBMD</code></td><td>用來在跨 subnet 的 BACnet/IP 網路中處理 broadcast distribution。</td></tr>
+                  <tr><td><code>foreign device</code></td><td>非本地 subnet 的 client/gateway 需要透過 FD registration 參與 BACnet/IP 網路。</td></tr>
+                  <tr><td><code>routing</code></td><td>跨 network number / router 邊界時，必須把 BACnet routing 視為部署一級議題。</td></tr>
+                  <tr><td><code>BACnet SC</code></td><td>屬於安全通道架構的一部分，適合遠端安全整合與受控接入。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>BACnet SC 與 Python 角色</h3>
+            <pre style="margin-top:0.8rem;"><code>BACnet/IP
+  +
+BACnet SC Gateway
+  +
+受控安全通道 / Hub</code></pre>
+            <div class="note ok" style="margin-top:1rem;">Python 在這一層最適合扮演 gateway、integration adapter、report/export bridge，不應假設自己直接取代全部 DDC / BMS 控制核心。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="mqtt-role">
+        <div class="section-head">
+          <h2>MQTT Role</h2>
+          <p><code>MQTT</code> 最常作為 uplink 與訊息分發層，不負責原始設備位址模型，也不天然提供 PLC/DDC/BMS 的本體語意。它承載的通常是已正規化後的消息。</p>
+        </div>
+        <div class="grid-4">
+          <article class="card"><span class="tag">識別</span><h3>topic + payload</h3><p>核心不是寄存器或 object，而是 topic 命名與 payload 契約。</p></article>
+          <article class="card"><span class="tag">行為</span><h3>Publish / Subscribe</h3><p>天然適合 broker-based 分發，但 QoS、retain、buffer 都要治理。</p></article>
+          <article class="card"><span class="tag">Python</span><h3>Publisher / Buffer</h3><p>常扮演 publisher、subscriber、buffer manager。</p></article>
+          <article class="card"><span class="tag">誤判</span><h3>快不代表源頭快</h3><p>Broker 很靈活，不代表原始設備採集速度也同樣高。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="comparison">
+        <div class="section-head">
+          <h2>Communication Comparison</h2>
+          <p>比較協定時，先用工程架構表做選型，再用通訊格式表做實作契約，最後再看速度與即時性特徵，避免把不同層級的問題混為一談。</p>
+        </div>
+        <div class="panel">
+          <h3>工程架構比較表</h3>
+          <div class="table-wrap" style="margin-top:0.8rem;">
+            <table>
+              <thead>
+                <tr><th>協定</th><th>典型網路位置</th><th>主要對接系統</th><th>資料模型</th><th>互動方式</th><th>部署關鍵</th><th>最常見誤判</th><th>Python 最常扮演角色</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Modbus</code></td><td>field device / PLC / RTU 採集邊界</td><td>meter、VFD、PLC、RTU</td><td>coil / register</td><td>polling + read/write</td><td><code>FC</code>、位址、datatype、word order、timeout</td><td>以為連上就代表讀對</td><td>poller、decoder、mapper</td></tr>
+                <tr><td><code>OPC UA</code></td><td>SCADA / historian / MES / semantic layer</td><td>SCADA、MES、integration hub</td><td>node / namespace / <code>NodeId</code></td><td>session + subscription</td><td>endpoint、<code>NodeId</code>、publish、keepalive</td><td>只記 display name</td><td>client、bridge、normalizer</td></tr>
+                <tr><td><code>BACnet</code></td><td>BMS / DDC / BACnet/IP subnet / SC boundary</td><td>HVAC、BMS、building automation</td><td>object / property</td><td>request-response、部分場景 COV</td><td><code>BBMD</code>、<code>foreign device</code>、<code>routing</code>、<code>BACnet SC</code></td><td>只記 object name、不看 subnet/router</td><td>gateway、integration adapter</td></tr>
+                <tr><td><code>MQTT</code></td><td>broker / edge uplink / platform</td><td>broker、cloud、analytics</td><td>topic / payload</td><td>publish / subscribe</td><td>schema、QoS、retain、buffer</td><td>只看 broker，不看資料契約</td><td>publisher、subscriber、buffer manager</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:1rem;">
+          <h3>通訊格式與實作比較表</h3>
+          <div class="table-wrap" style="margin-top:0.8rem;">
+            <table>
+              <thead>
+                <tr><th>協定</th><th>識別方式</th><th>核心互動單位</th><th>典型操作</th><th>實作時必記欄位</th><th>推送/輪詢特性</th><th>常見錯誤</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Modbus</code></td><td><code>FC + register/coil address</code></td><td>bit / 16-bit register</td><td><code>FC03</code>、<code>FC16</code> 為主，視場景使用 <code>FC01/FC02/FC04/FC05/FC06/FC15</code></td><td>address、register type、datatype、endian、word order、scaling</td><td>以 polling 為主</td><td>offset、signedness、endianness、scan 過快</td></tr>
+                <tr><td><code>OPC UA</code></td><td><code>NodeId</code></td><td>typed node</td><td>browse、read、subscription</td><td>endpoint、namespace、<code>NodeId</code>、sampling/publish</td><td>訂閱能力強</td><td>只記顯示名稱、不管 session/queue</td></tr>
+                <tr><td><code>BACnet</code></td><td><code>object type + object instance + property</code></td><td>object/property</td><td>read property、write property、discovery、COV</td><td>device、object、property、subnet、routing、<code>BBMD</code>、<code>FD</code>、<code>SC</code></td><td>以 request-response 為主，部分可 COV</td><td>跨 subnet discovery 失敗、忽略 routing/TTL</td></tr>
+                <tr><td><code>MQTT</code></td><td>topic</td><td>message payload</td><td>publish、subscribe、retain</td><td>topic、payload schema、QoS、timestamp、quality</td><td>天然 publish/subscribe</td><td>topic 扁平化、payload 欄位治理不足</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="speed">
+        <div class="section-head">
+          <h2>Protocol Speed Comparison</h2>
+          <p>這裡比較的是工程感知速度與即時性特徵，不是脫離場景的實驗室跑分。速度評估必須綁定點數規模、輪詢週期、server/broker/device 負載與網路拓樸。</p>
+        </div>
+        <div class="panel">
+          <h3>通訊速度與即時性比較表</h3>
+          <div class="table-wrap" style="margin-top:0.8rem;">
+            <table>
+              <thead>
+                <tr><th>協定</th><th>典型更新模式</th><th>工程感知速度</th><th>延遲主要來源</th><th>高頻更新適配性</th><th>吞吐擴展特性</th><th>速度比較注意事項</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Modbus</code></td><td>polling</td><td>低到中，取決於 polling interval、device response、segment loading</td><td>輪詢週期、serial/TCP timeout、逐站掃描</td><td>有限，點數增多時惡化明顯</td><td>受單站回應與輪詢模型限制</td><td>不能只看單點速度，要看整段輪詢週期</td></tr>
+                <tr><td><code>OPC UA</code></td><td>subscription + publish</td><td>中到高，適合事件化與連續更新</td><td>sampling interval、publish interval、queue、server load</td><td>通常優於純 polling</td><td>取決於 server、subscription 設計與 session 管理</td><td>不是所有 OPC UA server 都能高頻穩定運行</td></tr>
+                <tr><td><code>BACnet</code></td><td>request/response 為主，部分場景可 COV</td><td>低到中，依 object access、network topology、router/BBMD 狀態而變</td><td>broadcast/discovery、routing、device processing、network design</td><td>樓控監控可用，但不應假設等同高速 stream bus</td><td>受樓控拓樸與設備能力影響較大</td><td>若含跨 subnet、<code>BBMD</code>、<code>FD</code>、<code>SC</code>，速度評估必須放回拓樸中看</td></tr>
+                <tr><td><code>MQTT</code></td><td>publish/subscribe</td><td>中到高，適合 uplink 分發與事件傳播</td><td>broker load、QoS、network path、payload size</td><td>通常適合，但取決於 broker 與 schema 設計</td><td>通常優於輪詢式協定</td><td><code>MQTT</code> 快不代表資料源快，它常只是上行承載層</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note warning" style="margin-top:1rem;">不做實驗室基準跑分，不宣稱四協定有單一絕對快慢排名。少量點位下 `Modbus` 可很直接，但大規模輪詢會快速累積延遲；`BACnet` 速度也不能脫離 `routing / BBMD / FD / BACnet SC` 拓樸來看。</div>
+        </div>
+      </section>
+
+      <section class="section" id="troubleshooting">
+        <div class="section-head">
+          <h2>Troubleshooting</h2>
+          <p>很多整合失敗不是 library 問題，而是拿錯協定心智模型，或忽略資料表示與網路邊界。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>問題</th><th>先查什麼</th><th>不要先做什麼</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>Modbus</code> 看起來很慢</td><td>輪詢點數、scan cycle、timeout、站點數量</td><td>不要先怪 socket library</td></tr>
+              <tr><td><code>FC03</code> 有值但結果怪</td><td><code>word order</code>、datatype、scaling、signedness</td><td>不要先改上層業務邏輯</td></tr>
+              <tr><td><code>OPC UA</code> 更新延遲高</td><td>subscription、publish interval、queue、server load</td><td>不要只靠高頻 polling 補救</td></tr>
+              <tr><td><code>BACnet</code> 看不到設備</td><td><code>subnet</code>、<code>BBMD</code>、<code>foreign device</code>、<code>routing</code></td><td>不要先假設 object name 填錯</td></tr>
+              <tr><td><code>BACnet</code> 遠端整合不穩</td><td><code>BACnet SC</code>、gateway 拓樸、router</td><td>不要直接暴露傳統 BACnet/IP</td></tr>
+              <tr><td><code>MQTT</code> 看起來很快但資料很舊</td><td>上游資料更新週期、payload timestamp、broker backlog</td><td>不要只看 broker 是否在線</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="best-practices">
+        <div class="section-head">
+          <h2>Best Practices</h2>
+          <p>先定義工程角色，再定義協定；先定義契約與治理，再寫程式；先區分控制與觀測，再談效能與速度。</p>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>交付前最低要求</h3>
+            <ul style="margin-top:0.8rem;">
+              <li>沒有 <code>FC + register type + address + datatype + word order</code>，不要宣稱 Modbus 點位已交付。</li>
+              <li>沒有 <code>NodeId</code>，不要宣稱 OPC UA 契約可維護。</li>
+              <li>沒有 <code>object type / object instance / property + BBMD / FD / routing / SC</code>，不要宣稱 BACnet 整合已可跨網段部署。</li>
+              <li>沒有 <code>topic + payload schema + quality + timestamp</code>，不要宣稱 MQTT 整合已可維運。</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>工程原則</h3>
+            <ul style="margin-top:0.8rem;">
+              <li>command path 與 telemetry path 必須分離。</li>
+              <li>`速度` 不能脫離 `alarm`、`fail-safe`、資料品質與安全策略單獨討論。</li>
+              <li>比較協定時，先看責任邊界與拓樸，再看 library。</li>
+              <li>Python 最有價值的位置通常是 adapter、normalizer、poller、publisher。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="risk-notes">
+        <div class="section-head">
+          <h2>Risk Notes</h2>
+          <p>錯把協定當成單純不同 port，會直接導致錯誤選型、錯誤測試方法與錯誤交付結論。</p>
+        </div>
+        <div class="grid-4">
+          <article class="card"><span class="tag">Risk</span><h3>把四協定當成不同 port</h3><p>會導致錯誤選型與錯誤實作邊界。</p></article>
+          <article class="card"><span class="tag">Risk</span><h3>把 Modbus 當語意模型</h3><p>會忽略上層標準化與品質治理。</p></article>
+          <article class="card"><span class="tag">Risk</span><h3>把 BACnet 當純點位讀寫</h3><p>會低估 <code>BBMD</code>、<code>FD</code>、<code>routing</code>、<code>SC</code> 的部署複雜度。</p></article>
+          <article class="card"><span class="tag">Risk</span><h3>把 MQTT 速度當源頭速度</h3><p>會做出錯誤的效能比較結論。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="summary">
+        <div class="section-head">
+          <h2>Summary</h2>
+          <p>四種工業協定放在同一張工程地圖時，重要的不是背名詞，而是看清它們各自解的是哪一層問題，以及資料、控制、安全與維運應如何被分層治理。</p>
+        </div>
+        <div class="panel">
+          <ol style="margin:0; padding-left:1.2rem; color:var(--muted);">
+            <li><code>Modbus</code> 解設備寄存器與線圈採集/寫入。</li>
+            <li><code>OPC UA</code> 解語意節點與連續訂閱整合。</li>
+            <li><code>BACnet</code> 解樓控物件模型與跨網段 building automation 拓樸。</li>
+            <li><code>MQTT</code> 解上行發布與訊息分發。</li>
+            <li>專案落地前，至少要明確定義協定責任矩陣、位址/節點/物件/topic 契約、timeout、alarm、fail-safe，以及 command / telemetry 分離。</li>
+          </ol>
+        </div>
+      </section>
+      <div class="footer-space"></div>
+    </main>
+  </div>
+</body>
+</html>
