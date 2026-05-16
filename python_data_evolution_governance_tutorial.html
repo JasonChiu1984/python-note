@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Data Evolution Governance 教學 - Schema、Backfill 與 Rollback v3.3.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --amber: #b7791f;
+      --slate: #43566f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eef7f1 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #ebf7f0; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.2rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #ebf7f0; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #ebf7f0; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">DE</span><span><strong>Data Evolution</strong><br><small>schema、backfill、rollback</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Data Evolution Governance</span>
+          <h1>把資料升版做成可回退的工程流程</h1>
+          <p>很多專案不是壞在 CRUD，而是壞在升版瞬間：新程式讀不到舊資料、backfill 半路中斷、rollback 後資料回不去。這條路線把 schema version、compat read/write、expand/contract、backfill checkpoint、drift preflight 與 rollback evidence 串成完整工程閉環。</p>
+          <div class="status-strip"><span>v3.3.0</span><span>32 張互動卡</span><span>standard library sample</span><span>schema / backfill / rollback</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始資料演進課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python data evolution governance flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="56" y="96" width="126" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="119" y="126">Schema</text><text x="119" y="151">Manifest</text>
+              <path d="M193 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="250" y="74" width="136" height="76" rx="12" fill="#ebf7f0" stroke="#2d8a69" stroke-width="4"></rect><text x="318" y="104">Compat</text><text x="318" y="129">Read / Write</text>
+              <rect x="250" y="182" width="136" height="76" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="318" y="212">Backfill</text><text x="318" y="237">Checkpoint</text>
+              <path d="M397 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="454" y="96" width="144" height="74" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="526" y="126">Preflight</text><text x="526" y="151">Drift Check</text>
+              <path d="M526 181v46" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="440" y="232" width="172" height="74" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="526" y="262">Rollback</text><text x="526" y="287">Evidence</text>
+            </g>
+            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">資料演進的核心不是把欄位改掉，而是讓新舊版本都能被驗證、能回退、能追溯</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 schema、backfill、checkpoint、rollback、compat">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定義資料版本契約，再做 migration</h2><p>資料演進治理的第一步不是寫 script，而是先說清楚版本、相容與回退條件。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把相容讀寫、回填與回退拆成明確層次</h2><p>compat read/write、backfill、preflight 與 rollback evidence 應各自可驗證。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬 schema 升版與回復</h2><p>用標準庫範例就能演示 schema drift、checkpoint、resume 與 rollback read。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>用 manifest 寫出升版規則與風險邊界</h2><p>沒有 manifest 的資料升版，多半只是在賭運氣。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 sample project 示範完整資料演進閉環</h2><p>範例專案示範 schema manifest、compat adapter、backfill checkpoint、drift preflight 與 rollback report。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋升版、續跑與回退</h2><p>資料演進不是 migration 跑完就算完成，還要證明能重跑、能停止、能回讀。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先比對資料版本與報告，再看應用程式</h2><p>大多數資料升版事故，本質上都是版本契約或回填證據不足。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓資料升版變成可交付、可回退資產</h2><p>版本發布時，schema 狀態、backfill 進度與 rollback 可行性都應被記錄。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-contract", "Overview", "資料演進先看契約，不先看 SQL", "升版前先定義 schema version、相容期、回退條件與驗收方式。", "schema_version = 1 -> 2", "evolution contract is explicit."],
+        ["overview-compat", "Overview", "新版要先能讀舊資料", "如果新程式上線時不能先讀舊資料，就不適合做平滑部署。", "compat_read(record_v1)", "old records stay readable."],
+        ["overview-backfill", "Overview", "backfill 是專案，不是附帶 script", "大量資料回填要有 checkpoint、批次、dry-run 與 summary report。", "backfill --resume", "long job becomes governable."],
+        ["overview-rollback", "Overview", "回退不只是回退程式", "還要驗證舊程式是否仍能讀取已升版資料，或至少有 backup 可恢復。", "rollback_read(record_v2)", "reverse compatibility is checked."]
+      ],
+      architecture: [
+        ["architecture-manifest", "Architecture", "manifest 明確列出 from/to version", "用一個資料結構寫清楚本版要新增什麼欄位、何時允許刪欄位。", "MigrationManifest(from=1, to=2)", "change scope is visible."],
+        ["architecture-adapter", "Architecture", "compat adapter 負責雙版本讀寫", "不要把 if version==1 的分支散落在整個 service。", "read_record(payload)", "compat logic stays centralized."],
+        ["architecture-checkpoint", "Architecture", "checkpoint 與 backfill 分離", "checkpoint 記錄 last_processed_id，backfill 負責批次轉換與統計。", "Checkpoint(last_id=200)", "resume path is testable."],
+        ["architecture-report", "Architecture", "演進報告要包含 drift 與 rollback 結果", "報告不只列成功筆數，也要列 preflight 發現、跳過原因與 rollback 驗證。", "migration_report.json", "handoff becomes auditable."]
+      ],
+      setup: [
+        ["setup-stdlib", "Setup", "標準庫就足夠示範資料演進", "dataclass、json、tempfile、pathlib 與 unittest 就能構建可驗證教材。", "python3 -m unittest discover -s tests -v", "baseline stays reproducible."],
+        ["setup-sample", "Setup", "sample data 同時包含 v1 與 drift", "測試資料要刻意保留舊版格式與異常欄位，才能驗證 preflight。", "{\"schema_version\": 1}", "drift can be reproduced."],
+        ["setup-backup", "Setup", "回填前先建立備份快照", "哪怕是教學 sample，也要在流程中保留 pre-migration snapshot。", "backup.json", "rollback path is grounded."],
+        ["setup-smoke", "Setup", "smoke script 要驗證 resume 與 rollback", "不只驗成功升版，還要證明中斷續跑與舊版回讀也成立。", "python3 scripts/run_data_evolution_smoke.py", "release smoke is complete."]
+      ],
+      configuration: [
+        ["config-expand", "Configuration", "expand / contract 要分兩段", "先新增欄位與 compat read，再做 backfill，最後才考慮刪除舊欄位。", "add severity before remove level", "destructive change is delayed."],
+        ["config-schema", "Configuration", "schema version 要寫進資料本身", "沒有內嵌版本資訊，讀取端無法判斷該套哪個 adapter。", "\"schema_version\": 2", "reader can branch safely."],
+        ["config-checkpoint", "Configuration", "checkpoint 要能 resume", "長任務中斷後，應從最後完成的 id 繼續，而不是從頭重跑。", "checkpoint.last_processed_id", "recovery cost stays bounded."],
+        ["config-failsafe", "Configuration", "工業控制欄位升版採保守預設", "command/write 相關欄位若缺漏或 drift，不應自動沿用不明值。", "write_enabled = false", "unsafe control path is blocked."]
+      ],
+      example: [
+        ["example-model", "Example", "RecordModel 保存 schema version 與有效欄位", "範例資料用 telemetry record 展示從 `level` 過渡到 `severity`。", "TelemetryRecord(schema_version=1)", "domain version is explicit."],
+        ["example-compat-read", "Example", "compat reader 先把 v1 正規化", "舊版 `level` 讀進來時先轉成新版 `severity`，讓上層只看一種欄位。", "severity = payload.get('severity', payload['level'])", "old data fits new contract."],
+        ["example-migrate", "Example", "migration plan 做欄位 expand", "升版流程先保留 `level`，新增 `severity` 與 `device_group`。", "apply_expand(record)", "new fields are introduced safely."],
+        ["example-backfill", "Example", "backfill 任務批次轉換資料", "每處理一筆就更新 checkpoint，並累計 upgraded / skipped / drifted。", "run_backfill(records, checkpoint)", "progress is visible."],
+        ["example-preflight", "Example", "preflight 先檢查 drift", "上線前先掃資料是否缺 id、timestamp、device_id 或 schema_version。", "preflight(records)", "bad input is discovered early."],
+        ["example-rollback", "Example", "rollback read 驗證舊版仍可讀", "在 contract 階段前，要先證明舊版 reader 能吃升版後資料或 backup。", "legacy_read(expanded_record)", "rollback stays realistic."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先排除語法與 import 問題，避免把基本錯誤誤判成資料演進設計問題。", "python3 -m py_compile src/data_evolution_governance/*.py", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試要覆蓋 compat、checkpoint、rollback", "至少驗 v1 轉 v2、resume、drift preflight、rollback read 與報告輸出。", "python3 -m unittest discover -s tests -v", "regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 要留 migration report", "執行後應輸出 `data evolution smoke passed` 與 `migration_report.json`。", "data evolution smoke passed", "release smoke is visible."],
+        ["verify-html", "Verification", "HTML 教材 script 也要 parse", "互動教材更新後，用 Node 檢查 script，避免搜尋與完成狀態功能壞掉。", "new Function(script)", "tutorial scripts parse."]
+      ],
+      troubleshooting: [
+        ["trouble-old-read", "Troubleshooting", "新程式讀不到舊資料，多半是 adapter 不完整", "先看 schema version 與 compat reader，不要先懷疑 storage。", "read_record(payload_v1)", "compat gap is isolated."],
+        ["trouble-resume", "Troubleshooting", "backfill 重跑太慢，多半是沒有 checkpoint", "若任務每次都從頭開始，就代表缺 resume contract。", "checkpoint.json", "recovery path becomes obvious."],
+        ["trouble-drift", "Troubleshooting", "preflight 失敗代表線上資料早已漂移", "先處理缺欄位或壞資料，不要直接強跑 migration。", "missing device_id", "data quality issue is surfaced."],
+        ["trouble-rollback", "Troubleshooting", "程式退版卻讀不到資料，代表只做 forward migration", "補 legacy reader 或 restore from backup 的驗證步驟。", "legacy_read(v2_record)", "rollback weakness is exposed."]
+      ],
+      bestPractices: [
+        ["best-contract", "Best", "schema manifest 要隨版本一起交付", "manifest 是 release artifact，不是口頭說明。", "CHANGELOG + manifest", "version intent stays traceable."],
+        ["best-dual", "Best", "相容期內維持雙版本讀寫邊界", "不要在資料剛升版就立即刪掉舊欄位與舊讀取路徑。", "compat window", "deployment stays safer."],
+        ["best-runbook", "Best", "backfill 與 rollback 都要有 runbook", "要寫明 dry-run、resume、abort、rollback 驗證與報告位置。", "runbook.md", "operations stay controlled."],
+        ["best-industrial", "Best", "工業場域資料演進要先保護現場控制", "涉及控制命令或設備配置的欄位，先驗證 fail-safe，再談 schema 精緻化。", "telemetry != command", "site risk is reduced."]
+      ]
+    };
+    const completedKey = "python-data-evolution-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先看版本</strong><span>schema version 與 manifest 先對齊。</span></div><div class="step"><strong>保留相容</strong><span>先能讀舊資料，再逐步升版。</span></div><div class="step"><strong>留下證據</strong><span>backfill、preflight、rollback 都要可追溯。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>

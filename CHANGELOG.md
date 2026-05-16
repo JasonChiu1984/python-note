@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3.0 - 2026-05-16
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.2.0 added the configuration governance route.
+- Confirmed the next highest-value project-depth gap was a standalone data evolution governance route covering schema version, compat read/write, expand/contract, backfill checkpoint, drift preflight, rollback validation, and release evidence.
+- Added `python_data_evolution_governance_tutorial.html` with 32 interactive lesson cards covering overview, architecture, setup, configuration, example, verification, troubleshooting, and best practices.
+- Added `範例程式碼/data_evolution_governance/` as a zero-dependency standard-library sample with schema manifest, compat reader, backfill checkpoint, preflight drift checks, rollback validation, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty-three tutorial routes, data evolution governance progress, a new route card, and the updated v3.3.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.2.0 - 2026-05-14
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.1.0 added the event-driven reliability route.
