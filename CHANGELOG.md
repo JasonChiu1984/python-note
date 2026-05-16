@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.4.0 - 2026-05-16
+
+- Re-reviewed the industrial gateway teaching route from a senior engineering perspective after v3.3.0 and confirmed that the highest-value gap inside the existing industrial path was protocol comparison depth rather than another brand-new engineering topic.
+- Strengthened `python_industrial_data_gateway_tutorial.html` with a compact four-protocol overview block: architecture diagram, protocol role summary cards, and a quick comparison table.
+- Added `python_industrial_protocol_comparison_tutorial.html` as a dedicated comparison tutorial covering Modbus, OPC UA, BACnet, and MQTT with architecture guidance, protocol introductions, an engineering-practice comparison table, and a communication-format comparison table.
+- Updated `index.html` to expose the protocol-comparison extension from the Industrial Data Gateway card and added a dedicated comparison card.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.3.0 - 2026-05-16
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.2.0 added the configuration governance route.

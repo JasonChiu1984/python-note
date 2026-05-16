@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Industrial Protocol Comparison 教學 - Modbus、OPC UA、BACnet、MQTT v3.4.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --red: #c34848;
+      --amber: #b7791f;
+      --teal: #0f8794;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eaf5f0 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.92fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 12ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.2rem); line-height: 1.06; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 14ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">PX</span><span><strong>Protocol Compare</strong><br><small>Modbus / OPC UA / BACnet / MQTT</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#modbus">Modbus</a>
+        <a href="#opcua">OPC UA</a>
+        <a href="#bacnet">BACnet</a>
+        <a href="#mqtt">MQTT</a>
+        <a href="#comparison">Comparison</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Industrial Protocol Comparison</span>
+          <h1>把四種工業協定放在同一張工程地圖</h1>
+          <p>這頁不是單看某一個協定，而是把 Modbus、OPC UA、BACnet、MQTT 放到同一個工業資料流中比較：哪一層用它、資料怎麼表示、怎麼連線、怎麼維運、Python 在哪一層最常出現。</p>
+          <div class="status-strip"><span>v3.4.0</span><span>32 張互動卡</span><span>2 張比較表</span><span>Architecture + Format</span></div>
+          <div class="hero-actions"><a class="button primary" href="#comparison">先看比較表</a><a class="button blue" href="python_industrial_data_gateway_tutorial.html">回工業閘道教材</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 900 390" role="img" aria-label="工業協定角色比較總圖">
+            <defs><marker id="px-arrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0.8 0.8l5.2 2.7-5.2 2.7z" fill="#2d8a69"></path></marker></defs>
+            <rect x="24" y="26" width="852" height="302" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="52" y="104" width="160" height="84" rx="14" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
+              <text x="132" y="136" font-size="20" fill="#172033">Modbus</text>
+              <text x="132" y="163" font-size="14" fill="#5d6b7d">Register Polling</text>
+              <path d="M214 146h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#px-arrow)"></path>
+              <rect x="282" y="104" width="160" height="84" rx="14" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+              <text x="362" y="136" font-size="20" fill="#172033">OPC UA</text>
+              <text x="362" y="163" font-size="14" fill="#5d6b7d">Semantic Node Model</text>
+              <path d="M444 146h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#px-arrow)"></path>
+              <rect x="512" y="104" width="160" height="84" rx="14" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
+              <text x="592" y="136" font-size="20" fill="#172033">BACnet</text>
+              <text x="592" y="163" font-size="14" fill="#5d6b7d">Object + Routing</text>
+              <path d="M674 146h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#px-arrow)"></path>
+              <rect x="742" y="104" width="110" height="84" rx="14" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
+              <text x="797" y="136" font-size="20" fill="#172033">MQTT</text>
+              <text x="797" y="163" font-size="14" fill="#5d6b7d">Pub / Sub Uplink</text>
+            </g>
+            <text x="450" y="250" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">設備資料常從寄存器與物件層被採集，再被語意化、路由化，最後發送到 broker 或平台</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：FC03、NodeId、BBMD、foreign device、QoS、retain、subscription">
+        <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#mqtt">MQTT</a><a href="#comparison">比較表</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先比角色，不先背欄位</h2><p>現場最容易出錯的不是記不得 port，而是拿錯心智模型。先知道每個協定站在哪一層，後面才不會把 polling、subscription、routing、broker 混在一起。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>協定差異本質上是責任邊界差異</h2><p>同一筆溫度資料，在四個協定中會呈現為 register、NodeId、BACnet object、MQTT payload。比較時要從責任邊界看，不是只看是否可讀寫。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="modbus" data-group="modbus"><div class="section-head"><div><span class="eyebrow">Modbus</span><h2>Modbus：register-based polling</h2><p>最常出現在 PLC、meter、VFD 與 RTU/TCP 網段。Python 常扮演 poller、decoder、gateway adapter。</p></div></div><div class="surface" style="margin-bottom:1rem;"><svg viewBox="0 0 620 220" role="img" aria-label="Modbus 資料流圖"><rect x="30" y="60" width="130" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="95" y="103" text-anchor="middle" font-weight="900">Device</text><path d="M162 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="248" y="60" width="130" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="313" y="96" text-anchor="middle" font-weight="900">FC03 / FC16</text><text x="313" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">40001 / words</text><path d="M380 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="466" y="60" width="124" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="528" y="96" text-anchor="middle" font-weight="900">Python</text><text x="528" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">decode + map</text></svg></div><div class="cards"></div></section>
+      <section class="section-block" id="opcua" data-group="opcua"><div class="section-head"><div><span class="eyebrow">OPC UA</span><h2>OPC UA：semantic model + subscription</h2><p>最常出現在 SCADA、MES、historian 與跨系統語意整合。Python 常扮演 client、integration agent、edge translator。</p></div></div><div class="surface" style="margin-bottom:1rem;"><svg viewBox="0 0 620 220" role="img" aria-label="OPC UA 資料流圖"><rect x="30" y="60" width="142" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="101" y="96" text-anchor="middle" font-weight="900">Server</text><text x="101" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">Node / Namespace</text><path d="M174 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="260" y="60" width="152" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="336" y="96" text-anchor="middle" font-weight="900">Session + Subscribe</text><text x="336" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">publish / keepalive</text><path d="M414 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="500" y="60" width="90" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="545" y="103" text-anchor="middle" font-weight="900">Python</text></svg></div><div class="cards"></div></section>
+      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet：object model + building automation routing</h2><p>最常出現在樓宇自控、HVAC、BMS。Python 常扮演 gateway、監控側 integration、資料轉換器，而不是直接替代全部現場控制。</p></div></div><div class="surface" style="margin-bottom:1rem;"><svg viewBox="0 0 620 220" role="img" aria-label="BACnet 資料流圖"><rect x="30" y="60" width="130" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="95" y="96" text-anchor="middle" font-weight="900">Device</text><text x="95" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">Object / Property</text><path d="M162 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="248" y="60" width="152" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="324" y="96" text-anchor="middle" font-weight="900">BACnet/IP</text><text x="324" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">BBMD / FD / routing</text><path d="M402 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="488" y="60" width="102" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="539" y="103" text-anchor="middle" font-weight="900">Python</text></svg></div><div class="cards"></div></section>
+      <section class="section-block" id="mqtt" data-group="mqtt"><div class="section-head"><div><span class="eyebrow">MQTT</span><h2>MQTT：publish/subscribe uplink</h2><p>最常出現在 edge uplink、cloud telemetry、event publish。Python 常扮演 publisher、subscriber、payload normalizer 或本地 buffer manager。</p></div></div><div class="surface" style="margin-bottom:1rem;"><svg viewBox="0 0 620 220" role="img" aria-label="MQTT 資料流圖"><rect x="30" y="60" width="130" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="95" y="96" text-anchor="middle" font-weight="900">Edge</text><text x="95" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">topic + payload</text><path d="M162 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="248" y="60" width="122" height="70" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="309" y="96" text-anchor="middle" font-weight="900">Broker</text><text x="309" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">QoS / retain</text><path d="M372 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="458" y="60" width="132" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="524" y="103" text-anchor="middle" font-weight="900">Platform / Python</text></svg></div><div class="cards"></div></section>
+      <section class="section-block" id="comparison" data-group="comparison"><div class="section-head"><div><span class="eyebrow">Comparison</span><h2>同時比較工程實務與通訊格式</h2><p>第一張表回答選型與部署問題，第二張表回答位址、資料表達與互動模型問題。</p></div></div><div class="cards"></div><div class="surface" style="margin-top:1rem; margin-bottom:1rem;"><div style="padding:1rem 1rem 0.4rem;"><h3 style="margin:0 0 0.5rem;">工程實務比較表</h3></div><div style="padding:0 1rem 1rem; overflow:auto;"><table style="width:100%; border-collapse:collapse; min-width:980px;"><thead><tr><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">協定</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">典型用途</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">常見拓樸</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">資料模型</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">互動方式</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">即時性特徵</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">部署關鍵</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">主要維運風險</th></tr></thead><tbody><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Modbus</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">設備輪詢、meter、VFD、遠端 IO</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Client poller -> device</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Register / coil</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Request-response</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">由 polling interval 決定</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">位址偏移、word order、timeout</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">字序錯、RS-485/TCP 並發過高</td></tr><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">OPC UA</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">SCADA、MES、historian、semantic integration</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Client session -> server</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Node / typed model</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Session + subscription</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">由 sampling/publish 決定</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">endpoint、安全模式、NodeId</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">只記 display name、忽略 reconnect</td></tr><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BACnet</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BMS、HVAC、樓控整合</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BACnet/IP + router/BBMD</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Object + property</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Request-response + routed broadcast</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">取決於 poll / COV / network</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BBMD、FD TTL、routing</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">跨 subnet discovery 失敗、物件語意不清</td></tr><tr><td style="padding:0.7rem;">MQTT</td><td style="padding:0.7rem;">Edge uplink、cloud telemetry、event distribution</td><td style="padding:0.7rem;">Publisher -> broker -> subscriber</td><td style="padding:0.7rem;">Topic + payload</td><td style="padding:0.7rem;">Pub-sub</td><td style="padding:0.7rem;">可接近即時，由 broker/queue 決定</td><td style="padding:0.7rem;">topic 命名、QoS、retain、offline buffer</td><td style="padding:0.7rem;">topic 扁平化、payload 無 quality/timestamp</td></tr></tbody></table></div></div><div class="surface"><div style="padding:1rem 1rem 0.4rem;"><h3 style="margin:0 0 0.5rem;">通訊格式比較表</h3></div><div style="padding:0 1rem 1rem; overflow:auto;"><table style="width:100%; border-collapse:collapse; min-width:980px;"><thead><tr><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">協定</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">位址/識別方式</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">資料單位</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">資料格式</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">傳輸方式</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">請求/回應模型</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">推送/訂閱能力</th><th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">常見連線資訊</th></tr></thead><tbody><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Modbus</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Register / coil address</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">16-bit word</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">bit / uint16 / float32 via words</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">TCP / RTU</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Strict request-response</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">無原生訂閱</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">502 / `40001` / slave id</td></tr><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">OPC UA</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">NodeId + namespace</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">typed node value</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">scalar / structured value</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">session over TCP</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">service call + monitored item</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">有 subscription</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">4840 / `opc.tcp://...` / `ns=2;s=...`</td></tr><tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BACnet</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">object type + instance + property</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">object property value</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">typed property / engineering value</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BACnet/IP / routed network</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">service call + routed discovery</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">可用 COV，但非 MQTT 式 broker</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">UDP 47808 / `analog-input,1` / BBMD</td></tr><tr><td style="padding:0.7rem;">MQTT</td><td style="padding:0.7rem;">topic path</td><td style="padding:0.7rem;">application payload</td><td style="padding:0.7rem;">JSON / binary / custom schema</td><td style="padding:0.7rem;">brokered TCP</td><td style="padding:0.7rem;">publish / subscribe</td><td style="padding:0.7rem;">原生 pub-sub</td><td style="padding:0.7rem;">1883/8883 / `plant/line/asset/point`</td></tr></tbody></table></div></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>選錯協定心智模型時最容易怎麼壞</h2><p>很多整合失敗不是 library 問題，而是用 Modbus 的想法去理解 OPC UA，或用 MQTT 的想法去期待 BACnet discovery。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>先選對責任邊界，再寫程式</h2><p>比較協定時，先回答資料模型、拓樸與維運風險，再選 library 與 payload 欄位。</p></div></div><div class="cards"></div></section>
+      <nav class="pager"><a class="button" href="python_industrial_data_gateway_tutorial.html">回工業閘道教材</a><a class="button primary" href="#top">回到最上層</a></nav>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["ov-modbus", "Overview", "Modbus 先回答設備寄存器怎麼讀", "它最適合設備資料採集起點，但不直接解決語意命名、跨系統模型與上雲 topic 管理。", "FC03 / FC16 / register", "device data path is clear."],
+        ["ov-opcua", "Overview", "OPC UA 先回答資料模型怎麼表達", "它在語意整合、SCADA、MES、historian 之間很有價值，尤其當 NodeId 與 subscription 被嚴格管理時。", "NodeId / namespace / monitored item", "semantic model is explicit."],
+        ["ov-bacnet", "Overview", "BACnet 先回答樓控物件與路由", "它不是純 register 協定，而是 building automation 的 object/property 與網段行為。", "object / property / BBMD", "building topology is visible."],
+        ["ov-mqtt", "Overview", "MQTT 先回答資料怎麼發布出去", "它常是 edge 到平台的上行通道，重點在 topic、payload、QoS、retain 與 offline buffer。", "topic / payload / broker", "uplink contract is stable."]
+      ],
+      architecture: [
+        ["arch-layer", "Architecture", "四協定多半分層，不是互斥", "現場專案常同時用 Modbus 讀值、用 OPC UA 建模、用 BACnet 對接 BMS、用 MQTT 上雲。", "register -> node/object -> topic", "multi-protocol architecture is normal."],
+        ["arch-python-role", "Architecture", "Python 常站在邊界層", "Python 最適合做 adapter、normalizer、poller、reporter、publisher，而不是盲目替代所有現場控制器。", "edge adapter", "implementation scope is realistic."],
+        ["arch-quality", "Architecture", "資料品質欄位要跨協定保存", "即使協定不同，value、timestamp、quality、unit、source 這些欄位都應保留下來。", "GOOD / STALE / BAD", "cross-protocol quality survives."],
+        ["arch-failsafe", "Architecture", "控制與 telemetry 要分開", "尤其在工業場景，command path 與 telemetry path 的 fail-safe 策略不能混在一起。", "write disable on stale", "unsafe writes are blocked."]
+      ],
+      modbus: [
+        ["mb-role", "Modbus", "Modbus 是最典型的設備輪詢協定", "最常出現在 PLC、meter、power device、RTU 與串列總線。Python 常做 register map 與 decode。", "40001", "register address is explicit."],
+        ["mb-format", "Modbus", "重點是 function code 與資料寬度", "FC03/FC16、16-bit word、32-bit float 兩字組合、word order 都要寫死在契約裡。", "FC03 / FC16 / float32", "format assumptions are explicit."],
+        ["mb-risk", "Modbus", "最大風險通常不是連不上，而是讀錯", "位址偏移 0/1、word order、signed/unsigned、segment timeout 都會讓數值看似正常但其實錯。", "0-based vs 1-based", "decode risk is visible."],
+        ["mb-python", "Modbus", "Python 在這裡最常扮演 poll + transform", "把 register 讀回後轉成工程單位、quality、alarm，再送往其他層。", "read -> decode -> normalize", "edge transform is explicit."]
+      ],
+      opcua: [
+        ["ua-role", "OPC UA", "OPC UA 是語意化資料整合協定", "最常出現在 SCADA、MES、historian、跨 vendor integration 與標準化資料模型場景。", "Node tree", "semantic layer is visible."],
+        ["ua-format", "OPC UA", "位址核心是 NodeId，不是 display name", "每個點位都應記錄 namespace 與 NodeId，否則換語系或改顯示名稱就會失效。", "ns=2;s=Boiler.SupplyTemperature", "addressing is stable."],
+        ["ua-sub", "OPC UA", "最大特徵是 subscription", "它不只是 request-response，還有 sampling、publish、keepalive、queue size 與 reconnect。", "publish=1000ms", "push model is understood."],
+        ["ua-python", "OPC UA", "Python 常做 client、bridge、data agent", "用來讀取 NodeId、轉 payload、做資料對映與斷線品質標記，比較少直接當大型 SCADA 核心。", "client session", "scope is appropriate."]
+      ],
+      bacnet: [
+        ["bn-role", "BACnet", "BACnet 是 building automation 協定", "最常出現在 BMS、HVAC、樓控閘道與跨系統監控整合。", "analog-input,1", "object identity is explicit."],
+        ["bn-format", "BACnet", "資料識別核心是 object + property", "記錄 object type、instance 與 property，才有辦法穩定比對點位。", "analog-input / present-value", "property model is visible."],
+        ["bn-routing", "BACnet", "BACnet 的難點常在 routing", "BBMD、foreign device、TTL、跨 subnet discovery 與 BACnet/SC gateway 都是部署重點。", "BBMD / FD / TTL", "network topology matters."],
+        ["bn-python", "BACnet", "Python 常做 gateway 與 integration adapter", "把 BACnet object 轉成 API、report、MQTT payload 或監控資料，不假設自己就是現場控制器。", "object -> normalized payload", "Python role is bounded."]
+      ],
+      mqtt: [
+        ["mq-role", "MQTT", "MQTT 是上行發布與訊息分發", "最常出現在 edge uplink、cloud telemetry、event publish 與跨系統消息分派。", "topic publish", "broker model is explicit."],
+        ["mq-format", "MQTT", "核心不是固定資料欄位，而是 topic + payload", "topic naming、payload schema、timestamp、quality、unit 與 retain 策略必須自訂清楚。", "plant/tw01/boiler/supply_temperature", "application contract is explicit."],
+        ["mq-risk", "MQTT", "風險通常在 schema 沒治理", "topic 扁平化、payload 漏掉 quality/time、QoS 選錯、離線補送無上限，都會讓平台維運變難。", "QoS / retain / buffer", "message governance is visible."],
+        ["mq-python", "MQTT", "Python 常做 publisher、subscriber、buffer manager", "接設備資料後發布到 broker，或訂閱 broker 後轉給本地服務與資料平台。", "publish / subscribe", "integration role is practical."]
+      ],
+      comparison: [
+        ["cmp-select", "Comparison", "先用工程表做選型", "當你要回答『這個場景應先用哪一種協定』時，看用途、拓樸、即時性與維運風險。", "selection matrix", "protocol fit is clearer."],
+        ["cmp-wire", "Comparison", "再用格式表做實作契約", "當你要回答『一個點位在協定內怎麼被識別與傳輸』時，看位址、資料單位與互動模型。", "address / payload / request model", "implementation contract is clearer."],
+        ["cmp-false-equivalent", "Comparison", "不要把四協定當成只是 port 不同", "它們解的問題本質不同：register、semantic node、building object、broker message。", "device != node != object != topic", "wrong mental model is avoided."],
+        ["cmp-python", "Comparison", "Python 最有價值的是跨協定對齊", "把 register、NodeId、object、topic 收斂成統一 payload，才是 Python 在這類專案的長處。", "normalize(value, unit, quality)", "cross-protocol abstraction is useful."]
+      ],
+      troubleshooting: [
+        ["tr-polling", "Troubleshooting", "把 polling 心智套到 OPC UA 會出事", "如果只會一直 read，不理解 subscription/publish/keepalive，就會做出低效又不穩的 OPC UA client。", "poll != subscription", "mental model gap is visible."],
+        ["tr-bacnet", "Troubleshooting", "BACnet 常壞在網段，不只壞在點位", "找不到設備時先查 BBMD、FD TTL、router、subnet，不要先懷疑 object name。", "check routing first", "network issue is surfaced."],
+        ["tr-modbus", "Troubleshooting", "Modbus 常壞在資料表示", "數值不合理時先查 offset、word order、signedness，再查程式邏輯。", "offset / endianness", "decode bug is isolated."],
+        ["tr-mqtt", "Troubleshooting", "MQTT 常壞在 topic/payload 治理", "Broker 連得上不代表資料可用，payload 若缺 unit/quality/timestamp 就很難追查。", "topic + schema", "message contract issue is visible."]
+      ],
+      bestPractices: [
+        ["bp-layer", "Best", "先定義協定角色，不先寫程式", "先回答設備採集、語意模型、樓控整合、上雲發布各自由誰負責。", "role matrix", "architecture stays coherent."],
+        ["bp-address", "Best", "位址表示要精確記錄", "Modbus register、OPC UA NodeId、BACnet object、MQTT topic 都要完整保存，不用模糊名稱代替。", "exact address", "later maintenance is easier."],
+        ["bp-quality", "Best", "跨協定統一 quality / timestamp / unit", "資料被轉出協定後，仍要保留工程單位、品質與來源。", "normalized payload", "data governance improves."],
+        ["bp-safe", "Best", "控制與觀測要分離", "即使協定能寫，也不要把 command path 與 telemetry path 混在同一個預設流程。", "safe-by-default", "operational risk stays lower."]
+      ]
+    };
+    const completedKey = "python-industrial-protocol-comparison-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先分層</strong><span>先確認這個協定在系統中負責哪一層。</span></div><div class="step"><strong>再定位址</strong><span>記錄 register、NodeId、object 或 topic。</span></div><div class="step"><strong>最後統一資料</strong><span>轉成共同 payload 與 quality 模型。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map(renderLesson).join("");
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", keyword && !item.dataset.search.includes(keyword)));
+    });
+    renderAll();
+  </script>
+</body>
+</html>
