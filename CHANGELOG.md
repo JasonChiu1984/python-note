@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.1.0 - 2026-05-18
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v4.0.0 and confirmed the highest-value local-verifiable gap was standalone CLI automation engineering rather than another framework or protocol topic.
+- Added `python_cli_automation_engineering_tutorial.html` with 24 interactive lesson cards covering command contract, `plan / apply / report`, `--dry-run`, exit code policy, JSON evidence, and operator handoff.
+- Added `範例程式碼/cli_automation_engineering/` as a zero-dependency standard-library sample with manifest validation, structured execution reports, subcommand CLI, unittest coverage, and smoke verification.
+- Updated `index.html` to expose the new CLI automation engineering route and show the updated v4.1.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v4.0.0 - 2026-05-17
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective against the actual workspace state and confirmed the highest-value local-verifiable gap was not another generic engineering topic, but the missing teaching route for the already-implemented local knowledge base and MCP workflow.

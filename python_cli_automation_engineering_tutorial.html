@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python CLI 自動化工程教學 - subcommand、dry-run 與 report v4.1.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --slate: #43566f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #f4efe7 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #fff0e2; border: 2px solid #d16b28; color: #d16b28; font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #fff0e2; color: #9a4d18; font-weight: 900; margin-top: 1rem; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(209,107,40,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: #9a4d18; font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 15ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #fff0e2; color: #9a4d18; font-weight: 900; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: #d16b28; color: white; border-color: #ab531a; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: #9a4d18; text-decoration: none; font-weight: 900; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #fff0e2; color: #9a4d18; font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    .hidden-by-search { display: none; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">CLI</span><span><strong>CLI 自動化工程</strong><br><small>subcommand、dry-run、report</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 24</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python CLI Automation Engineering</span>
+          <h1>把一次性腳本做成可驗收、可重跑、可交接的 CLI 工程</h1>
+          <p>很多團隊把自動化都寫成臨時腳本，最後缺參數契約、缺 dry-run、缺錯誤碼、缺更新證據。這條路線把 subcommand、operator summary、JSON report、exit code 與驗證流程整理成可直接落地的 Python 工程能力。</p>
+          <div class="status-strip"><span>v4.1.0</span><span>24 張互動卡</span><span>plan / apply / report</span><span>dry-run + evidence</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始 CLI 工程課程</a><a class="button blue" href="#example">看專案範例</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 420" role="img" aria-label="Python CLI automation flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#d16b28"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="324" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="52" y="112" width="116" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="110" y="141">plan</text><text x="110" y="165">preflight</text>
+              <path d="M178 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="226" y="112" width="128" height="72" rx="12" fill="#fff0e2" stroke="#d16b28" stroke-width="4"></rect><text x="290" y="141">apply</text><text x="290" y="165">dry-run / execute</text>
+              <path d="M364 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="412" y="112" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="478" y="141">report</text><text x="478" y="165">JSON evidence</text>
+              <path d="M554 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="602" y="112" width="122" height="72" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="663" y="141">handoff</text><text x="663" y="165">operator summary</text>
+            </g>
+            <rect x="116" y="238" width="206" height="66" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
+            <text x="219" y="266" text-anchor="middle" font-weight="900">Exit Code Contract</text>
+            <text x="219" y="290" text-anchor="middle" font-size="13" fill="#5d6b7d">0 success / 2 partial / 3 validation</text>
+            <rect x="430" y="238" width="226" height="66" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
+            <text x="543" y="266" text-anchor="middle" font-weight="900">Verification Evidence</text>
+            <text x="543" y="290" text-anchor="middle" font-size="13" fill="#5d6b7d">py_compile / unittest / smoke / JSON report</text>
+            <text x="390" y="338" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">重點不是把腳本包成命令，而是讓命令具備契約、安全界線與可交付證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 subcommand、dry-run、exit code、report、handoff">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定命令契約，再談自動化</h2><p>如果參數、輸出與錯誤碼不穩，CLI 只是另一種不可維護腳本。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>plan、apply、report 要明確分層</h2><p>預檢、實作與證據輸出分離，才不會把風險與結果混在一起。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>標準庫也能做出可交付 CLI</h2><p>先用 `argparse`、`json`、`pathlib` 跑通最小閉環，再視需求升級框架。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>dry-run、輸出路徑與 exit code 都要有政策</h2><p>CLI 一旦進 CI 或交給值班同仁使用，就不能依賴口頭約定。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 plan 到 apply 再到 report 一次走完</h2><p>範例專案用變更集 manifest 模擬真實自動化工作，展示預檢、安全執行與證據輸出。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗 CLI 行為、輸出格式與成功訊號</h2><p>不只要命令可執行，還要能穩定被測試、被 release note 引用。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>命令出問題先看契約與 report</h2><p>CLI 問題大多來自參數漂移、dry-run 缺位、錯誤碼不穩或輸出不可解析。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把 CLI 當正式交付物，而不是工具人的祕密腳本</h2><p>只要命令會進排程、進 CI、交給其他工程師或現場人員，就應有正式工程品質。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-contract", "Overview", "CLI 先有 contract 再有功能", "命令名稱、參數、輸出與 exit code 都要先定義。", "tool plan manifest.json", "cli contract is explicit."],
+        ["overview-script", "Overview", "一次性腳本不等於可交付工具", "能跑一次不代表能被其他人重跑、接手或驗收。", "python script.py", "handoff risk is visible."],
+        ["overview-scope", "Overview", "plan / apply / report 是三個責任", "不要讓預檢、執行與證據輸出混在同一個分支裡。", "plan -> apply -> report", "automation scope is bounded."]
+      ],
+      architecture: [
+        ["architecture-subcommand", "Architecture", "subcommand 切責任", "用 `plan`、`apply`、`report` 分出預檢、執行與結果讀取。", "argparse subparsers", "command ownership is clear."],
+        ["architecture-dryrun", "Architecture", "dry-run 是安全邊界", "任何會改資料或檔案的命令都要先有 dry-run。", "--dry-run", "unsafe change is bounded."],
+        ["architecture-report", "Architecture", "report 是交接證據", "結果要能輸出 JSON，方便自動化與更新紀錄重用。", "{\"status\":\"success\"}", "evidence stays machine-readable."]
+      ],
+      setup: [
+        ["setup-argparse", "Setup", "先用 argparse 跑通", "標準庫已足夠實作大部分工程型 CLI。", "ArgumentParser()", "core CLI is testable."],
+        ["setup-model", "Setup", "用 dataclass 固定結果格式", "把 plan result、apply result、report payload 做成結構化資料。", "ExecutionReport", "output shape is stable."],
+        ["setup-storage", "Setup", "把報告寫到固定路徑", "報告目錄與檔名規則要讓 operator 能找得到。", "reports/latest.json", "handoff path is predictable."]
+      ],
+      configuration: [
+        ["config-exitcode", "Configuration", "exit code 要有政策", "成功、驗證失敗、部分成功都應對應固定整數。", "0 / 2 / 3", "caller behavior is stable."],
+        ["config-manifest", "Configuration", "manifest 要先驗欄位", "target、action、owner、window 缺任何一項都不能執行。", "\"owner\": \"ops\"", "preflight catches drift."],
+        ["config-output", "Configuration", "stdout 與 JSON 各司其職", "終端摘要給人看，JSON 報告給工具吃。", "--output report.json", "dual output stays clean."]
+      ],
+      example: [
+        ["example-plan", "Example", "plan 只做預檢不做變更", "它應告訴你哪些項目會做、哪些被擋下。", "validated=2 blocked=1", "change preview is visible."],
+        ["example-apply", "Example", "apply 可以 dry-run 或真正執行", "dry-run 要保證不寫入狀態，實際執行才更新結果。", "executed=2 dry_run=True", "execution path is explicit."],
+        ["example-report", "Example", "report 讀既有證據不重算", "避免每次看結果又重跑一次自動化。", "report.json", "read path is side-effect free."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免誤判成 CLI 設計缺陷。", "python3 -m py_compile src/... cli.py", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試覆蓋 plan / apply / report", "至少要驗 dry-run、欄位缺失、exit code 與 report 寫入。", "python3 -m unittest discover -s tests -v", "cli regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 要印固定成功訊號", "讓更新資料可以直接引用同一行結果。", "cli automation smoke passed", "publication result is stable."]
+      ],
+      troubleshooting: [
+        ["trouble-drift", "Troubleshooting", "參數漂移通常是 contract 沒集中", "若每個命令都自己解析格式，最終一定會不一致。", "--owner missing", "validation narrows root cause."],
+        ["trouble-sideeffect", "Troubleshooting", "dry-run 寫到狀態是高風險缺陷", "表示執行邏輯與預檢邏輯沒有分開。", "dry_run mutated report", "safety bug becomes visible."],
+        ["trouble-report", "Troubleshooting", "report 無法重用通常是 JSON schema 漂移", "欄位名或結構改動卻沒同步 caller。", "\"items_processed\"", "consumer contract stays explicit."]
+      ],
+      bestPractices: [
+        ["best-idempotent", "Best", "CLI 要考慮重跑與冪等", "至少要能說清楚重跑是否安全、是否跳過已完成項。", "rerun policy", "operator confidence improves."],
+        ["best-summary", "Best", "stdout 摘要要能貼進更新紀錄", "保留最短成功訊號與核心數字，方便 release note 引用。", "success=2 blocked=1", "handoff becomes easier."],
+        ["best-industrial", "Best", "工業自動化腳本更需要這些契約", "設備批次設定、點位匯入、報表匯出都不該靠臨時腳本。", "device config CLI", "field risk stays bounded."]
+      ]
+    };
+    const completedKey = "python-cli-automation-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定命令</strong><span>先寫 subcommand、參數與 exit code 契約。</span></div><div class="step"><strong>再做安全</strong><span>把 dry-run、preflight 與 side-effect 邊界分清楚。</span></div><div class="step"><strong>留下證據</strong><span>把 JSON report 與 stdout 摘要寫進更新紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      document.querySelectorAll("[data-complete]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const done = loadCompleted();
+          const id = button.getAttribute("data-complete");
+          if (!id) return;
+          if (done.has(id)) done.delete(id); else done.add(id);
+          saveCompleted(done);
+          renderAll();
+          updateProgress();
+          applyFilter(document.getElementById("lessonSearch").value);
+        });
+      });
+    }
+    function applyFilter(keyword) {
+      const query = keyword.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((card) => {
+        const haystack = card.getAttribute("data-search") || "";
+        card.classList.toggle("hidden-by-search", query !== "" && !haystack.includes(query));
+      });
+    }
+    document.getElementById("lessonSearch").addEventListener("input", (event) => applyFilter(event.target.value));
+    renderAll();
+    updateProgress();
+  </script>
+</body>
+</html>
