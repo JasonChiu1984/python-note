@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Project Delivery Blueprint 教學 - Architecture、Runbook 與 Release Evidence v4.2.0</title>
+  <style>
+    :root {
+      --ink: #152235;
+      --muted: #59708a;
+      --line: #d7e1ea;
+      --paper: #f3f6f9;
+      --panel: #ffffff;
+      --teal: #267a78;
+      --cyan: #2e6eaa;
+      --sand: #eef3f1;
+      --shadow: 0 20px 45px rgba(21, 34, 53, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eaf4f2 0, var(--paper) 28rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 18rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); }
+    .brand { display: grid; grid-template-columns: 2.8rem 1fr; gap: 0.8rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border-radius: 0.9rem; background: #dff1ef; color: var(--teal); border: 2px solid rgba(38,122,120,0.34); font-weight: 900; }
+    nav { display: grid; gap: 0.4rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.7rem; border-radius: 0.75rem; color: var(--muted); text-decoration: none; font-weight: 800; }
+    nav a:hover { background: #edf4f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 4.8rem) clamp(1rem, 5vw, 4.6rem) 2rem; }
+    .eyebrow, .pill, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2rem; padding: 0.3rem 0.7rem; border-radius: 999px; font-weight: 900; }
+    .eyebrow { background: rgba(38,122,120,0.12); color: var(--teal); border: 1px solid rgba(38,122,120,0.18); }
+    .pill, .progress-box { background: #e4f0f7; color: var(--cyan); }
+    h1 { max-width: 13ch; margin: 1rem 0 0.9rem; font-size: clamp(2.2rem, 4.9vw, 4.2rem); line-height: 1.04; }
+    p { margin: 0; color: var(--muted); }
+    .status-strip, .hero-actions, .quick-links, .lesson-grid, .card-grid, .pager { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .status-strip { margin-top: 1rem; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.6rem; padding: 0.55rem 0.92rem; border-radius: 0.8rem; border: 1px solid var(--line); background: white; color: var(--ink); text-decoration: none; font-weight: 900; }
+    .button.primary { background: var(--teal); color: white; border-color: #1f6664; }
+    .button.secondary { background: var(--cyan); color: white; border-color: #275e90; }
+    .surface, .section, .lesson, .card, .code-block { border: 1px solid var(--line); border-radius: 1rem; background: rgba(255,255,255,0.9); box-shadow: var(--shadow); }
+    .surface { overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .hero-copy, .surface-wrap { min-width: 0; }
+    .section { margin: 0 clamp(1rem, 5vw, 4.6rem) 1.2rem; padding: 1.2rem; }
+    .section h2 { margin: 0 0 0.6rem; font-size: 1.55rem; }
+    .section > p { margin-bottom: 1rem; }
+    .lesson-grid, .card-grid { align-items: stretch; }
+    .lesson, .card { flex: 1 1 16rem; min-width: min(100%, 16rem); padding: 1rem; }
+    .lesson h3, .card h3 { margin: 0.35rem 0 0.45rem; font-size: 1.06rem; }
+    .lesson p, .card p { font-size: 0.96rem; }
+    .lesson label { display: inline-flex; gap: 0.4rem; align-items: center; margin-top: 0.7rem; font-weight: 800; color: var(--ink); }
+    ul, ol { margin: 0.4rem 0 0 1.2rem; padding: 0; }
+    li + li { margin-top: 0.35rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; background: white; }
+    th, td { padding: 0.72rem 0.8rem; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eff6f8; }
+    .code-block { padding: 1rem; background: #101924; color: #f1f5f9; overflow-x: auto; }
+    .quick-links { margin-top: 0.8rem; }
+    .quick-links a { color: var(--cyan); font-weight: 800; text-decoration: none; }
+    .meta { margin: 0 clamp(1rem, 5vw, 4.6rem) 1.2rem; padding: 1rem 1.2rem; border-left: 4px solid var(--teal); background: #edf6f5; color: #244040; border-radius: 0.9rem; }
+    .footer { padding: 1.4rem clamp(1rem, 5vw, 4.6rem) 2.5rem; color: var(--muted); }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .hero { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="index.html">
+        <div class="logo">PB</div>
+        <div>
+          <strong>Project Delivery Blueprint</strong>
+          <div style="color: var(--muted); font-size: 0.92rem;">Python 工程整合式專題</div>
+        </div>
+      </a>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+    </aside>
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">v4.2.0 新增整合式交付藍圖</span>
+          <h1>把零散工程章節收斂成可交付專案</h1>
+          <p>這條教材不是再補一個單點主題，而是把設定治理、型別契約、可靠性、可觀測性、測試、更新紀錄與 release evidence 串成一條實際專案交付線。目標是讓你知道 Python 專案如何從「每章都懂」走到「整包可以交付」。</p>
+          <div class="status-strip">
+            <span class="pill">24 個 lesson</span>
+            <span class="pill">標準庫範例</span>
+            <span class="progress-box" id="progressBox">完成 0 / 24</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#example">先看 Reference Project</a>
+            <a class="button secondary" href="index.html">回首頁</a>
+          </div>
+          <div class="quick-links">
+            <a href="#architecture">看架構</a>
+            <a href="#verification">看驗證命令</a>
+            <a href="#best-practices">看交付準則</a>
+          </div>
+        </div>
+        <div class="surface surface-wrap">
+          <svg viewBox="0 0 720 520" role="img" aria-label="Project delivery blueprint architecture">
+            <rect width="720" height="520" fill="#f7fbfb"/>
+            <rect x="34" y="36" width="652" height="448" rx="24" fill="#ffffff" stroke="#d7e1ea" stroke-width="2"/>
+            <text x="62" y="78" font-size="28" font-weight="800" fill="#152235">Python Project Delivery Blueprint</text>
+            <text x="62" y="108" font-size="16" fill="#59708a">從需求、配置、執行、驗證到 release evidence 的整合式工程流</text>
+            <rect x="62" y="140" width="170" height="92" rx="18" fill="#e6f5f1" stroke="#8cc6bf"/>
+            <text x="84" y="172" font-size="22" font-weight="800" fill="#267a78">Input Layer</text>
+            <text x="84" y="198" font-size="15" fill="#2a4b57">operator config</text>
+            <text x="84" y="219" font-size="15" fill="#2a4b57">device snapshots</text>
+            <rect x="274" y="140" width="170" height="92" rx="18" fill="#eef4fb" stroke="#94b6d3"/>
+            <text x="300" y="172" font-size="22" font-weight="800" fill="#2e6eaa">Service Core</text>
+            <text x="300" y="198" font-size="15" fill="#2a4b57">validation</text>
+            <text x="300" y="219" font-size="15" fill="#2a4b57">idempotency + alarm</text>
+            <rect x="486" y="140" width="170" height="92" rx="18" fill="#f5effa" stroke="#b9a4d4"/>
+            <text x="510" y="172" font-size="22" font-weight="800" fill="#71539f">Evidence</text>
+            <text x="510" y="198" font-size="15" fill="#2a4b57">health report</text>
+            <text x="510" y="219" font-size="15" fill="#2a4b57">release payload</text>
+            <rect x="116" y="300" width="212" height="110" rx="20" fill="#ffffff" stroke="#d7e1ea"/>
+            <text x="142" y="333" font-size="22" font-weight="800" fill="#152235">治理切面</text>
+            <text x="142" y="360" font-size="15" fill="#59708a">schema / config contract</text>
+            <text x="142" y="382" font-size="15" fill="#59708a">timeout / retry / fail-safe</text>
+            <text x="142" y="404" font-size="15" fill="#59708a">audit trail / runbook / rollback</text>
+            <rect x="392" y="300" width="212" height="110" rx="20" fill="#ffffff" stroke="#d7e1ea"/>
+            <text x="418" y="333" font-size="22" font-weight="800" fill="#152235">驗收切面</text>
+            <text x="418" y="360" font-size="15" fill="#59708a">py_compile / unittest</text>
+            <text x="418" y="382" font-size="15" fill="#59708a">smoke / HTML parse</text>
+            <text x="418" y="404" font-size="15" fill="#59708a">git diff --check / release note</text>
+            <path d="M232 186 H274" stroke="#267a78" stroke-width="5" stroke-linecap="round"/>
+            <path d="M444 186 H486" stroke="#2e6eaa" stroke-width="5" stroke-linecap="round"/>
+            <path d="M360 232 V286" stroke="#7a8b9f" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </section>
+
+      <section id="overview" class="section">
+        <h2>Overview</h2>
+        <p>適合已經看過多條 Python 工程教材，但開始卡在「每章都會，專案還是不好交」的人。這條路線用一個 reference project 把治理、可靠性、觀測、驗證與發布證據綁起來，讓你能從教學內容直接落到團隊交付。</p>
+        <div class="lesson-grid" id="overviewLessons"></div>
+      </section>
+
+      <section id="architecture" class="section">
+        <h2>Architecture</h2>
+        <p>整合式專案的重點不是塞更多框架，而是明確切出輸入、核心、證據與操作邊界。</p>
+        <table>
+          <thead>
+            <tr><th>層級</th><th>責任</th><th>在範例中的對應</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Input</td><td>收集 operator config 與 device snapshot，避免髒資料直通核心</td><td><code>ServiceConfig.from_mapping()</code>、<code>Snapshot</code></td></tr>
+            <tr><td>Core</td><td>做 validation、idempotency、alarm、fail-safe 決策</td><td><code>DeliveryCoordinator.run_cycle()</code></td></tr>
+            <tr><td>Evidence</td><td>保留 health、event、release evidence，支援交接與稽核</td><td><code>MemoryOutbox</code>、<code>build_release_evidence()</code></td></tr>
+            <tr><td>Verification</td><td>讓交付不是口頭宣稱，而是可重跑的檢查</td><td><code>unittest</code>、smoke script、HTML parse</td></tr>
+          </tbody>
+        </table>
+        <div class="lesson-grid" id="architectureLessons"></div>
+      </section>
+
+      <section id="setup" class="section">
+        <h2>Setup</h2>
+        <p>教材對應的可執行範例放在 <code>範例程式碼/project_delivery_blueprint</code>。此範例只用標準庫，目的不是追求功能量，而是把交付邊界說清楚。</p>
+        <div class="code-block"><pre>cd 範例程式碼/project_delivery_blueprint
+python3 -m py_compile src/project_delivery_blueprint/*.py scripts/run_project_delivery_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 scripts/run_project_delivery_smoke.py</pre></div>
+        <div class="lesson-grid" id="setupLessons"></div>
+      </section>
+
+      <section id="configuration" class="section">
+        <h2>Configuration</h2>
+        <p>參數必須可讀、可驗證、可預設，不要把 timeout、polling、alarm threshold 寫死在 service 裡。</p>
+        <table>
+          <thead>
+            <tr><th>設定</th><th>用途</th><th>失敗時策略</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>site_name</code></td><td>標記交付對象與更新範圍</td><td>空值直接拒絕啟動</td></tr>
+            <tr><td><code>poll_interval_seconds</code></td><td>控制採集週期</td><td>小於 1 秒視為配置錯誤</td></tr>
+            <tr><td><code>temperature_alarm_c</code></td><td>定義告警門檻</td><td>使用保守預設 45°C</td></tr>
+            <tr><td><code>max_batch_size</code></td><td>控制單輪輸出量</td><td>避免一次吞入過多資料</td></tr>
+          </tbody>
+        </table>
+        <div class="lesson-grid" id="configurationLessons"></div>
+      </section>
+
+      <section id="example" class="section">
+        <h2>Example</h2>
+        <p>範例專案模擬一個工業資料同步服務：讀取設備快照、判斷告警、去除重複資料、產出 outbox event，最後留下 release evidence。</p>
+        <div class="card-grid">
+          <article class="card">
+            <span class="pill">Folder Structure</span>
+            <h3>推薦結構</h3>
+            <div class="code-block"><pre>project_delivery_blueprint/
+├─ README.md
+├─ scripts/
+│  └─ run_project_delivery_smoke.py
+├─ src/
+│  └─ project_delivery_blueprint/
+│     ├─ __init__.py
+│     ├─ config.py
+│     ├─ domain.py
+│     └─ service.py
+└─ tests/
+   └─ test_project_delivery_blueprint.py</pre></div>
+          </article>
+          <article class="card">
+            <span class="pill">Flow</span>
+            <h3>執行順序</h3>
+            <ol>
+              <li>載入設定並驗證。</li>
+              <li>讀取 snapshot，檢查資料是否重複。</li>
+              <li>判斷 alarm、健康狀態與 fail-safe 訊號。</li>
+              <li>寫入 outbox event 與 release evidence。</li>
+            </ol>
+          </article>
+        </div>
+        <div class="code-block"><pre>from project_delivery_blueprint.config import ServiceConfig
+from project_delivery_blueprint.domain import Snapshot
+from project_delivery_blueprint.service import DeliveryCoordinator, MemoryOutbox
+
+config = ServiceConfig.from_mapping({
+    "site_name": "plant-a",
+    "poll_interval_seconds": "15",
+    "temperature_alarm_c": "42.5",
+    "max_batch_size": "4",
+})
+outbox = MemoryOutbox()
+service = DeliveryCoordinator(config=config, outbox=outbox)
+report = service.run_cycle([
+    Snapshot(device_id="boiler-01", message_id="m-001", temperature_c=38.2, status="ok"),
+    Snapshot(device_id="oven-02", message_id="m-002", temperature_c=47.1, status="warning"),
+])
+print(report.processed_count, report.alarm_count, outbox.events[0]["kind"])</pre></div>
+        <div class="lesson-grid" id="exampleLessons"></div>
+      </section>
+
+      <section id="verification" class="section">
+        <h2>Verification</h2>
+        <p>資深工程師的差異，不是寫得比較花，而是交付時能把證據一次交齊。</p>
+        <table>
+          <thead>
+            <tr><th>檢查</th><th>目的</th><th>預期結果</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>py_compile</code></td><td>先擋住基本語法錯誤</td><td>全部通過</td></tr>
+            <tr><td><code>unittest discover</code></td><td>驗證去重、告警、配置保護</td><td>測試全綠</td></tr>
+            <tr><td><code>run_project_delivery_smoke.py</code></td><td>模擬整條交付流</td><td>輸出 success 訊息與 evidence</td></tr>
+            <tr><td>HTML parse</td><td>確認首頁與教程腳本未壞</td><td>可解析</td></tr>
+          </tbody>
+        </table>
+        <div class="code-block"><pre>python3 -m py_compile src/project_delivery_blueprint/*.py scripts/run_project_delivery_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 scripts/run_project_delivery_smoke.py
+node -e "const fs=require('fs'); for (const f of ['python_project_delivery_blueprint_tutorial.html','index.html']) { const s=fs.readFileSync(f,'utf8'); for (const m of s.matchAll(/&lt;script&gt;([\\s\\S]*?)&lt;\\/script&gt;/g)) new Function(m[1]); }"</pre></div>
+        <div class="lesson-grid" id="verificationLessons"></div>
+      </section>
+
+      <section id="troubleshooting" class="section">
+        <h2>Troubleshooting</h2>
+        <p>整合式專案最常失敗在邊界不清楚，而不是 API 不會用。</p>
+        <table>
+          <thead>
+            <tr><th>問題</th><th>原因</th><th>處理方式</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>資料重複進入下游</td><td>沒有 message id 去重</td><td>在核心服務保留 processed id 集合</td></tr>
+            <tr><td>告警條件不一致</td><td>門檻散落在多處</td><td>集中放在 <code>ServiceConfig</code></td></tr>
+            <tr><td>有 smoke，沒 release evidence</td><td>只驗功能，沒輸出交付摘要</td><td>固定產出 evidence dict 或 JSON</td></tr>
+            <tr><td>章節很多，但團隊仍不會交接</td><td>少了 runbook 與責任邊界</td><td>把 operator action 與 failure mode 寫入 README / 教材</td></tr>
+          </tbody>
+        </table>
+        <div class="lesson-grid" id="troubleshootingLessons"></div>
+      </section>
+
+      <section id="best-practices" class="section">
+        <h2>Best Practices</h2>
+        <p>這條路線的核心不是功能量，而是建立一個團隊可延伸的交付骨架。</p>
+        <div class="card-grid">
+          <article class="card"><h3>先收斂責任</h3><p>把 config、domain、service、evidence 分開，之後要換成 FastAPI、OPC UA 或實體 DB 時，邊界才不會崩。</p></article>
+          <article class="card"><h3>先有驗收，再談擴充</h3><p>每新增一條專題，都應同時有 smoke、測試與更新紀錄，不要只補教學頁面。</p></article>
+          <article class="card"><h3>保留 fail-safe 思維</h3><p>工業或資料同步場景，寧可降級、告警、停發，也不要在不確定時默默寫入錯誤結果。</p></article>
+        </div>
+        <div class="lesson-grid" id="bestPracticeLessons"></div>
+      </section>
+
+      <div class="meta">
+        本頁對應範例：<code>範例程式碼/project_delivery_blueprint</code>。建議把它當成後續 FastAPI、工業閘道或 workflow 專案的起始骨架，而不是一次性 demo。
+      </div>
+      <div class="footer">Python Project Delivery Blueprint 教學頁。可直接用瀏覽器開啟，無需額外建置。</div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overviewLessons: [
+        ["為什麼要整合式章節", "單點主題學得再多，如果沒有 reference project，交付時仍會散。"],
+        ["目標受眾", "已會 Python 基礎與若干工程章節，但缺專案整合經驗的人。"],
+        ["交付輸出", "本頁要求教材、範例、測試、smoke、更新紀錄一起存在。"] ,
+      ],
+      architectureLessons: [
+        ["輸入邊界", "先驗證 config 與 snapshot，避免下游吞髒資料。"] ,
+        ["核心邏輯", "核心只處理去重、告警與產出 evidence，不直接耦合 UI。"] ,
+        ["證據層", "release evidence、outbox event、health report 必須可回看。"] ,
+      ],
+      setupLessons: [
+        ["標準庫先行", "先用無第三方依賴版本收斂結構，再決定框架。"] ,
+        ["目錄清楚", "README、src、tests、scripts 四層先到位。"] ,
+        ["命令固定", "把 py_compile、unittest、smoke 固定成最小驗收包。"] ,
+      ],
+      configurationLessons: [
+        ["設定集中", "所有 timeout、threshold、batch size 從同一入口載入。"] ,
+        ["預設保守", "門檻值與批次量預設應保守，不要樂觀。"] ,
+        ["錯誤即拒絕", "重要設定缺失時應 fail fast，不要默默補空值。"] ,
+      ],
+      exampleLessons: [
+        ["資料去重", "用 message id 阻止重複事件重送污染下游。"] ,
+        ["Fail-safe 告警", "溫度超門檻時要標記 alarm，而不是僅記 log。"] ,
+        ["發布證據", "每一輪執行都留下 summary，支援更新紀錄與 release note。"] ,
+      ],
+      verificationLessons: [
+        ["語法檢查", "先用 py_compile 抓最低階錯誤。"] ,
+        ["行為測試", "用 unittest 固定去重、告警與配置保護。"] ,
+        ["整體 smoke", "最後驗整條流程，而不是只有函式級測試。"] ,
+      ],
+      troubleshootingLessons: [
+        ["重複資料", "若下游收到重複資料，先查 idempotency 邊界。"] ,
+        ["配置飄移", "不同環境表現不同時，先查 config 是否被寫死。"] ,
+        ["證據不足", "無法說明本輪更新內容時，補 release evidence 輸出。"] ,
+      ],
+      bestPracticeLessons: [
+        ["文件同版本", "教程、範例、CHANGELOG、更新紀錄要同步。"] ,
+        ["小步快跑", "每輪只補一個高價值缺口，避免巨量重寫。"] ,
+        ["可交接", "範例要能讓下一位工程師直接接續擴充。"] ,
+      ]
+    };
+
+    function renderLessons(targetId, items) {
+      const root = document.getElementById(targetId);
+      if (!root) return;
+      root.innerHTML = items.map(([title, body], index) => `
+        <article class="lesson">
+          <span class="pill">Lesson ${index + 1}</span>
+          <h3>${title}</h3>
+          <p>${body}</p>
+          <label><input type="checkbox" data-complete="${targetId}-${index + 1}">完成</label>
+        </article>
+      `).join("");
+    }
+
+    Object.entries(lessonGroups).forEach(([targetId, items]) => renderLessons(targetId, items));
+
+    function updateProgress() {
+      const key = "python-project-delivery-blueprint-completed";
+      const checkboxes = [...document.querySelectorAll("input[data-complete]")];
+      const saved = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
+      for (const box of checkboxes) {
+        const id = box.getAttribute("data-complete");
+        box.checked = saved.has(id);
+        box.addEventListener("change", () => {
+          const next = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
+          if (box.checked) next.add(id); else next.delete(id);
+          localStorage.setItem(key, JSON.stringify([...next]));
+          document.getElementById("progressBox").textContent = `完成 ${next.size} / 24`;
+        });
+      }
+      document.getElementById("progressBox").textContent = `完成 ${saved.size} / 24`;
+    }
+
+    updateProgress();
+  </script>
+</body>
+</html>

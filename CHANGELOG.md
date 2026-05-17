@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.2.0 - 2026-05-18
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v4.1.0 and confirmed the highest-value local-verifiable gap was no longer another isolated framework topic, but the missing integrated project-delivery blueprint that ties existing chapters into one shippable reference flow.
+- Added `python_project_delivery_blueprint_tutorial.html` with 24 lesson cards covering architecture boundary, config contract, idempotency, fail-safe alarm handling, release evidence, runbook, verification, and handoff strategy.
+- Added `範例程式碼/project_delivery_blueprint/` as a zero-dependency standard-library reference project with `config` / `domain` / `service` split, duplicate filtering, alarm handling, outbox evidence, unittest coverage, and a smoke script.
+- Updated `index.html` to expose the new Project Delivery Blueprint route and show the updated v4.2.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v4.1.0 - 2026-05-18
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v4.0.0 and confirmed the highest-value local-verifiable gap was standalone CLI automation engineering rather than another framework or protocol topic.
