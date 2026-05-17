@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Batch Scheduler Engineering 教學 - checkpoint、lease 與 backfill v3.8.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --teal: #0f8794;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eef7f8 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e1f6f8; border: 2px solid var(--teal); color: var(--teal); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(15,135,148,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--teal); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 15ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e1f6f8; color: var(--teal); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--teal); color: white; border-color: #0a6a74; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--teal); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e1f6f8; color: var(--teal); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 15ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">BS</span><span><strong>Batch Scheduler</strong><br><small>lease、checkpoint、backfill</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 24</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Batch Scheduler Engineering</span>
+          <h1>把批次與排程工作做成可重跑、可交接的正式工程</h1>
+          <p>很多 Python 專案把批次作業當背景腳本處理，結果一旦失敗就只能整批重跑、人工判斷、無法交接。這條路線把 schedule contract、lease、checkpoint、retry budget、dead-letter 與 backfill evidence 收斂成可驗證流程。</p>
+          <div class="status-strip"><span>v3.8.0</span><span>24 張互動卡</span><span>checkpoint + lease</span><span>backfill + DLQ evidence</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始批次工程課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 420" role="img" aria-label="Python batch scheduler engineering flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#0f8794"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="324" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="58" y="106" width="118" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="117" y="136">Schedule</text><text x="117" y="160">Contract</text>
+              <path d="M188 142h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="236" y="106" width="118" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="295" y="136">Lease</text><text x="295" y="160">Ownership</text>
+              <path d="M366 142h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="414" y="106" width="118" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="473" y="136">Checkpoint</text><text x="473" y="160">Resume</text>
+              <path d="M544 142h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="592" y="106" width="130" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="657" y="136">Retry / DLQ</text><text x="657" y="160">Failure Isolation</text>
+            </g>
+            <rect x="156" y="236" width="162" height="64" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect>
+            <text x="237" y="264" text-anchor="middle" font-weight="900">Backfill Window</text>
+            <text x="237" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">reason / owner / rerun</text>
+            <rect x="456" y="236" width="162" height="64" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect>
+            <text x="537" y="264" text-anchor="middle" font-weight="900">Release Evidence</text>
+            <text x="537" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">report / smoke / handoff</text>
+            <path d="M473 182v36h64" stroke="#0f8794" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <path d="M295 182v36h-58" stroke="#0f8794" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <text x="390" y="338" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">批次工作不是背景雜務；它需要契約、恢復策略、失敗隔離與交付證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 lease、checkpoint、backfill、retry、dead-letter、rerun">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>讓批次工作可重跑但不亂跑</h2><p>先講清楚 schedule contract、責任與失敗處理，再談效能與規模。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>排程、lease、checkpoint 與 rerun 要成套設計</h2><p>只補其中一項，整體仍然脆弱。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗批次治理</h2><p>先在本機把 lease、checkpoint 與 dead-letter 跑順，再談真實排程器。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 job contract 與 retry budget 寫成明文</h2><p>owner、schedule、timeout、max attempts、backfill window 都不能只放口頭。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 runner 模擬真實批次工作</h2><p>範例專案集中展示 lease、resume、dead-letter 與回補證據。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、恢復與教材頁面</h2><p>不只跑過一次成功路徑，還要驗 lease conflict 與失敗隔離。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>批次失敗時先看契約，再看人</h2><p>大多數混亂來自缺 lease、checkpoint 或 backfill 邊界。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓批次執行證據進 release note</h2><p>operator 能從更新紀錄知道誰跑了什麼、失敗在哪裡、如何回補。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-purpose", "Overview", "批次工作也需要產品級契約", "job 的 owner、schedule、重跑條件與交接證據都要明文化。", "nightly-reconciliation", "job contract is explicit."],
+        ["overview-failure", "Overview", "失敗不應只剩整批重跑", "應分辨可重試項目、dead-letter 項目與回補窗口。", "retry budget + DLQ", "failure scope is controlled."],
+        ["overview-handoff", "Overview", "排程工作要能交接", "operator 必須看得懂最後 checkpoint、失敗原因與 rerun 範圍。", "scheduler report", "handoff stays auditable."]
+      ],
+      architecture: [
+        ["architecture-schedule", "Architecture", "schedule contract 要先定義", "至少寫清 cron/interval、owner、timeout、batch size 與 SLA。", "0 2 * * *", "schedule ownership is clear."],
+        ["architecture-lease", "Architecture", "lease 避免雙重執行", "同一工作同一時間只應有一個 worker 持有執行權。", "job lease owner", "double-run risk is bounded."],
+        ["architecture-checkpoint", "Architecture", "checkpoint 讓中斷後可 resume", "成功處理後才更新 checkpoint，避免半成功狀態污染。", "checkpoint_key", "resume point is deterministic."]
+      ],
+      setup: [
+        ["setup-runner", "Setup", "本機用小型 runner 模擬排程器", "先把 lease、checkpoint 與 retry 驗證清楚，不必一開始就依賴外部服務。", "BatchJobRunner", "core behavior is testable."],
+        ["setup-input", "Setup", "用數字序列模擬批次項目", "範例用遞增 item id 代表可 checkpoint 的工作單位。", "[0,1,2,3,4]", "resume window is visible."],
+        ["setup-report", "Setup", "執行結果要輸出固定 report", "更新紀錄與 release note 需要可以引用的穩定證據。", "{\"processed\": 5}", "batch evidence is stable."]
+      ],
+      configuration: [
+        ["config-owner", "Configuration", "job contract 要有 owner", "沒有 owner 的批次工作，故障時只會互相推責。", "\"owner\": \"team-ops\"", "responsibility is explicit."],
+        ["config-retry", "Configuration", "retry budget 不可無限", "無限重試只會掩蓋壞資料與浪費資源。", "max_attempts = 3", "retry policy is bounded."],
+        ["config-backfill", "Configuration", "backfill 要帶 reason 與 window", "回補不是臨時重跑，要能說明從哪裡開始、為何重跑。", "backfill_from=1200", "rerun scope is explicit."]
+      ],
+      example: [
+        ["example-lease", "Example", "lease conflict 要能被拒絕", "若另一個 worker 已持有 lease，新的執行應立即失敗。", "LeaseConflictError", "mutual exclusion works."],
+        ["example-resume", "Example", "checkpoint resume 跳過已完成項目", "第二次執行應從最後 checkpoint 之後開始。", "resume from checkpoint + 1", "duplicate work is reduced."],
+        ["example-dead-letter", "Example", "壞項目要進 dead-letter", "超過 retry budget 後應隔離失敗項目，不要卡住全批。", "{\"item\": 5, \"attempts\": 3}", "failure is isolated."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免把基礎錯誤當治理缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試覆蓋 lease / resume / DLQ", "至少要驗 lease conflict、retry success、dead-letter 與 backfill。", "python3 -m unittest discover -s tests -v", "scheduler regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 要印固定成功訊息", "讓 release note 能直接引用，不依賴人工解讀零散輸出。", "batch scheduler smoke passed", "publication result is stable."]
+      ],
+      troubleshooting: [
+        ["trouble-double-run", "Troubleshooting", "重複執行通常是 lease 缺位", "若同一工作被兩個 worker 同時跑，先檢查 lease owner。", "job leased by worker-a", "root cause narrows quickly."],
+        ["trouble-restart", "Troubleshooting", "每次失敗都從頭跑通常是 checkpoint 缺位", "沒有 resume 起點，故障恢復成本會快速升高。", "last_checkpoint = 42", "restart scope becomes bounded."],
+        ["trouble-bad-item", "Troubleshooting", "單筆壞資料拖垮全批通常是缺 DLQ", "把不可修復項目隔離，才能讓大部分資料繼續前進。", "dead_letter_count", "pipeline keeps moving."]
+      ],
+      bestPractices: [
+        ["best-window", "Best", "backfill 要界定資料窗", "不要用整批重跑代替精準回補。", "rerun window 1200-1600", "blast radius stays small."],
+        ["best-note", "Best", "更新紀錄要寫 batch 證據", "至少記錄 processed、retry、dead-letter 與最後 checkpoint。", "update record summary", "operator context improves."],
+        ["best-domain", "Best", "工業資料採集也適用同一套原則", "poller、sync job、reconciliation job 都需要 lease、checkpoint 與 timeout。", "PLC polling batch", "industrial fit is preserved."]
+      ]
+    };
+    const completedKey = "python-batch-scheduler-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定契約</strong><span>先寫 owner、schedule、checkpoint 與 retry policy。</span></div><div class="step"><strong>再做恢復</strong><span>補 lease、resume、dead-letter 與 backfill。</span></div><div class="step"><strong>留下證據</strong><span>把結果寫進 report 與更新紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      document.querySelectorAll("[data-complete]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const done = loadCompleted();
+          const id = button.getAttribute("data-complete");
+          if (!id) return;
+          if (done.has(id)) done.delete(id); else done.add(id);
+          saveCompleted(done);
+          renderAll();
+          updateProgress();
+          applyFilter(document.getElementById("lessonSearch").value);
+        });
+      });
+    }
+    function applyFilter(keyword) {
+      const query = keyword.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((card) => {
+        const haystack = card.getAttribute("data-search") || "";
+        card.classList.toggle("hidden-by-search", query !== "" && !haystack.includes(query));
+      });
+    }
+    document.getElementById("lessonSearch").addEventListener("input", (event) => applyFilter(event.target.value));
+    renderAll();
+    updateProgress();
+  </script>
+</body>
+</html>

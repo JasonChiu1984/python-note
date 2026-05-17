@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.8.0 - 2026-05-17
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.7.0 and confirmed the highest-value local-verifiable gap was batch scheduler engineering rather than another framework or syntax topic.
+- Added `python_batch_scheduler_engineering_tutorial.html` with 24 interactive lesson cards covering schedule contract, lease ownership, checkpoint resume, retry budget, dead-letter isolation, backfill window, rerun evidence, and operator handoff.
+- Added `範例程式碼/batch_scheduler_engineering/` as a zero-dependency standard-library sample with job lease checks, checkpoint resume, retry handling, dead-letter isolation, unittest coverage, and a smoke script.
+- Updated `index.html` to expose the new batch scheduler route and show the updated v3.8.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.7.0 - 2026-05-17
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and determined the highest-priority gap was homepage consistency rather than another new topic.
