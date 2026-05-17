@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Workflow State Machine Engineering 教學 - transition、timeout 與 compensation v3.9.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #f1eefb 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #eee9f8; border: 2px solid var(--violet); color: var(--violet); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(114,87,168,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--violet); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 15ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #eee9f8; color: var(--violet); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--violet); color: white; border-color: #5f4792; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--violet); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #eee9f8; color: var(--violet); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 15ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">WF</span><span><strong>Workflow State Machine</strong><br><small>transition、timeout、audit</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 24</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Workflow State Machine Engineering</span>
+          <h1>把多步驟業務流程做成可回溯、可補償的正式工程</h1>
+          <p>很多 Python 專案把流程狀態藏在散落的 if/else 裡，結果一遇到逾時、人工接手或補償需求就失控。這條路線把 transition contract、guard、timeout、compensation、manual review 與 audit trail 收斂成可驗證流程。</p>
+          <div class="status-strip"><span>v3.9.0</span><span>24 張互動卡</span><span>transition + guard</span><span>timeout + compensation audit</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始工作流工程課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 420" role="img" aria-label="Python workflow state machine engineering flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#7257a8"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="324" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="52" y="106" width="122" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="113" y="136">Transition</text><text x="113" y="160">Contract</text>
+              <path d="M186 142h40" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="230" y="106" width="122" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="291" y="136">Guard</text><text x="291" y="160">Invariant</text>
+              <path d="M364 142h40" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="408" y="106" width="122" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="469" y="136">Timeout</text><text x="469" y="160">Expiry</text>
+              <path d="M542 142h40" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="586" y="106" width="138" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="655" y="136">Compensation</text><text x="655" y="160">Rollback</text>
+            </g>
+            <rect x="142" y="236" width="174" height="64" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
+            <text x="229" y="264" text-anchor="middle" font-weight="900">Manual Review</text>
+            <text x="229" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">operator / reason / handoff</text>
+            <rect x="452" y="236" width="174" height="64" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect>
+            <text x="539" y="264" text-anchor="middle" font-weight="900">Audit Evidence</text>
+            <text x="539" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">history / state / release note</text>
+            <path d="M469 182v36h70" stroke="#7257a8" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <path d="M291 182v36h-62" stroke="#7257a8" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <text x="390" y="338" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">流程不是 status 字串；它需要清楚的轉移規則、逾時邊界、補償路徑與可交付證據</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 transition、guard、timeout、compensation、manual review、audit">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先把流程做成規則，再做成程式</h2><p>工作流的第一步不是寫 service，而是先說清楚狀態、事件與失敗路徑。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>transition、timeout 與補償要同時建模</h2><p>只做 happy path 的流程，在真實專案裡通常撐不久。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗工作流治理</h2><p>先在本機把狀態轉移、逾時與 audit 跑順，再談 BPM 或外部 orchestrator。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 transition table 與 handoff 契約寫成明文</h2><p>from_state、event、to_state、operator、reason 都不能只放在腦中。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 engine 模擬真實流程</h2><p>範例專案集中展示 guard、timeout、manual review 與 compensation evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、異常與教材頁面</h2><p>不只跑成功路徑，還要驗 guard、非法轉移、逾時與補償。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>流程失控時先看 transition history</h2><p>多數問題來自狀態規則不集中、逾時缺位或人工交接不清楚。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓 audit evidence 進更新紀錄與 release note</h2><p>下一位工程師要能從記錄知道流程怎麼走、在哪裡失敗、怎麼補償。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-purpose", "Overview", "工作流也需要產品級契約", "流程狀態、事件、責任人與交接證據都要明文化。", "draft -> validated -> approved", "workflow contract is explicit."],
+        ["overview-state", "Overview", "status 不是自由字串", "狀態要來自有限集合，不能讓任何模組任意覆寫。", "\"approved\"", "state space is bounded."],
+        ["overview-failure", "Overview", "失敗路徑要先於 happy path", "timeout、reject、execute_fail 與 compensate 都要先設計。", "execute_fail -> compensate", "failure scope is controlled."]
+      ],
+      architecture: [
+        ["architecture-transition", "Architecture", "transition table 先定義", "先寫 from_state、event、to_state，程式才不會散掉。", "(validated, approve) -> approved", "transition ownership is clear."],
+        ["architecture-guard", "Architecture", "guard 保護流程前置條件", "payload 未就緒時不能核准，避免狀態提前前進。", "payload_ready == True", "invariant stays enforced."],
+        ["architecture-timeout", "Architecture", "timeout 與 manual review 要配套", "逾時不是卡死，而是進入可交接的人工接手狀態。", "expired -> manual_review", "operator path is defined."]
+      ],
+      setup: [
+        ["setup-engine", "Setup", "本機先用小型 engine 驗規則", "先把 transition、timeout 與 compensation 驗清楚，不必一開始就引入外部流程引擎。", "WorkflowEngine", "core behavior is testable."],
+        ["setup-instance", "Setup", "用單一 instance 模擬流程物件", "範例用 workflow_id、state、step、history 描述最小流程實體。", "WorkflowInstance", "runtime state is visible."],
+        ["setup-audit", "Setup", "每次轉移都留下 audit", "operator、reason、from_state、to_state 都要可回放。", "{\"event\": \"approve\"}", "audit evidence is stable."]
+      ],
+      configuration: [
+        ["config-operator", "Configuration", "transition 要帶 operator", "沒有操作者與原因，流程異常時無法交接。", "\"operator\": \"lead\"", "responsibility is explicit."],
+        ["config-timeout", "Configuration", "timeout 門檻要明文", "deadline 不清楚，逾時就只會變成人工猜測。", "timeout_step = 3", "timeout policy is bounded."],
+        ["config-compensation", "Configuration", "補償路徑不能臨時想", "fail 後要明確知道誰能 compensate、補什麼、留下哪些證據。", "failed -> compensated", "rollback scope is explicit."]
+      ],
+      example: [
+        ["example-guard", "Example", "guard 會阻擋非法核准", "payload 未就緒時，approve 事件應直接被拒絕。", "InvalidTransitionError", "unsafe advance is blocked."],
+        ["example-timeout", "Example", "流程逾時會進 expired", "超過 deadline 後應停止正常執行，改走人工接手流程。", "event=\"timeout\"", "expired path is visible."],
+        ["example-compensate", "Example", "失敗後要能補償", "execute_fail 後應能走 compensate，並留下補償次數與歷程。", "compensation_count = 1", "rollback is auditable."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免把基本錯誤誤認成流程治理缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試覆蓋 transition / guard / timeout", "至少要驗 happy path、guard、非法轉移、compensation 與 timeout。", "python3 -m unittest discover -s tests -v", "workflow regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 要印固定成功訊息", "讓 release note 可直接引用，不依賴人工拼接輸出。", "workflow state machine smoke passed", "publication result is stable."]
+      ],
+      troubleshooting: [
+        ["trouble-illegal", "Troubleshooting", "狀態被寫壞通常是缺 transition contract", "若任何地方都能直接改 status，最終一定出現非法轉移。", "event execute_success from draft", "root cause narrows quickly."],
+        ["trouble-stuck", "Troubleshooting", "流程卡住通常是缺 timeout handoff", "沒有 expiry 與 manual review，待處理流程只會無限掛起。", "state = expired", "handoff becomes bounded."],
+        ["trouble-no-audit", "Troubleshooting", "交接困難通常是 audit trail 缺位", "只留最後狀態而沒有轉移歷程，下一位工程師很難接手。", "history[]", "investigation stays grounded."]
+      ],
+      bestPractices: [
+        ["best-centralize", "Best", "流程規則集中在 state machine", "不要把 transition 規則散落在 API、CLI、worker 各處。", "single transition table", "change risk stays small."],
+        ["best-operator", "Best", "manual review 要可交接", "人工接手時至少要有 operator、reason、current state 與 timeout evidence。", "manual_review_reason", "ops context improves."],
+        ["best-industrial", "Best", "工業場景也適用同一套原則", "告警確認、工單審批、設備啟停核准都需要 transition、timeout 與 audit。", "device approval workflow", "industrial fit is preserved."]
+      ]
+    };
+    const completedKey = "python-workflow-state-machine-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定轉移</strong><span>先寫 state、event、guard 與 timeout contract。</span></div><div class="step"><strong>再補失敗</strong><span>把 reject、compensate、manual review 一起設計。</span></div><div class="step"><strong>留下證據</strong><span>把 transition history 寫進 audit 與更新紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      document.querySelectorAll("[data-complete]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const done = loadCompleted();
+          const id = button.getAttribute("data-complete");
+          if (!id) return;
+          if (done.has(id)) done.delete(id); else done.add(id);
+          saveCompleted(done);
+          renderAll();
+          updateProgress();
+          applyFilter(document.getElementById("lessonSearch").value);
+        });
+      });
+    }
+    function applyFilter(keyword) {
+      const query = keyword.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((card) => {
+        const haystack = card.getAttribute("data-search") || "";
+        card.classList.toggle("hidden-by-search", query !== "" && !haystack.includes(query));
+      });
+    }
+    document.getElementById("lessonSearch").addEventListener("input", (event) => applyFilter(event.target.value));
+    renderAll();
+    updateProgress();
+  </script>
+</body>
+</html>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.9.0 - 2026-05-17
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.8.0 and confirmed the highest-value local-verifiable gap was workflow state machine engineering rather than another syntax, framework, or protocol topic.
+- Added `python_workflow_state_machine_engineering_tutorial.html` with 24 interactive lesson cards covering transition contract, guard, timeout expiry, compensation rollback, manual review handoff, and audit evidence.
+- Added `範例程式碼/workflow_state_machine_engineering/` as a zero-dependency standard-library sample with workflow engine, transition history, timeout handling, compensation path, unittest coverage, and a smoke script.
+- Updated `index.html` to expose the new workflow state machine route and show the updated v3.9.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.8.0 - 2026-05-17
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.7.0 and confirmed the highest-value local-verifiable gap was batch scheduler engineering rather than another framework or syntax topic.
