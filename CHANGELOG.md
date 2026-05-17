@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.6.0 - 2026-05-17
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.5.0 and confirmed the highest-value local-verifiable gap was architecture governance rather than another framework, protocol, or low-level feature topic.
+- Added `python_architecture_governance_tutorial.html` with 32 interactive lesson cards covering ADR, module ownership, import boundary rules, deprecation policy, refactor gate, and release evidence.
+- Added `範例程式碼/architecture_governance/` as a zero-dependency standard-library sample with local ADR records, module ownership map, import rules, governance policy checks, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty-five tutorial routes, architecture governance progress, a new route card, and the updated v3.6.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.5.0 - 2026-05-17
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.4.0 and confirmed the highest-value local-verifiable gap was dependency and environment governance rather than another new protocol or framework topic.

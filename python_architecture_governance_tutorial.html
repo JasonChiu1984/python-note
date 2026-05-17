@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Architecture Governance 教學 - ADR、邊界與安全重構 v3.6.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --violet: #7257a8;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #f2eefb 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #eee9f8; border: 2px solid var(--violet); color: var(--violet); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(114,87,168,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--violet); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 14ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #eee9f8; color: var(--violet); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--violet); color: white; border-color: #61458f; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--violet); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #eee9f8; color: var(--violet); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 15ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">AG</span><span><strong>Architecture</strong><br><small>ADR、邊界、重構治理</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Architecture Governance</span>
+          <h1>把大型 Python 專案的結構做成可治理資產</h1>
+          <p>很多 Python 專案早期能快速交付，後期卻在重構時持續失控：模組責任模糊、import 邊界破裂、舊 API 沒有淘汰時程、設計決策只留在口頭。這條路線把 ADR、package ownership、import rule、deprecation 與 refactor gate 收斂成可驗證流程。</p>
+          <div class="status-strip"><span>v3.6.0</span><span>32 張互動卡</span><span>ADR + boundary guard</span><span>refactor + release evidence</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始架構治理課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python architecture governance flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#7257a8"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="52" y="104" width="120" height="76" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="112" y="136">ADR</text><text x="112" y="162">Decision</text>
+              <path d="M183 142h46" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="232" y="104" width="136" height="76" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="300" y="136">Ownership</text><text x="300" y="162">Package Map</text>
+              <path d="M379 142h46" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="428" y="104" width="136" height="76" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="496" y="136">Import Rule</text><text x="496" y="162">Boundary</text>
+              <path d="M575 142h46" stroke="#7257a8" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="624" y="104" width="112" height="76" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="680" y="136">Refactor</text><text x="680" y="162">Evidence</text>
+            </g>
+            <rect x="122" y="236" width="154" height="64" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
+            <text x="199" y="264" text-anchor="middle" font-weight="900">Deprecation Policy</text>
+            <text x="199" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">deprecate / replace / remove</text>
+            <rect x="494" y="236" width="154" height="64" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect>
+            <text x="571" y="264" text-anchor="middle" font-weight="900">Release Note</text>
+            <text x="571" y="288" text-anchor="middle" font-size="13" fill="#5d6b7d">governance report / smoke</text>
+            <path d="M300 182v38h-101" stroke="#7257a8" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <path d="M496 182v38h75" stroke="#7257a8" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
+            <text x="390" y="340" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">功能可用不代表結構可維護；架構治理的目的，是讓重構與淘汰都可驗收、可回溯</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 ADR、ownership、boundary、deprecation、refactor、import">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>功能越多，越需要結構治理</h2><p>先把設計決策、模組責任與邊界規則講清楚，重構才不會越修越亂。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把決策、ownership、邊界與淘汰拆成四層</h2><p>大型 Python 專案的穩定性，不只來自測試，也來自清楚的演進規則。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能驗 ADR 與邊界</h2><p>用零外部套件範例，先把結構治理做成可重複檢查的流程。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 ownership、import rule 與 deprecation 寫成規則</h2><p>沒有明文規則，結構只會慢慢漂移。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用治理樣板專案驗證架構演進</h2><p>範例專案集中展示 ADR、ownership、import guard 與報告輸出。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要覆蓋 compile、unittest、boundary check 與 HTML</h2><p>只看功能測試通過，不代表結構治理已完成。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>重構出問題時，先看規則不是先怪人</h2><p>模組漂移、循環依賴與舊 API 殘留，多半是治理層缺位。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓架構治理跟 release 一起交付</h2><p>ADR、ownership、boundary check 與 deprecation 時程應進更新紀錄與 release note。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-purpose", "Overview", "架構治理的目標是降低重構風險", "不是把文件寫漂亮，而是讓日後改模組、換實作與淘汰舊路徑時不失控。", "safe refactor > accidental drift", "governance purpose is clear."],
+        ["overview-adr", "Overview", "ADR 是最小決策記憶體", "大型 Python 專案不怕有取捨，怕的是之後沒人知道為什麼這樣取捨。", "decision / reason / tradeoff", "decision context is preserved."],
+        ["overview-ownership", "Overview", "module ownership 要能說清楚", "誰可以改哪一層、誰負責維護哪個 package，必須可查詢。", "ownership.json", "responsibility is visible."],
+        ["overview-evidence", "Overview", "結構治理也要有交付證據", "boundary check、deprecation list 與 governance report 應像測試一樣可驗收。", "architecture_governance_report.json", "handoff stays auditable."]
+      ],
+      architecture: [
+        ["architecture-adr", "Architecture", "ADR 記錄選擇與替代方案", "至少要寫 decision、context、tradeoff 與 replacement trigger。", "ADR-001 use service/repository split", "future changes have context."],
+        ["architecture-package", "Architecture", "package ownership 先於目錄切分", "沒有 owner map，目錄再漂亮也很快變成共享垃圾場。", "application -> team-core", "module scope is explicit."],
+        ["architecture-boundary", "Architecture", "import rule 要可檢查", "service 不應直接跳過 application 去 import infrastructure 細節。", "application cannot import adapters", "layer boundary is enforced."],
+        ["architecture-deprecation", "Architecture", "deprecation policy 要有 sunset date", "只寫 deprecated 不夠，還要寫 replacement 與何時刪除。", "remove_after=2026-08-31", "retirement plan is explicit."]
+      ],
+      setup: [
+        ["setup-layout", "Setup", "治理樣板結構保持簡單", "用少量檔案聚焦在規則本身，不用額外框架分散注意力。", "policy.py + json + markdown", "teaching focus stays sharp."],
+        ["setup-source", "Setup", "範例用虛擬模組圖驗邊界", "透過 module path map 模擬 application、domain、adapters 依賴關係。", "module_dependencies = {...}", "boundary logic is testable."],
+        ["setup-adr-file", "Setup", "ADR 檔要與程式一同交付", "如果 ADR 只存在 wiki 或聊天室，專案 checkout 後就查不到。", "architecture_decisions.md", "decision file is local."],
+        ["setup-report", "Setup", "smoke script 要輸出治理報告", "執行後留 report，可讓更新紀錄與 release note 引用固定證據。", "architecture_governance_report.json", "release evidence is visible."]
+      ],
+      configuration: [
+        ["config-owner", "Configuration", "ownership 檔要覆蓋核心模組", "domain、application、adapters、interfaces 等模組都應有 owner。", "\"domain\": \"team-domain\"", "ownership baseline is complete."],
+        ["config-rule", "Configuration", "import rule 要列允許來源", "用 allowlist 寫清楚可依賴方向，降低隱性耦合。", "\"application\": [\"domain\"]", "dependency direction is explicit."],
+        ["config-deprecation", "Configuration", "deprecation entry 要包含 replacement", "否則使用者只知道舊 API 不能用，不知道該移去哪裡。", "\"replacement\": \"new_api.v2\"", "migration path is visible."],
+        ["config-gate", "Configuration", "refactor gate 要分功能與結構兩層", "功能測試保證行為，邊界檢查保證結構。", "unittest + boundary guard", "governance gate is complete."]
+      ],
+      example: [
+        ["example-policy", "Example", "GovernancePolicy 集中規則載入", "不要讓 ownership、import rule、deprecation 檢查散在不同腳本。", "load_policy(base_dir)", "policy stays maintainable."],
+        ["example-adr", "Example", "範例 ADR 用短格式即可", "重點是讓 decision 可搜尋、可維護，不是寫成論文。", "ADR-001: split domain and adapters", "docs remain practical."],
+        ["example-boundary", "Example", "boundary guard 用虛擬依賴圖驗證", "以 module -> imports 的方式，就能本機驗結構方向。", "validate_import_rules(policy, graph)", "checks are deterministic."],
+        ["example-industrial", "Example", "工業 gateway 也需要架構治理", "像 protocol adapters、polling service、alarm pipeline 更需要 ownership 與 boundary 控制。", "adapter / service / publisher", "domain fit is preserved."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免誤把基礎錯誤當成治理缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試驗 ownership 與規則", "測試至少覆蓋缺 owner、跨界 import 與過期 deprecation。", "python3 -m unittest discover -s tests -v", "policy regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 應輸出固定成功訊息", "讓 release note 可直接引用，不要依賴人工解讀零散 shell output。", "architecture governance smoke passed", "release result is stable."],
+        ["verify-html", "Verification", "教材 HTML script 也要 parse", "互動教材若搜尋或完成度壞掉，交付就不完整。", "new Function(script)", "tutorial behavior stays safe."]
+      ],
+      troubleshooting: [
+        ["trouble-cycle", "Troubleshooting", "循環依賴通常是邊界破裂", "當 application 與 adapters 互相 import，先回頭檢查方向規則。", "domain <- application <- adapters", "cycle root cause narrows."],
+        ["trouble-drift", "Troubleshooting", "重構後結構更亂，多半是 owner 不明", "多人同時改時，沒有 ownership map 很快失控。", "review module_ownership.json", "coordination improves."],
+        ["trouble-legacy", "Troubleshooting", "舊 API 刪不掉，多半缺 deprecation 時程", "如果沒有 replace/remove 日期，deprecated 只會永久存在。", "sunset_date", "cleanup path becomes concrete."],
+        ["trouble-docs", "Troubleshooting", "ADR 與程式結構不一致時要先修記錄", "舊決策若已失效，應更新或新增 ADR，而不是假裝沒發生。", "ADR supersedes ADR-001", "history stays honest."]
+      ],
+      bestPractices: [
+        ["best-short", "Best", "ADR 要短且可搜尋", "一頁內講清 decision、tradeoff、replacement trigger 即可。", "short ADR template", "documentation stays usable."],
+        ["best-owner", "Best", "ownership 要跟 release 一起維護", "新增模組或拆分 package 時，同步更新 owner map。", "update ownership in same PR", "responsibility stays current."],
+        ["best-window", "Best", "deprecation 要規劃淘汰窗口", "用固定版本或日期窗口處理淘汰，比無限期保留安全。", "announce in v3.6.0 remove in v3.8.0", "change risk is bounded."],
+        ["best-report", "Best", "結構治理結果要進更新紀錄", "不只寫新增功能，也要寫 boundary、ADR 與 deprecation 變更。", "governance report summary", "release context improves."]
+      ]
+    };
+    const completedKey = "python-architecture-governance-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定規則</strong><span>先寫 ADR、ownership 與 import rule。</span></div><div class="step"><strong>再驗結構</strong><span>用 unittest 與 guard 驗證跨界依賴。</span></div><div class="step"><strong>留下證據</strong><span>把治理結果寫進 report 與更新紀錄。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const id = button.getAttribute("data-complete");
+      const done = loadCompleted();
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
