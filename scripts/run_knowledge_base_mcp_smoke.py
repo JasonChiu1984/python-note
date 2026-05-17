@@ -52,6 +52,7 @@ def send_message(proc: subprocess.Popen[bytes], payload: dict) -> dict:
 
 def main() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
+        original_index = (ROOT / "knowledge_base" / "index.json").read_text(encoding="utf-8")
         input_path = Path(tmp_dir) / "conversation.json"
         input_path.write_text(
             json.dumps(
@@ -84,6 +85,7 @@ def main() -> None:
         ]
         export_payload = json.loads(subprocess.check_output(export_cmd, cwd=ROOT, text=True))
         entry_path = ROOT / export_payload["json"]
+        markdown_path = ROOT / export_payload["markdown"]
         entry = json.loads(entry_path.read_text(encoding="utf-8"))
         entry_id = entry["id"]
 
@@ -148,6 +150,9 @@ def main() -> None:
         finally:
             proc.terminate()
             proc.communicate(timeout=5)
+            entry_path.unlink(missing_ok=True)
+            markdown_path.unlink(missing_ok=True)
+            (ROOT / "knowledge_base" / "index.json").write_text(original_index, encoding="utf-8")
 
     print("knowledge base mcp smoke passed: export + search + read + protocol")
 
