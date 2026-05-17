@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.7.0 - 2026-05-17
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and determined the highest-priority gap was homepage consistency rather than another new topic.
+- Updated `index.html` to remove the retired Cython route entry, align the route count from twenty-five to twenty-four, and synchronize the homepage summary, SVG route map, and progress script with the actual checked-in tutorials.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.6.0 - 2026-05-17
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.5.0 and confirmed the highest-value local-verifiable gap was architecture governance rather than another framework, protocol, or low-level feature topic.
