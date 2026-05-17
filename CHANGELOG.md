@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.5.0 - 2026-05-17
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective after v3.4.0 and confirmed the highest-value local-verifiable gap was dependency and environment governance rather than another new protocol or framework topic.
+- Added `python_dependency_environment_governance_tutorial.html` with 32 interactive lesson cards covering runtime baseline, `venv`, `requirements.txt`, `requirements-dev.txt`, `constraints.txt`, startup contract, dependency update windows, governance report, and release evidence.
+- Added `範例程式碼/dependency_environment_governance/` as a zero-dependency governance sample with pinned dependency manifests, runtime policy checks, report generation, unittest coverage, and a smoke script.
+- Updated `index.html` to show twenty-four tutorial routes, dependency environment governance progress, a new route card, and the updated v3.5.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.4.0 - 2026-05-16
 
 - Re-reviewed the industrial gateway teaching route from a senior engineering perspective after v3.3.0 and confirmed that the highest-value gap inside the existing industrial path was protocol comparison depth rather than another brand-new engineering topic.

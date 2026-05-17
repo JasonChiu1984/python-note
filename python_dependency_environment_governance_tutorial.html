@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Dependency Environment Governance 教學 - venv、requirements 與 constraints v3.5.0</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d6b7d;
+      --line: #d8e2ec;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --slate: #43566f;
+      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #eef6f3 0, var(--paper) 34rem); line-height: 1.72; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
+    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
+    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e6f5ef; border: 2px solid var(--green); color: var(--green); font-weight: 950; }
+    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
+    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
+    nav a:hover { background: #edf2f7; color: var(--ink); }
+    main { min-width: 0; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
+    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(45,138,105,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--green); font-weight: 950; font-size: 0.9rem; }
+    h1 { max-width: 14ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
+    p { color: var(--muted); margin: 0; }
+    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    .status-strip { margin-top: 1rem; }
+    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e6f5ef; color: var(--green); font-weight: 900; }
+    .hero-actions { margin-top: 1.2rem; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+    .button.primary { background: var(--green); color: white; border-color: #217255; }
+    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
+    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
+    .surface svg { width: 100%; height: auto; display: block; }
+    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
+    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
+    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
+    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
+    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); text-decoration: none; font-weight: 900; }
+    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e6f5ef; color: var(--green); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
+    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
+    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
+    .step strong { display: block; margin-bottom: 0.25rem; }
+    .step span { color: var(--muted); font-size: 0.92rem; }
+    .hidden-by-search { display: none; }
+    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
+      .cards, .steps { grid-template-columns: 1fr; }
+      h1 { max-width: 15ch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <a class="brand" href="#top"><span class="logo">DG</span><span><strong>Dependency</strong><br><small>venv、requirements、constraints</small></span></a>
+      <nav aria-label="章節導覽">
+        <a href="index.html">回教材入口</a>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#setup">Setup</a>
+        <a href="#configuration">Configuration</a>
+        <a href="#example">Example</a>
+        <a href="#verification">Verification</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#best-practices">Best Practices</a>
+      </nav>
+      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+    </aside>
+    <main>
+      <section class="hero" id="top">
+        <div>
+          <span class="eyebrow">Python Dependency Environment Governance</span>
+          <h1>把環境與依賴做成可交付的專案契約</h1>
+          <p>很多 Python 專案不是死在功能，而是死在環境漂移：本機用系統 Python、CI 裝到不同小版號、production dev 套件混裝、requirements 沒 pin、constraints 缺席。這條路線把 runtime baseline、`venv`、requirements 分層、constraints、啟動命令、升級窗口與交付證據收斂成一個可驗證流程。</p>
+          <div class="status-strip"><span>v3.5.0</span><span>32 張互動卡</span><span>requirements + constraints</span><span>runtime + release evidence</span></div>
+          <div class="hero-actions"><a class="button primary" href="#overview">開始依賴治理課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+        </div>
+        <div class="surface">
+          <svg viewBox="0 0 780 430" role="img" aria-label="Python dependency environment governance flow">
+            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
+            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
+            <g font-weight="900" text-anchor="middle">
+              <rect x="52" y="104" width="128" height="76" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="116" y="136">Python</text><text x="116" y="162">Baseline</text>
+              <path d="M191 142h48" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="242" y="104" width="128" height="76" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="306" y="136">venv</text><text x="306" y="162">Activation</text>
+              <path d="M381 142h48" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="432" y="78" width="146" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="505" y="109">requirements.txt</text><text x="505" y="134">prod deps</text>
+              <rect x="432" y="184" width="146" height="74" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="505" y="215">requirements-dev</text><text x="505" y="240">-r prod</text>
+              <path d="M589 142h44" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
+              <rect x="636" y="104" width="96" height="76" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="684" y="136">Report</text><text x="684" y="162">Evidence</text>
+            </g>
+            <text x="390" y="314" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">專案要可重現，不只要能安裝成功，還要能證明安裝契約、啟動命令與升級邊界都一致</text>
+          </svg>
+        </div>
+      </section>
+      <div class="tool-panel">
+        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 venv、requirements、constraints、runtime、startup、upgrade">
+        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
+      </div>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>依賴與環境不治理，其他測試都不穩</h2><p>先把 runtime、虛擬環境、requirements、constraints 與啟動命令講清楚，功能驗證才有意義。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把 runtime、依賴、啟動與證據拆成四層</h2><p>專案的可重現性不是單一檔案，而是一整條治理鏈。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能驗證治理規則</h2><p>用零外部安裝的標準庫範例，先驗 requirements 契約與 runtime 政策。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 requirements、constraints 與版本基線寫成規則</h2><p>缺規則時，環境只是暫時可用，不是可交付。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>以治理樣板專案驗證依賴與環境契約</h2><p>範例專案集中展示 runtime、requirements 分層、constraints 覆蓋與報告輸出。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要覆蓋 compile、unittest、smoke 與 HTML</h2><p>只看 `pip install` 成功不算治理完成。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>環境問題要先看契約，再看框架</h2><p>本機與 CI 不一致時，通常不是框架壞掉，而是依賴治理層鬆散。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓依賴治理與版本發布同時存在</h2><p>release note、constraints、runtime baseline 與 smoke evidence 應一起交付。</p></div></div><div class="cards"></div></section>
+      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
+    </main>
+  </div>
+  <script>
+    const lessonGroups = {
+      overview: [
+        ["overview-baseline", "Overview", "先固定 Python runtime baseline", "若不先宣告最低與推薦 Python 版本，後面所有依賴驗證都會漂移。", "minimum=3.11 recommended=3.14 preview=3.15.0b1", "runtime baseline is visible."],
+        ["overview-venv", "Overview", "venv 是最小隔離邊界", "使用系統 Python 會把全域套件、不同 shell 狀態與歷史遺留污染帶進專案。", "python3 -m venv .venv", "environment isolation is explicit."],
+        ["overview-split", "Overview", "prod / dev dependencies 必須分層", "production 安裝與開發工具不應混成同一份需求清單。", "requirements.txt + requirements-dev.txt", "dependency scope is separated."],
+        ["overview-evidence", "Overview", "治理也需要交付證據", "每次版本發布應保留 runtime、requirements、constraints 與 smoke evidence。", "governance_report.json", "handoff stays auditable."]
+      ],
+      architecture: [
+        ["architecture-runtime", "Architecture", "runtime policy 與 dependency policy 分開治理", "Python 版本升級與套件升級是兩條不同風險線，不能混成同一次變更。", "runtime vs package upgrade", "blast radius is reduced."],
+        ["architecture-files", "Architecture", "requirements 與 constraints 各有職責", "requirements 描述需要什麼，constraints 描述允許鎖到哪個版本。", "pip install -r requirements-dev.txt -c constraints.txt", "install contract is reviewable."],
+        ["architecture-startup", "Architecture", "啟動命令要成為工程契約", "若 README、CI、部署腳本各自寫不同命令，環境就不可能一致。", "PYTHONPATH=src python3 -m unittest ...", "startup path converges."],
+        ["architecture-report", "Architecture", "治理報告只寫必要事實", "保留 runtime、依賴數量、命令與狀態，不直接暴露本機環境噪音。", "report['runtime']['current']", "evidence remains stable."]
+      ],
+      setup: [
+        ["setup-layout", "Setup", "治理樣板專案結構要簡單可讀", "重點在文件與規則，不在框架複雜度。", "src/ tests/ scripts/ requirements*.txt", "layout is reproducible."],
+        ["setup-runtime", "Setup", "本機驗證至少要有 compile + unittest + smoke", "這三層能分別抓語法、規則與交付證據問題。", "py_compile + unittest + smoke", "verification ladder is clear."],
+        ["setup-constraints", "Setup", "constraints 檔應覆蓋所有安裝依賴", "缺少約束時，不同環境可能裝到不同 transitive 組合。", "constraints.txt", "install drift is reduced."],
+        ["setup-readme", "Setup", "README 要提供一致啟動步驟", "若使用者需要靠聊天記憶才能知道怎麼跑，教程就不算完成。", "PYTHONPATH=src python3 scripts/...", "handover is self-contained."]
+      ],
+      configuration: [
+        ["config-prod", "Configuration", "production requirements 必須 pin 版本", "沒有 pin 版本，今天過的測試不代表明天還會過。", "fastapi==0.115.0", "prod dependency is deterministic."],
+        ["config-dev", "Configuration", "dev requirements 先引用 production requirements", "開發環境應建立在 production 依賴之上，而不是另起一套。", "-r requirements.txt", "dev stays downstream of prod."],
+        ["config-constraints", "Configuration", "constraints 是允許邊界，不是可選附件", "大型專案更新單一工具時，constraints 可避免連帶飄移。", "pytest==8.3.3", "upgrade window is controlled."],
+        ["config-policy", "Configuration", "runtime 政策要寫最低、推薦、預覽三層", "最低版本保證可執行，推薦版本保證交付，預覽版本提早找相容性問題。", "3.11 / 3.14 / 3.15.0b1", "version support is explicit."]
+      ],
+      example: [
+        ["example-requirements", "Example", "範例專案用 requirements 三件組示範治理", "透過 prod、dev、constraints 三份文件，把安裝契約說清楚。", "requirements.txt / requirements-dev.txt / constraints.txt", "dependency files stay purposeful."],
+        ["example-policy", "Example", "RuntimePolicy 集中保存版本規則", "不要讓最低/推薦/預覽版本散落在 README、CI 與程式碼多處。", "RuntimePolicy(minimum_python=(3, 11), ...)", "policy stays testable."],
+        ["example-evaluate", "Example", "evaluate_governance 做規則檢查", "它負責驗 pinned、dev 引用與 constraints 覆蓋，而不是執行真實安裝。", "evaluate_governance(base_dir)", "governance checks are deterministic."],
+        ["example-report", "Example", "render_report 產出交付證據", "發布時可附上 runtime、依賴統計與驗證命令，讓交接更完整。", "render_report(base_dir, output_path)", "release evidence is materialized."],
+        ["example-fastapi", "Example", "樣板依賴刻意選常見服務組合", "以 FastAPI、uvicorn、pydantic 當生產依賴，比只用空白示範更接近實務。", "fastapi / uvicorn / pydantic", "teaching stays practical."],
+        ["example-industrial", "Example", "工業專案也需要同一層治理", "BACnet gateway、OPC UA adapter 或 polling service 一樣需要 runtime 與 dependency 契約。", "gateway-service requirements", "domain fit is preserved."]
+      ],
+      verification: [
+        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免誤把基礎錯誤當成治理設計缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-unit", "Verification", "單元測試驗治理規則", "測試至少要覆蓋 dev 引用、constraints 完整性與未 pin 失敗。", "python3 -m unittest discover -s tests -v", "policy regressions are caught."],
+        ["verify-smoke", "Verification", "smoke script 應輸出固定成功訊息", "讓 release note 能引用一致證據，而不是貼一段不可重現的 shell output。", "dependency environment governance smoke passed", "release result is stable."],
+        ["verify-html", "Verification", "教材 HTML script 也要 parse", "互動教材若 search 或完成度壞掉，交付就不完整。", "new Function(script)", "tutorial behavior stays safe."]
+      ],
+      troubleshooting: [
+        ["trouble-ci", "Troubleshooting", "CI 比本機多出錯，通常是依賴集合不同", "先比對 requirements 與 constraints，不要一開始就怪框架版本。", "compare governance_report.json", "drift becomes visible."],
+        ["trouble-system-python", "Troubleshooting", "系統 Python 混用會讓問題不可重現", "若未經 venv 隔離，舊套件殘留會讓測試結果失真。", "which python3", "root cause narrows."],
+        ["trouble-upgrade", "Troubleshooting", "runtime 與 dependency 同時升級最難排查", "應拆成兩個 release window，否則失敗來源不明。", "separate runtime PR from dependency PR", "rollback gets simpler."],
+        ["trouble-readme", "Troubleshooting", "README 與 CI 命令不同會造成交接故障", "若文件與 pipeline 不一致，最終故障往往出在人工執行路徑。", "sync README + CI + smoke", "operator friction drops."]
+      ],
+      bestPractices: [
+        ["best-lock", "Best", "把 constraints 視為可驗收資產", "constraints 不是暫存輸出，而是交付基線的一部分。", "review constraints.txt in PR", "dependency drift is governed."],
+        ["best-note", "Best", "release note 要標 runtime 與 dependency 事實", "版本標籤不該只寫功能，也要寫 Python baseline 與依賴治理變更。", "Runtime: 3.14.5", "release context improves."],
+        ["best-window", "Best", "規劃固定升級窗口", "把相依套件與工具鏈更新集中處理，比零散隨手更新安全。", "monthly dependency window", "change risk is bounded."],
+        ["best-contract", "Best", "所有章節都應回到同一套啟動契約", "專案成長後，統一 `PYTHONPATH=src python3 -m ...` 能降低維護成本。", "one startup contract", "operational consistency rises."]
+      ]
+    };
+    const completedKey = "python-dependency-environment-completed";
+    const allLessons = Object.values(lessonGroups).flat();
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function loadCompleted() {
+      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
+    }
+    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
+    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function renderLesson(lesson, index) {
+      const [id, tag, title, summary, code, output] = lesson;
+      const done = loadCompleted().has(id);
+      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
+        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
+        <p>${escapeHtml(summary)}</p>
+        <pre><code>${escapeHtml(code)}</code></pre>
+        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
+        <div class="steps"><div class="step"><strong>先定規則</strong><span>先寫 runtime、requirements 與 constraints 契約。</span></div><div class="step"><strong>再驗行為</strong><span>用 unittest 與 smoke 驗證治理不是口號。</span></div><div class="step"><strong>留下證據</strong><span>把 runtime 與命令寫進 report 與 release note。</span></div></div>
+        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
+      </article>`;
+    }
+    function renderAll() {
+      let offset = 0;
+      Object.entries(lessonGroups).forEach(([group, lessons]) => {
+        const root = document.querySelector(`[data-group="${group}"] .cards`);
+        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
+        offset += lessons.length;
+      });
+      updateProgress();
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-complete]");
+      if (!button) return;
+      const done = loadCompleted();
+      const id = button.getAttribute("data-complete");
+      if (done.has(id)) done.delete(id); else done.add(id);
+      saveCompleted(done);
+      renderAll();
+    });
+    document.getElementById("lessonSearch").addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".lesson-item").forEach((item) => {
+        item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
+      });
+    });
+    renderAll();
+  </script>
+</body>
+</html>
