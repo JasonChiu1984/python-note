@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.0.0 - 2026-05-17
+
+- Re-reviewed the full Python tutorial from a senior project-development perspective against the actual workspace state and confirmed the highest-value local-verifiable gap was not another generic engineering topic, but the missing teaching route for the already-implemented local knowledge base and MCP workflow.
+- Added `python_local_knowledge_base_mcp_tutorial.html` with 24 interactive lesson cards covering conversation export, dual-format storage, index contract, stable entry id, MCP `initialize` / `tools/list` / `tools/call`, search/read verification, troubleshooting, and release evidence.
+- Kept the tutorial aligned with the real repository implementation in `knowledge_base/`, `scripts/export_conversation.py`, and `mcp_server/knowledge_base_server.py` instead of introducing a disconnected sample.
+- Updated `index.html` to expose the new local knowledge base MCP route and show the updated v4.0.0 status.
+- Added review-driven delivery artifacts under `審查報告`, `內容需要更新的部分`, and `更新資料`.
+
 ## v3.9.0 - 2026-05-17
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v3.8.0 and confirmed the highest-value local-verifiable gap was workflow state machine engineering rather than another syntax, framework, or protocol topic.
