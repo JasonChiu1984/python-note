@@ -2,9 +2,11 @@
 
 ## v4.2.2 - 2026-05-18
 
-- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the remaining gap was not topic breadth, but inconsistent release traceability across the three core teaching pages.
-- Added explicit version markers to `python_beginner_interactive_tutorial.html`, `python_interactive_tutorial.html`, and `python_intermediate_engineering_tutorial.html` in the page title, hero label, and footer release note so the foundational routes match the rest of the published tutorial set.
-- Updated `index.html` to describe the v4.2.2 maintenance focus and added a new dated review report, change list, and update record for this release.
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the remaining gap was release traceability consistency rather than another new topic.
+- Corrected `index.html` so the homepage route summary now matches the actual 30 checked-in tutorial routes instead of the stale 28-route description.
+- Added explicit version markers to `python_beginner_interactive_tutorial.html`, `python_interactive_tutorial.html`, and `python_intermediate_engineering_tutorial.html` so the foundational routes now expose release state directly in the page title, hero label, and footer.
+- Updated `python_local_knowledge_base_mcp_tutorial.html` page-level version markers from `v4.0.0` to `v4.2.2` so the Local Knowledge Base MCP chapter reflects the post-maintenance release state.
+- Added a new dated review report, change list, and update record for the v4.2.2 maintenance release.
 
 ## v4.2.1 - 2026-05-18
 
