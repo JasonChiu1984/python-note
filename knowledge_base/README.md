@@ -124,3 +124,4 @@ Codex / Claude / Cursor 只要支援本地 MCP stdio server，都可用類似設
 - 先保留標準化 JSON，再從 JSON 生成 Markdown，避免格式漂移。
 - `title`、`summary`、`tags` 應盡量在匯出時補齊，讓搜尋品質更穩定。
 - 需要跨工具查詢時，優先用 `id` 作為穩定鍵，而不是檔名顯示文字。
+- 範例匯出與 smoke 驗證資料應視為暫存或教學素材，不應長期保留在正式 `index.json` 發布內容中。

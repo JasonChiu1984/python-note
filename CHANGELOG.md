@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.1 - 2026-05-18
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the remaining highest-value gap after v4.2.0 was release cleanliness in the local knowledge base rather than another new tutorial topic.
+- Removed checked-in demo/export validation entries from `knowledge_base/index.json` and `knowledge_base/entries/` so the published repository keeps only durable project knowledge instead of mixed demonstration artifacts.
+- Clarified `knowledge_base/README.md` best-practice guidance so temporary demo or smoke data is treated as non-release content.
+- Added a new dated review report, change list, and update record for the v4.2.1 maintenance release.
+
 ## v4.2.0 - 2026-05-18
 
 - Re-reviewed the full Python tutorial from a senior project-development perspective after v4.1.0 and confirmed the highest-value local-verifiable gap was no longer another isolated framework topic, but the missing integrated project-delivery blueprint that ties existing chapters into one shippable reference flow.
