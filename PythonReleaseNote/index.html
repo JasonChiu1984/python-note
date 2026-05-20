@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 3.6 到目前版本 Release Note 專業分析報告</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #526173;
+      --paper: #f5f7fa;
+      --panel: #ffffff;
+      --line: #d8e2ec;
+      --blue: #2f6fbb;
+      --green: #2d8a69;
+      --amber: #b7791f;
+      --red: #c34848;
+      --violet: #7257a8;
+      --cyan: #0f8794;
+      --slate: #33445a;
+      --shadow: 0 18px 44px rgba(23, 32, 51, 0.08);
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+    }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.72;
+      overflow-x: hidden;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .page {
+      display: grid;
+      grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+      min-height: 100vh;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    aside {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow: auto;
+      padding: 1.4rem 1.1rem;
+      border-right: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .brand {
+      display: grid;
+      gap: 0.28rem;
+      margin-bottom: 1.2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand strong {
+      font-size: 1.05rem;
+      line-height: 1.25;
+    }
+    .brand span {
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    nav {
+      display: grid;
+      gap: 0.35rem;
+    }
+    nav a {
+      display: block;
+      padding: 0.45rem 0.55rem;
+      border-radius: 6px;
+      color: var(--slate);
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+    nav a:hover {
+      background: #e7f0fb;
+      text-decoration: none;
+    }
+    main {
+      padding: clamp(1rem, 3vw, 3.2rem);
+      min-width: 0;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1rem;
+      padding: clamp(1.2rem, 4vw, 3rem);
+      border: 1px solid rgba(47, 111, 187, 0.22);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      padding: 0.3rem 0.55rem;
+      border: 1px solid rgba(47, 111, 187, 0.25);
+      border-radius: 6px;
+      background: #eef5fd;
+      color: var(--blue);
+      font-size: 0.86rem;
+      font-weight: 900;
+    }
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+    h1 {
+      max-width: 18ch;
+      font-size: clamp(2.1rem, 4.8vw, 4.2rem);
+    }
+    h2 {
+      font-size: clamp(1.6rem, 3vw, 2.45rem);
+    }
+    h3 {
+      font-size: 1.08rem;
+    }
+    p { margin: 0; color: var(--muted); }
+    h1, h2, h3, p, li, td, th {
+      overflow-wrap: anywhere;
+    }
+    .hero-grid,
+    .metric-grid,
+    .risk-grid,
+    .workflow-grid,
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+    .hero-grid { margin-top: 0.45rem; }
+    .metric {
+      padding: 0.95rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f9fbfd;
+    }
+    .metric strong {
+      display: block;
+      color: var(--ink);
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      line-height: 1.1;
+    }
+    .metric span {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .section {
+      margin-top: 1.2rem;
+      padding: clamp(1rem, 2vw, 1.45rem);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 10px 28px rgba(23, 32, 51, 0.045);
+      min-width: 0;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    .section-head {
+      display: grid;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+    .note {
+      border-left: 4px solid var(--blue);
+      padding: 0.8rem 0.95rem;
+      border-radius: 6px;
+      background: #eef5fd;
+      color: var(--slate);
+    }
+    .warning { border-left-color: var(--amber); background: #fff8e8; }
+    .danger { border-left-color: var(--red); background: #fff0f0; }
+    .ok { border-left-color: var(--green); background: #edf8f3; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0.6rem 0 1rem;
+    }
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--slate);
+      padding: 0.42rem 0.65rem;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    button.active,
+    button:hover {
+      border-color: rgba(47, 111, 187, 0.4);
+      background: #e7f0fb;
+      color: var(--blue);
+    }
+    .timeline-wrap {
+      overflow-x: hidden;
+      padding-bottom: 0.2rem;
+      max-width: 100%;
+    }
+    .timeline {
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+    }
+    .versions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+    .version-card {
+      display: grid;
+      gap: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    .version-card[data-status="end-of-life"] { border-top: 5px solid var(--red); }
+    .version-card[data-status="security"] { border-top: 5px solid var(--amber); }
+    .version-card[data-status="bugfix"] { border-top: 5px solid var(--green); }
+    .version-card[data-status="preview"] { border-top: 5px solid var(--violet); }
+    .card-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.6rem;
+    }
+    .card-title strong {
+      font-size: 1.35rem;
+      line-height: 1.1;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.7rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 5px;
+      font-size: 0.74rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .tag.eol { background: #fae8e8; color: var(--red); }
+    .tag.security { background: #fff4cf; color: #7a5b05; }
+    .tag.bugfix { background: #e6f5ef; color: var(--green); }
+    .tag.preview { background: #eee9f8; color: var(--violet); }
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+    ul, ol {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: #33445a;
+    }
+    li + li { margin-top: 0.25rem; }
+    .matrix {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      border-radius: 8px;
+      font-size: 0.92rem;
+    }
+    .matrix th,
+    .matrix td {
+      padding: 0.72rem;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+    }
+    .matrix th {
+      background: #eef5fd;
+      color: #1f3654;
+      font-weight: 900;
+    }
+    .matrix td { background: #ffffff; }
+    .risk-grid,
+    .workflow-grid,
+    .source-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .panel {
+      display: grid;
+      gap: 0.45rem;
+      padding: 0.95rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .panel strong { color: var(--ink); }
+    code {
+      padding: 0.1rem 0.28rem;
+      border-radius: 4px;
+      background: #eef2f7;
+      color: #213247;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+    .code-window {
+      margin: 0;
+      border-radius: 8px;
+      border: 1px solid #26354f;
+      background: #0f172a;
+      box-shadow: 0 16px 34px rgba(23, 32, 51, 0.16);
+      overflow: hidden;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .code-titlebar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.75rem;
+      min-height: 2.45rem;
+      padding: 0.48rem 0.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+      background: linear-gradient(180deg, #1f2a44 0%, #182238 100%);
+      color: #dbeafe;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .window-dots {
+      display: inline-flex;
+      gap: 0.36rem;
+      align-items: center;
+    }
+    .window-dots span {
+      width: 0.68rem;
+      height: 0.68rem;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .window-dots span:nth-child(1) { background: #ff5f57; }
+    .window-dots span:nth-child(2) { background: #ffbd2e; }
+    .window-dots span:nth-child(3) { background: #28c840; }
+    .code-file {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .code-lang {
+      border: 1px solid rgba(147, 197, 253, 0.38);
+      border-radius: 5px;
+      padding: 0.12rem 0.45rem;
+      background: rgba(59, 130, 246, 0.14);
+      color: #93c5fd;
+      white-space: nowrap;
+    }
+    pre.code-block {
+      overflow-x: hidden;
+      overflow-y: visible;
+      margin: 0;
+      padding: 0.9rem 0;
+      background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+      color: #dbeafe;
+      font-size: 0.86rem;
+      line-height: 1.65;
+      tab-size: 2;
+    }
+    pre.code-block code {
+      display: block;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      font-size: inherit;
+      min-width: 0;
+    }
+    .code-line {
+      display: block;
+      min-height: 1.65em;
+      padding: 0 1rem 0 4rem;
+      position: relative;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .code-line::before {
+      counter-increment: line;
+      content: counter(line);
+      position: absolute;
+      left: 0;
+      width: 2.65rem;
+      padding-right: 0.65rem;
+      border-right: 1px solid rgba(148, 163, 184, 0.2);
+      color: #64748b;
+      text-align: right;
+      user-select: none;
+    }
+    .code-block code {
+      counter-reset: line;
+    }
+    .code-line:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0.9rem;
+    }
+    footer {
+      margin-top: 1.2rem;
+      padding: 1rem;
+      color: var(--muted);
+      font-size: 0.86rem;
+      text-align: center;
+    }
+    @media (max-width: 1080px) {
+      .page { grid-template-columns: 1fr; }
+      aside {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      nav {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .versions,
+      .hero-grid,
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 760px) {
+      main { padding: 0.8rem; }
+      h1 { max-width: 12ch; }
+      nav,
+      .versions,
+      .hero-grid,
+      .metric-grid,
+      .risk-grid,
+      .workflow-grid,
+      .source-grid,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+      .matrix { font-size: 0.84rem; }
+      .matrix th,
+      .matrix td { padding: 0.55rem; }
+    }
+    @media print {
+      body { background: #ffffff; }
+      .page { display: block; }
+      aside, .toolbar { display: none; }
+      main { padding: 0; }
+      .section, .hero { box-shadow: none; break-inside: avoid; }
+      a { color: #172033; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside>
+      <div class="brand">
+        <strong>Python Release Note 分析報告</strong>
+        <span>範圍：Python 3.6 到 3.14.5 穩定版，附 3.15.0b1 預覽觀察</span>
+      </div>
+      <nav aria-label="報告導覽">
+        <a href="#overview">總覽</a>
+        <a href="#status">版本狀態</a>
+        <a href="#timeline">時間軸</a>
+        <a href="#versions">版本 Release Note</a>
+        <a href="#migration">升級策略</a>
+        <a href="#risk">風險矩陣</a>
+        <a href="#verification">驗證流程</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#sources">官方來源</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="hero" id="overview">
+        <span class="eyebrow">Professional Engineering Report</span>
+        <h1>Python 3.6 到目前版本 Release Note 分析</h1>
+        <p>
+          本報告整理 Python 3.6 以後的語言、標準庫、效能、安全、C API、打包與部署變化，
+          以工程交付角度評估升級路徑。資料更新時間：2026-05-13 17:06:04 CST。
+        </p>
+        <div class="hero-grid">
+          <div class="metric"><strong>3.14.5</strong><span>目前最新穩定版，2026-05-10 發布</span></div>
+          <div class="metric"><strong>3.15.0b1</strong><span>目前 beta 預覽版，不建議 production 使用</span></div>
+          <div class="metric"><strong>9</strong><span>主穩定版系列：3.6 到 3.14</span></div>
+          <div class="metric"><strong>4</strong><span>EOL 系列：3.6、3.7、3.8、3.9</span></div>
+        </div>
+        <div class="note ok">
+          建議結論：新專案以 Python 3.14.5 作為主要目標；保守型 production 可先落在 3.13.x，
+          但應建立 3.14 測試矩陣。Python 3.10 已進入 security 階段且 2026-10 EOL，
+          不建議作為新開發基準。Python 3.15.0b1 僅適合相容性預驗、wheel 準備與新語法評估。
+        </div>
+      </section>
+
+      <section class="section" id="status">
+        <div class="section-head">
+          <h2>1. 版本狀態與支援週期</h2>
+          <p>依 Python Developer's Guide 與 python.org downloads 狀態整理，將支援週期轉成工程決策語言。</p>
+        </div>
+        <div class="metric-grid">
+          <div class="metric"><strong>3.14</strong><span>bugfix，支援到 2030-10</span></div>
+          <div class="metric"><strong>3.13</strong><span>bugfix，支援到 2029-10</span></div>
+          <div class="metric"><strong>3.12 / 3.11 / 3.10</strong><span>security 階段，僅適合維持與過渡</span></div>
+          <div class="metric"><strong>3.6 - 3.9</strong><span>end-of-life，應列入升級風險</span></div>
+        </div>
+        <table class="matrix" aria-label="Python 版本生命週期">
+          <thead>
+            <tr>
+              <th>版本系列</th>
+              <th>首次發布</th>
+              <th>目前狀態</th>
+              <th>EOL / 支援終止</th>
+              <th>工程建議</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>3.6</td><td>2016-12-23</td><td>EOL</td><td>2021-12-23</td><td>立即移除 production 依賴；保留只可作為歷史相容分析。</td></tr>
+            <tr><td>3.7</td><td>2018-06-27</td><td>EOL</td><td>2023-06-27</td><td>升級前先盤點 <code>async</code>/<code>await</code>、dataclass backport 與老舊 wheel。</td></tr>
+            <tr><td>3.8</td><td>2019-10-14</td><td>EOL</td><td>2024-10-07</td><td>若仍在 3.8，建議直接規劃到 3.11 以上，不再做小版停留。</td></tr>
+            <tr><td>3.9</td><td>2020-10-05</td><td>EOL</td><td>2025-10-31</td><td>3.9 是移除 Python 2 相容層前的過渡版；需補齊 deprecation gate。</td></tr>
+            <tr><td>3.10</td><td>2021-10-04</td><td>security</td><td>2026-10</td><td>只做安全維護；新功能與大型重構不應以 3.10 為唯一基準。</td></tr>
+            <tr><td>3.11</td><td>2022-10-24</td><td>security</td><td>2027-10</td><td>可作為保守升級中繼站，尤其適合要先取得性能收益的系統。</td></tr>
+            <tr><td>3.12</td><td>2023-10-02</td><td>security</td><td>2028-10</td><td>注意 <code>distutils</code> 移除與 venv 不預裝 setuptools 的影響。</td></tr>
+            <tr><td>3.13</td><td>2024-10-07</td><td>bugfix</td><td>2029-10</td><td>適合中短期 production；free-threaded 與 JIT 仍以實驗功能控管。</td></tr>
+            <tr><td>3.14</td><td>2025-10-07</td><td>bugfix</td><td>2030-10</td><td>目前最新穩定主線；建議鎖定 3.14.5 或更新維護版。</td></tr>
+            <tr><td>3.15</td><td>2026-10-01 planned</td><td>preview / beta</td><td>2031-10 planned</td><td>僅納入 CI 預驗與 wheel 準備；production 等 RC 後再決策。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section" id="timeline">
+        <div class="section-head">
+          <h2>2. 版本演進時間軸</h2>
+          <p>Python 3.6 到 3.14 的主線演進可分成四段：語法現代化、型別與非同步成熟、性能與安全、自由執行緒與多解譯器。</p>
+        </div>
+        <div class="timeline-wrap" aria-label="Python 版本時間軸">
+          <svg class="timeline" viewBox="0 0 1080 350" role="img" aria-labelledby="timelineTitle timelineDesc">
+            <title id="timelineTitle">Python 3.6 到 3.15 演進時間軸</title>
+            <desc id="timelineDesc">以主要版本節點展示 Python 語法、型別、效能、標準庫與部署能力演進。</desc>
+            <rect x="18" y="18" width="1044" height="314" rx="14" fill="#fbfdff" stroke="#d8e2ec"></rect>
+            <line x1="74" y1="172" x2="1008" y2="172" stroke="#8fa6bf" stroke-width="4"></line>
+            <g font-family="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif" text-anchor="middle">
+              <g transform="translate(74,172)"><circle r="11" fill="#c34848"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.6</text><text y="38" font-size="12" fill="#526173">f-string / secrets</text></g>
+              <g transform="translate(178,172)"><circle r="11" fill="#c34848"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.7</text><text y="38" font-size="12" fill="#526173">dataclasses</text></g>
+              <g transform="translate(282,172)"><circle r="11" fill="#c34848"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.8</text><text y="38" font-size="12" fill="#526173">walrus / audit</text></g>
+              <g transform="translate(386,172)"><circle r="11" fill="#c34848"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.9</text><text y="38" font-size="12" fill="#526173">dict | / zoneinfo</text></g>
+              <g transform="translate(490,172)"><circle r="11" fill="#b7791f"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.10</text><text y="38" font-size="12" fill="#526173">match / X | Y</text></g>
+              <g transform="translate(594,172)"><circle r="11" fill="#b7791f"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.11</text><text y="38" font-size="12" fill="#526173">Faster CPython</text></g>
+              <g transform="translate(698,172)"><circle r="11" fill="#b7791f"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.12</text><text y="38" font-size="12" fill="#526173">type params</text></g>
+              <g transform="translate(802,172)"><circle r="11" fill="#2d8a69"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.13</text><text y="38" font-size="12" fill="#526173">free-threaded exp.</text></g>
+              <g transform="translate(906,172)"><circle r="11" fill="#2d8a69"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.14.5</text><text y="38" font-size="12" fill="#526173">stable current</text></g>
+              <g transform="translate(1008,172)"><circle r="11" fill="#7257a8"></circle><text y="-32" font-size="18" font-weight="900" fill="#172033">3.15b1</text><text y="38" font-size="12" fill="#526173">preview only</text></g>
+            </g>
+            <g font-family="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif" font-size="13" font-weight="800">
+              <rect x="58" y="260" width="306" height="38" rx="7" fill="#fae8e8" stroke="#f0c2c2"></rect>
+              <text x="211" y="284" text-anchor="middle" fill="#8a2631">EOL：立即移轉</text>
+              <rect x="462" y="260" width="262" height="38" rx="7" fill="#fff4cf" stroke="#f1d887"></rect>
+              <text x="593" y="284" text-anchor="middle" fill="#7a5b05">Security：維護與過渡</text>
+              <rect x="772" y="260" width="184" height="38" rx="7" fill="#e6f5ef" stroke="#b8dfcf"></rect>
+              <text x="864" y="284" text-anchor="middle" fill="#2d6a4f">Bugfix：建議目標</text>
+              <rect x="972" y="260" width="58" height="38" rx="7" fill="#eee9f8" stroke="#d7c9f0"></rect>
+              <text x="1001" y="284" text-anchor="middle" fill="#7257a8">Beta</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="section" id="versions">
+        <div class="section-head">
+          <h2>3. 版本 Release Note 分析</h2>
+          <p>每張卡片以工程影響整理，不複製完整 changelog；完整 bugfix 請回到官方 changelog 或各 release page。</p>
+        </div>
+        <div class="toolbar" aria-label="版本狀態篩選">
+          <button type="button" class="active" data-filter="all">全部</button>
+          <button type="button" data-filter="end-of-life">EOL</button>
+          <button type="button" data-filter="security">Security</button>
+          <button type="button" data-filter="bugfix">Bugfix</button>
+          <button type="button" data-filter="preview">Preview</button>
+        </div>
+        <div class="versions">
+          <article class="version-card" data-status="end-of-life">
+            <div class="card-title"><strong>Python 3.6</strong><span class="tag eol">EOL</span></div>
+            <div class="meta"><span>發布：2016-12-23</span><span>終止：2021-12-23</span></div>
+            <p>定位：把 Python 3 帶入現代語法與安全隨機數的基礎版本。</p>
+            <ul>
+              <li><code>f-string</code>、數字底線、變數註解，提升可讀性與型別工具基礎。</li>
+              <li>async generator / async comprehension，讓非同步 pipeline 更自然。</li>
+              <li><code>secrets</code> 模組、OpenSSL 1.1.0、SHA-3 / BLAKE2 / scrypt 強化安全基線。</li>
+              <li>compact dict 讓 dict 記憶體使用降低，並鋪路到後續 insertion order 語意。</li>
+            </ul>
+            <p><strong>升級風險：</strong>EOL 已久，TLS、wheel、typing 與套件相容性都不適合 production。</p>
+          </article>
+
+          <article class="version-card" data-status="end-of-life">
+            <div class="card-title"><strong>Python 3.7</strong><span class="tag eol">EOL</span></div>
+            <div class="meta"><span>發布：2018-06-27</span><span>終止：2023-06-27</span></div>
+            <p>定位：資料模型、async 上下文與工程建模開始成熟。</p>
+            <ul>
+              <li><code>dataclasses</code> 與 <code>contextvars</code> 成為標準庫，適合設定、事件與 request context。</li>
+              <li>dict insertion order 成為語言規格，可依賴順序語意。</li>
+              <li><code>breakpoint()</code>、development mode、DeprecationWarning 改善診斷。</li>
+              <li>UTF-8 mode、nanosecond time function、deterministic pyc 改善部署可重現性。</li>
+            </ul>
+            <p><strong>升級風險：</strong><code>async</code> / <code>await</code> 成為保留字；老舊套件若仍用作識別字需修正。</p>
+          </article>
+
+          <article class="version-card" data-status="end-of-life">
+            <div class="card-title"><strong>Python 3.8</strong><span class="tag eol">EOL</span></div>
+            <div class="meta"><span>發布：2019-10-14</span><span>終止：2024-10-07</span></div>
+            <p>定位：可讀性語法、runtime audit 與 C API 效能基礎。</p>
+            <ul>
+              <li>assignment expression <code>:=</code>、positional-only parameter <code>/</code>。</li>
+              <li><code>f'{expr=}'</code> 改善除錯輸出。</li>
+              <li>runtime audit hooks、Python initialization configuration 強化嵌入式與安全監控。</li>
+              <li>Vectorcall 與 pickle protocol 5 對高效呼叫與大量資料傳輸有實務價值。</li>
+            </ul>
+            <p><strong>升級風險：</strong>仍停在 3.8 的專案通常會同時遇到 wheel、C extension 與 pyproject 現代化問題。</p>
+          </article>
+
+          <article class="version-card" data-status="end-of-life">
+            <div class="card-title"><strong>Python 3.9</strong><span class="tag eol">EOL</span></div>
+            <div class="meta"><span>發布：2020-10-05</span><span>終止：2025-10-31</span></div>
+            <p>定位：年度發布節奏開始，型別語法與標準庫資料處理能力提升。</p>
+            <ul>
+              <li>dict merge/update operator <code>|</code> / <code>|=</code>。</li>
+              <li>內建集合泛型可直接寫 <code>list[str]</code>、<code>dict[str, int]</code>。</li>
+              <li><code>str.removeprefix()</code> / <code>removesuffix()</code> 減少字串邊界錯誤。</li>
+              <li><code>zoneinfo</code> 與 <code>graphlib</code> 補齊時區與拓樸排序常見需求。</li>
+              <li>PEG parser 導入，開啟後續語法演進空間。</li>
+            </ul>
+            <p><strong>升級風險：</strong>3.9 是移除 Python 2 相容層前最後緩衝；應用需用 <code>-W default</code> 清出 deprecation。</p>
+          </article>
+
+          <article class="version-card" data-status="security">
+            <div class="card-title"><strong>Python 3.10</strong><span class="tag security">Security</span></div>
+            <div class="meta"><span>發布：2021-10-04</span><span>終止：2026-10</span></div>
+            <p>定位：結構化分支與型別語法大幅進入主語言。</p>
+            <ul>
+              <li>Structural Pattern Matching：<code>match</code> / <code>case</code>。</li>
+              <li>型別 union 可寫 <code>X | Y</code>，並加入 ParamSpec、TypeGuard、Explicit Type Alias。</li>
+              <li><code>zip(strict=True)</code>、括號式多 context manager，降低資料長度與格式錯誤。</li>
+              <li>PEP 626 精準行號，改善 coverage、debugger 與 tracing。</li>
+              <li>OpenSSL 1.1.1 以上成為要求，<code>distutils</code> 開始 deprecated。</li>
+            </ul>
+            <p><strong>升級風險：</strong>老舊 Linux image、OpenSSL、<code>collections.Mapping</code> 類 alias 最常卡住。</p>
+          </article>
+
+          <article class="version-card" data-status="security">
+            <div class="card-title"><strong>Python 3.11</strong><span class="tag security">Security</span></div>
+            <div class="meta"><span>發布：2022-10-24</span><span>終止：2027-10</span></div>
+            <p>定位：性能改善與錯誤可觀測性明顯提升，是很多 production 升級的中繼站。</p>
+            <ul>
+              <li>官方標準 benchmark 平均約 1.25 倍速度提升，範圍 10% 到 60%。</li>
+              <li>ExceptionGroup / <code>except*</code> 支援併發錯誤彙整。</li>
+              <li><code>tomllib</code> 納入標準庫，便於讀取 <code>pyproject.toml</code>。</li>
+              <li>fine-grained traceback、exception notes、<code>-P</code> / <code>PYTHONSAFEPATH</code> 提升診斷與安全。</li>
+              <li>Self、LiteralString、TypedDict required/not-required、dataclass_transform 等型別能力提升。</li>
+            </ul>
+            <p><strong>升級風險：</strong>框架若攔截例外或依賴 traceback 格式，需補 regression test。</p>
+          </article>
+
+          <article class="version-card" data-status="security">
+            <div class="card-title"><strong>Python 3.12</strong><span class="tag security">Security</span></div>
+            <div class="meta"><span>發布：2023-10-02</span><span>終止：2028-10</span></div>
+            <p>定位：型別語法、監控、C API 與 packaging 現代化的分水嶺。</p>
+            <ul>
+              <li>PEP 695 type parameter syntax 與 <code>type</code> statement。</li>
+              <li>PEP 701 讓 f-string 語法正式化並解除多項限制。</li>
+              <li>per-interpreter GIL、low impact monitoring、buffer protocol Python API。</li>
+              <li>comprehension inlining、asyncio 與 tokenize 效能提升。</li>
+              <li><code>distutils</code> 移除，venv 不再預裝 setuptools / pkg_resources / easy_install。</li>
+            </ul>
+            <p><strong>升級風險：</strong>打包腳本、setup.py、內部 build image 與 legacy plugin 最容易失敗。</p>
+          </article>
+
+          <article class="version-card" data-status="bugfix">
+            <div class="card-title"><strong>Python 3.13</strong><span class="tag bugfix">Bugfix</span></div>
+            <div class="meta"><span>發布：2024-10-07</span><span>終止：2029-10</span></div>
+            <p>定位：互動式工具、free-threaded 方向與 dead batteries 移除。</p>
+            <ul>
+              <li>新的 interactive interpreter，traceback 預設支援顏色。</li>
+              <li>free-threaded CPython 實驗支援，可在禁用 GIL 模式做相容性研究。</li>
+              <li>基礎 JIT 編譯器加入但預設關閉，屬於後續性能路線基礎。</li>
+              <li><code>locals()</code> 變更語意明確化，利於 debugger 與 instrumentation。</li>
+              <li>PEP 594 移除多個 legacy standard library modules。</li>
+            </ul>
+            <p><strong>升級風險：</strong>若專案仍依賴 dead batteries 或非官方 C API，需先補替代方案。</p>
+          </article>
+
+          <article class="version-card" data-status="bugfix">
+            <div class="card-title"><strong>Python 3.14.5</strong><span class="tag bugfix">Current Stable</span></div>
+            <div class="meta"><span>發布：2026-05-10</span><span>終止：2030-10</span></div>
+            <p>定位：目前穩定主線；自由執行緒正式支援、多解譯器與新 annotation 語意成為核心重點。</p>
+            <ul>
+              <li>PEP 649 / 749：annotation 延遲求值；改善 forward reference 與 annotation runtime 成本。</li>
+              <li>PEP 750：template string literals，支援自訂字串處理。</li>
+              <li>PEP 734：多解譯器標準庫支援，提供新的平行與隔離模型。</li>
+              <li>PEP 779：free-threaded Python 正式支援；官方 binary 也開始支援實驗 JIT。</li>
+              <li><code>compression.zstd</code>、asyncio introspection、REPL syntax highlighting、Android binary release。</li>
+              <li>3.14.5 特別注意：3.14.0 到 3.14.4 的 incremental GC 已回退為 3.13 generational GC，原因是 production memory pressure 回報。</li>
+            </ul>
+            <p><strong>升級風險：</strong>annotation introspection、GC 行為、free-threaded 相容性與 C extension wheel 是主要驗證面。</p>
+          </article>
+
+          <article class="version-card" data-status="preview">
+            <div class="card-title"><strong>Python 3.15.0b1</strong><span class="tag preview">Preview</span></div>
+            <div class="meta"><span>發布：2026-05-07</span><span>目標：2026-10-01</span></div>
+            <p>定位：beta feature freeze 後的預覽版，適合 maintainer 測試，不適合 production。</p>
+            <ul>
+              <li>PEP 810：explicit lazy imports，降低大型應用啟動成本。</li>
+              <li><code>frozendict</code>、<code>sentinel</code> built-in types。</li>
+              <li>PEP 799：profiling package 與 Tachyon sampling profiler。</li>
+              <li>frame pointers 預設啟用，改善系統層 observability。</li>
+              <li>PEP 686：UTF-8 成為預設 encoding；JIT 大幅升級。</li>
+            </ul>
+            <p><strong>升級風險：</strong>beta 階段仍可能有 ABI 與細節變動；官方明確不建議 production 使用。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="migration">
+        <div class="section-head">
+          <h2>4. 升級架構與工作流程</h2>
+          <p>Release note 不應只看語法差異；production 升級要同時處理 runtime、dependency、test、deployment 與 rollback。</p>
+        </div>
+        <div class="workflow-grid">
+          <div class="panel">
+            <h3>升級架構</h3>
+            <ul>
+              <li>Runtime baseline：鎖定 CPython minor version 與 patch version。</li>
+              <li>Dependency graph：檢查 wheel、C extension、OpenSSL、SQLite、Tcl/Tk。</li>
+              <li>Test matrix：至少保留現行版、新目標版、下一版 preview。</li>
+              <li>Deployment gate：image rebuild、smoke、canary、rollback evidence。</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>建議路線</h3>
+            <ul>
+              <li>3.6 - 3.8：先拉到 3.11 或 3.12，解決打包與語法落差，再上 3.14.5。</li>
+              <li>3.9 - 3.10：直接建立 3.13 / 3.14 雙矩陣，優先清 deprecation。</li>
+              <li>3.11 - 3.12：先修 packaging 與 annotation 行為，再評估 3.14.5。</li>
+              <li>3.13：可規劃 3.14.5；free-threaded 與 JIT 先以 opt-in 測試。</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>pyproject 設定範例</h3>
+            <figure class="code-window">
+              <figcaption class="code-titlebar">
+                <span class="window-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="code-file">pyproject.toml</span>
+                <span class="code-lang">TOML</span>
+              </figcaption>
+              <pre class="code-block"><code>[project]
+requires-python = "&gt;=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]</code></pre>
+            </figure>
+          </div>
+          <div class="panel">
+            <h3>CI matrix 範例</h3>
+            <figure class="code-window">
+              <figcaption class="code-titlebar">
+                <span class="window-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="code-file">.github/workflows/python-version-matrix.yml</span>
+                <span class="code-lang">YAML</span>
+              </figcaption>
+              <pre class="code-block"><code>strategy:
+  matrix:
+    python-version: ["3.11", "3.12", "3.13", "3.14"]
+
+steps:
+  - uses: actions/setup-python@v5
+    with:
+      python-version: ${{ matrix.python-version }}
+  - run: python -m pip install -U pip
+  - run: python -m pip install -e ".[test]"
+  - run: python -X dev -W default -m pytest</code></pre>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="risk">
+        <div class="section-head">
+          <h2>5. 升級風險矩陣</h2>
+          <p>以下依常見 production 風險分類，對應到 3.6 到 3.14.5 的主要變化。</p>
+        </div>
+        <div class="risk-grid">
+          <div class="panel">
+            <strong>Security / EOL</strong>
+            <p>3.6 - 3.9 已 EOL，沒有安全修補。若仍在 production，風險不是「缺少新語法」，而是 CVE 修補、TLS、dependency wheel 與 OS image 維護都會逐步斷裂。</p>
+          </div>
+          <div class="panel">
+            <strong>Packaging / Build</strong>
+            <p>3.12 移除 <code>distutils</code> 並讓 venv 不再預裝 setuptools。舊式 <code>setup.py</code>、<code>pkg_resources</code>、內部 build hook 都需檢查。</p>
+          </div>
+          <div class="panel">
+            <strong>Typing / Annotation</strong>
+            <p>3.10 到 3.14 的型別語法演進很快；3.14 延遲 annotation 評估會影響讀取 <code>__annotations__</code> 的框架、ORM、DI container 與 schema generator。</p>
+          </div>
+          <div class="panel">
+            <strong>Concurrency / Runtime</strong>
+            <p>3.13 free-threaded 與 3.14 正式支援是長線趨勢，但不代表所有 C extension 都能立即安全運行。需以 thread-safety、wheel tag、native dependency 為驗收項。</p>
+          </div>
+          <div class="panel">
+            <strong>Performance / GC</strong>
+            <p>3.11 以後性能改善明顯，但 3.14.5 的 GC 回退提醒：性能優化必須搭配記憶體、latency、CPU profile 與真實流量壓測，不可只看 microbenchmark。</p>
+          </div>
+          <div class="panel">
+            <strong>Standard Library Removal</strong>
+            <p>PEP 594 與其他 deprecated API 移除會影響老系統。升級前應掃描 <code>imp</code>、<code>asyncore</code>、<code>asynchat</code>、<code>smtpd</code>、<code>telnetlib</code> 等使用點。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="verification">
+        <div class="section-head">
+          <h2>6. 驗證流程</h2>
+          <p>以下流程用來把 release note 轉成可驗收的升級 gate。</p>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <h3>本機與 CI 檢查</h3>
+            <figure class="code-window">
+              <figcaption class="code-titlebar">
+                <span class="window-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="code-file">upgrade-verification.sh</span>
+                <span class="code-lang">Shell</span>
+              </figcaption>
+              <pre class="code-block"><code>python3 --version
+python3 -m pip install -U pip
+python3 -m pip check
+python3 -m compileall -q src tests
+python3 -X dev -W default -m pytest
+python3 -m build</code></pre>
+            </figure>
+          </div>
+          <div class="panel">
+            <h3>升級驗收項目</h3>
+            <ol>
+              <li>所有測試在現行版與目標版通過。</li>
+              <li>DeprecationWarning 不被忽略，至少有分類清單。</li>
+              <li>C extension 或 native wheel 在目標版可安裝。</li>
+              <li>容器 image 重新建置並完成 smoke test。</li>
+              <li>生產前完成 canary、metrics、rollback 演練。</li>
+            </ol>
+          </div>
+        </div>
+        <div class="note warning">
+          若現有專案仍支援 Python 3.6 - 3.9，建議先把 test matrix 的最低支援版本升到 3.10 或 3.11，
+          再逐步導入 3.14。直接跨太多版本不是不可行，但必須先有完整 dependency lock 與 rollback 方案。
+        </div>
+      </section>
+
+      <section class="section" id="troubleshooting">
+        <div class="section-head">
+          <h2>7. Troubleshooting</h2>
+          <p>常見升級失敗通常不是 Python 本身無法啟動，而是打包、C extension、老 API 與測試環境沒有同步更新。</p>
+        </div>
+        <table class="matrix" aria-label="Python 升級 troubleshooting">
+          <thead>
+            <tr>
+              <th>症狀</th>
+              <th>常見原因</th>
+              <th>處理方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ModuleNotFoundError: distutils</code></td>
+              <td>Python 3.12 移除 <code>distutils</code>。</td>
+              <td>改用 <code>pyproject.toml</code>、<code>setuptools</code>、<code>packaging</code> 或官方建議替代 API。</td>
+            </tr>
+            <tr>
+              <td><code>ImportError</code> 指向 <code>collections.Mapping</code></td>
+              <td>舊相容 alias 已移除。</td>
+              <td>改成 <code>collections.abc.Mapping</code>，並更新相依套件。</td>
+            </tr>
+            <tr>
+              <td>Linux image 上 SSL 或 pip 失敗</td>
+              <td>OpenSSL 過舊，3.10 起要求提高。</td>
+              <td>更新 base image，確認 <code>ssl.OPENSSL_VERSION</code>，重新 build wheels。</td>
+            </tr>
+            <tr>
+              <td>升 3.14 後 schema / ORM 註解解析異常</td>
+              <td>annotation 延遲求值改變 introspection 行為。</td>
+              <td>檢查 <code>typing.get_type_hints()</code>、<code>annotationlib</code> 與框架支援版本。</td>
+            </tr>
+            <tr>
+              <td>3.14.0 - 3.14.4 記憶體壓力異常</td>
+              <td>incremental GC 在 3.14.5 已因 production 回報而回退。</td>
+              <td>升到 3.14.5 或更新；用實際 workload 監控 RSS、GC pause 與 latency。</td>
+            </tr>
+            <tr>
+              <td>3.15 beta wheel 安裝失敗</td>
+              <td>beta 階段 ABI 仍可能調整。</td>
+              <td>只在預驗 CI 建 wheel；production 等 3.15.0rc1 或 final。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section" id="sources">
+        <div class="section-head">
+          <h2>8. 官方來源與資料邊界</h2>
+          <p>本頁摘要來自官方 Python 文件與 release page；若要查完整 bugfix，應回到官方 changelog。</p>
+        </div>
+        <div class="source-grid">
+          <div class="panel">
+            <strong>核心狀態來源</strong>
+            <ul>
+              <li><a href="https://www.python.org/downloads/" target="_blank" rel="noreferrer">python.org Downloads</a></li>
+              <li><a href="https://devguide.python.org/versions/" target="_blank" rel="noreferrer">Status of Python versions</a></li>
+              <li><a href="https://www.python.org/downloads/release/python-3145/" target="_blank" rel="noreferrer">Python 3.14.5 release page</a></li>
+              <li><a href="https://www.python.org/downloads/release/python-3150b1/" target="_blank" rel="noreferrer">Python 3.15.0b1 release page</a></li>
+            </ul>
+          </div>
+          <div class="panel">
+            <strong>What’s New 文件</strong>
+            <ul>
+              <li><a href="https://docs.python.org/3/whatsnew/3.6.html" target="_blank" rel="noreferrer">Python 3.6</a>、<a href="https://docs.python.org/3/whatsnew/3.7.html" target="_blank" rel="noreferrer">3.7</a>、<a href="https://docs.python.org/3/whatsnew/3.8.html" target="_blank" rel="noreferrer">3.8</a></li>
+              <li><a href="https://docs.python.org/3/whatsnew/3.9.html" target="_blank" rel="noreferrer">Python 3.9</a>、<a href="https://docs.python.org/3/whatsnew/3.10.html" target="_blank" rel="noreferrer">3.10</a>、<a href="https://docs.python.org/3/whatsnew/3.11.html" target="_blank" rel="noreferrer">3.11</a></li>
+              <li><a href="https://docs.python.org/3/whatsnew/3.12.html" target="_blank" rel="noreferrer">Python 3.12</a>、<a href="https://docs.python.org/3/whatsnew/3.13.html" target="_blank" rel="noreferrer">3.13</a>、<a href="https://docs.python.org/3/whatsnew/3.14.html" target="_blank" rel="noreferrer">3.14</a></li>
+              <li><a href="https://docs.python.org/3.15/whatsnew/3.15.html" target="_blank" rel="noreferrer">Python 3.15 preview</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          資料邊界：本報告以 minor version 的工程影響為主，不逐條列出每個 patch release bugfix。
+          目前版本以 2026-05-13 查核到的官方穩定版 Python 3.14.5 為準；Python 3.15.0b1 僅列為預覽觀察。
+        </div>
+      </section>
+
+      <footer>
+        PythonReleaseNote/index.html - self-contained engineering report for Python 3.6 to current stable release.
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const escapeHtml = (value) => value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    document.querySelectorAll("pre.code-block code").forEach((code) => {
+      const lines = code.textContent.replace(/\n$/, "").split("\n");
+      code.innerHTML = lines
+        .map((line) => `<span class="code-line">${escapeHtml(line) || " "}</span>`)
+        .join("");
+    });
+
+    const buttons = document.querySelectorAll("[data-filter]");
+    const cards = document.querySelectorAll(".version-card");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const filter = button.dataset.filter;
+        buttons.forEach((item) => item.classList.toggle("active", item === button));
+        cards.forEach((card) => {
+          const visible = filter === "all" || card.dataset.status === filter;
+          card.style.display = visible ? "grid" : "none";
+        });
+      });
+    });
+  </script>
+</body>
+</html>
