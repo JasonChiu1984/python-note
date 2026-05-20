@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.4 - 2026-05-20
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth still meets the project-oriented learning target; the real gap was release traceability drift left behind after the `v4.2.3` maintenance release.
+- Updated the core release-tracked tutorial pages so their visible version labels now align with the repository release state instead of leaving `v4.2.2` markers in page titles, hero/status labels, and footer copy.
+- Updated `VERSION` and the homepage release-state wording to `v4.2.4` so the repository records this pass as a focused page-version synchronization release.
+- Added a new dated review report, change list, and update record for the `v4.2.4` maintenance release.
+
 ## v4.2.3 - 2026-05-19
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth remains sufficient; the current highest-value gap is release hygiene recovery rather than a missing new chapter.
