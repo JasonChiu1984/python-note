@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.2.5 - 2026-05-21
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth still meets the project-oriented learning target; the current highest-value gap was release artifact path consistency after moving review/update records into per-day folders.
+- Consolidated the release artifact archive structure under dated subdirectories for `審查報告/`, `內容需要更新的部分/`, and `更新資料/`, so the repository keeps long-running delivery records in a predictable timeline layout instead of a growing flat directory.
+- Updated the remaining in-repo cross-references in `index.html`, `python_industrial_protocol_comparison_tutorial.html`, and `knowledge_base/entries/2026-05-16-124200-python-v330-data-evolution-update.md` to point at the dated artifact paths.
+- Updated `VERSION` and the homepage release-state wording to `v4.2.5` so the repository records this pass as a release-artifact archive consistency maintenance release.
+- Added a new dated review report, change list, and update record for the `v4.2.5` maintenance release.
+
 ## v4.2.4 - 2026-05-20
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth still meets the project-oriented learning target; the real gap was release traceability drift left behind after the `v4.2.3` maintenance release.
