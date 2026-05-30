@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.9 - 2026-05-31
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth still meets the project-oriented learning target; the highest-value remaining gap was visible version drift in the three core learning routes rather than missing new chapter coverage.
+- Updated `python_beginner_interactive_tutorial.html`, `python_interactive_tutorial.html`, and `python_intermediate_engineering_tutorial.html` so their visible version labels no longer lag behind the repository release state.
+- Updated `VERSION` and the homepage release-state wording to `v4.2.9` so the core routes, specialized routes, and release artifacts return to a single source of truth.
+- Added a new dated review report, change list, and update record for the `v4.2.9` maintenance release.
+
 ## v4.2.8 - 2026-05-27
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the tutorial breadth/depth still meets the project-oriented learning target; the current highest-value gap was visible version drift in three specialized project-delivery routes rather than missing new chapter coverage.
