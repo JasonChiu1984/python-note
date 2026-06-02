@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.12 - 2026-06-03
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; the highest-value remaining local gap was release-version drift in the three specialized project-delivery routes rather than missing chapter coverage.
+- Updated `python_cli_automation_engineering_tutorial.html`, `python_local_knowledge_base_mcp_tutorial.html`, and `python_project_delivery_blueprint_tutorial.html` so their visible version labels no longer lag behind the repository release state.
+- Updated `VERSION` and the homepage release-state wording to `v4.2.12` so the specialized routes, core routes, and release artifacts return to one consistent release source of truth.
+- Added a new dated review report, change list, and update record for the `v4.2.12` maintenance release.
+
 ## v4.2.11 - 2026-06-02
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; the highest-value remaining local gap was release-version drift in the three core learning routes rather than missing chapter coverage.
