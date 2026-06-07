@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.16 - 2026-06-07
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round did not reveal a missing chapter, but it did expose release-hygiene drift between the local repository state and the published remote state.
+- Removed the broken duplicate local tag refs `refs/tags/v4.2.11 2` and `refs/tags/v4.2.15 2` so normal `git` tag/ref inspection no longer fails on malformed names.
+- Updated `VERSION`, `CHANGELOG.md`, and the homepage release-state wording to `v4.2.16` so the repository records this pass as a release-hygiene maintenance release with dated review artifacts.
+- Added a new dated review report, change list, and update record for the `v4.2.16` maintenance release.
+
 ## v4.2.15 - 2026-06-06
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; the highest-value remaining local gap was release-version drift between the six version-marked tutorial routes and the repository release state rather than missing chapter coverage.
