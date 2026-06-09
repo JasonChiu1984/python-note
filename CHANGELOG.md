@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.19 - 2026-06-10
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, but it did expose page-level version drift left behind after the `v4.2.18` legacy-route maintenance release.
+- Updated `python_beginner_interactive_tutorial.html`, `python_intermediate_engineering_tutorial.html`, `python_cli_automation_engineering_tutorial.html`, `python_local_knowledge_base_mcp_tutorial.html`, and `python_project_delivery_blueprint_tutorial.html` so the visible page-level version markers now match the repository release state again.
+- Updated `VERSION`, `CHANGELOG.md`, and the homepage release-state wording to `v4.2.19` so the dated review artifacts, repository metadata, and page-level release evidence return to one consistent release source of truth.
+- Added a new dated review report, change list, and update record for the `v4.2.19` maintenance release.
+
 ## v4.2.18 - 2026-06-09
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, but it did expose a maintainability gap in the legacy beginner alias route.
