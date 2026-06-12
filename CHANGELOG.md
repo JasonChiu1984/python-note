@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.22 - 2026-06-13
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, but it did expose a release-hygiene gap in the dated artifact chain left behind after `v4.2.21`.
+- Confirmed the page-level version markers, legacy alias handling, tutorial catalog validation, knowledge-base tooling tests, smoke flow, and local git baseline are all still coherent; the real defect was that `CHANGELOG.md` and homepage release wording implied the `v4.2.21` update record existed even though the corresponding `更新資料` file was missing.
+- Updated `VERSION`, `CHANGELOG.md`, and the homepage release-state wording to `v4.2.22` so today's dated review artifacts record this as a release-hygiene maintenance pass that restores an explicit, complete review/update/update-record trail.
+- Added a new dated review report, change list, and update record for the `v4.2.22` maintenance release.
+
 ## v4.2.21 - 2026-06-12
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round did not reveal a missing chapter, but it did expose visible page-level version drift left behind after the `v4.2.20` documentation-oriented maintenance release.
