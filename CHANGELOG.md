@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.23 - 2026-06-14
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, or new release-traceability defect that required content edits.
+- Confirmed the five major version-marked tutorial pages remain aligned with the repository release state, while intentionally preserving `python_interactive_tutorial.html` as the `v4.2.18` legacy alias maintenance page.
+- Updated `VERSION`, `CHANGELOG.md`, and the homepage release-state wording to `v4.2.23` so today's dated review artifacts record a fresh documentation-oriented maintenance pass rather than leaving today's re-review implicit.
+- Added a new dated review report, change list, and update record for the `v4.2.23` maintenance release.
+
 ## v4.2.22 - 2026-06-13
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, but it did expose a release-hygiene gap in the dated artifact chain left behind after `v4.2.21`.
