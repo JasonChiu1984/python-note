@@ -1,5 +1,14 @@
 # Changelog
 
+# Changelog
+
+## v4.2.28 - 2026-06-19
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, page-level drift, or new release-hygiene defect.
+- Confirmed the repository metadata, homepage release summary, dated artifact chain, and five major version-marked tutorial pages were coherent at the local final `v4.2.27` baseline, then intentionally promoted them together to `v4.2.28` so today's maintenance evidence and release wording stay aligned while also recording the outstanding remote publish gap left by the prior DNS-blocked push retry.
+- Updated `VERSION`, `CHANGELOG.md`, `index.html`, `python_beginner_interactive_tutorial.html`, `python_intermediate_engineering_tutorial.html`, `python_cli_automation_engineering_tutorial.html`, `python_local_knowledge_base_mcp_tutorial.html`, and `python_project_delivery_blueprint_tutorial.html` to `v4.2.28`, while intentionally preserving `python_interactive_tutorial.html` as the `v4.2.18` legacy alias maintenance page.
+- Added a new dated review report, change list, and update record for the `v4.2.28` maintenance release, including the current Git publish status.
+
 ## v4.2.27 - 2026-06-18
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, page-level drift, publish mismatch, or release-hygiene defect left behind after `v4.2.26`.
