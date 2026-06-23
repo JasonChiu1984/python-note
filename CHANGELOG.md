@@ -2,6 +2,13 @@
 
 # Changelog
 
+## v4.2.32 - 2026-06-23
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, or lesson-level regression after the published `v4.2.31` maintenance release.
+- Verified the repository metadata, homepage release summary, dated artifact chain, and published Git state were healthy at the `v4.2.31` baseline, but also found one residual page-level traceability defect: the `<title>` of `python_project_delivery_blueprint_tutorial.html` still showed `v4.2.30` even though the page body and release metadata had already advanced.
+- Updated `VERSION`, `CHANGELOG.md`, `index.html`, `python_beginner_interactive_tutorial.html`, `python_intermediate_engineering_tutorial.html`, `python_cli_automation_engineering_tutorial.html`, `python_local_knowledge_base_mcp_tutorial.html`, and `python_project_delivery_blueprint_tutorial.html` to `v4.2.32`, while intentionally preserving `python_interactive_tutorial.html` as the `v4.2.18` legacy alias maintenance page.
+- Added a new dated review report, change list, and update record for the `v4.2.32` maintenance release, with final verification and Git publish evidence for the page-level traceability fix.
+
 ## v4.2.31 - 2026-06-22
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, page-level drift, or lesson-level regression after the local `v4.2.30` maintenance release.
