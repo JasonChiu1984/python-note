@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v4.2.37 - 2026-06-28
+
+- Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, lesson regression, or dated artifact-chain break after the local `v4.2.36` maintenance release.
+- Clarified one review assumption explicitly: many specialized tutorial routes intentionally carry their own route-local semantic versions in `<title>` and status-strip wording, so they are not repository release drift by themselves; the repository-level version source of truth remains the metadata, homepage release summary, and the five major version-marked tutorial pages.
+- Verified that the repository metadata, homepage release summary, dated artifact chain, and five major version-marked tutorial pages were coherent at the local `v4.2.36` baseline, while also confirming the remaining real gap was still cumulative publish traceability: `HEAD` and `v4.2.36^{}` were aligned locally, but `origin/main` still lagged at the published `v4.2.31`, leaving the branch `ahead 12` before this release.
+- Updated `VERSION`, `CHANGELOG.md`, `index.html`, `python_beginner_interactive_tutorial.html`, `python_intermediate_engineering_tutorial.html`, `python_cli_automation_engineering_tutorial.html`, `python_local_knowledge_base_mcp_tutorial.html`, and `python_project_delivery_blueprint_tutorial.html` to `v4.2.37`, while intentionally preserving `python_interactive_tutorial.html` as the `v4.2.18` legacy alias maintenance page.
+- Added a new dated review report, change list, and update record for the `v4.2.37` maintenance release, including final verification and the current Git publish evidence.
+
 ## v4.2.36 - 2026-06-27
 
 - Re-reviewed the Python tutorial from a senior project-delivery perspective and confirmed the current breadth/depth still meets project-oriented learning needs; this round again did not reveal a missing chapter, structural gap, lesson regression, or page-level version drift after the local `v4.2.35` maintenance release.
