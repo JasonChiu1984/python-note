@@ -38,6 +38,10 @@
       scroll-behavior: smooth;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
     body {
       margin: 0;
       font-family: var(--sans);
@@ -380,6 +384,33 @@
       display: grid;
       gap: 1rem;
     }
+
+    .syntax-index {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+      gap: 0.65rem;
+      list-style: none;
+      margin: 0 0 1.5rem;
+      padding: 0;
+    }
+
+    .syntax-index a {
+      display: grid;
+      gap: 0.15rem;
+      height: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .syntax-index a:hover { background: var(--soft-blue); }
+    .syntax-index a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .syntax-index code { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+    .syntax-card:has(.syntax-body:target) { border-color: var(--blue); }
+    .syntax-body[id] { scroll-margin-block-start: 1rem; }
 
     .length-card,
     .syntax-card {
@@ -818,6 +849,11 @@
         display: flex;
       }
 
+      #syntax,
+      .syntax-body[id] {
+        scroll-margin-block-start: 4.5rem;
+      }
+
       .hero {
         grid-template-columns: 1fr;
       }
@@ -901,7 +937,7 @@
     <a href="#map">學習地圖</a>
     <a href="#objects">基礎物件</a>
     <a href="#lengths">資料長度</a>
-    <a href="#syntax">語法列表</a>
+    <a href="#syntax">語法清單</a>
     <a href="#project">大型專案</a>
     <a href="#workflow">實戰路線</a>
     <a href="#engineering">工程補強</a>
@@ -943,7 +979,7 @@
         </a>
         <a href="#syntax">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-          語法列表
+          語法清單
         </a>
         <a href="#project">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18V7l8-4 8 4v11l-8 4zM4 7l8 4 8-4M12 11v11" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
@@ -995,7 +1031,7 @@
           <p>這份教材把 Python 畫成可閱讀的結構圖：先看 object 怎麼裝資料，再看語法怎麼控制流程，最後把 function、module、package、testing、logging 接成大型專案骨架。這份是初級主教材，工程章節用來銜接中級與高階，不取代完整 production 實戰。</p>
           <div class="hero-actions">
             <a class="button primary" href="#lengths">先看資料長度</a>
-            <a class="button" href="#syntax">開始看語法卡片</a>
+            <a class="button" href="#syntax">瀏覽語法清單</a>
             <a class="button" href="#project">跳到大型專案</a>
             <a class="button" href="index.html">回教材入口</a>
             <a class="button" href="python_intermediate_engineering_tutorial.html">前往中級</a>
@@ -1093,13 +1129,16 @@
         <div id="lengthList" class="length-list" aria-live="polite"></div>
       </section>
 
-      <section id="syntax" class="section">
+      <section id="syntax" class="section" aria-labelledby="syntax-heading" tabindex="-1">
         <div class="section-head">
           <div>
-            <h2>語法列表 Syntax Cards</h2>
-            <p class="section-lead">每張卡都能點開 step-by-step 詳解。範例輸出是預先列出的執行結果，不在瀏覽器中假裝執行 Python。</p>
+            <h2 id="syntax-heading">Python 語法清單</h2>
+            <p class="section-lead">點選語法查看用途、程式範例與預期輸出。每張卡也提供分步解說。</p>
           </div>
         </div>
+        <nav id="syntaxIndex" aria-label="語法項目">
+          <ul class="syntax-index" role="list"></ul>
+        </nav>
         <div id="syntaxList" class="syntax-list" aria-live="polite"></div>
       </section>
 
@@ -1785,18 +1824,18 @@ class NoteService:
       {
         title: "檔案處理 with open",
         keyword: "with open(...) as f:",
-        summary: "with 會自動管理資源，離開區塊後自動關閉檔案。這是專案中最常用的檔案讀寫姿勢。",
+        summary: "用 with open() 讀寫檔案。離開 with 區塊時，檔案會自動關閉。",
         use: "讀設定、寫報表、處理 CSV、保存快取。",
         format: "with open(path, mode, encoding=\"utf-8\") as f:",
         scenario: "讀取文字檔、輸出 log、載入 JSON。",
         mistake: "忘記 encoding，跨平台時可能遇到亂碼。",
-        example: "from pathlib import Path\npath = Path(\"hello.txt\")\npath.write_text(\"Python\", encoding=\"utf-8\")\nprint(path.read_text(encoding=\"utf-8\"))",
+        example: "from pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nwith TemporaryDirectory() as directory:\n    path = Path(directory) / \"hello.txt\"\n    with open(path, \"w\", encoding=\"utf-8\") as file:\n        file.write(\"Python\")\n    with open(path, \"r\", encoding=\"utf-8\") as file:\n        print(file.read())",
         output: "Python",
         visual: "file",
         steps: [
-          ["建立 Path", "Path(\"hello.txt\") 表示檔案位置。"],
-          ["寫入文字", "write_text 寫入內容並指定 utf-8。"],
-          ["讀回內容", "read_text 讀出文字，結果是 Python。"]
+          ["建立暫存路徑", "把 hello.txt 放在暫存資料夾，範例結束後由 TemporaryDirectory 清理。"],
+          ["寫入文字", "用 w 模式建立並寫入檔案。離開這段 with 後，檔案關閉，內容已寫入。"],
+          ["讀回內容", "用 r 模式重新開啟檔案，file.read() 讀回 Python。"]
         ]
       },
       {
@@ -1841,13 +1880,13 @@ class NoteService:
         format: "資料夾 + __init__.py + 多個 .py module",
         scenario: "notes_app.services、notes_app.repositories。",
         mistake: "把所有公開 API 都塞進 __init__.py，讓來源不清楚。",
-        example: "from pathlib import Path\n\npackage_dir = Path(\"src/notes_app\")\nprint(package_dir.parts[-1])",
-        output: "notes_app",
+        example: "from urllib.parse import urlsplit\n\nparts = urlsplit(\"https://example.com/notes\")\nprint(parts.path)",
+        output: "/notes",
         visual: "package",
         steps: [
-          ["建立資料夾", "package 以資料夾呈現功能邊界。"],
-          ["放入 module", "services.py、repositories.py 分別負責不同層。"],
-          ["用點號引用", "import notes_app.services 表示 package 下的 module。"]
+          ["找到套件", "urllib 是 Python 標準函式庫的套件。"],
+          ["用點號指定模組", "urllib.parse 指向 urllib 套件裡的 parse 模組。"],
+          ["匯入並呼叫", "從 parse 匯入 urlsplit，拆開網址後讀取 path。"]
         ]
       },
       {
@@ -2453,6 +2492,15 @@ class NoteService:
     }
 
     function renderSyntax() {
+      document.querySelector("#syntaxIndex ul").innerHTML = syntaxData.map((item, index) => `
+        <li>
+          <a href="#syntax-example-${index + 1}">
+            <span>${escapeHtml(item.title)}</span>
+            <code>${escapeHtml(item.keyword)}</code>
+          </a>
+        </li>
+      `).join("");
+
       const list = document.querySelector("#syntaxList");
       list.innerHTML = syntaxData.map((item, index) => `
         <article class="syntax-card lesson-item" id="syntax-${index + 1}" data-lesson-id="syntax-${index + 1}" data-search="${escapeHtml(item.title + " " + item.keyword + " " + item.summary + " " + item.use)}">
@@ -2460,7 +2508,7 @@ class NoteService:
             ${visualSvg(item.visual, item.title)}
             <span class="tag">${escapeHtml(item.keyword)}</span>
           </div>
-          <div class="syntax-body">
+          <div class="syntax-body" id="syntax-example-${index + 1}" tabindex="-1">
             <div class="syntax-title">
               <div>
                 <h3>${escapeHtml(index + 1)}. ${escapeHtml(item.title)}</h3>
@@ -2468,10 +2516,18 @@ class NoteService:
               </div>
               <div class="card-actions">
                 <label class="complete-toggle"><input type="checkbox" data-complete="syntax-${index + 1}">完成</label>
-                <a class="button" href="#syntax-${index + 1}" aria-label="連到 ${escapeHtml(item.title)}">定位</a>
+                <a class="button" href="#syntax">回語法清單</a>
               </div>
             </div>
             <p class="syntax-summary">${escapeHtml(item.summary)}</p>
+            <div class="example-area">
+              <div class="code-head">
+                <strong>Python 範例</strong>
+                <button class="toggle-output" type="button" data-output="output-${index}">顯示輸出</button>
+              </div>
+              <pre class="code">${escapeHtml(item.example)}</pre>
+              <pre class="output" id="output-${index}">${escapeHtml(item.output)}</pre>
+            </div>
             <div class="meta-table-wrap">
               <table>
                 <thead>
@@ -2486,14 +2542,6 @@ class NoteService:
                   </tr>
                 </tbody>
               </table>
-            </div>
-            <div class="example-area">
-              <div class="code-head">
-                <strong>Python 範例</strong>
-                <button class="toggle-output" type="button" data-output="output-${index}">顯示輸出</button>
-              </div>
-              <pre class="code">${escapeHtml(item.example)}</pre>
-              <pre class="output" id="output-${index}">${escapeHtml(item.output)}</pre>
             </div>
             <div class="steps" aria-label="${escapeHtml(item.title)} step-by-step">
               ${item.steps.map((step, stepIndex) => {
@@ -2643,6 +2691,26 @@ class NoteService:
     }
 
     function bindInteractions() {
+      const search = document.querySelector("#lessonSearch");
+
+      function filterLessons() {
+        const query = search.value.trim().toLowerCase();
+        document.querySelectorAll(".lesson-item").forEach((item) => {
+          const text = (item.dataset.search || item.textContent).toLowerCase();
+          item.classList.toggle("hidden-by-search", query !== "" && !text.includes(query));
+        });
+      }
+
+      search.addEventListener("input", filterLessons);
+
+      document.querySelector("#syntaxIndex").addEventListener("click", (event) => {
+        const link = event.target.closest("a");
+        if (link && document.getElementById(link.hash.slice(1)).closest(".hidden-by-search")) {
+          search.value = "";
+          filterLessons();
+        }
+      });
+
       document.addEventListener("click", (event) => {
         const stepButton = event.target.closest(".step-toggle");
         if (stepButton) {
@@ -2695,17 +2763,6 @@ class NoteService:
         localStorage.setItem("python-beginner-completed", JSON.stringify([...completed]));
         updateProgress();
       });
-
-      const search = document.querySelector("#lessonSearch");
-      if (search) {
-        search.addEventListener("input", () => {
-          const query = search.value.trim().toLowerCase();
-          document.querySelectorAll(".lesson-item").forEach((item) => {
-            const text = (item.dataset.search || item.textContent).toLowerCase();
-            item.classList.toggle("hidden-by-search", query && !text.includes(query));
-          });
-        });
-      }
     }
 
     function getCompleted() {
