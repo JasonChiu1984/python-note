@@ -34,10 +34,8 @@
   </script>
 
   <style>
-    .channel-diagram-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
+    .channel-diagram-frame { overflow: hidden; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
     .channel-architecture, .channel-case-diagram { display: block; width: 100%; height: auto; }
-    .channel-architecture { min-width: 1120px; }
-    .channel-case-diagram { min-width: 960px; }
     .arch-node:focus-visible { outline: none; }
     .arch-node:focus-visible .node-box { stroke: #fff; stroke-width: 3px; }
     @media (prefers-reduced-motion: reduce) {
@@ -378,15 +376,15 @@
       <!-- 主視覺架構圖 + 右側節點詳情面板 -->
       <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
         <!-- 左側 (8 cols): 動態 SVG 管線架構圖 -->
-        <div class="xl:col-span-8 glass-panel rounded-3xl p-3 sm:p-5 relative overflow-hidden">
+        <div class="xl:col-span-8 min-w-0 glass-panel rounded-3xl p-3 sm:p-5 relative overflow-hidden">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
-            <div class="flex items-center gap-2">
-              <span id="svg-mode-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <div class="flex min-w-0 items-center gap-2">
+              <span id="svg-mode-dot" class="w-2.5 h-2.5 shrink-0 rounded-full bg-emerald-400 animate-pulse"></span>
               <span id="svg-mode-title" class="text-xs sm:text-sm font-mono font-semibold text-emerald-300">
                 Process: python3.15t (Py_GIL_DISABLED=1)
               </span>
             </div>
-            <div class="flex items-center gap-3 text-[11px] text-slate-400">
+            <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
               <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>無鎖/平行流</span>
               <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>GIL 阻塞/背壓</span>
               <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-violet-400"></span>隔離序列化</span>
@@ -394,7 +392,7 @@
           </div>
 
           <!-- 響應式 SVG 畫布 -->
-          <div class="channel-diagram-scroll" tabindex="0" role="region" aria-label="平行通道架構圖，可橫向捲動">
+          <div class="channel-diagram-frame">
             <svg xmlns="http://www.w3.org/2000/svg" id="arch-svg" class="channel-architecture select-none" viewBox="0 0 1120 696" role="img" aria-labelledby="parallel-channel-title parallel-channel-desc">
 <title id="parallel-channel-title">Python 3.15 平行通道架構</title><desc id="parallel-channel-desc">生產者將訊息送入有界佇列，由四個 Worker 平行處理，透過輸出佇列交給收集器；下方有應用傳遞契約與執行環境。</desc>
 <rect x="0" y="0" width="1120" height="696" rx="0" fill="#111B2A"/>
@@ -524,7 +522,7 @@
         </div>
 
         <!-- 右側 (4 cols): 節點詳情檢視面板 -->
-        <aside class="xl:col-span-4 glass-panel rounded-3xl p-5 sm:p-6 space-y-4">
+        <aside class="xl:col-span-4 min-w-0 glass-panel rounded-3xl p-5 sm:p-6 space-y-4">
           <div class="flex items-start justify-between gap-2">
             <div>
               <span id="inspector-layer" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
@@ -2188,7 +2186,7 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
         <!-- 專屬資料流微架構圖 -->
         <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4">
           <div class="text-[11px] font-mono text-slate-400 mb-2">專屬資料流微架構圖</div>
-          <div class="channel-diagram-scroll" tabindex="0" role="region" aria-label="案例架構圖，可橫向捲動">
+          <div class="channel-diagram-frame">
           ${uc.diagramSvg}
           </div>
         </div>
