@@ -35,14 +35,25 @@
   function readingPosition() {
     const toolbar = document.querySelector(".language-bar");
     const offset = (toolbar ? toolbar.getBoundingClientRect().height : 0) + 16;
-    let position = null;
+    const main = document.querySelector("main");
+    const mainBounds = main.getBoundingClientRect();
+    // Leave the title and contents in place until the reader enters the article.
+    if (mainBounds.top > offset || mainBounds.bottom <= offset) return null;
+    let overlapping = null;
+    let following = null;
+    let previous = null;
     for (const element of document.querySelectorAll("main [data-i18n], main pre, main tr, main figure")) {
       // A translated parent replaces its children; bookmark only a stable node.
       if (element.parentElement.closest("[data-i18n]")) continue;
-      const top = element.getBoundingClientRect().top;
-      if (top <= offset && (!position || top >= position.top)) position = { element, top };
+      const bounds = element.getBoundingClientRect();
+      const top = bounds.top;
+      const position = { element, top };
+      if (top <= offset && bounds.bottom > offset && (!overlapping || top > overlapping.top)) overlapping = position;
+      if (top > offset && (!following || top < following.top)) following = position;
+      if (top <= offset && (!previous || top > previous.top)) previous = position;
     }
-    return position;
+    // A chapter often starts just below the reading line after anchor navigation.
+    return overlapping || following || previous;
   }
 
   function applyLanguage(language, { initial = false, fromHistory = false } = {}) {

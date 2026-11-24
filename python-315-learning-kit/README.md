@@ -60,7 +60,7 @@ python3.15t examples/concurrency_315.py
 
 一般版與 free-threaded 版皆已執行並行範例。功能驗證不等於靜態型別檢查、效能測試或現場設備測試；完整界線寫於教材與驗證紀錄。
 
-雙語網頁完成 13 項 DOM 行為檢查，涵蓋完整翻譯、切換還原、偏好記憶、URL 優先順序、歷史導覽、離線使用、儲存受限及閱讀位置邏輯。英文圖表已實際渲染並量測文字邊界。本地執行環境無法啟動 Chromium，因此這份 DOM 報告不代表瀏覽器版面或端到端實測；詳見 `verification/language-switch-result.json`。
+雙語網頁完成 15 項 DOM 行為檢查，涵蓋完整翻譯、切換還原、偏好記憶、URL 優先順序、歷史導覽、離線使用、儲存受限及閱讀位置邏輯。英文圖表已實際渲染並量測文字邊界。本地執行環境無法啟動 Chromium，因此這份 DOM 報告不代表瀏覽器版面或端到端實測；詳見 `verification/language-switch-result.json`。
 
 ## 維護雙語網頁
 
