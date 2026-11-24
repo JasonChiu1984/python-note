@@ -16,6 +16,14 @@
   const buttons = Array.from(document.querySelectorAll("button[data-language]"));
   const status = document.getElementById("language-status");
   const originalTitle = document.title;
+  const toolbar = document.querySelector(".language-bar");
+  function measureToolbar() {
+    const height = toolbar.getBoundingClientRect().height;
+    if (height > 0) document.documentElement.style.setProperty("--guide-bar-height", `${height}px`);
+  }
+  measureToolbar();
+  if (typeof ResizeObserver === "function") new ResizeObserver(measureToolbar).observe(toolbar);
+  else window.addEventListener("resize", measureToolbar);
 
   function normalizeLanguage(value) {
     if (typeof value !== "string") return null;
@@ -33,7 +41,6 @@
   }
 
   function readingPosition() {
-    const toolbar = document.querySelector(".language-bar");
     const offset = (toolbar ? toolbar.getBoundingClientRect().height : 0) + 16;
     const main = document.querySelector("main");
     const mainBounds = main.getBoundingClientRect();
@@ -119,6 +126,13 @@
   }
 
   for (const button of buttons) {
+    // Keep pointer focus on the control without asking the browser to scroll to it.
+    button.addEventListener("mousedown", (event) => {
+      if (event.button === 0) {
+        event.preventDefault();
+        button.focus({ preventScroll: true });
+      }
+    });
     button.addEventListener("click", () => applyLanguage(button.dataset.language));
   }
 

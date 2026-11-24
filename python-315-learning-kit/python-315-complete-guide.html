@@ -106,10 +106,11 @@ pre .vc { color: #19177C } /* Name.Variable.Class */
 pre .vg { color: #19177C } /* Name.Variable.Global */
 pre .vi { color: #19177C } /* Name.Variable.Instance */
 pre .vm { color: #19177C } /* Name.Variable.Magic */
-pre .il { color: #666 } /* Literal.Number.Integer.Long */</style><style id="guide-language-style">html { scroll-padding-top: 92px; overflow-anchor: none; }
+pre .il { color: #666 } /* Literal.Number.Integer.Long */</style><style id="guide-language-style">html { --guide-bar-height: 75px; scroll-padding-top: calc(var(--guide-bar-height) + 16px); scroll-behavior: auto; overflow-anchor: none; }
+body { padding-top: var(--guide-bar-height); }
 .language-bar {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0 0 auto;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -161,6 +162,7 @@ aside { top: 94px; max-height: calc(100vh - 114px); }
 @media print {
   .language-bar, .skip-link, .language-help { display: none; }
   html { scroll-padding-top: 0; }
+  body { padding-top: 0; }
 }
 </style></head>
 <body><a class="skip-link" href="#guide-content" data-i18n="ui-skip">跳至教材正文</a><header class="language-bar"><a class="language-brand" href="#guide-top" data-i18n="ui-brand">Python 3.15 學習筆記</a><div class="language-controls"><span class="language-label" data-i18n="ui-language-label">閱讀語言</span><div class="language-buttons" role="group" aria-label="閱讀語言"><button type="button" lang="zh-Hant" data-language="zh-Hant" aria-pressed="true">中文</button><button type="button" lang="en" data-language="en" aria-pressed="false">English</button></div></div><span class="screen-reader-only" id="language-status" role="status" aria-live="polite"></span></header><noscript><p class="language-help">語言切換需要啟用 JavaScript；目前顯示繁體中文。 / Enable JavaScript to switch between Chinese and English.</p></noscript><header class="hero" id="guide-top"><div class="eyebrow">PYTHON LEARNING NOTES · 2026 EDITION</div><h1 data-i18n="ui-title">Python 3.15<br>語法與新特性完整學習筆記</h1><p data-i18n="ui-intro">從核心語法、資料結構與型別註記，到非同步、平行執行與升級實務。含可執行範例、官方來源及兩張工程圖修正版。</p><div class="badges"><span data-i18n="ui-version">核對版本 3.15.2</span><span data-i18n="ui-date">核對日期 2026-11-24</span><span data-i18n="ui-builds">一般版＋free-threaded 功能驗證</span><span data-i18n="ui-offline">繁體中文 / English · 離線單檔</span></div></header>
@@ -2410,6 +2412,14 @@ python3.15<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> 
   const buttons = Array.from(document.querySelectorAll("button[data-language]"));
   const status = document.getElementById("language-status");
   const originalTitle = document.title;
+  const toolbar = document.querySelector(".language-bar");
+  function measureToolbar() {
+    const height = toolbar.getBoundingClientRect().height;
+    if (height > 0) document.documentElement.style.setProperty("--guide-bar-height", `${height}px`);
+  }
+  measureToolbar();
+  if (typeof ResizeObserver === "function") new ResizeObserver(measureToolbar).observe(toolbar);
+  else window.addEventListener("resize", measureToolbar);
 
   function normalizeLanguage(value) {
     if (typeof value !== "string") return null;
@@ -2427,7 +2437,6 @@ python3.15<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> 
   }
 
   function readingPosition() {
-    const toolbar = document.querySelector(".language-bar");
     const offset = (toolbar ? toolbar.getBoundingClientRect().height : 0) + 16;
     const main = document.querySelector("main");
     const mainBounds = main.getBoundingClientRect();
@@ -2513,6 +2522,13 @@ python3.15<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> 
   }
 
   for (const button of buttons) {
+    // Keep pointer focus on the control without asking the browser to scroll to it.
+    button.addEventListener("mousedown", (event) => {
+      if (event.button === 0) {
+        event.preventDefault();
+        button.focus({ preventScroll: true });
+      }
+    });
     button.addEventListener("click", () => applyLanguage(button.dataset.language));
   }
 
