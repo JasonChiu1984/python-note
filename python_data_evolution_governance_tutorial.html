@@ -125,7 +125,7 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把相容讀寫、回填與回退拆成明確層次</h2><p>compat read/write、backfill、preflight 與 rollback evidence 應各自可驗證。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬 schema 升版與回復</h2><p>用標準庫範例就能演示 schema drift、checkpoint、resume 與 rollback read。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>用 manifest 寫出升版規則與風險邊界</h2><p>沒有 manifest 的資料升版，多半只是在賭運氣。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 sample project 示範完整資料演進閉環</h2><p>範例專案示範 schema manifest、compat adapter、backfill checkpoint、drift preflight 與 rollback report。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 sample project 示範完整資料演進閉環</h2><p>範例專案示範 schema manifest、compat adapter、backfill checkpoint、drift preflight 與 rollback report。 <a href="範例程式碼/data_evolution_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋升版、續跑與回退</h2><p>資料演進不是 migration 跑完就算完成，還要證明能重跑、能停止、能回讀。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先比對資料版本與報告，再看應用程式</h2><p>大多數資料升版事故，本質上都是版本契約或回填證據不足。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓資料升版變成可交付、可回退資產</h2><p>版本發布時，schema 狀態、backfill 進度與 rollback 可行性都應被記錄。</p></div></div><div class="cards"></div></section>
@@ -167,7 +167,7 @@
         ["example-rollback", "Example", "rollback read 驗證舊版仍可讀", "在 contract 階段前，要先證明舊版 reader 能吃升版後資料或 backup。", "legacy_read(expanded_record)", "rollback stays realistic."]
       ],
       verification: [
-        ["verify-compile", "Verification", "先跑 py_compile", "先排除語法與 import 問題，避免把基本錯誤誤判成資料演進設計問題。", "python3 -m py_compile src/data_evolution_governance/*.py", "compile gate passes."],
+        ["verify-compile", "Verification", "先跑 py_compile", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python3 -m py_compile src/data_evolution_governance/*.py", "compile gate passes."],
         ["verify-unit", "Verification", "單元測試要覆蓋 compat、checkpoint、rollback", "至少驗 v1 轉 v2、resume、drift preflight、rollback read 與報告輸出。", "python3 -m unittest discover -s tests -v", "regressions are caught."],
         ["verify-smoke", "Verification", "smoke script 要留 migration report", "執行後應輸出 `data evolution smoke passed` 與 `migration_report.json`。", "data evolution smoke passed", "release smoke is visible."],
         ["verify-html", "Verification", "HTML 教材 script 也要 parse", "互動教材更新後，用 Node 檢查 script，避免搜尋與完成狀態功能壞掉。", "new Function(script)", "tutorial scripts parse."]

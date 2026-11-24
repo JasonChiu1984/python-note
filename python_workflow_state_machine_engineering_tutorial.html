@@ -130,7 +130,7 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>transition、timeout 與補償要同時建模</h2><p>只做 happy path 的流程，在真實專案裡通常撐不久。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗工作流治理</h2><p>先在本機把狀態轉移、逾時與 audit 跑順，再談 BPM 或外部 orchestrator。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 transition table 與 handoff 契約寫成明文</h2><p>from_state、event、to_state、operator、reason 都不能只放在腦中。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 engine 模擬真實流程</h2><p>範例專案集中展示 guard、timeout、manual review 與 compensation evidence。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 engine 模擬真實流程</h2><p>範例專案集中展示 guard、timeout、manual review 與 compensation evidence。 <a href="範例程式碼/workflow_state_machine_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、異常與教材頁面</h2><p>不只跑成功路徑，還要驗 guard、非法轉移、逾時與補償。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>流程失控時先看 transition history</h2><p>多數問題來自狀態規則不集中、逾時缺位或人工交接不清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓 audit evidence 進更新紀錄與 release note</h2><p>下一位工程師要能從記錄知道流程怎麼走、在哪裡失敗、怎麼補償。</p></div></div><div class="cards"></div></section>
@@ -165,7 +165,7 @@
         ["example-compensate", "Example", "失敗後要能補償", "execute_fail 後應能走 compensate，並留下補償次數與歷程。", "compensation_count = 1", "rollback is auditable."]
       ],
       verification: [
-        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免把基本錯誤誤認成流程治理缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-compile", "Verification", "先跑 py_compile", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python3 -m py_compile src/workflow_state_machine_engineering/*.py scripts/*.py", "compile gate passes."],
         ["verify-unit", "Verification", "單元測試覆蓋 transition / guard / timeout", "至少要驗 happy path、guard、非法轉移、compensation 與 timeout。", "python3 -m unittest discover -s tests -v", "workflow regressions are caught."],
         ["verify-smoke", "Verification", "smoke script 要印固定成功訊息", "讓 release note 可直接引用，不依賴人工拼接輸出。", "workflow state machine smoke passed", "publication result is stable."]
       ],

@@ -4,7 +4,7 @@
 
 ## 開始閱讀
 
-直接開啟 `python-315-complete-guide.html`，可查看完整教材、章節目錄及兩張已修正的工程圖。此檔已內嵌中英文內容、樣式、圖表與語言切換程式，可離線閱讀；外部連結僅用於查閱官方來源。
+直接開啟 `python-315-complete-guide.html`，可查看完整教材、章節目錄及兩張重新設計的工程圖。此檔已內嵌中英文內容、樣式、圖表與語言切換程式，可離線閱讀；外部連結僅用於查閱官方來源。
 
 偏好 Obsidian 或繁體中文原稿，可開啟 `python-315-complete-guide.md`，並保留同目錄下的兩個中文 SVG 圖檔。
 
@@ -50,12 +50,12 @@ python3.15t examples/concurrency_315.py
 | `examples/concurrency_315.py` | 新 iterator 工具、跨 interpreter 佇列、工作池與 TaskGroup |
 | `examples/hvac_monitor_315.py` | 8 筆模擬測點的輸入驗證與 JSON 報告 |
 | `python-315-diagrams.drawio` | 兩頁可編輯原生圖表 |
-| `production-notes-cli-fixed.svg` / `.png` | 第一張圖，補齊箭頭並修正 Release／Rollback 順序 |
-| `python-project-delivery-blueprint.svg` / `.png` | 第二張圖，擴大卡片並修正文字內距與下方關聯線 |
+| `production-notes-cli-fixed.svg` / `.png` | 交付流程與 CI 通過條件，虛線標示發布異常時的回滾 |
+| `python-project-delivery-blueprint.svg` / `.png` | 交付藍圖，實線標示資料流，虛線標示治理與驗收的關聯 |
 | `production-notes-cli-fixed.en.svg` / `python-project-delivery-blueprint.en.svg` | 英文圖表；網頁英文模式使用的向量版本 |
 | `translations/en.json` | 英文翻譯與對應中文原文，供校對與維護 |
 | `assets/language-switch.js` / `.css` | 語言切換與控制列原始碼，發布時內嵌於 HTML |
-| `verification/` | 實測輸出、圖表字框量測與靜態文件檢查 |
+| `verification/` | 實測輸出、圖表邊界檢查與靜態文件檢查 |
 | `SHA256SUMS.txt` | 資料包內各檔案的 SHA-256 |
 
 一般版與 free-threaded 版皆已執行並行範例。功能驗證不等於靜態型別檢查、效能測試或現場設備測試；完整界線寫於教材與驗證紀錄。

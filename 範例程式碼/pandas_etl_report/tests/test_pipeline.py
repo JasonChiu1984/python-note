@@ -44,3 +44,22 @@ def test_write_report(tmp_path):
 
     assert payload["quality"]["rows"] == 1
     assert payload["revenue"][0]["country"] == "TW"
+
+
+def test_empty_report_has_null_missing_ratio(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text("order_id,customer_id,country,created_at,amount\n", encoding="utf-8")
+    output = write_report(csv_path, tmp_path / "report.json")
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["quality"]["amount_missing_ratio"] is None
+    assert report["revenue"] == []
+
+
+def test_month_uses_utc_boundary(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "o-001,c-001,TW,2026-06-01T00:05:00+08:00,20\n", encoding="utf-8"
+    )
+    report = build_report(load_orders(csv_path))
+    assert report["revenue"][0]["month"] == "2026-05"

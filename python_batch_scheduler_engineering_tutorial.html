@@ -130,7 +130,7 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>排程、lease、checkpoint 與 rerun 要成套設計</h2><p>只補其中一項，整體仍然脆弱。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗批次治理</h2><p>先在本機把 lease、checkpoint 與 dead-letter 跑順，再談真實排程器。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 job contract 與 retry budget 寫成明文</h2><p>owner、schedule、timeout、max attempts、backfill window 都不能只放口頭。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 runner 模擬真實批次工作</h2><p>範例專案集中展示 lease、resume、dead-letter 與回補證據。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 runner 模擬真實批次工作</h2><p>範例專案集中展示 lease、resume、dead-letter 與回補證據。 <a href="範例程式碼/batch_scheduler_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、恢復與教材頁面</h2><p>不只跑過一次成功路徑，還要驗 lease conflict 與失敗隔離。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>批次失敗時先看契約，再看人</h2><p>大多數混亂來自缺 lease、checkpoint 或 backfill 邊界。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓批次執行證據進 release note</h2><p>operator 能從更新紀錄知道誰跑了什麼、失敗在哪裡、如何回補。</p></div></div><div class="cards"></div></section>
@@ -165,7 +165,7 @@
         ["example-dead-letter", "Example", "壞項目要進 dead-letter", "超過 retry budget 後應隔離失敗項目，不要卡住全批。", "{\"item\": 5, \"attempts\": 3}", "failure is isolated."]
       ],
       verification: [
-        ["verify-compile", "Verification", "先跑 py_compile", "先擋語法與 import 問題，避免把基礎錯誤當治理缺陷。", "python3 -m py_compile src/... scripts/...", "compile gate passes."],
+        ["verify-compile", "Verification", "先跑 py_compile", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python3 -m py_compile src/batch_scheduler_engineering/*.py scripts/*.py", "compile gate passes."],
         ["verify-unit", "Verification", "單元測試覆蓋 lease / resume / DLQ", "至少要驗 lease conflict、retry success、dead-letter 與 backfill。", "python3 -m unittest discover -s tests -v", "scheduler regressions are caught."],
         ["verify-smoke", "Verification", "smoke script 要印固定成功訊息", "讓 release note 能直接引用，不依賴人工解讀零散輸出。", "batch scheduler smoke passed", "publication result is stable."]
       ],

@@ -543,7 +543,7 @@
         <div>
           <span class="eyebrow">獨立篇幅 · Pandas</span>
           <h1>Pandas 指令、DataFrame、應用與打包實戰</h1>
-          <p>用專案工程角度學 Pandas：不是只會 `read_csv`，而是能定義 schema、處理 missing、join、groupby、時間序列、Parquet、chunking、測試與交付。</p>
+          <p>用專案工程角度學 Pandas：不是只會 <code>read_csv</code>，而是能定義 schema、處理 missing、join、groupby、時間序列、Parquet、chunking、測試與交付。</p>
           <div class="status-strip" aria-label="教材狀態">
             <span>v0.9.0</span>
             <span>35 個互動教學卡</span>
@@ -590,7 +590,7 @@
           <div>
             <span class="eyebrow">v0.9.0 範例專案</span>
             <h2>從 DataFrame 教材走到可驗收資料工具</h2>
-            <p>對照 `範例程式碼/pandas_etl_report/`：讀取 orders CSV，驗 schema、處理 missing、產生營收 JSON 與資料品質摘要，並以測試保護欄位、dtype、時間格式與品質門檻。</p>
+            <p>對照 <code>範例程式碼/pandas_etl_report/</code>：讀取 orders CSV，驗 schema、處理 missing、產生營收 JSON 與資料品質摘要，並以測試保護欄位、dtype、時間格式與品質門檻。</p>
           </div>
         </div>
         <div class="matrix">
@@ -648,7 +648,7 @@
           <div>
             <span class="eyebrow">Pandas 簡介</span>
             <h2>先理解表格資料模型</h2>
-            <p>Pandas 的主角是 `DataFrame`：帶 index、columns、dtype 的表格資料。它很適合讀寫、清洗、join、groupby、時間序列與資料產品前處理。</p>
+            <p>Pandas 的主角是 <code>DataFrame</code>：帶 index、columns、dtype 的表格資料。它很適合讀寫、清洗、join、groupby、時間序列與資料產品前處理。</p>
           </div>
         </div>
         <div class="cards"></div>
@@ -1211,7 +1211,7 @@ df.to_parquet("orders_clean.parquet", index=False)`,
           visual: "pivot",
           summary: "Pandas 很適合生成固定格式月報。核心是日期欄位、groupby、pivot_table 與輸出格式。",
           table: ["報表", "groupby + pivot_table + to_excel", "月報、營運報表、財務摘要", "報表欄位順序和缺值未固定"],
-          code: String.raw`df["month"] = pd.to_datetime(df["created_at"]).dt.to_period("M").astype(str)
+          code: String.raw`df["month"] = pd.to_datetime(df["created_at"], utc=True).dt.strftime("%Y-%m")
 report = pd.pivot_table(
     df,
     values="amount",
@@ -1236,7 +1236,7 @@ report = pd.pivot_table(
           table: ["品質檢查", "isna / duplicated / merge indicator", "ETL gate、CI sample data、監控", "只在人工看報表時才發現資料壞掉"],
           code: String.raw`quality = {
     "rows": len(df),
-    "amount_na_ratio": float(df["amount"].isna().mean()),
+    "amount_na_ratio": float(df["amount"].isna().mean()) if len(df) else None,
     "duplicate_order_id": int(df["order_id"].duplicated().sum()),
 }
 print(quality)`,
@@ -1438,7 +1438,7 @@ clean.to_parquet("orders_clean.parquet", index=False)`,
           visual: "json",
           summary: "把訂單資料按國家與月份彙總，輸出 records JSON 給前端 dashboard。",
           table: ["資料產品", "groupby -> JSON records", "營運 dashboard、API feed", "輸出 schema 未測，前端欄位壞掉"],
-          code: String.raw`df["month"] = pd.to_datetime(df["created_at"], utc=True).dt.to_period("M").astype(str)
+          code: String.raw`df["month"] = pd.to_datetime(df["created_at"], utc=True).dt.strftime("%Y-%m")
 summary = (
     df.groupby(["country", "month"], dropna=False)
       .agg(revenue=("amount", "sum"), orders=("order_id", "nunique"))
@@ -1447,7 +1447,7 @@ summary = (
 payload = summary.to_dict(orient="records")`,
           output: "[{'country': 'TW', 'month': '2026-05', 'revenue': 1200.0, 'orders': 8}]",
           steps: [
-            ["定 group keys", "country/month 是 dashboard 維度。"],
+            ["定 group keys", "範例按 UTC 月份分組。若月報採台北時間，請先用 dt.tz_convert('Asia/Taipei') 轉換，再取年月。"],
             ["命名聚合", "輸出欄位明確。"],
             ["測 JSON schema", "前端依賴欄位不能任意改。"]
           ]

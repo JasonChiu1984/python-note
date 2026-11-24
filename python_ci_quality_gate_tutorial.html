@@ -125,11 +125,11 @@
       </div>
       <section class="section-block" id="contract" data-group="contract"><div class="section-head"><div><span class="eyebrow">Contract</span><h2>先定義品質閘門要阻擋什麼風險</h2><p>CI/CD 不是把指令塞進 YAML，而是把專案可以交付的條件寫清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="local" data-group="local"><div class="section-head"><div><span class="eyebrow">Local Gate</span><h2>本機 gate 要和 CI 使用同一組命令</h2><p>開發者在提交前執行的檢查，應盡量等同 CI 的阻擋條件。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="matrix" data-group="matrix"><div class="section-head"><div><span class="eyebrow">Matrix</span><h2>版本矩陣要分清 blocking 與 preview</h2><p>stable runtime 應阻擋 release；beta preview 適合作為升級預警。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="matrix" data-group="matrix"><div class="section-head"><div><span class="eyebrow">Matrix</span><h2>版本矩陣依支援承諾設定</h2><p>承諾支援的版本須通過發版檢查。可另設正在評估的版本做升級預警。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="coverage" data-group="coverage"><div class="section-head"><div><span class="eyebrow">Coverage</span><h2>Coverage 是風險訊號，不是唯一品質指標</h2><p>coverage gate 要搭配 error path、contract test 與 smoke evidence。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="workflow" data-group="workflow"><div class="section-head"><div><span class="eyebrow">Workflow</span><h2>Workflow 要包含 trigger、matrix 與 artifact policy</h2><p>PR、main、tag 與 manual dispatch 的行為要在教學中說清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="release" data-group="release"><div class="section-head"><div><span class="eyebrow">Release</span><h2>發布決策要留下 gate evidence</h2><p>release note 應能說明版本、commit、命令、結果、例外與 rollback 邊界。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>CI Quality Gate 範例專案</h2><p>`範例程式碼/ci_quality_gate/` 示範標準庫 py_compile、unittest、coverage policy、matrix policy、workflow contract 與 evidence manifest。</p></div></div><pre><code>cd 範例程式碼/ci_quality_gate
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>CI Quality Gate 範例專案</h2><p>`範例程式碼/ci_quality_gate/` 示範標準庫 py_compile、unittest、coverage policy、matrix policy、workflow contract 與 evidence manifest。 <a href="範例程式碼/ci_quality_gate/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/ci_quality_gate
 python3 -m py_compile src/ci_quality_gate/*.py scripts/run_ci_gate.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_ci_gate.py</code></pre><div class="cards"></div></section>
@@ -141,20 +141,20 @@ python3 scripts/run_ci_gate.py</code></pre><div class="cards"></div></section>
       contract: [
         ["contract-risk", "Contract", "Gate 要對應可交付風險", "compile、test、coverage、security、artifact 都應能回答它阻擋哪一類 release 風險。", "gate = risk + command + blocking policy", "release condition is explicit."],
         ["contract-command", "Contract", "每個 gate 都要有可重複命令", "只寫品質原則無法驗收；命令、working directory、env 與輸出都要固定。", "python -m unittest discover -s tests -v", "developer and CI run the same check."],
-        ["contract-blocking", "Contract", "Blocking gate 與 warning gate 要分開", "stable lane、compile、unit test 通常阻擋；beta preview 可先作為預警。", "blocking=true preview=false", "release is not blocked by preview noise."],
+        ["contract-blocking", "Contract", "Blocking gate 與 warning gate 要分開", "正式支援版本的語法與行為檢查會阻擋發布，試行版可先作為預警。", "blocking=true preview=false", "release is not blocked by preview noise."],
         ["contract-evidence", "Contract", "Gate 結果要能進 release evidence", "pass/fail 不夠，還要保留版本、commit、命令、原因與例外。", "ci_gate_evidence.json", "audit trail is preserved."]
       ],
       local: [
-        ["local-compile", "Local", "py_compile 是最低成本語法 gate", "它不能取代測試，但能快速抓出 syntax error 與 import-time 風險。", "python -m py_compile src/pkg/*.py", "syntax gate is fast."],
+        ["local-compile", "Local", "py_compile 是最低成本語法 gate", "它會編譯指定檔案。用匯入檢查或 smoke test 補上依賴、擴充模組及模組頂層執行的驗證。", "python -m py_compile src/pkg/*.py", "syntax gate is fast."],
         ["local-unit", "Local", "unittest gate 驗證核心行為", "標準庫 unittest 可讓教材不依賴第三方套件，先把 gate 概念跑通。", "PYTHONPATH=src python -m unittest discover -s tests -v", "behavior gate is repeatable."],
         ["local-smoke", "Local", "smoke script 串起開發者入口", "一支 run_ci_gate.py 可以讓本機與 CI 共用同一組檢查。", "python scripts/run_ci_gate.py", "local gate matches CI."],
         ["local-fastfail", "Local", "Fail-fast 要用在阻擋型錯誤", "compile 失敗時不需要繼續跑後續 release gate，避免噪音。", "if blocking and failed: stop", "failure is easy to triage."]
       ],
       matrix: [
-        ["matrix-stable", "Matrix", "Stable runtime lane 是正式交付基準", "目前教材以 Python 3.14.5 作為 stable baseline，正式 release 應以 stable lane 阻擋。", "python-version: 3.14", "production baseline is clear."],
-        ["matrix-beta", "Matrix", "Beta lane 是升級預警，不是 production gate", "Python 3.15.0b1 可提前抓相容性，但不應讓 preview 問題阻擋正式交付。", "continue-on-error: true", "future readiness is visible."],
+        ["matrix-stable", "Matrix", "Stable runtime lane 是正式交付基準", "此例以 3.14 作為部署基準。CI 要列出全部宣稱支援的版本。", "python-version: 3.14", "production baseline is clear."],
+        ["matrix-beta", "Matrix", "依支援範圍決定 3.15 的發布條件", "Python 3.15 已正式發布。已承諾支援時，它必須通過；若仍在評估，可另設試行工作。", "python-version: ['3.13', '3.14', '3.15']", "advertised runtime support is verified."],
         ["matrix-os", "Matrix", "OS matrix 要跟部署環境對齊", "Linux service、Windows tool、macOS desktop package 的 matrix 不應完全相同。", "runs-on: ubuntu-latest", "CI reflects deployment target."],
-        ["matrix-dependency", "Matrix", "Dependency matrix 不要無限制膨脹", "只挑風險最高的 Python 與 dependency 組合，避免 CI 太慢失去回饋價值。", "min + current + beta", "feedback remains practical."]
+        ["matrix-dependency", "Matrix", "Dependency matrix 不要無限制膨脹", "只挑風險最高的 Python 與 dependency 組合，避免 CI 太慢失去回饋價值。", "minimum + deployed + supported target", "feedback remains practical."]
       ],
       coverage: [
         ["coverage-floor", "Coverage", "Coverage floor 是最低門檻", "80% 可以作為示範門檻，但高風險模組需要更嚴格的 error path coverage。", "coverage >= 80", "quality floor is measurable."],

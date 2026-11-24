@@ -28,9 +28,11 @@ def load_orders(csv_path: Path) -> pd.DataFrame:
 
 
 def build_report(orders: pd.DataFrame) -> dict[str, Any]:
-    amount_missing_ratio = float(orders["amount"].isna().mean())
+    amount_missing_ratio = round(float(orders["amount"].isna().mean()), 4) if len(orders) else None
     clean = orders.loc[orders["amount"].notna()].copy()
-    clean["month"] = clean["created_at"].dt.to_period("M").astype(str)
+    if clean["amount"].isin([float("inf"), float("-inf")]).any():
+        raise ValueError("amount must be finite")
+    clean["month"] = clean["created_at"].dt.strftime("%Y-%m")
 
     revenue = (
         clean.groupby(["country", "month"], dropna=False)
@@ -42,15 +44,15 @@ def build_report(orders: pd.DataFrame) -> dict[str, Any]:
     return {
         "quality": {
             "rows": int(len(orders)),
-            "amount_missing_ratio": round(amount_missing_ratio, 4),
+            "amount_missing_ratio": amount_missing_ratio,
             "countries": sorted(clean["country"].dropna().unique().tolist()),
         },
-        "revenue": revenue.to_dict(orient="records"),
+        "revenue": revenue.astype(object).where(revenue.notna(), None).to_dict(orient="records"),
     }
 
 
 def write_report(csv_path: Path, output_path: Path) -> Path:
     report = build_report(load_orders(csv_path))
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
     return output_path

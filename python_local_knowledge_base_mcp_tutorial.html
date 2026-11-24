@@ -130,8 +130,8 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>export、index、server 要明確分層</h2><p>匯出、索引與服務責任分離，後續才能擴充工具而不互相污染。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>零相依也能做出可用的本地知識庫</h2><p>先用標準庫跑通最小閉環，再決定是否導入資料庫、向量索引或遠端服務。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>title、summary、tags 與 id 要能穩定檢索</h2><p>搜尋品質往往不是演算法問題，而是前面 metadata 沒有治理。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 conversation export 到 MCP search/read 一次走完</h2><p>這個專案用 `knowledge_base/`、`scripts/` 與 `mcp_server/` 組成最小可交付路徑。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗格式、查詢與協定互通</h2><p>只驗資料生成不夠，還要驗 MCP client 真能調用 `search` / `read`。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 conversation export 到 MCP search/read 一次走完</h2><p>以下路徑指向<a href="https://github.com/JasonChiu1984/python-note/tree/39259c533d73e5f34f95fbdee0cde94f7817d377">原專案的歷史範例</a>。該版 smoke 與 server 使用自訂 Content-Length 分幀，只能相互測試。與標準 MCP 用戶端整合時，請依<a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/transports">stdio 規格</a>改用逐行 JSON-RPC。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗格式、查詢與協定互通</h2><p>只驗資料生成不夠，還要驗 MCP client 真能調用 <code>search</code> / <code>read</code>。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>搜尋不準時先看 metadata 與 index</h2><p>大多數問題出在匯出輸入不穩、索引沒更新或工具協定封包不完整。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把知識庫當正式交付物，而不是私人筆記</h2><p>只要牽涉專案決策、審查與交接，就應有可重播、可驗收的輸出格式。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
@@ -165,14 +165,14 @@
         ["example-read", "Example", "read 用 id 取全文", "工具層查到 id 後，應能穩定取回單一條目的完整內容。", "{\"name\": \"read\"}", "single entry payload returns."]
       ],
       verification: [
-        ["verify-compile", "Verification", "先跑 py_compile", "先把腳本與 server 的語法/import 問題擋掉。", "python3 -m py_compile scripts/export_conversation.py mcp_server/knowledge_base_server.py", "syntax gate passes."],
+        ["verify-compile", "Verification", "先跑 py_compile", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python3 -m py_compile scripts/export_conversation.py mcp_server/knowledge_base_server.py", "syntax gate passes."],
         ["verify-unit", "Verification", "單元測試驗 export 與 search/read", "至少要驗 index 更新、markdown 渲染與查詢結果。", "python3 -m unittest discover -s tests -v", "core behavior is covered."],
         ["verify-protocol", "Verification", "smoke 驗 MCP 協定往返", "要真的送 `initialize`、`tools/list`、`tools/call`，不能只看函式層。", "python3 scripts/run_knowledge_base_mcp_smoke.py", "protocol smoke passes."]
       ],
       troubleshooting: [
         ["trouble-empty-search", "Troubleshooting", "search 查不到先看 index", "若 entry 檔存在但查不到，多半是 `index.json` 沒同步更新。", "index entries missing", "root cause narrows quickly."],
         ["trouble-bad-format", "Troubleshooting", "Markdown 匯入失敗先看標題格式", "如果沒有 `### n. role`，解析器會退回整份 document 模式。", "### 1. user", "parse mode becomes explicit."],
-        ["trouble-mcp", "Troubleshooting", "MCP client 無回應先看 Content-Length", "stdio JSON-RPC 最常見錯誤是 header 長度或空行邊界寫錯。", "Content-Length: N", "protocol framing is corrected."]
+        ["trouble-mcp", "Troubleshooting", "MCP 用戶端無回應時，先檢查訊息邊界", "標準 MCP stdio 以 UTF-8 傳送 JSON-RPC，每行一則訊息。寫完換行後 flush，診斷訊息寫入 stderr。", "print(json.dumps(message, ensure_ascii=False), flush=True)", "protocol framing is corrected."]
       ],
       bestPractices: [
         ["best-immutability", "Best", "原始 entry 盡量不可變", "已匯出的歷史紀錄應追加，不要隨意覆寫，避免交付證據失真。", "append-only mindset", "audit value stays high."],

@@ -1288,7 +1288,7 @@ python3.15 examples/hvac_monitor_315.py --output report.json
 
 官方依據：[dataclasses](https://docs.python.org/3.15/library/dataclasses.html)、[TaskGroup 與 timeout](https://docs.python.org/3.15/library/asyncio-task.html)、[math.isfinite](https://docs.python.org/3.15/library/math.html#math.isfinite)、[JSON](https://docs.python.org/3.15/library/json.html)。
 
-### 不要把 3.14 的功能誤認成 3.15 新增
+### Python 3.10–3.14 已提供的功能
 
 | 能力 | 加入版本／階段 | 在 3.15 應如何理解 |
 |---|---|---|
@@ -1296,6 +1296,8 @@ python3.15 examples/hvac_monitor_315.py --output report.json
 | `except*` / `ExceptionGroup` | 3.11 | 依例外型別分組處理多個失敗 |
 | `asyncio.TaskGroup` / `asyncio.timeout` | 3.11 | 管理協程工作生命週期與時間限制 |
 | `type Alias = ...`、`def f[T]`、`class C[T]` | 3.12 | 現代型別別名與型別參數語法 |
+| `queue.Queue.shutdown()` / `asyncio.Queue.shutdown()` | 3.13 | 佇列關閉與背壓可搭配使用。同步和非同步 Queue 有各自的例外類別。 |
+| `ReadOnly`、`TypeIs` | 3.13 | 型別檢查器可驗證唯讀鍵及型別縮小，外部資料仍需執行時驗證。 |
 | 可選 free-threaded、實驗性 JIT | 3.13 | CPython 的不同建置／執行選項 |
 | `t"..."`、`string.templatelib.Template` | 3.14 | 保留文字與插值資訊的模板物件，不是一般 `str` |
 | 註記延遲求值 | 3.14 | 註記不再一律在定義時立即求值；內省工具須使用相應 API |
@@ -1372,19 +1374,19 @@ python3.15 -m pip check
 
 ## 第五部｜工程圖修正版
 
-兩張圖依照提供的截圖重建，已納入本教材，並同步套用至初級教材與整合式交付藍圖的原始 HTML 頁面。資料包保留 SVG、PNG 與可編輯圖表，方便後續調整。
+兩張工程圖採相同的寬版布局，並同步更新於本教材、初級教材及整合式交付藍圖頁。資料包涵蓋 SVG、PNG 與可編輯圖表。
 
-### Production notes-cli：連接箭頭修正
+### Production notes-cli：交付流程
 
-補齊每一段向右箭頭，統一線寬與箭頭大小；CI 通過後折向 Release，再以虛線表達發布異常時的 Rollback。箭尖落在目標方框邊界，沒有壓到文字，原截圖中的浮動提示框已移除。
+從規劃與設計，依箭頭進入實作與驗證，再走到發布與復原。CI 通過後進入 Release，僅在發布異常時依虛線進入 Rollback。
 
-![Production notes-cli 箭頭修正版](production-notes-cli-fixed.svg)
+![Production notes-cli 交付流程與條件式回滾](production-notes-cli-fixed.svg)
 
-### Delivery Blueprint：文字與方框修正
+### Delivery Blueprint：服務與交付證據
 
-上排卡片擴大為 350 × 180，下排卡片為 500 × 250，保留所有文字。Service Core 與兩張下排卡片的長句完整放入框內；下方灰線連接至兩個切面。此圖的線段表達關聯，沒有另增新的操作步驟。
+上排實線標示從輸入、服務核心到交付證據的方向。下排以兩條獨立虛線連接治理與驗收切面，說明兩者各自與服務核心的關聯。
 
-![Delivery Blueprint 文字框修正版](python-project-delivery-blueprint.svg)
+![Delivery Blueprint 的資料流與治理、驗收關聯](python-project-delivery-blueprint.svg)
 
 兩圖的原生形狀與連線均收錄在 `python-315-diagrams.drawio`，可繼續編輯；SVG 亦可直接替換到網頁或文件。
 
@@ -1413,7 +1415,7 @@ python3.15 -m pip check
 | `examples/` | 四個可直接執行的 Python 3.15 教學腳本 |
 | `verification/` | 本次實際執行輸出、版本資訊與圖表量測紀錄 |
 | `python-315-diagrams.drawio` | 兩頁原生可編輯工程圖 |
-| `production-notes-cli-fixed.svg` / `.png` | 第一張修正圖，PNG 為 4096 × 1792 |
-| `python-project-delivery-blueprint.svg` / `.png` | 第二張修正圖，PNG 為 2800 × 1900 |
+| `production-notes-cli-fixed.svg` / `.png` | 交付流程圖，PNG 為 2560 × 1440 |
+| `python-project-delivery-blueprint.svg` / `.png` | 交付藍圖，PNG 為 2560 × 1440 |
 
 微小 bugfix 與完整條目請沿著 [3.15 完整 changelog](https://docs.python.org/3.15/whatsnew/changelog.html) 查閱；本教材提供核心語法、主要行為變更、實務 API 索引與可執行範例，不把整份 CPython commit log 改寫成教學。

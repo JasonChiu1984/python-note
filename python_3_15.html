@@ -34,6 +34,16 @@
   </script>
 
   <style>
+    .channel-diagram-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
+    .channel-architecture, .channel-case-diagram { display: block; width: 100%; height: auto; }
+    .channel-architecture { min-width: 1120px; }
+    .channel-case-diagram { min-width: 960px; }
+    .arch-node:focus-visible { outline: none; }
+    .arch-node:focus-visible .node-box { stroke: #fff; stroke-width: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      #arch-svg .arch-node, #arch-svg .pulse-ring { transition: none; animation: none; }
+    }
+
     /* 基礎深色儀表板背景與網格質感 */
     body {
       background-color: #060a14;
@@ -173,7 +183,7 @@
             <span class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">PEP 803 abi3t</span>
             <span class="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">PEP 814 frozendict</span>
             <span class="px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">PEP 661 sentinel</span>
-            <span class="px-2.5 py-1 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30">PEP 788 Sub-Interpreters</span>
+            <span class="px-2.5 py-1 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30">PEP 734 子直譯器</span>
             <span class="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">PEP 799 Tachyon</span>
           </div>
 
@@ -184,9 +194,9 @@
           </h1>
 
           <p class="text-sm sm:text-base text-slate-300/90 leading-relaxed">
-            Python 3.15t（Free-Threaded）移除全域直譯器鎖（GIL）並結合 <code class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 font-mono text-xs">frozendict</code>、
-            <code class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-xs">sentinel</code>、<strong class="text-white">QSBR 無鎖讀取</strong>與
-            <strong class="text-white">mimalloc 執行緒本地配置器</strong>，讓開發者能以 CSP 通道思維（無需撰寫業務層 <code class="font-mono text-xs text-slate-200">threading.Lock</code>）釋放真正的多核心零複製平行吞吐量。
+            Python 3.15t（Free-Threaded）可停用全域直譯器鎖（GIL），並可搭配 <code class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 font-mono text-xs">frozendict</code>、
+            <code class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-xs">sentinel</code>、<strong class="text-white">QSBR 與部分讀取快速路徑</strong>與
+            <strong class="text-white">mimalloc 執行緒本地配置器</strong>。用佇列交換不可變資料、由單一執行緒管理每份可變狀態，可以減少業務層共享與同步。
           </p>
         </div>
 
@@ -200,7 +210,7 @@
           <div class="rounded-2xl bg-slate-900/80 border border-cyan-500/25 p-3.5">
             <div class="text-[11px] font-mono text-cyan-400 uppercase tracking-wider">資料結構層</div>
             <div class="text-sm font-bold text-white mt-0.5">無鎖快速路徑 + 微鎖</div>
-            <p class="text-xs text-slate-400 mt-1 hidden sm:block">QSBR 讀取無鎖、寫入短暫臨界區</p>
+            <p class="text-xs text-slate-400 mt-1 hidden sm:block">部分讀取走快速路徑，容器仍可使用內部鎖</p>
           </div>
           <div class="rounded-2xl bg-slate-900/80 border border-violet-500/25 p-3.5">
             <div class="text-[11px] font-mono text-violet-400 uppercase tracking-wider">應用層設計</div>
@@ -240,11 +250,12 @@
         </div>
       </div>
 
-      <!-- 即時效能遙測儀表板 (4 KPI Cards) -->
+      <p class="text-sm text-slate-300">下方吞吐量、CPU 使用率、鎖爭用及倍數均為示意參數。<a class="underline" href="python-315-learning-kit/python-315-complete-guide.html#section-39">閱讀 3.15 並行教材及驗證範例</a>。</p>
+      <!-- 模擬指標 (4 KPI Cards) -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div class="glass-panel rounded-2xl p-4 relative overflow-hidden">
           <div class="flex items-center justify-between text-xs text-slate-400">
-            <span>即時吞吐量</span>
+            <span>模擬吞吐量</span>
             <span class="font-mono text-[11px] text-slate-500">Tasks / sec</span>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
@@ -258,7 +269,7 @@
 
         <div class="glass-panel rounded-2xl p-4">
           <div class="flex items-center justify-between text-xs text-slate-400">
-            <span>總 CPU 利用率 (4 核)</span>
+            <span>模擬 CPU 使用率（4 核）</span>
             <span class="font-mono text-[11px] text-slate-500">CPU 0–3</span>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
@@ -272,12 +283,12 @@
 
         <div class="glass-panel rounded-2xl p-4">
           <div class="flex items-center justify-between text-xs text-slate-400">
-            <span>鎖爭用率</span>
+            <span>模擬鎖爭用率</span>
             <span class="font-mono text-[11px] text-slate-500">Contention</span>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
             <span id="kpi-contention" class="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400">2.4%</span>
-            <span id="kpi-contention-note" class="text-[11px] text-slate-400">僅微秒佇列指標</span>
+            <span id="kpi-contention-note" class="text-[11px] text-slate-400">示意佇列同步成本</span>
           </div>
           <div class="mt-2.5 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
             <div id="kpi-contention-bar" class="h-full rounded-full bg-emerald-400 transition-all duration-500" style="width: 4%"></div>
@@ -351,7 +362,7 @@
           </button>
           <button onclick="goToStep(5)" data-step="5" class="step-pill col-span-2 sm:col-span-1 text-left p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-600 transition">
             <div class="text-[10px] font-mono text-slate-400">STEP 05</div>
-            <div class="text-xs font-bold text-slate-200 mt-0.5">優雅關閉與 QSBR</div>
+            <div class="text-xs font-bold text-slate-200 mt-0.5">優雅關閉與結果確認</div>
           </button>
         </div>
 
@@ -383,239 +394,132 @@
           </div>
 
           <!-- 響應式 SVG 畫布 -->
-          <div class="w-full rounded-2xl bg-slate-950/90 border border-slate-800/90 p-2 sm:p-3">
-            <svg id="arch-svg" viewBox="0 0 980 610" class="w-full h-auto select-none" role="img" aria-label="Python 3.15 無鎖多執行緒平行通道互動架構圖">
-              <defs>
-                <!-- 箭頭標記 -->
-                <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
-                </marker>
-                <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" />
-                </marker>
-                <marker id="arrow-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7" />
-                </marker>
-                <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-                </marker>
-                <!-- 發光濾鏡 -->
-                <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3.5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3.5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <!-- 漸層 -->
-                <linearGradient id="grad-runtime" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#0f172a" />
-                  <stop offset="50%" stop-color="#13253b" />
-                  <stop offset="100%" stop-color="#0f172a" />
-                </linearGradient>
-              </defs>
-
-              <!-- 連線底層 (Paths for visual lines and packet animations) -->
-              <g id="svg-edges" fill="none" stroke-width="2.5" stroke-linecap="round">
-                <!-- Edge 1: Producer -> Input Channel -->
-                <path id="edge-p-in" d="M 190 120 L 250 120" stroke="#10b981" marker-end="url(#arrow-emerald)" />
-
-                <!-- Edge 2: Input Channel -> 4 Workers -->
-                <path id="edge-in-w0" d="M 445 86 C 475 86, 475 76, 515 76" stroke="#10b981" marker-end="url(#arrow-emerald)" />
-                <path id="edge-in-w1" d="M 445 110 C 475 110, 475 148, 515 148" stroke="#10b981" marker-end="url(#arrow-emerald)" />
-                <path id="edge-in-w2" d="M 445 134 C 475 134, 475 220, 515 220" stroke="#10b981" marker-end="url(#arrow-emerald)" />
-                <path id="edge-in-w3" d="M 445 156 C 475 156, 475 292, 515 292" stroke="#10b981" marker-end="url(#arrow-emerald)" />
-
-                <!-- Edge 3: 4 Workers -> Output Channel -->
-                <path id="edge-w0-out" d="M 730 76 C 765 76, 765 162, 795 162" stroke="#06b6d4" marker-end="url(#arrow-emerald)" />
-                <path id="edge-w1-out" d="M 730 148 C 765 148, 765 182, 795 182" stroke="#06b6d4" marker-end="url(#arrow-emerald)" />
-                <path id="edge-w2-out" d="M 730 220 C 765 220, 765 202, 795 202" stroke="#06b6d4" marker-end="url(#arrow-emerald)" />
-                <path id="edge-w3-out" d="M 730 292 C 765 292, 765 222, 795 222" stroke="#06b6d4" marker-end="url(#arrow-emerald)" />
-
-                <!-- Edge 4: Output Channel -> Collector -->
-                <path id="edge-out-col" d="M 880 265 L 880 330" stroke="#06b6d4" marker-end="url(#arrow-emerald)" />
-
-                <!-- 虛線支撐連線：Workers / Producer / Collector 與底層 CPython 無鎖快速路徑層 -->
-                <path id="edge-runtime-1" d="M 105 190 L 105 462" stroke="#334155" stroke-dasharray="5 5" stroke-width="1.8" />
-                <path id="edge-runtime-2" d="M 622 332 L 622 462" stroke="#334155" stroke-dasharray="5 5" stroke-width="1.8" />
-                <path id="edge-runtime-3" d="M 880 438 L 880 462" stroke="#334155" stroke-dasharray="5 5" stroke-width="1.8" />
-              </g>
-
-              <!-- 節點 1: Stage 1 Producer -->
-              <g id="node-producer" class="arch-node" onclick="selectNode('producer')">
-                <rect class="node-box" x="18" y="45" width="172" height="145" rx="16" fill="#0f172a" stroke="#10b981" stroke-width="1.8" />
-                <rect x="28" y="55" width="76" height="20" rx="6" fill="#064e3b" />
-                <text x="66" y="69" text-anchor="middle" fill="#6ee7b7" font-size="10" font-family="JetBrains Mono" font-weight="600">STAGE 01</text>
-                <text x="30" y="96" fill="#f8fafc" font-size="14" font-weight="700">Producer 生產者</text>
-                <text x="30" y="116" fill="#94a3b8" font-size="11">建立不可變訊息載荷</text>
-                <rect x="28" y="128" width="152" height="24" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1" />
-                <text id="svg-producer-payload" x="104" y="144" text-anchor="middle" fill="#34d399" font-size="10.5" font-family="JetBrains Mono">frozendict(id, data)</text>
-                <text id="svg-producer-alloc" x="30" y="174" fill="#64748b" font-size="10" font-family="JetBrains Mono">⚡ mimalloc 本地 Heap</text>
-              </g>
-
-              <!-- 節點 2: Input Channel (queue.Queue) -->
-              <g id="node-in_channel" class="arch-node" onclick="selectNode('in_channel')">
-                <rect class="node-box" x="255" y="45" width="190" height="155" rx="16" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8" />
-                <rect x="267" y="55" width="110" height="20" rx="6" fill="#164e63" />
-                <text id="svg-inchan-badge" x="322" y="69" text-anchor="middle" fill="#67e8f9" font-size="10" font-family="JetBrains Mono" font-weight="600">INPUT CHANNEL</text>
-                <text id="svg-inchan-name" x="267" y="96" fill="#f8fafc" font-size="13.5" font-weight="700">queue.Queue(32)</text>
-                <text id="svg-inchan-sub" x="267" y="114" fill="#94a3b8" font-size="10.5">有界背壓緩衝 / 短暫臨界區</text>
-
-                <!-- 佇列水位進度條 -->
-                <text x="267" y="136" fill="#cbd5e1" font-size="10" font-family="JetBrains Mono">緩衝水位:</text>
-                <text id="svg-q-level-txt" x="433" y="136" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">6 / 32 (暢通)</text>
-                <rect x="267" y="144" width="166" height="12" rx="6" fill="#1e293b" />
-                <rect id="svg-q-level-bar" x="267" y="144" width="32" height="12" rx="6" fill="#10b981" />
-
-                <!-- shutdown 標籤 -->
-                <rect x="267" y="166" width="166" height="22" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1" />
-                <text id="svg-inchan-footer" x="350" y="181" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">in_chan.shutdown() 廣播結束</text>
-              </g>
-
-              <!-- 節點 3: Stage 2 Multi-Core Workers (CPU 0 ~ 3) -->
-              <g id="node-workers" class="arch-node" onclick="selectNode('workers')">
-                <rect class="node-box" x="515" y="26" width="215" height="306" rx="18" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-                <text x="530" y="47" fill="#f8fafc" font-size="13" font-weight="700">Stage 2: 多核平行 Workers</text>
-                <text id="svg-workers-mode-tag" x="716" y="47" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">4 核同步</text>
-
-                <!-- CPU 0 -->
-                <g id="worker-core-0" transform="translate(528, 56)">
-                  <rect id="core-bg-0" width="189" height="56" rx="10" fill="#064e3b" fill-opacity="0.35" stroke="#10b981" stroke-width="1.4" />
-                  <circle id="core-led-0" cx="16" cy="18" r="5" fill="#10b981" />
-                  <text id="core-label-0" x="28" y="22" fill="#f8fafc" font-size="11.5" font-family="JetBrains Mono" font-weight="700">Worker-0 (CPU 0)</text>
-                  <text id="core-status-0" x="178" y="22" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">RUNNING</text>
-                  <rect x="12" y="34" width="130" height="8" rx="4" fill="#1e293b" />
-                  <rect id="core-bar-0" x="12" y="34" width="122" height="8" rx="4" fill="#10b981" />
-                  <text id="core-pct-0" x="178" y="42" text-anchor="end" fill="#cbd5e1" font-size="10" font-family="JetBrains Mono">95%</text>
-                </g>
-
-                <!-- CPU 1 -->
-                <g id="worker-core-1" transform="translate(528, 122)">
-                  <rect id="core-bg-1" width="189" height="56" rx="10" fill="#064e3b" fill-opacity="0.35" stroke="#10b981" stroke-width="1.4" />
-                  <circle id="core-led-1" cx="16" cy="18" r="5" fill="#10b981" />
-                  <text id="core-label-1" x="28" y="22" fill="#f8fafc" font-size="11.5" font-family="JetBrains Mono" font-weight="700">Worker-1 (CPU 1)</text>
-                  <text id="core-status-1" x="178" y="22" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">RUNNING</text>
-                  <rect x="12" y="34" width="130" height="8" rx="4" fill="#1e293b" />
-                  <rect id="core-bar-1" x="12" y="34" width="120" height="8" rx="4" fill="#10b981" />
-                  <text id="core-pct-1" x="178" y="42" text-anchor="end" fill="#cbd5e1" font-size="10" font-family="JetBrains Mono">92%</text>
-                </g>
-
-                <!-- CPU 2 -->
-                <g id="worker-core-2" transform="translate(528, 188)">
-                  <rect id="core-bg-2" width="189" height="56" rx="10" fill="#064e3b" fill-opacity="0.35" stroke="#10b981" stroke-width="1.4" />
-                  <circle id="core-led-2" cx="16" cy="18" r="5" fill="#10b981" />
-                  <text id="core-label-2" x="28" y="22" fill="#f8fafc" font-size="11.5" font-family="JetBrains Mono" font-weight="700">Worker-2 (CPU 2)</text>
-                  <text id="core-status-2" x="178" y="22" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">RUNNING</text>
-                  <rect x="12" y="34" width="130" height="8" rx="4" fill="#1e293b" />
-                  <rect id="core-bar-2" x="12" y="34" width="124" height="8" rx="4" fill="#10b981" />
-                  <text id="core-pct-2" x="178" y="42" text-anchor="end" fill="#cbd5e1" font-size="10" font-family="JetBrains Mono">96%</text>
-                </g>
-
-                <!-- CPU 3 -->
-                <g id="worker-core-3" transform="translate(528, 254)">
-                  <rect id="core-bg-3" width="189" height="56" rx="10" fill="#064e3b" fill-opacity="0.35" stroke="#10b981" stroke-width="1.4" />
-                  <circle id="core-led-3" cx="16" cy="18" r="5" fill="#10b981" />
-                  <text id="core-label-3" x="28" y="22" fill="#f8fafc" font-size="11.5" font-family="JetBrains Mono" font-weight="700">Worker-3 (CPU 3)</text>
-                  <text id="core-status-3" x="178" y="22" text-anchor="end" fill="#34d399" font-size="10" font-family="JetBrains Mono" font-weight="600">RUNNING</text>
-                  <rect x="12" y="34" width="130" height="8" rx="4" fill="#1e293b" />
-                  <rect id="core-bar-3" x="12" y="34" width="121" height="8" rx="4" fill="#10b981" />
-                  <text id="core-pct-3" x="178" y="42" text-anchor="end" fill="#cbd5e1" font-size="10" font-family="JetBrains Mono">93%</text>
-                </g>
-
-                <!-- 傳統 GIL 鎖動態標示 (僅在 Legacy GIL 模式顯示) -->
-                <g id="gil-lock-token" opacity="0" transform="translate(658, 62)">
-                  <rect x="-26" y="-10" width="56" height="20" rx="6" fill="#ef4444" stroke="#fecaca" stroke-width="1" />
-                  <text x="2" y="4" text-anchor="middle" fill="#ffffff" font-size="10" font-family="JetBrains Mono" font-weight="700">🔒 GIL</text>
-                </g>
-              </g>
-
-              <!-- 節點 5: Output Channel (SimpleQueue) -->
-              <g id="node-out_channel" class="arch-node" onclick="selectNode('out_channel')">
-                <rect class="node-box" x="795" y="128" width="170" height="137" rx="16" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8" />
-                <rect x="807" y="138" width="112" height="20" rx="6" fill="#164e63" />
-                <text x="863" y="152" text-anchor="middle" fill="#67e8f9" font-size="10" font-family="JetBrains Mono" font-weight="600">OUTPUT CHANNEL</text>
-                <text id="svg-outchan-name" x="807" y="178" fill="#f8fafc" font-size="13.5" font-weight="700">SimpleQueue</text>
-                <text id="svg-outchan-sub" x="807" y="196" fill="#94a3b8" font-size="10.5">純 C 實作・非阻塞入列</text>
-                <rect x="807" y="208" width="146" height="44" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
-                <text x="880" y="225" text-anchor="middle" fill="#38bdf8" font-size="10" font-family="JetBrains Mono" font-weight="600">PEP 661 Sentinel</text>
-                <text x="880" y="242" text-anchor="middle" fill="#f8fafc" font-size="10" font-family="JetBrains Mono">STOP = sentinel("STOP")</text>
-              </g>
-
-              <!-- 節點 6: Stage 3 Collector -->
-              <g id="node-collector" class="arch-node" onclick="selectNode('collector')">
-                <rect class="node-box" x="795" y="335" width="170" height="105" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="1.8" />
-                <rect x="807" y="345" width="76" height="20" rx="6" fill="#0c4a6e" />
-                <text x="845" y="359" text-anchor="middle" fill="#7dd3fc" font-size="10" font-family="JetBrains Mono" font-weight="600">STAGE 03</text>
-                <text x="807" y="384" fill="#f8fafc" font-size="13.5" font-weight="700">Collector 彙整器</text>
-                <text x="807" y="402" fill="#94a3b8" font-size="10.5">收到 STOP 訊號安全退出</text>
-                <text id="svg-collector-note" x="807" y="422" fill="#34d399" font-size="10" font-family="JetBrains Mono">✓ Eval Breaker → QSBR</text>
-              </g>
-
-              <!-- 跨通道序列化提示標籤 (僅 Sub-Interpreters 模式顯示) -->
-              <g id="subinterp-copy-tag-1" opacity="0">
-                <rect x="448" y="185" width="60" height="20" rx="5" fill="#4c1d95" stroke="#a855f7" stroke-width="1" />
-                <text x="478" y="199" text-anchor="middle" fill="#e9d5ff" font-size="9.5" font-family="JetBrains Mono">Pickle</text>
-              </g>
-              <g id="subinterp-copy-tag-2" opacity="0">
-                <rect x="735" y="112" width="56" height="20" rx="5" fill="#4c1d95" stroke="#a855f7" stroke-width="1" />
-                <text x="763" y="126" text-anchor="middle" fill="#e9d5ff" font-size="9.5" font-family="JetBrains Mono">Copy</text>
-              </g>
-
-              <!-- 中間說明便籤：應用層無業務鎖 -->
-              <g transform="translate(225, 240)">
-                <rect width="248" height="148" rx="14" fill="#0b1120" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4 4" />
-                <text x="16" y="26" fill="#e2e8f0" font-size="12" font-weight="700">通道資料傳遞契約 (CSP)</text>
-                <text id="svg-csp-line1" x="16" y="50" fill="#34d399" font-size="11">● 零業務層 Lock：不共用可變狀態</text>
-                <text id="svg-csp-line2" x="16" y="72" fill="#38bdf8" font-size="11">● 唯讀設定：全域 frozendict 無鎖讀取</text>
-                <text id="svg-csp-line3" x="16" y="94" fill="#cbd5e1" font-size="11">● 傳遞成本：僅搬移指標 (Zero-Copy)</text>
-                <text id="svg-csp-line4" x="16" y="116" fill="#94a3b8" font-size="10.5" font-family="JetBrains Mono">assert not sys._is_gil_enabled()</text>
-                <text x="16" y="135" fill="#64748b" font-size="10">💡 點擊任意方塊檢視 PEP 與實作程式碼</text>
-              </g>
-
-              <!-- 節點 4: CPython 3.15t 無鎖快速路徑層 (底層橫幅) -->
-              <g id="node-runtime_mem" class="arch-node" onclick="selectNode('runtime_mem')">
-                <rect class="node-box" x="18" y="462" width="947" height="128" rx="18" fill="url(#grad-runtime)" stroke="#10b981" stroke-width="1.8" />
-                <text id="svg-runtime-title" x="38" y="489" fill="#f8fafc" font-size="14" font-weight="700">
-                  CPython 3.15t 底層無鎖快速路徑與記憶體治理層 (Free-Threaded Runtime)
-                </text>
-                <text id="svg-runtime-sub" x="946" y="489" text-anchor="end" fill="#34d399" font-size="11" font-family="JetBrains Mono">
-                  點擊檢視底層四大支柱
-                </text>
-
-                <!-- 4 個底層機制子卡片 -->
-                <g transform="translate(38, 504)">
-                  <rect id="rt-box-1" width="212" height="68" rx="10" fill="#0f172a" stroke="#10b981" stroke-opacity="0.6" stroke-width="1.2" />
-                  <text x="12" y="23" fill="#34d399" font-size="11.5" font-weight="700">1. Immortal 不朽物件</text>
-                  <text x="12" y="42" fill="#cbd5e1" font-size="10.5">常數與 intern 字串永不改計數</text>
-                  <text x="12" y="58" fill="#64748b" font-size="10" font-family="JetBrains Mono">消除 L1/L2 快取行爭用</text>
-                </g>
-
-                <g transform="translate(266, 504)">
-                  <rect id="rt-box-2" width="218" height="68" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-opacity="0.6" stroke-width="1.2" />
-                  <text x="12" y="23" fill="#22d3ee" font-size="11.5" font-weight="700">2. 偏向與延遲引用計數</text>
-                  <text x="12" y="42" fill="#cbd5e1" font-size="10.5">擁有者非原子快路徑 + 延遲合併</text>
-                  <text x="12" y="58" fill="#64748b" font-size="10" font-family="JetBrains Mono">Biased & Deferred Refcount</text>
-                </g>
-
-                <g transform="translate(500, 504)">
-                  <rect id="rt-box-3" width="216" height="68" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="1.2" />
-                  <text x="12" y="23" fill="#38bdf8" font-size="11.5" font-weight="700">3. QSBR 靜止態回收</text>
-                  <text x="12" y="42" fill="#cbd5e1" font-size="10.5">dict / list 支援完全無鎖讀取</text>
-                  <text x="12" y="58" fill="#64748b" font-size="10" font-family="JetBrains Mono">Eval Breaker 安全點延遲釋放</text>
-                </g>
-
-                <g transform="translate(732, 504)">
-                  <rect id="rt-box-4" width="214" height="68" rx="10" fill="#0f172a" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.2" />
-                  <text x="12" y="23" fill="#c084fc" font-size="11.5" font-weight="700">4. mimalloc 本地配置器</text>
-                  <text x="12" y="42" fill="#cbd5e1" font-size="10.5">每執行緒獨立 Heap 配置訊息</text>
-                  <text x="12" y="58" fill="#64748b" font-size="10" font-family="JetBrains Mono">取代 pymalloc 全域配置鎖</text>
-                </g>
-              </g>
-
-              <!-- 動態封包繪製圖層 (由 JS requestAnimationFrame 驅動) -->
-              <g id="svg-packets"></g>
-            </svg>
+          <div class="channel-diagram-scroll" tabindex="0" role="region" aria-label="平行通道架構圖，可橫向捲動">
+            <svg xmlns="http://www.w3.org/2000/svg" id="arch-svg" class="channel-architecture select-none" viewBox="0 0 1120 696" role="img" aria-labelledby="parallel-channel-title parallel-channel-desc">
+<title id="parallel-channel-title">Python 3.15 平行通道架構</title><desc id="parallel-channel-desc">生產者將訊息送入有界佇列，由四個 Worker 平行處理，透過輸出佇列交給收集器；下方有應用傳遞契約與執行環境。</desc>
+<rect x="0" y="0" width="1120" height="696" rx="0" fill="#111B2A"/>
+<text x="32" y="48" text-anchor="start" fill="#F1F5F9" font-size="22" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">應用資料流</text>
+<path d="M 32 62 H 1088" stroke="#34445A"/>
+<text x="528" y="83" text-anchor="start" fill="#F1F5F9" font-size="17" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">工作者群組</text>
+<text id="svg-workers-mode-tag" x="752" y="82" text-anchor="end" fill="#34D399" font-size="13" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">四核心並行</text>
+<g id="svg-edges" aria-hidden="true">
+<path id="edge-p-in" d="M 196 252 H 236" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-p-in-head" d="M 227 248 L 236 252 L 227 256 Z" fill="#34D399"/>
+<path id="edge-in-w0" d="M 440 168 H 480 Q 488 168 488 160 V 128 Q 488 120 496 120 H 528" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-in-w0-head" d="M 519 116 L 528 120 L 519 124 Z" fill="#34D399"/>
+<path id="edge-w0-out" d="M 756 120 H 792 Q 800 120 800 128 V 168 Q 800 176 808 176 H 852" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-w0-out-head" d="M 843 172 L 852 176 L 843 180 Z" fill="#34D399"/>
+<path id="edge-in-w1" d="M 440 212 H 458 Q 464 212 464 206 V 206 Q 464 200 470 200 H 528" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-in-w1-head" d="M 519 196 L 528 200 L 519 204 Z" fill="#34D399"/>
+<path id="edge-w1-out" d="M 756 200 H 808 Q 816 200 816 208 V 208 Q 816 216 824 216 H 852" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-w1-out-head" d="M 843 212 L 852 216 L 843 220 Z" fill="#34D399"/>
+<path id="edge-in-w2" d="M 440 256 H 456 Q 464 256 464 264 V 272 Q 464 280 472 280 H 528" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-in-w2-head" d="M 519 276 L 528 280 L 519 284 Z" fill="#34D399"/>
+<path id="edge-w2-out" d="M 756 280 H 808 Q 816 280 816 272 V 264 Q 816 256 824 256 H 852" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-w2-out-head" d="M 843 252 L 852 256 L 843 260 Z" fill="#34D399"/>
+<path id="edge-in-w3" d="M 440 300 H 480 Q 488 300 488 308 V 352 Q 488 360 496 360 H 528" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-in-w3-head" d="M 519 356 L 528 360 L 519 364 Z" fill="#34D399"/>
+<path id="edge-w3-out" d="M 756 360 H 792 Q 800 360 800 352 V 304 Q 800 296 808 296 H 852" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-w3-out-head" d="M 843 292 L 852 296 L 843 300 Z" fill="#34D399"/>
+<path id="edge-out-col" d="M 970 324 V 396" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path id="edge-out-col-head" d="M 966 387 L 970 396 L 974 387 Z" fill="#34D399"/>
+</g>
+<g id="node-producer" class="arch-node" role="button" tabindex="0" aria-label="生產者">
+<rect class="node-box" x="32" y="180" width="164" height="144" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="48" y="210" text-anchor="start" fill="#F1F5F9" font-size="18" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Producer</text>
+<text x="48" y="233" text-anchor="start" fill="#B8C8D9" font-size="14" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">生產者・建立載荷</text>
+<text id="svg-producer-payload" x="48" y="271" text-anchor="start" fill="#34D399" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">frozendict(id, data)</text>
+<text id="svg-producer-alloc" x="48" y="301" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">mimalloc 本地配置</text>
+</g>
+<g id="node-in_channel" class="arch-node" role="button" tabindex="0" aria-label="有界輸入佇列">
+<rect class="node-box" x="236" y="148" width="204" height="216" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text id="svg-inchan-badge" x="252" y="181" text-anchor="start" fill="#F1F5F9" font-size="18" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">有界輸入佇列</text>
+<text id="svg-inchan-name" x="252" y="211" text-anchor="start" fill="#34D399" font-size="13" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">queue.Queue(32)</text>
+<text id="svg-inchan-sub" x="252" y="236" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">短臨界區・滿載背壓</text>
+<text x="252" y="268" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">緩衝水位</text>
+<text id="svg-q-level-txt" x="420" y="268" text-anchor="end" fill="#34D399" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">6 / 32 (暢通)</text>
+<rect x="252" y="280" width="166" height="12" rx="6" fill="#34445A"/>
+<rect id="svg-q-level-bar" x="252" y="280" width="31" height="12" rx="6" fill="#34D399"/>
+<text id="svg-inchan-footer" x="252" y="332" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">shutdown() → 排空</text>
+</g>
+<g id="node-workers" class="arch-node" role="button" tabindex="0" aria-label="工作者群組">
+<g id="worker-core-0">
+<rect id="core-bg-0" class="node-box" x="528" y="92" width="228" height="56" rx="6" fill="#192638" stroke="#34D399" stroke-width="1.25"/>
+<circle id="core-led-0" cx="544" cy="111" r="4" fill="#34D399"/>
+<text id="core-label-0" x="556" y="116" text-anchor="start" fill="#F1F5F9" font-size="12" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Worker-0 (CPU 0)</text>
+<text id="core-status-0" x="744" y="116" text-anchor="end" fill="#34D399" font-size="11" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">RUNNING</text>
+<rect x="544" y="128" width="130" height="8" rx="4" fill="#34445A"/>
+<rect id="core-bar-0" x="544" y="128" width="122" height="8" rx="4" fill="#34D399"/>
+<text id="core-pct-0" x="744" y="138" text-anchor="end" fill="#F1F5F9" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">94%</text>
+</g>
+<g id="worker-core-1">
+<rect id="core-bg-1" class="node-box" x="528" y="172" width="228" height="56" rx="6" fill="#192638" stroke="#34D399" stroke-width="1.25"/>
+<circle id="core-led-1" cx="544" cy="191" r="4" fill="#34D399"/>
+<text id="core-label-1" x="556" y="196" text-anchor="start" fill="#F1F5F9" font-size="12" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Worker-1 (CPU 1)</text>
+<text id="core-status-1" x="744" y="196" text-anchor="end" fill="#34D399" font-size="11" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">RUNNING</text>
+<rect x="544" y="208" width="130" height="8" rx="4" fill="#34445A"/>
+<rect id="core-bar-1" x="544" y="208" width="122" height="8" rx="4" fill="#34D399"/>
+<text id="core-pct-1" x="744" y="218" text-anchor="end" fill="#F1F5F9" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">94%</text>
+</g>
+<g id="worker-core-2">
+<rect id="core-bg-2" class="node-box" x="528" y="252" width="228" height="56" rx="6" fill="#192638" stroke="#34D399" stroke-width="1.25"/>
+<circle id="core-led-2" cx="544" cy="271" r="4" fill="#34D399"/>
+<text id="core-label-2" x="556" y="276" text-anchor="start" fill="#F1F5F9" font-size="12" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Worker-2 (CPU 2)</text>
+<text id="core-status-2" x="744" y="276" text-anchor="end" fill="#34D399" font-size="11" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">RUNNING</text>
+<rect x="544" y="288" width="130" height="8" rx="4" fill="#34445A"/>
+<rect id="core-bar-2" x="544" y="288" width="122" height="8" rx="4" fill="#34D399"/>
+<text id="core-pct-2" x="744" y="298" text-anchor="end" fill="#F1F5F9" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">94%</text>
+</g>
+<g id="worker-core-3">
+<rect id="core-bg-3" class="node-box" x="528" y="332" width="228" height="56" rx="6" fill="#192638" stroke="#34D399" stroke-width="1.25"/>
+<circle id="core-led-3" cx="544" cy="351" r="4" fill="#34D399"/>
+<text id="core-label-3" x="556" y="356" text-anchor="start" fill="#F1F5F9" font-size="12" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Worker-3 (CPU 3)</text>
+<text id="core-status-3" x="744" y="356" text-anchor="end" fill="#34D399" font-size="11" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">RUNNING</text>
+<rect x="544" y="368" width="130" height="8" rx="4" fill="#34445A"/>
+<rect id="core-bar-3" x="544" y="368" width="122" height="8" rx="4" fill="#34D399"/>
+<text id="core-pct-3" x="744" y="378" text-anchor="end" fill="#F1F5F9" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">94%</text>
+</g>
+<g id="gil-lock-token" opacity="0" transform="translate(703 132)" aria-hidden="true">
+<rect x="-21" y="-9" width="42" height="18" rx="2" fill="#382B16" stroke="#FBBF24" stroke-width="1.25"/>
+<text x="0" y="4" text-anchor="middle" fill="#FBBF24" font-size="11" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">GIL</text>
+</g></g>
+<g id="node-out_channel" class="arch-node" role="button" tabindex="0" aria-label="輸出佇列">
+<rect class="node-box" x="852" y="144" width="236" height="180" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="868" y="177" text-anchor="start" fill="#F1F5F9" font-size="18" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">輸出佇列</text>
+<text id="svg-outchan-name" x="868" y="207" text-anchor="start" fill="#34D399" font-size="13" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">SimpleQueue</text>
+<text id="svg-outchan-sub" x="868" y="232" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">純 C 實作・非阻塞入列</text>
+<path d="M 868 252 H 1072" stroke="#34445A"/>
+<text x="868" y="277" text-anchor="start" fill="#B8C8D9" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">結束訊號</text>
+<text x="868" y="303" text-anchor="start" fill="#F1F5F9" font-size="12" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">STOP = sentinel(&quot;STOP&quot;)</text>
+</g>
+<g id="node-collector" class="arch-node" role="button" tabindex="0" aria-label="收集器">
+<rect class="node-box" x="852" y="396" width="236" height="104" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="868" y="428" text-anchor="start" fill="#F1F5F9" font-size="18" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Collector 收集器</text>
+<text x="868" y="453" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">收到 STOP 後安全退出</text>
+<text id="svg-collector-note" x="868" y="478" text-anchor="start" fill="#34D399" font-size="12" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">等候最後一筆結果</text>
+</g>
+<g id="subinterp-copy-tag-1" opacity="0" aria-hidden="true">
+<rect x="448" y="90" width="72" height="20" rx="6" fill="#111B2A"/>
+<text x="484" y="105" text-anchor="middle" fill="#C4A5FA" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">PICKLE</text>
+</g><g id="subinterp-copy-tag-2" opacity="0" aria-hidden="true">
+<rect x="772" y="90" width="64" height="20" rx="6" fill="#111B2A"/>
+<text x="804" y="105" text-anchor="middle" fill="#C4A5FA" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">COPY</text>
+</g>
+<rect x="32" y="392" width="440" height="108" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="48" y="420" text-anchor="start" fill="#F1F5F9" font-size="17" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">通道資料傳遞契約（CSP）</text>
+<text id="svg-csp-line1" x="48" y="446" text-anchor="start" fill="#34D399" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">不共用可變狀態</text>
+<text id="svg-csp-line2" x="254" y="446" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">共用唯讀設定</text>
+<text id="svg-csp-line3" x="48" y="475" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">同程序內傳遞物件參考</text>
+<text id="svg-csp-line4" x="254" y="475" text-anchor="start" fill="#B8C8D9" font-size="11" font-weight="400" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">sys._is_gil_enabled() == False</text>
+<g id="node-runtime_mem" class="arch-node" role="button" tabindex="0" aria-label="CPython 執行環境">
+<rect class="node-box" x="32" y="528" width="1056" height="136" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text id="svg-runtime-title" x="48" y="557" text-anchor="start" fill="#F1F5F9" font-size="18" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">CPython 3.15t 執行環境</text>
+<text id="svg-runtime-sub" x="1072" y="556" text-anchor="end" fill="#34D399" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">記憶體管理</text>
+<path d="M 48 574 H 1072" stroke="#34445A"/>
+<text x="48" y="612" text-anchor="start" fill="#F1F5F9" font-size="14" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Immortal Objects</text>
+<text x="48" y="640" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">不朽物件不更新引用計數</text>
+<path d="M 296 590 V 645" stroke="#34445A"/>
+<text x="308" y="612" text-anchor="start" fill="#F1F5F9" font-size="14" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">Biased / Deferred RC</text>
+<text x="308" y="640" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">減少跨執行緒計數同步</text>
+<path d="M 556 590 V 645" stroke="#34445A"/>
+<text x="568" y="612" text-anchor="start" fill="#F1F5F9" font-size="14" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">QSBR</text>
+<text x="568" y="640" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">延後回收，支援樂觀讀取</text>
+<path d="M 816 590 V 645" stroke="#34445A"/>
+<text x="828" y="612" text-anchor="start" fill="#F1F5F9" font-size="14" font-weight="600" font-family="Geist Mono, SFMono-Regular, Menlo, monospace">mimalloc</text>
+<text x="828" y="640" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">執行緒本地堆配置</text>
+</g>
+<g id="svg-packets" aria-hidden="true" pointer-events="none"></g>
+</svg>
           </div>
         </div>
 
@@ -685,7 +589,7 @@
           Production Use Cases
         </div>
         <h2 class="text-2xl sm:text-3xl font-extrabold text-white">四大真實實務應用場景詳解</h2>
-        <p class="text-sm text-slate-400 mt-1">探索如何將 Python 3.15 無鎖平行通道落地至金融風控、AI/LLM ETL、高吞吐資安日誌與外掛沙箱隔離。</p>
+        <p class="text-sm text-slate-400 mt-1">探索如何將 Python 3.15 無鎖平行通道落地至金融風控、AI/LLM ETL、高吞吐資安日誌與可信外掛的狀態隔離。</p>
       </div>
 
       <!-- 4 大應用頁籤 -->
@@ -722,7 +626,7 @@
             <span class="text-xs font-mono font-bold text-violet-400">CASE 04</span>
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-mono">Sub-Interp</span>
           </div>
-          <div class="text-sm font-bold text-white mt-2">外掛沙箱與舊 C 擴充隔離</div>
+          <div class="text-sm font-bold text-white mt-2">可信外掛的狀態隔離</div>
           <p class="text-xs text-slate-400 mt-1">以 concurrent.interpreters 避免重啟 GIL</p>
         </button>
       </div>
@@ -782,12 +686,12 @@
             <div class="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-300 font-mono font-bold text-sm mb-3">03</div>
             <h3 class="text-base font-bold text-white">QSBR 靜止態記憶體回收</h3>
             <p class="text-xs text-slate-400 mt-2 leading-relaxed">
-              Quiescent-State-Based Reclamation 讓 <code class="font-mono text-sky-300">dict</code> 與 <code class="font-mono text-sky-300">list</code> 支援<strong class="text-slate-200">完全無鎖讀取（Lock-free reads）</strong>。
+              Quiescent-State-Based Reclamation 讓 <code class="font-mono text-sky-300">dict</code> 與 <code class="font-mono text-sky-300">list</code> 支援<strong class="text-slate-200">部分操作的樂觀讀取快速路徑</strong>。
             </p>
           </div>
           <div class="mt-4 pt-3 border-t border-slate-800/80 text-xs text-sky-300/90 space-y-1">
             <div class="font-semibold">解決痛點：</div>
-            <p class="text-slate-400 leading-relaxed">讀取無須加鎖；若容器擴容，舊緩衝區會延遲至所有執行緒通過 Eval Breaker 安全點後才安全釋放。</p>
+            <p class="text-slate-400 leading-relaxed">QSBR 延後回收可能仍被其他執行緒讀取的記憶體。部分讀取可走快速路徑，必要時仍進入同步路徑。</p>
           </div>
         </div>
 
@@ -802,7 +706,7 @@
           </div>
           <div class="mt-4 pt-3 border-t border-slate-800/80 text-xs text-violet-300/90 space-y-1">
             <div class="font-semibold">解決痛點：</div>
-            <p class="text-slate-400 leading-relaxed">高頻建構 <code class="font-mono">frozendict</code> 與運算結果物件時完全避免全域記憶體配置鎖爭用，維持線性多核擴展。</p>
+            <p class="text-slate-400 leading-relaxed">執行緒本地配置降低部分配置爭用。端到端吞吐量仍受佇列、資料分割、記憶體及排程影響。</p>
           </div>
         </div>
       </div>
@@ -859,15 +763,15 @@
               </tr>
               <tr class="hover:bg-slate-900/40 transition">
                 <td class="py-3.5 px-4 font-semibold text-white">C 擴充相容性</td>
-                <td class="py-3.5 px-4 bg-emerald-500/5">需支援 Free-Threaded / <strong class="text-emerald-300">PEP 803 (abi3t)</strong>，否則自動重啟 GIL</td>
+                <td class="py-3.5 px-4 bg-emerald-500/5">擴充須與建置相容並宣告支援無 GIL。<strong class="text-emerald-300">abi3t</strong> 是可選的穩定 ABI。</td>
                 <td class="py-3.5 px-4 bg-violet-500/5">需支援多階段初始化（PEP 489 / 788 強化保護）</td>
-                <td class="py-3.5 px-4">最高（任何舊版 C 擴充皆可相容）</td>
+                <td class="py-3.5 px-4">依 worker 使用的 Python 版本與擴充建置驗證</td>
                 <td class="py-3.5 px-4">高（但同步阻塞 C 呼叫會卡住迴圈）</td>
               </tr>
               <tr class="hover:bg-slate-900/40 transition">
                 <td class="py-3.5 px-4 font-semibold text-white">最佳適用場景</td>
                 <td class="py-3.5 px-4 bg-emerald-500/5">高頻行情風控、大型共享資料集、CPU 密集管線</td>
-                <td class="py-3.5 px-4 bg-violet-500/5">強隔離外掛沙箱、隔離尚未支援無 GIL 的擴充套件</td>
+                <td class="py-3.5 px-4 bg-violet-500/5">可信外掛的模組狀態隔離與並行運算</td>
                 <td class="py-3.5 px-4">粗粒度批次運算、獨立故障隔離任務</td>
                 <td class="py-3.5 px-4">數萬併發網路連線、I/O 密集 API 閘道</td>
               </tr>
@@ -885,7 +789,7 @@
           Observability & Production Checklist
         </div>
         <h2 class="text-2xl sm:text-3xl font-extrabold text-white">PEP 799 Tachyon 效能驗證與實務避坑清單</h2>
-        <p class="text-sm text-slate-400 mt-1">Python 3.15 內建零開銷採樣分析器 <code class="font-mono text-amber-300">profiling.sampling</code>（Tachyon），可即時驗證多核併發效率與 GIL 是否遭意外重啟。</p>
+        <p class="text-sm text-slate-400 mt-1">Python 3.15 內建統計採樣分析器 <code class="font-mono text-amber-300">profiling.sampling</code>（Tachyon）可觀察執行緒的 CPU 樣本分布。要確認此刻的 GIL 狀態，請在目標程序匯入依賴後讀取 <code>sys._is_gil_enabled()</code>。</p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -894,7 +798,7 @@
           <div class="flex items-center justify-between">
             <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <span class="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-mono text-xs border border-amber-500/30">PEP 799</span>
-              Tachyon 零開銷採樣分析指令
+              Tachyon 採樣分析指令
             </h3>
             <span class="text-xs font-mono text-slate-500">點擊複製</span>
           </div>
@@ -904,28 +808,28 @@
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-semibold text-emerald-300">1. 直接啟動自由執行緒直譯器</span>
-                <button onclick="copyText('python3.15t channel_pipeline.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
+                <button onclick="copyText('python3.15t python-315-learning-kit/examples/concurrency_315.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
               </div>
-              <code class="block text-xs sm:text-sm font-mono text-cyan-200 overflow-x-auto">python3.15t channel_pipeline.py</code>
-              <p class="text-[11px] text-slate-400">使用無 GIL 建置執行（或在支援環境中透過 <code class="font-mono text-slate-300">-X gil=0</code> 強制關閉 GIL）。</p>
+              <code class="block text-xs sm:text-sm font-mono text-cyan-200 overflow-x-auto">python3.15t python-315-learning-kit/examples/concurrency_315.py</code>
+              <p class="text-[11px] text-slate-400">從教材首頁所在目錄執行。範例會列出建置資訊、執行前後的 GIL 狀態及功能測試結果。</p>
             </div>
 
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-semibold text-cyan-300">2. 採樣所有執行緒 CPU 並輸出互動火焰圖</span>
-                <button onclick="copyText('python3.15t -m profiling.sampling run -a --mode cpu --flamegraph -o cpu_flame.html channel_pipeline.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
+                <button onclick="copyText('python3.15t -m profiling.sampling run -a --mode cpu --flamegraph -o cpu_flame.html python-315-learning-kit/examples/concurrency_315.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
               </div>
-              <code class="block text-xs sm:text-sm font-mono text-cyan-200 overflow-x-auto">python3.15t -m profiling.sampling run -a --mode cpu --flamegraph -o cpu_flame.html channel_pipeline.py</code>
-              <p class="text-[11px] text-slate-400"><code class="font-mono text-slate-300">-a</code> 追蹤全部執行緒，驗證多核 Worker 是否均勻分攤 CPU 計算時間。</p>
+              <code class="block text-xs sm:text-sm font-mono text-cyan-200 overflow-x-auto">python3.15t -m profiling.sampling run -a --mode cpu --flamegraph -o cpu_flame.html python-315-learning-kit/examples/concurrency_315.py</code>
+              <p class="text-[11px] text-slate-400"><code class="font-mono text-slate-300">-a</code> 追蹤全部執行緒，觀察 CPU 樣本落在哪些執行緒。短範例可能取不到足夠樣本。</p>
             </div>
 
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-amber-300">3. 稽核 GIL 持有時間（偵測是否誤觸重啟 GIL）</span>
-                <button onclick="copyText('python3.15t -m profiling.sampling run -a --mode gil channel_pipeline.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
+                <span class="text-xs font-semibold text-amber-300">3. 觀察持有 GIL 期間的堆疊</span>
+                <button onclick="copyText('python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
               </div>
-              <code class="block text-xs sm:text-sm font-mono text-amber-200 overflow-x-auto">python3.15t -m profiling.sampling run -a --mode gil channel_pipeline.py</code>
-              <p class="text-[11px] text-slate-400">正常無 GIL 狀態下 GIL 採樣應趨近於 0%；若出現顯著佔比，代表某套件觸發了 GIL 回退。</p>
+              <code class="block text-xs sm:text-sm font-mono text-amber-200 overflow-x-auto">python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py</code>
+              <p class="text-[11px] text-slate-400">此模式只保留持有 GIL 的樣本。要找出哪次匯入改變 GIL 狀態，可在各次匯入前後讀取狀態並保留警告。</p>
             </div>
 
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
@@ -934,7 +838,7 @@
                 <button onclick="copyText('python3.15t -m profiling.sampling attach 12345 -a --mode cpu --duration 15')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
               </div>
               <code class="block text-xs sm:text-sm font-mono text-violet-200 overflow-x-auto">python3.15t -m profiling.sampling attach 12345 -a --mode cpu --duration 15</code>
-              <p class="text-[11px] text-slate-400">無需重啟線上服務即可直接由外部行程讀取執行緒堆疊，幾乎零效能損耗。</p>
+              <p class="text-[11px] text-slate-400">將 12345 換成目標 Python 程序的 PID。附加需要平台允許讀取該程序；取樣頻率會影響負載。</p>
             </div>
           </div>
         </div>
@@ -951,8 +855,8 @@
               <label class="flex items-start gap-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition">
                 <input type="checkbox" onchange="updateChecklist()" class="chk-item mt-1 w-4 h-4 rounded accent-emerald-500 cursor-pointer shrink-0" />
                 <div class="text-xs space-y-1">
-                  <div class="font-bold text-white">啟動完成後強制斷言 <code class="font-mono text-emerald-300">assert not sys._is_gil_enabled()</code></div>
-                  <p class="text-slate-400 leading-relaxed">匯入尚未宣告支援無 GIL 的舊 C 擴充套件會靜默重新啟用 GIL，建議於依賴載入完畢後立即檢查。</p>
+                  <div class="font-bold text-white">匯入依賴後檢查 <code class="font-mono text-emerald-300">sys._is_gil_enabled()</code></div>
+                  <p class="text-slate-400 leading-relaxed">匯入尚未宣告支援無 GIL 的舊 C 擴充套件可能重新啟用 GIL，此時 CPython 會發出警告。若應用程式要求停用 GIL，應在匯入依賴後檢查並處理。</p>
                 </div>
               </label>
 
@@ -967,16 +871,16 @@
               <label class="flex items-start gap-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition">
                 <input type="checkbox" onchange="updateChecklist()" class="chk-item mt-1 w-4 h-4 rounded accent-emerald-500 cursor-pointer shrink-0" />
                 <div class="text-xs space-y-1">
-                  <div class="font-bold text-white">確認原生依賴套件支援 <code class="font-mono text-emerald-300">PEP 803 (abi3t)</code></div>
-                  <p class="text-slate-400 leading-relaxed">優先選用已發佈 <code class="font-mono">abi3t</code> 穩定 ABI 輪檔的套件；無法升級者改移至 <code class="font-mono">concurrent.interpreters</code> 隔離執行。</p>
+                  <div class="font-bold text-white">確認原生依賴支援自由執行緒建置</div>
+                  <p class="text-slate-400 leading-relaxed">版本專用 free-threaded wheel 與 <code class="font-mono">abi3t</code> 都可適用。載入應用依賴後，再用 <code class="font-mono">sys._is_gil_enabled()</code> 檢查。子直譯器支援要另外驗證。</p>
                 </div>
               </label>
 
               <label class="flex items-start gap-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition">
                 <input type="checkbox" onchange="updateChecklist()" class="chk-item mt-1 w-4 h-4 rounded accent-emerald-500 cursor-pointer shrink-0" />
                 <div class="text-xs space-y-1">
-                  <div class="font-bold text-white">禁止多執行緒共用同一個 Iterator / Generator</div>
-                  <p class="text-slate-400 leading-relaxed">在無 GIL 下併發呼叫 <code class="font-mono">next()</code> 會引發元素遺漏或狀態競態，應固定由單一 Producer 迭代後派發進通道。</p>
+                  <div class="font-bold text-white">多執行緒如何安全消費同一個迭代器</div>
+                  <p class="text-slate-400 leading-relaxed">可讓單一 Producer 迭代後分派資料。若要由多個 worker 共同取件，Python 3.15 提供 <code>threading.serialize_iterator()</code> 來序列化同一個迭代器的取件操作。</p>
                 </div>
               </label>
 
@@ -991,8 +895,10 @@
           </div>
 
           <div class="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 text-xs text-slate-400 flex items-center justify-between gap-2">
-            <span>防呆啟動片段：<code class="font-mono text-emerald-300">assert not sys._is_gil_enabled()</code></span>
-            <button onclick="copyText('import sys\nassert not sys._is_gil_enabled(), \"GIL 已被意外啟用，請檢查第三方 C 擴充套件！\"')" class="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-[11px] transition">複製斷言</button>
+            <pre><code id="gil-startup-check" class="font-mono text-emerald-300">import sys
+if sys._is_gil_enabled():
+    raise RuntimeError("此程式需要停用 GIL")</code></pre>
+            <button onclick="copyText(document.getElementById('gil-startup-check').textContent)" class="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-[11px] transition">複製啟動檢查</button>
           </div>
         </div>
       </div>
@@ -1000,7 +906,7 @@
 
     <!-- ======================== 頁尾 ======================== -->
     <footer class="border-t border-slate-800/80 pt-6 pb-10 text-center text-xs text-slate-500 space-y-1">
-      <p>Python 3.15 無鎖多執行緒平行通道互動式架構實驗室｜涵蓋 PEP 803 · PEP 814 · PEP 661 · PEP 788 · PEP 799</p>
+      <p>Python 3.15 無鎖多執行緒平行通道互動式架構實驗室｜涵蓋 PEP 803 · PEP 814 · PEP 661 · PEP 734 · PEP 799</p>
       <p class="font-mono text-[11px] text-slate-600">Free-Threaded CPython Architecture Visualization & Engineering Reference</p>
     </footer>
   </main>
@@ -1036,13 +942,13 @@
           cpuBase: 94,
           cpuNote: '4 核同步滿載',
           contentionBase: 2.4,
-          contentionNote: '僅微秒佇列臨界區',
+          contentionNote: '示意佇列同步成本',
           contentionBar: 5,
           copyTitle: '零複製',
           copySub: 'Zero-Copy Ref',
           copyDesc: '直接傳遞 frozendict 不可變物件指標'
         },
-        bannerText: '目前處於 <strong class="text-emerald-300">Python 3.15t 無 GIL 即時併發模擬</strong>：4 顆 CPU 核心同時執行純 Python 位元組碼，零複製傳遞 <code class="font-mono text-emerald-300">frozendict</code>，並仰賴 QSBR 與偏向引用計數消除鎖爭用。'
+        bannerText: '目前處於 <strong class="text-emerald-300">Python 3.15t 無 GIL 即時併發模擬</strong>：4 顆 CPU 核心同時執行純 Python 位元組碼，零複製傳遞 <code class="font-mono text-emerald-300">frozendict</code>。內部同步與鎖爭用仍取決於佇列和工作負載。'
       },
       'legacy-gil': {
         label: '傳統 GIL 多執行緒 (Legacy GIL)',
@@ -1069,7 +975,7 @@
       'sub-interpreters': {
         label: '多子直譯器隔離通道 (concurrent.interpreters)',
         shortBadge: 'PER-INTERP GIL',
-        svgHeader: 'Process: python3.15 (4x Isolated Sub-Interpreters · PEP 788)',
+        svgHeader: 'Process: python3.15 (4x Isolated Sub-Interpreters · PEP 734)',
         accent: 'violet',
         dotClass: 'bg-violet-400',
         titleClass: 'text-violet-300',
@@ -1084,7 +990,7 @@
           contentionBar: 14,
           copyTitle: '序列化複製',
           copySub: 'Pickle / Shareable',
-          copyDesc: '跨子直譯器佇列需封裝複製，換取強隔離'
+          copyDesc: '依物件類型共享或序列化，模組狀態各自獨立'
         },
         bannerText: '目前處於 <strong class="text-violet-300">多子直譯器隔離通道模擬</strong>：4 個獨立子直譯器各自擁有專屬 GIL 實現真多核運算，透過 <code class="font-mono text-violet-300">interpreters.create_queue()</code> 傳遞資料並承擔少量序列化複製成本，換取最高記憶體隔離度。'
       }
@@ -1095,7 +1001,7 @@
         layer: 'STAGE 01 · 任務生產與封裝',
         title: 'Producer 生產者執行緒',
         peps: ['PEP 814 frozendict', 'mimalloc'],
-        detail: '單一生產者專責從外部串流（網路、檔案、迭代器）讀取原始事件，並封裝成不可變的 frozendict 載荷。由於 Python 3.15t 採用 mimalloc 執行緒本地配置器，建立大量訊息物件時不需爭搶全域配置鎖，且由單一執行緒消費上游迭代器，避免跨執行緒併發迭代造成的競態遺漏。',
+        detail: '單一生產者專責從外部串流（網路、檔案、迭代器）讀取原始事件，並封裝成不可變的 frozendict 載荷。由於 Python 3.15t 採用 mimalloc 執行緒本地配置器，配置路徑可減少部分同步爭用，且由單一執行緒消費上游迭代器，避免跨執行緒併發迭代造成的競態遺漏。',
         modeDesc: {
           'free-threaded': '在本地 mimalloc Heap 快速配置 frozendict 不可變載荷，直接將物件指標寫入輸入通道（零複製），完全無需額外業務鎖。',
           'legacy-gil': '每次建立物件與呼叫 put() 皆必須與下游 Workers 爭搶同一把全域 GIL，當下游阻塞時易受背壓限制。',
@@ -1107,7 +1013,7 @@
         layer: 'CHANNEL 01 · 有界輸入通道',
         title: 'Input Channel (queue.Queue)',
         peps: ['Queue.shutdown()', 'Backpressure 背壓'],
-        detail: '有界佇列 queue.Queue(maxsize=32) 作為生產者與多核 Workers 之間的流量調節閥。入列與出列僅在搬移內部指標的瞬間進入微秒級臨界區，鎖持有時間極短。當下游消化不及時，maxsize 自動觸發背壓阻塞生產者，防止記憶體無上限暴漲；任務完成時呼叫 shutdown() 即可安全廣播結束。',
+        detail: '有界佇列 queue.Queue(maxsize=32) 作為生產者與多核 Workers 之間的流量調節閥。佇列會同步入列和出列，鎖持有時間取決於執行環境。當下游消化不及時，maxsize 自動觸發背壓阻塞生產者，防止記憶體無上限暴漲；任務完成時呼叫 shutdown() 即可安全廣播結束。',
         modeDesc: {
           'free-threaded': '4 個 Worker 高速消費使佇列保持低水位（暢通無積壓），微鎖持有時間極短，無 GIL 干擾。',
           'legacy-gil': '下游僅 1 核能取得 GIL 運算，消費速率遠低於生產速率，佇列水位迅速飆升並觸發「背壓警告」。',
@@ -1118,26 +1024,26 @@
       workers: {
         layer: 'STAGE 02 · 多核平行運算層',
         title: 'Multi-Core Workers (CPU 0–3)',
-        peps: ['Py_GIL_DISABLED=1', 'PEP 803 abi3t', 'PEP 788'],
-        detail: '多條 OS 執行緒同時從輸入通道領取不可變任務並在獨立 CPU 核心上執行純 Python 運算。因為任務輸入與全域設定皆為不可變 frozendict，各 Worker 彼此不共享可變狀態，應用層完全不需要任何 threading.Lock。若呼叫原生 C 擴充，需確認其已編譯支援 PEP 803 (abi3t) 以維持無 GIL 運作。',
+        peps: ['Py_GIL_DISABLED=1', 'PEP 803 abi3t', 'PEP 734'],
+        detail: '工作執行緒可以在多個核心執行純 Python 運算。此示範使用不含可變值的 frozendict，佇列負責同步交換。原生擴充需支援 free-threaded，abi3t 是可選的 ABI。',
         modeDesc: {
-          'free-threaded': 'CPU 0–3 四顆核心同時處於 RUNNING 狀態，完全平行執行 Python 位元組碼，CPU 利用率達 90% 以上。',
+          'free-threaded': '圖中模擬四個 worker 平行運算。實際同時執行的數量取決於可用核心、工作量及排程。',
           'legacy-gil': '任意時刻僅有 1 顆核心持有 🔒 GIL 運作，其餘 3 顆核心亮起紅燈等待 GIL 釋放，多核硬體資源嚴重閒置。',
-          'sub-interpreters': '4 個子直譯器各自持有獨立 GIL 同步於 CPU 0–3 執行，透過 PEP 788 直譯器防護確保生命週期終止安全。'
+          'sub-interpreters': '4 個子直譯器各自持有獨立 GIL 同步於 CPU 0–3 執行，工作結束後先等待執行緒退出，再關閉直譯器。'
         },
-        code: `PIPELINE_CFG = frozendict(rounds=35_000, salt="py315")\n\ndef worker(in_chan, out_chan) -> None:\n    while True:\n        try:\n            task = in_chan.get()\n        except queue.ShutDown:\n            break\n        # 純 CPU 運算，讀取全域 frozendict 完全無鎖\n        res = cpu_heavy_transform(task, PIPELINE_CFG)\n        out_chan.put(res)`
+        code: `PIPELINE_CFG = frozendict(rounds=35_000, salt="py315")\n\ndef worker(in_chan, out_chan) -> None:\n    while True:\n        try:\n            task = in_chan.get()\n        except queue.ShutDown:\n            break\n        try:\n            res = cpu_heavy_transform(task, PIPELINE_CFG)\n            out_chan.put(res)\n        finally:\n            in_chan.task_done()`
       },
       runtime_mem: {
         layer: 'RUNTIME · CPython 3.15t 底層核心',
         title: 'CPython 3.15t 無鎖快速路徑層',
         peps: ['Immortal Objects', 'Biased/Deferred Refcount', 'QSBR', 'mimalloc'],
-        detail: 'Python 3.15t 並非把所有容器改成硬體 CAS 無鎖佇列，而是透過四大支柱消除 95% 以上的鎖爭用：(1) 不朽物件免除常數引用計數寫入；(2) 偏向與延遲引用計數避免多核原子爭用；(3) QSBR 讓 dict/list 讀取完全無鎖；(4) mimalloc 提供執行緒本地 Heap 配置，徹底擺脫全域配置鎖。',
+        detail: 'CPython 3.15t 使用不朽物件、偏向與延遲引用計數、QSBR 與 mimalloc，降低部分引用計數、容器讀取及配置的同步成本。佇列與容器仍可使用內部鎖，效果依工作負載量測。',
         modeDesc: {
-          'free-threaded': '四大無鎖快速路徑全面啟動：讀取共用唯讀表走 QSBR 無鎖路徑，新建結果物件走 mimalloc 本地配置。',
+          'free-threaded': '示意讀取快速路徑與執行緒本地配置。各操作的實際路徑依物件和執行器而異。',
           'legacy-gil': '傳統建置仍由單一全域 GIL 保護引用計數與 pymalloc 記憶體配置器，無法發揮多核無鎖快速路徑優勢。',
           'sub-interpreters': '各子直譯器擁有獨立物件空間與本地 GIL，彼此不共享一般 Python 物件，徹底避開跨執行緒引用計數競爭。'
         },
-        code: `import sys, sysconfig\n\n# 確認執行期確實處於無 GIL 自由執行緒模式\nassert sysconfig.get_config_var("Py_GIL_DISABLED") == 1\nassert not sys._is_gil_enabled(), "偵測到 GIL 被重新啟用！"\n\n# 共用設定使用 frozendict，底層讀取受 QSBR 保護完全無鎖`
+        code: `import sys, sysconfig\n\n# 確認執行期確實處於無 GIL 自由執行緒模式\nassert sysconfig.get_config_var("Py_GIL_DISABLED") == 1\nassert not sys._is_gil_enabled(), "偵測到 GIL 被重新啟用！"\n\n# 共用設定使用 frozendict，資料放入佇列時仍由佇列同步`
       },
       out_channel: {
         layer: 'CHANNEL 02 · 低開銷結果匯流通道',
@@ -1147,17 +1053,17 @@
         modeDesc: {
           'free-threaded': '4 個 Worker 計算完畢後將新 frozendict 結果非阻塞寫入 SimpleQueue，零複製匯流至 Collector。',
           'legacy-gil': '因上游受限於 GIL 僅單核輪流產出結果，匯流通道長期處於低負載狀態。',
-          'sub-interpreters': '透過第二條 interpreters.create_queue() 匯流結果，並為每個直譯器或結尾注入頂層定義的 PEP 661 sentinel（跨 pickle 維持唯一身分）。'
+          'sub-interpreters': '透過第二條 interpreters.create_queue() 匯流結果，長時間運作時，以明確可序列化的訊息種類通知結束。'
         },
-        code: `# PEP 661: 內建 sentinel，無需匯入且跨 pickle 維持唯一身分\nSTOP = sentinel("STOP")\nout_chan: queue.SimpleQueue[frozendict | STOP] = queue.SimpleQueue()\n\n# 等待所有 Worker 結束後安全注入毒丸訊號\nfor w in workers:\n    w.join()\nout_chan.put(STOP)`
+        code: `# PEP 661：同一 interpreter 以 is 比對結束標記\nSTOP = sentinel("STOP")\nout_chan: queue.SimpleQueue[frozendict | STOP] = queue.SimpleQueue()\n\n# 等待所有 Worker 結束後安全注入毒丸訊號\nfor w in workers:\n    w.join()\nout_chan.put(STOP)`
       },
       collector: {
         layer: 'STAGE 03 · 結果彙整與安全回收',
-        title: 'Collector 彙整器與 QSBR 回收',
-        peps: ['PEP 661 sentinel', 'QSBR Eval Breaker', 'PEP 799 Tachyon'],
-        detail: 'Collector 持續從輸出通道消費不可變結果並執行最終聚合（寫入資料庫、發送告警或回傳 API）。當檢測到 item is STOP 哨兵時立即優雅退出。所有執行緒退出或經過位元組碼 Eval Breaker 安全點時，CPython 3.15t 自動完成延遲引用計數合併與 QSBR 舊緩衝區安全回收。',
+        title: 'Collector 彙整與結束條件',
+        peps: ['PEP 661 sentinel', '結果通道', 'PEP 799 Tachyon'],
+        detail: 'Collector 持續從輸出通道消費不可變結果並執行最終聚合（寫入資料庫、發送告警或回傳 API）。當檢測到 item is STOP 哨兵時立即優雅退出。QSBR 由 CPython 在適合的時機回收延遲釋放的記憶體。收到 STOP 只代表應用層的資料流已結束。',
         modeDesc: {
-          'free-threaded': '高速接收 4 核產出的零複製結果，收尾時觸發 QSBR 靜止態安全回收，可搭配 Tachyon 確認零 GIL 停頓。',
+          'free-threaded': '所有 worker 都退出後，主執行緒才送出 STOP，避免 Collector 漏掉最後一筆結果。',
           'legacy-gil': '接收速率受限於單核吞吐瓶頸，收尾使用標準引用計數與週期 GC 回收。',
           'sub-interpreters': '主直譯器回收各子直譯器回傳結果後，依序呼叫 interp.close() 完整釋放隔離直譯器記憶體空間。'
         },
@@ -1172,14 +1078,14 @@
         title: '步驟 1：不可變封裝（Producer）',
         activeNodes: ['producer', 'runtime_mem'],
         focusNode: 'producer',
-        text: '<strong>步驟 1 / 5（不可變封裝）</strong>：Producer 在本地 <code class="font-mono text-emerald-300">mimalloc</code> Heap 建立不可變的 <code class="font-mono text-emerald-300">frozendict(task_id, payload)</code>，免除全域配置鎖爭用，為後續無業務鎖零複製傳遞奠定基礎。'
+        text: '<strong>步驟 1 / 5（不可變封裝）</strong>：Producer 在本地 <code class="font-mono text-emerald-300">mimalloc</code> Heap 建立不可變的 <code class="font-mono text-emerald-300">frozendict(task_id, payload)</code>，降低部分配置爭用，為後續無業務鎖零複製傳遞奠定基礎。'
       },
       {
         step: 2,
         title: '步驟 2：有界背壓入列（Input Channel）',
         activeNodes: ['producer', 'in_channel'],
         focusNode: 'in_channel',
-        text: '<strong>步驟 2 / 5（有界背壓入列）</strong>：訊息參考零複製寫入 <code class="font-mono text-cyan-300">queue.Queue(maxsize=32)</code>，僅在移動佇列指標瞬間取得微秒臨界區；若下游塞車則自動觸發背壓，保護系統記憶體。'
+        text: '<strong>步驟 2 / 5（有界背壓入列）</strong>：訊息參考零複製寫入 <code class="font-mono text-cyan-300">queue.Queue(maxsize=32)</code>。當待取訊息達到容量上限，下一次 put() 會等到有空位。這個上限只涵蓋輸入佇列。'
       },
       {
         step: 3,
@@ -1193,14 +1099,14 @@
         title: '步驟 4：無鎖快速路徑與低開銷匯流',
         activeNodes: ['workers', 'runtime_mem', 'out_channel'],
         focusNode: 'out_channel',
-        text: '<strong>步驟 4 / 5（無鎖快速路徑與匯流）</strong>：運算期間對常數、模組與唯讀表的讀取仰賴<strong class="text-cyan-300">不朽物件、偏向計數與 QSBR 無鎖讀取</strong>，並將新 <code class="font-mono text-emerald-300">frozendict</code> 結果非阻塞寫入 C 實作的 <code class="font-mono text-sky-300">SimpleQueue</code>。'
+        text: '<strong>步驟 4 / 5（無鎖快速路徑與匯流）</strong>：運算期間對常數、模組與唯讀表的讀取仰賴<strong class="text-cyan-300">不朽物件、偏向計數與 QSBR 與部分讀取快速路徑</strong>，並將新 <code class="font-mono text-emerald-300">frozendict</code> 結果非阻塞寫入 C 實作的 <code class="font-mono text-sky-300">SimpleQueue</code>。'
       },
       {
         step: 5,
-        title: '步驟 5：優雅關閉與 QSBR 安全回收',
+        title: '步驟 5：優雅關閉與結果確認',
         activeNodes: ['in_channel', 'out_channel', 'collector', 'runtime_mem'],
         focusNode: 'collector',
-        text: '<strong>步驟 5 / 5（優雅關閉與安全回收）</strong>：<code class="font-mono text-cyan-300">in_chan.shutdown()</code> 讓 Workers 收到 <code class="font-mono">queue.ShutDown</code> 自然退出；主執行緒注入 PEP 661 <code class="font-mono text-amber-300">sentinel("STOP")</code> 結束 Collector，各執行緒通過 Eval Breaker 安全點完成 QSBR 回收。'
+        text: '<strong>步驟 5 / 5（優雅關閉與結果確認）</strong>：<code class="font-mono text-cyan-300">in_chan.shutdown()</code> 讓 Workers 收到 <code class="font-mono">queue.ShutDown</code> 自然退出；主執行緒等到所有 worker 退出後，再送出先前建立的 PEP 661 <code class="font-mono text-amber-300">sentinel("STOP")</code> 結束 Collector；等待 Collector 退出後即可使用彙整結果。'
       }
     ];
 
@@ -1211,56 +1117,48 @@
         accent: 'emerald',
         title: '即時金融行情與多維風控計算管線',
         subtitle: '高頻 Tick 以 frozendict 零複製廣播給多組策略與風控 Worker，徹底消除 multiprocessing 跨行程序列化延遲。',
-        painPoint: '傳統多行程（multiprocessing）每秒傳遞上萬筆市場行情快照（OrderBook / Tick）時，Pickle 序列化與 IPC 複製會造成數毫秒尾端延遲（Tail Latency）；而傳統多執行緒又受限於 GIL 無法同時運算 VaR、Gamma 曝險與滑價模型。',
-        solution: '透過 Python 3.15t 無 GIL 執行緒與內建 frozendict，行情接入端只需建立一次不可變 Tick 快照，即可零複製分派給 4–8 顆核心同時執行部位風險檢查、異常波動偵測與策略定價，延遲壓低至微秒級。',
+        painPoint: '傳統多行程（multiprocessing）每秒傳遞上萬筆市場行情快照（OrderBook / Tick）時，應量測序列化與 IPC 對尾端延遲的影響；而傳統多執行緒又受限於 GIL 無法同時運算 VaR、Gamma 曝險與滑價模型。',
+        solution: '透過 Python 3.15t 無 GIL 執行緒與內建 frozendict，行情接入端只需建立一次不可變 Tick 快照，並將參考放入佇列，由其中一個可用 worker 處理該筆行情。若每個策略都要收到同一筆行情，則需分別投遞。',
         diagramSvg: `
-          <svg viewBox="0 0 820 170" class="w-full h-auto" role="img" aria-label="金融行情風控微架構圖">
-            <defs>
-              <marker id="uc-arr-em" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981"/>
-              </marker>
-            </defs>
-            <rect x="10" y="45" width="155" height="80" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="1.6"/>
-            <text x="87" y="75" text-anchor="middle" fill="#34d399" font-size="11" font-family="JetBrains Mono" font-weight="700">FIX / WS Feed</text>
-            <text x="87" y="96" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">行情解碼 Producer</text>
-            <text x="87" y="114" text-anchor="middle" fill="#94a3b8" font-size="10">封裝 frozendict Tick</text>
-
-            <path d="M 165 85 L 210 85" stroke="#10b981" stroke-width="2" marker-end="url(#uc-arr-em)"/>
-
-            <rect x="215" y="45" width="145" height="80" rx="12" fill="#0f172a" stroke="#06b6d4" stroke-width="1.6"/>
-            <text x="287" y="73" text-anchor="middle" fill="#22d3ee" font-size="10.5" font-family="JetBrains Mono" font-weight="700">Zero-Copy Fanout</text>
-            <text x="287" y="94" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">有界行情通道</text>
-            <text x="287" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">僅傳遞物件指標</text>
-
-            <path d="M 360 70 C 385 70, 385 36, 412 36" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-            <path d="M 360 85 L 412 85" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-            <path d="M 360 100 C 385 100, 385 134, 412 134" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-
-            <rect x="418" y="14" width="172" height="42" rx="9" fill="#064e3b" fill-opacity="0.4" stroke="#10b981"/>
-            <text x="504" y="39" text-anchor="middle" fill="#f8fafc" font-size="11.5" font-weight="600">CPU 0: VaR 風險曝險計算</text>
-
-            <rect x="418" y="64" width="172" height="42" rx="9" fill="#064e3b" fill-opacity="0.4" stroke="#10b981"/>
-            <text x="504" y="89" text-anchor="middle" fill="#f8fafc" font-size="11.5" font-weight="600">CPU 1: 選擇權希臘值定價</text>
-
-            <rect x="418" y="114" width="172" height="42" rx="9" fill="#064e3b" fill-opacity="0.4" stroke="#10b981"/>
-            <text x="504" y="139" text-anchor="middle" fill="#f8fafc" font-size="11.5" font-weight="600">CPU 2: 跨所套利訊號掃描</text>
-
-            <path d="M 590 36 C 618 36, 618 70, 642 70" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-            <path d="M 590 85 L 642 85" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-            <path d="M 590 134 C 618 134, 618 100, 642 100" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#uc-arr-em)"/>
-
-            <rect x="648" y="42" width="160" height="86" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>
-            <text x="728" y="70" text-anchor="middle" fill="#38bdf8" font-size="10.5" font-family="JetBrains Mono" font-weight="700">SimpleQueue</text>
-            <text x="728" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700">風控閘門與下單路由</text>
-            <text x="728" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">低延遲彙整告警/訊號</text>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="fintech-flow-title fintech-flow-desc">
+<title id="fintech-flow-title">金融行情風控</title><desc id="fintech-flow-desc">解碼行情、經有界通道分派風控工作，再合併結果。</desc>
+<rect x="0" y="0" width="960" height="280" rx="0" fill="#111B2A"/>
+<path d="M 220 140 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 136 L 252 140 L 243 144 Z" fill="#71859D"/>
+<path d="M 448 108 H 464 Q 472 108 472 100 V 68 Q 472 60 480 60 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 56 L 496 60 L 487 64 Z" fill="#71859D"/>
+<path d="M 692 60 H 708 Q 716 60 716 68 V 100 Q 716 108 724 108 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 104 L 740 108 L 731 112 Z" fill="#71859D"/>
+<path d="M 448 140 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 136 L 496 140 L 487 144 Z" fill="#71859D"/>
+<path d="M 692 140 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 136 L 740 140 L 731 144 Z" fill="#71859D"/>
+<path d="M 448 172 H 464 Q 472 172 472 180 V 212 Q 472 220 480 220 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 216 L 496 220 L 487 224 Z" fill="#71859D"/>
+<path d="M 692 220 H 708 Q 716 220 716 212 V 180 Q 716 172 724 172 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 168 L 740 172 L 731 176 Z" fill="#71859D"/>
+<rect x="496" y="32" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="54" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">VaR 風險曝險</text>
+<text x="512" y="76" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">CPU 0</text>
+<rect x="496" y="112" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="134" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">選擇權希臘值定價</text>
+<text x="512" y="156" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">CPU 1</text>
+<rect x="496" y="192" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="214" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">跨交易所套利掃描</text>
+<text x="512" y="236" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">CPU 2</text>
+<rect x="24" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="40" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">行情解碼</text>
+<text x="40" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">FIX / WebSocket</text>
+<text x="40" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">封裝 frozendict Tick</text>
+<rect x="252" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="268" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">有界行情通道</text>
+<text x="268" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">依工作分派</text>
+<text x="268" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">同程序傳遞物件參考</text>
+<rect x="740" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="756" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">風控閘門與下單路由</text>
+<text x="756" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SimpleQueue</text>
+<text x="756" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">彙整告警與交易訊號</text>
+</svg>
         `,
         code: `import math, queue, sys, threading
 
 assert not sys._is_gil_enabled(), "請使用 python3.15t 執行以啟用無 GIL 多核平行運算"
 
 STOP = sentinel("STOP")
-# 全域不可變風控門檻：多核心透過 QSBR 無鎖讀取
+# 全域不可變風控門檻：所有 worker 共用同一份設定
 RISK_LIMITS = frozendict(max_delta=250_000.0, vol_alert=0.42)
 
 def evaluate_risk(tick: frozendict) -> frozendict:
@@ -1287,7 +1185,7 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
     def feed_producer() -> None:
         try:
             for sym, bid, ask, vol, pos in raw_ticks:
-                # 零複製封裝為不可變快照，所有欄位皆為不可變純量
+                # 建立不可變快照，入列時傳遞物件參考，所有欄位皆為不可變純量
                 in_q.put(frozendict(symbol=sym, bid=bid, ask=ask, vol=vol, position=pos))
         finally:
             in_q.shutdown()
@@ -1321,7 +1219,7 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
         tips: [
           '高頻行情若需廣播給多個異質策略（Fan-out），可為每個策略配一條專屬有界 Queue，並將同一個 frozendict 參考送入多條通道，實現真正 1 對 N 零複製。',
           '嚴禁在 Tick 內夾帶可變 list 作為委託簿深度（OrderBook Levels），請改用 tuple[tuple[float, float], ...] 確保深層不可變。',
-          '定期以 Tachyon `--mode gil` 檢查數值套件（如 NumPy / Cython 模組）是否已升級至 PEP 803 abi3t，避免隱性回退。'
+          '用 Tachyon 觀察取樣期間的 GIL 活動。載入套件後以 sys._is_gil_enabled() 驗證執行狀態，並另核對 wheel 的建置相容性。'
         ]
       },
       llm: {
@@ -1332,43 +1230,29 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
         painPoint: '大型語料前處理（正規化、Tokenizer 分塊、MinHash / SHA-256 去重）高度耗費 CPU。若使用多行程處理 GB 級文件，記憶體複製與序列化開銷極大；若無背壓控制，上游瞬間塞爆 RAM 會導致下游 GPU Embedding 服務 OOM 崩潰。',
         solution: '利用單一 Producer 順序串流讀取檔案避免磁碟隨機 I/O，透過 queue.Queue(maxsize=64) 施加精準背壓，讓多核 CPU Workers 無鎖平行清洗並以批次 tuple 寫入 SimpleQueue 餵給 GPU 向量化執行緒。',
         diagramSvg: `
-          <svg viewBox="0 0 820 170" class="w-full h-auto" role="img" aria-label="AI LLM ETL 微架構圖">
-            <defs>
-              <marker id="uc-arr-cy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#06b6d4"/>
-              </marker>
-            </defs>
-            <rect x="10" y="45" width="150" height="80" rx="12" fill="#0f172a" stroke="#06b6d4" stroke-width="1.6"/>
-            <text x="85" y="75" text-anchor="middle" fill="#22d3ee" font-size="11" font-family="JetBrains Mono" font-weight="700">JSONL / Parquet</text>
-            <text x="85" y="96" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">單執行緒串流讀取</text>
-            <text x="85" y="114" text-anchor="middle" fill="#94a3b8" font-size="10">避免共用 Iterator</text>
-
-            <path d="M 160 85 L 205 85" stroke="#06b6d4" stroke-width="2" marker-end="url(#uc-arr-cy)"/>
-
-            <rect x="210" y="42" width="155" height="86" rx="12" fill="#0f172a" stroke="#f59e0b" stroke-width="1.6"/>
-            <text x="287" y="70" text-anchor="middle" fill="#fbbf24" font-size="10.5" font-family="JetBrains Mono" font-weight="700">Queue(maxsize=64)</text>
-            <text x="287" y="92" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">背壓保護緩衝區</text>
-            <text x="287" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">防止語料撐爆 RAM</text>
-
-            <path d="M 365 70 C 390 70, 390 42, 415 42" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#uc-arr-cy)"/>
-            <path d="M 365 100 C 390 100, 390 128, 415 128" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#uc-arr-cy)"/>
-
-            <rect x="420" y="18" width="175" height="54" rx="10" fill="#164e63" fill-opacity="0.45" stroke="#06b6d4"/>
-            <text x="507" y="41" text-anchor="middle" fill="#f8fafc" font-size="11.5" font-weight="700">CPU 0–3 平行清洗與分塊</text>
-            <text x="507" y="59" text-anchor="middle" fill="#67e8f9" font-size="10" font-family="JetBrains Mono">Clean + Chunk + SHA256</text>
-
-            <rect x="420" y="98" width="175" height="54" rx="10" fill="#164e63" fill-opacity="0.45" stroke="#06b6d4"/>
-            <text x="507" y="121" text-anchor="middle" fill="#f8fafc" font-size="11.5" font-weight="700">不可變 Chunk Tuple</text>
-            <text x="507" y="139" text-anchor="middle" fill="#67e8f9" font-size="10" font-family="JetBrains Mono">mimalloc 本地配置輸出</text>
-
-            <path d="M 595 45 C 620 45, 620 75, 645 75" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#uc-arr-cy)"/>
-            <path d="M 595 125 C 620 125, 620 95, 645 95" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#uc-arr-cy)"/>
-
-            <rect x="650" y="42" width="158" height="86" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="1.6"/>
-            <text x="729" y="70" text-anchor="middle" fill="#34d399" font-size="10.5" font-family="JetBrains Mono" font-weight="700">Batch Collector</text>
-            <text x="729" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700">去重組批 → GPU 推論</text>
-            <text x="729" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">收到 STOP 寫出尾批</text>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="etl-flow-title etl-flow-desc">
+<title id="etl-flow-title">LLM 語料 ETL</title><desc id="etl-flow-desc">串流讀取語料，經有界佇列交由四個 Worker 清洗分塊，最後去重組批。</desc>
+<rect x="0" y="0" width="960" height="192" rx="0" fill="#111B2A"/>
+<path d="M 220 96 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 92 L 252 96 L 243 100 Z" fill="#71859D"/>
+<path d="M 448 96 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 92 L 496 96 L 487 100 Z" fill="#71859D"/>
+<path d="M 692 96 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 92 L 740 96 L 731 100 Z" fill="#71859D"/>
+<rect x="496" y="52" width="196" height="88" rx="6" fill="#193A36" stroke="#34D399" stroke-width="1.25"/>
+<text x="512" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">四核心清洗與分塊</text>
+<text x="512" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">切分文本並計算雜湊</text>
+<text x="512" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">不可變 tuple・本地配置</text>
+<rect x="24" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="40" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">單執行緒串流讀取</text>
+<text x="40" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">JSONL / Parquet</text>
+<text x="40" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">維持 Iterator 單一擁有者</text>
+<rect x="252" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="268" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">有界輸入佇列</text>
+<text x="268" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Queue(maxsize=64)</text>
+<text x="268" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">背壓限制記憶體占用</text>
+<rect x="740" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="756" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">去重與組批</text>
+<text x="756" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Batch Collector → GPU</text>
+<text x="756" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">STOP 時送出尾批</text>
+</svg>
         `,
         code: `import hashlib, queue, re, threading
 
@@ -1391,7 +1275,9 @@ def chunk_and_fingerprint(doc: frozendict) -> frozendict:
     return frozendict(doc_id=doc["doc_id"], chunks=chunks, hashes=fingerprints)
 
 def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[tuple]:
-    # 嚴格背壓上限 64 份文件，防止上游檔案讀取撐爆記憶體
+    if num_workers < 1:
+        raise ValueError("num_workers 必須至少為 1")
+    # 輸入佇列最多容納 64 份待取文件；原始串列、輸出佇列與去重集合另佔記憶體
     raw_chan: queue.Queue[frozendict] = queue.Queue(maxsize=64)
     emb_chan: queue.SimpleQueue[frozendict | STOP] = queue.SimpleQueue()
     gpu_batches: list[tuple] = []
@@ -1450,49 +1336,37 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
         title: '高吞吐量日誌解析與資安即時稽核',
         subtitle: '多核平行執行正則提取、多條資安規則比對與 SHA-256 證據鏈雜湊，再以 SimpleQueue 低開銷匯流告警。',
         painPoint: '雲端微服務每秒湧入數十萬筆存取日誌，進行正則解析、IP 黑名單比對、SQLi/XSS 偵測與防竄改雜湊計算屬於典型 CPU 密集任務，單核直譯器往往跟不上尖峰流量而遺漏即時入侵告警。',
-        solution: '將大型資安規則庫與威脅情資表載入為唯讀 `frozendict` / `frozenset`，讓所有 Worker 依賴 QSBR 無鎖快速讀取進行平行比對，僅將命中的異常事件透過 `SimpleQueue` 非阻塞匯流至告警引擎。',
+        solution: '將大型資安規則庫與威脅情資表載入為唯讀 `frozendict` / `frozenset`，讓所有 Worker 共用唯讀規則進行平行比對，僅將命中的異常事件透過 `SimpleQueue` 非阻塞匯流至告警引擎。',
         diagramSvg: `
-          <svg viewBox="0 0 820 170" class="w-full h-auto" role="img" aria-label="資安日誌稽核微架構圖">
-            <defs>
-              <marker id="uc-arr-sk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
-              </marker>
-            </defs>
-            <rect x="10" y="45" width="150" height="80" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>
-            <text x="85" y="75" text-anchor="middle" fill="#7dd3fc" font-size="11" font-family="JetBrains Mono" font-weight="700">Syslog / Kafka</text>
-            <text x="85" y="96" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">日誌批次接入端</text>
-            <text x="85" y="114" text-anchor="middle" fill="#94a3b8" font-size="10">切片 tuple 降低鎖頻率</text>
-
-            <path d="M 160 85 L 205 85" stroke="#38bdf8" stroke-width="2" marker-end="url(#uc-arr-sk)"/>
-
-            <rect x="210" y="45" width="145" height="80" rx="12" fill="#0f172a" stroke="#06b6d4" stroke-width="1.6"/>
-            <text x="282" y="73" text-anchor="middle" fill="#67e8f9" font-size="10.5" font-family="JetBrains Mono" font-weight="700">Micro-Batch Queue</text>
-            <text x="282" y="94" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">微批次派發通道</text>
-            <text x="282" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">每 200 筆一包入列</text>
-
-            <path d="M 355 85 L 405 85" stroke="#38bdf8" stroke-width="2" marker-end="url(#uc-arr-sk)"/>
-
-            <rect x="410" y="20" width="190" height="130" rx="12" fill="#0c4a6e" fill-opacity="0.35" stroke="#38bdf8" stroke-width="1.6"/>
-            <text x="505" y="46" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700">多核平行資安引擎 (8 核)</text>
-            <rect x="424" y="58" width="162" height="24" rx="6" fill="#0f172a" stroke="#10b981"/>
-            <text x="505" y="74" text-anchor="middle" fill="#34d399" font-size="10" font-family="JetBrains Mono">QSBR 無鎖讀威脅情資表</text>
-            <rect x="424" y="88" width="162" height="24" rx="6" fill="#0f172a" stroke="#38bdf8"/>
-            <text x="505" y="104" text-anchor="middle" fill="#7dd3fc" font-size="10" font-family="JetBrains Mono">正則解析 + SHA-256 存證</text>
-            <text x="505" y="136" text-anchor="middle" fill="#94a3b8" font-size="10">僅命中威脅才送出告警</text>
-
-            <path d="M 600 85 L 645 85" stroke="#10b981" stroke-width="2" marker-end="url(#uc-arr-sk)"/>
-
-            <rect x="650" y="42" width="158" height="86" rx="12" fill="#0f172a" stroke="#ef4444" stroke-width="1.6"/>
-            <text x="729" y="70" text-anchor="middle" fill="#fca5a5" font-size="10.5" font-family="JetBrains Mono" font-weight="700">SimpleQueue</text>
-            <text x="729" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700">SIEM 告警匯流中心</text>
-            <text x="729" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">非阻塞高優先通報</text>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="audit-flow-title audit-flow-desc">
+<title id="audit-flow-title">資安日誌稽核</title><desc id="audit-flow-desc">日誌經微批次佇列分派至平行比對引擎，命中項目送往 SIEM。</desc>
+<rect x="0" y="0" width="960" height="192" rx="0" fill="#111B2A"/>
+<path d="M 220 96 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 92 L 252 96 L 243 100 Z" fill="#71859D"/>
+<path d="M 448 96 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 92 L 496 96 L 487 100 Z" fill="#71859D"/>
+<path d="M 692 96 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 92 L 740 96 L 731 100 Z" fill="#71859D"/>
+<rect x="496" y="52" width="196" height="88" rx="6" fill="#193A36" stroke="#34D399" stroke-width="1.25"/>
+<text x="512" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">八核心規則比對</text>
+<text x="512" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">唯讀情資、正則解析</text>
+<text x="512" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SHA-256 存證</text>
+<rect x="24" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="40" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">日誌批次接入</text>
+<text x="40" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Syslog / Kafka</text>
+<text x="40" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">將日誌組成 tuple</text>
+<rect x="252" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="268" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">微批次派發通道</text>
+<text x="268" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">每 200 筆一批</text>
+<text x="268" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Micro-Batch Queue</text>
+<rect x="740" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="756" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SIEM 告警匯流</text>
+<text x="756" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SimpleQueue</text>
+<text x="756" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">只送出命中項目</text>
+</svg>
         `,
         code: `import hashlib, queue, re, threading
 
 STOP = sentinel("STOP")
 
-# 唯讀威脅情資與規則庫：全域不可變，多核透過 QSBR 無鎖併發讀取
+# 唯讀威脅情資與規則庫：內容均為不可變值，供多個 worker 共用
 THREAT_IPS = frozenset({"198.51.100.23", "203.0.113.77", "192.0.2.99"})
 RULES = frozendict(
     sqli=re.compile(r"(union\\s+select|drop\\s+table|or\\s+1=1)", re.I),
@@ -1559,64 +1433,56 @@ def run_secops_pipeline(log_stream: list[str], batch_size: int = 200) -> list[fr
     sink.join()
     return all_alerts`,
         tips: [
-          '超高頻小訊息（如單行日誌）強烈建議採用「微批次（Micro-batching）」封裝成 `tuple[str, ...]` 入列，可將通道同步開銷稀釋百倍以上。',
+          '超高頻小訊息（如單行日誌）強烈建議採用「微批次（Micro-batching）」封裝成 `tuple[str, ...]` 入列，可減少入列次數；批次大小與等待時間需一併量測。',
           '僅在偵測到資安異常時才寫入輸出 `SimpleQueue`，能大幅減少下游彙整器與系統喚醒開銷。',
-          '若需動態熱更新黑名單情資，可透過替換整個全域 `frozenset` 參考完成原子切換，舊版本由 QSBR 自動延遲回收。'
+          '若需動態更新黑名單情資，可使用不可變快照。以鎖或單一更新者管理多欄位設定及版本一致性。'
         ]
       },
       sandbox: {
-        badge: 'CASE 04 · 外掛沙箱與舊 C 擴充套件隔離',
+        badge: 'CASE 04 · 可信外掛的模組狀態隔離',
         accent: 'violet',
-        title: '外掛沙箱與舊版 C 擴充套件隔離（concurrent.interpreters）',
-        subtitle: '當專案必須載入尚未支援 PEP 803 (abi3t) 的舊版套件或第三方外掛時，改用多子直譯器跨佇列通道達成強隔離多核執行。',
-        painPoint: '在 python3.15t 中，只要任一模組匯入了尚未宣告支援自由執行緒的舊 C 擴充，整個直譯器就會強制回退啟用 GIL；此外，執行不可信的第三方使用者外掛時，共享記憶體與全域命名空間也存在狀態污染風險。',
-        solution: '使用標準函式庫 `concurrent.interpreters` 與 `create_queue()` 建立多個完全隔離的子直譯器。每個子直譯器擁有各自獨立的命名空間與專屬 GIL，結合 PEP 788 直譯器保護與 PEP 661 `sentinel`，可安全隔離舊套件並維持多核心併發。',
+        title: '可信外掛的模組狀態隔離（concurrent.interpreters）',
+        subtitle: '子直譯器自 Python 3.14 可用於可信外掛的模組狀態隔離。匯入 C 擴充前要另外驗證相容性。',
+        painPoint: '自由執行緒環境匯入未宣告支援的擴充可能重啟 GIL。子直譯器只能提供同程序內的狀態隔離。不可信外掛需採具獨立權限及資源限制的程序或沙箱。',
+        solution: '用 concurrent.interpreters 建立子直譯器，透過 create_queue() 傳遞可分享或可序列化的資料，以明確訊息標示停止。工作結束後再關閉直譯器。',
         diagramSvg: `
-          <svg viewBox="0 0 820 170" class="w-full h-auto" role="img" aria-label="多子直譯器隔離微架構圖">
-            <defs>
-              <marker id="uc-arr-vi" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7"/>
-              </marker>
-            </defs>
-            <rect x="10" y="45" width="150" height="80" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="1.6"/>
-            <text x="85" y="75" text-anchor="middle" fill="#c084fc" font-size="11" font-family="JetBrains Mono" font-weight="700">Main Interpreter</text>
-            <text x="85" y="96" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">主控排程直譯器</text>
-            <text x="85" y="114" text-anchor="middle" fill="#94a3b8" font-size="10">維持乾淨無污染環境</text>
-
-            <path d="M 160 85 L 205 85" stroke="#a855f7" stroke-width="2" marker-end="url(#uc-arr-vi)"/>
-
-            <rect x="210" y="42" width="155" height="86" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="1.6"/>
-            <text x="287" y="70" text-anchor="middle" fill="#d8b4fe" font-size="10.5" font-family="JetBrains Mono" font-weight="700">create_queue()</text>
-            <text x="287" y="92" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">跨直譯器隔離通道</text>
-            <text x="287" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">自動共享/序列化複製</text>
-
-            <path d="M 365 66 C 390 66, 390 36, 415 36" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-            <path d="M 365 85 L 415 85" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-            <path d="M 365 104 C 390 104, 390 134, 415 134" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-
-            <rect x="420" y="14" width="180" height="42" rx="9" fill="#4c1d95" fill-opacity="0.45" stroke="#a855f7"/>
-            <text x="510" y="39" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">Sub-Interp #0 (獨立 GIL + 外掛)</text>
-
-            <rect x="420" y="64" width="180" height="42" rx="9" fill="#4c1d95" fill-opacity="0.45" stroke="#a855f7"/>
-            <text x="510" y="89" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">Sub-Interp #1 (獨立 GIL + 外掛)</text>
-
-            <rect x="420" y="114" width="180" height="42" rx="9" fill="#4c1d95" fill-opacity="0.45" stroke="#a855f7"/>
-            <text x="510" y="139" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">Sub-Interp #2 (獨立 GIL + 外掛)</text>
-
-            <path d="M 600 36 C 625 36, 625 68, 648 68" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-            <path d="M 600 85 L 648 85" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-            <path d="M 600 134 C 625 134, 625 102, 648 102" stroke="#a855f7" stroke-width="2" fill="none" marker-end="url(#uc-arr-vi)"/>
-
-            <rect x="652" y="42" width="156" height="86" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>
-            <text x="730" y="70" text-anchor="middle" fill="#7dd3fc" font-size="10.5" font-family="JetBrains Mono" font-weight="700">PEP 788 Guard</text>
-            <text x="730" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700">結果回收與安全銷毀</text>
-            <text x="730" y="112" text-anchor="middle" fill="#94a3b8" font-size="10">interp.close() 釋放</text>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="subinterp-flow-title subinterp-flow-desc">
+<title id="subinterp-flow-title">多子直譯器隔離</title><desc id="subinterp-flow-desc">主直譯器以隔離通道派發工作，收集三個子直譯器的結果。</desc>
+<rect x="0" y="0" width="960" height="280" rx="0" fill="#111B2A"/>
+<path d="M 220 140 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 136 L 252 140 L 243 144 Z" fill="#71859D"/>
+<path d="M 448 108 H 464 Q 472 108 472 100 V 68 Q 472 60 480 60 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 56 L 496 60 L 487 64 Z" fill="#71859D"/>
+<path d="M 692 60 H 708 Q 716 60 716 68 V 100 Q 716 108 724 108 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 104 L 740 108 L 731 112 Z" fill="#71859D"/>
+<path d="M 448 140 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 136 L 496 140 L 487 144 Z" fill="#71859D"/>
+<path d="M 692 140 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 136 L 740 140 L 731 144 Z" fill="#71859D"/>
+<path d="M 448 172 H 464 Q 472 172 472 180 V 212 Q 472 220 480 220 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 216 L 496 220 L 487 224 Z" fill="#71859D"/>
+<path d="M 692 220 H 708 Q 716 220 716 212 V 180 Q 716 172 724 172 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 168 L 740 172 L 731 176 Z" fill="#71859D"/>
+<rect x="496" y="32" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="54" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">子直譯器 0</text>
+<text x="512" y="76" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">獨立 GIL 與外掛</text>
+<rect x="496" y="112" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="134" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">子直譯器 1</text>
+<text x="512" y="156" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">獨立 GIL 與外掛</text>
+<rect x="496" y="192" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="512" y="214" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">子直譯器 2</text>
+<text x="512" y="236" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">獨立 GIL 與外掛</text>
+<rect x="24" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="40" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">主控直譯器</text>
+<text x="40" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Main Interpreter</text>
+<text x="40" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">排程任務與收集結果</text>
+<rect x="252" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="268" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">跨直譯器通道</text>
+<text x="268" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">create_queue()</text>
+<text x="268" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">按型別共享或序列化</text>
+<rect x="740" y="96" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
+<text x="756" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">回收結果並清理</text>
+<text x="756" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">工作結束後釋放</text>
+<text x="756" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">interp.close()</text>
+</svg>
         `,
         code: `from concurrent import interpreters
 
-# 定義於模組頂層的 PEP 661 sentinel：跨子直譯器序列化後依然維持同一物件身分
-END_PLUGIN = sentinel("END_PLUGIN")
+# 明確的訊息種類可跨直譯器傳遞，無須跨越物件身分邊界。
+END_PLUGIN = ("stop", None)
 
 def plugin_sandbox_worker(
     in_q: interpreters.Queue,
@@ -1626,18 +1492,21 @@ def plugin_sandbox_worker(
     """在獨立子直譯器內執行（獨立命名空間 + 獨立 GIL，不污染主直譯器）。"""
     while True:
         payload = in_q.get()
-        if payload is END_PLUGIN:
+        kind, data = payload
+        if kind == "stop":
             break
-        plugin_name, iterations = payload
+        plugin_name, iterations = data
         # 執行隔離計算或呼叫相容多階段初始化的專屬 C 套件
         checksum = sum((i * 31) % 997 for i in range(iterations))
         out_q.put((sandbox_id, plugin_name, checksum))
 
 def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> list[tuple]:
+    if pool_size < 1:
+        raise ValueError("pool_size 必須至少為 1")
     in_q = interpreters.create_queue(maxsize=16)
     out_q = interpreters.create_queue()
 
-    # 建立多個隔離子直譯器（Python 3.15 具 PEP 788 終止保護）
+    # 建立多個隔離子直譯器（concurrent.interpreters 自 Python 3.14 提供）
     interps = [interpreters.create() for _ in range(pool_size)]
     threads = [
         interp.call_in_thread(plugin_sandbox_worker, in_q, out_q, idx)
@@ -1645,7 +1514,7 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
     ]
 
     for job in jobs:
-        in_q.put(job)
+        in_q.put(("work", job))
 
     # 為每個子直譯器注入一個結束哨兵
     for _ in range(pool_size):
@@ -1660,8 +1529,8 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
     return results`,
         tips: [
           '跨子直譯器傳遞 `bytes`、`str`、`int`、`float`、`tuple` 與 `memoryview` 成本最低；避免頻繁傳遞龐大自訂類別物件以免 Pickle 成為瓶頸。',
-          'PEP 661 `sentinel` 必須定義在模組頂層，跨直譯器反序列化後使用 `is` 比對才會保持唯一身分。',
-          '搭配 PEP 788 直譯器防護機制，在終止子直譯器（`interp.close()`）時能安全保護正在執行的原生擴充資源，避免 Use-after-free 崩潰。'
+          '跨直譯器可使用 ("stop", None) 等可序列化的結束訊息，避免依賴原程序的物件身分。',
+          '先結束工作及接收結果，再關閉子直譯器。實際服務需加上逾時、失敗回報與擴充模組相容性測試。'
         ]
       }
     };
@@ -1704,11 +1573,11 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
       });
     }
 
-    /* 剪貼簿複製（使用 execCommand 確保於 iframe 沙箱環境正常運作） */
+    /* 以瀏覽器回傳的結果更新複製提示。 */
     let toastTimer = null;
     function copyText(text) {
+      const ta = document.createElement('textarea');
       try {
-        const ta = document.createElement('textarea');
         ta.value = text;
         ta.setAttribute('readonly', '');
         ta.style.position = 'fixed';
@@ -1717,11 +1586,12 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
         document.body.appendChild(ta);
         ta.select();
         ta.setSelectionRange(0, text.length);
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('已複製到剪貼簿！');
+        const copied = document.execCommand('copy');
+        showToast(copied ? '已複製到剪貼簿！' : '複製失敗，請手動選取複製');
       } catch (err) {
         showToast('複製失敗，請手動選取複製');
+      } finally {
+        ta.remove();
       }
     }
 
@@ -1772,6 +1642,7 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
 
       // 更新架構圖中的文字與標記
       updateSvgModeVisuals(mode);
+      updateCoreVisuals(0);
 
       // 更新 KPI 初始值與色彩
       updateKpiDisplay(0);
@@ -1792,23 +1663,23 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
       // Input / Output Channel 標籤
       document.getElementById('svg-inchan-name').textContent = isSub ? 'create_queue(32)' : 'queue.Queue(32)';
       document.getElementById('svg-inchan-sub').textContent = isSub
-        ? '跨子直譯器隔離佇列 (Pickle/Share)'
-        : isGIL ? '有界緩衝 (下游受限 GIL 易積壓)' : '有界背壓緩衝 / 短暫臨界區';
+        ? '跨直譯器・共享或序列化'
+        : isGIL ? '下游受限時觸發背壓' : '短臨界區・滿載背壓';
       document.getElementById('svg-inchan-footer').textContent = isSub
-        ? '注入 N 個 END_SIGNAL 關閉'
-        : 'in_chan.shutdown() 廣播結束';
+        ? '每個 Worker 一個結束訊號'
+        : 'shutdown() → 排空';
 
       document.getElementById('svg-outchan-name').textContent = isSub ? 'create_queue()' : 'SimpleQueue';
       document.getElementById('svg-outchan-sub').textContent = isSub ? '隔離結果匯流佇列' : '純 C 實作・非阻塞入列';
 
       document.getElementById('svg-producer-payload').textContent = isSub ? '(task_id, payload)' : 'frozendict(id, data)';
       document.getElementById('svg-producer-alloc').textContent = isSub
-        ? '🔒 主直譯器獨立配置'
-        : isGIL ? '⚠ pymalloc (受 GIL 鎖定)' : '⚡ mimalloc 本地 Heap';
+        ? '主直譯器獨立配置'
+        : isGIL ? 'pymalloc（GIL）' : 'mimalloc 本地配置';
 
       // Workers 模式標籤與各核心名稱
       const wTag = document.getElementById('svg-workers-mode-tag');
-      wTag.textContent = isFT ? '4 核無鎖同步' : isGIL ? '1 核搶 GIL 輪替' : '4 獨立子直譯器';
+      wTag.textContent = isFT ? '四核心並行' : isGIL ? '單一 GIL 輪替' : '四個隔離子直譯器';
       wTag.setAttribute('fill', isFT ? '#34d399' : isGIL ? '#fbbf24' : '#c084fc');
 
       for (let i = 0; i < 4; i++) {
@@ -1819,17 +1690,19 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
 
       // CSP 便籤文字
       document.getElementById('svg-csp-line1').textContent = isFT
-        ? '● 零業務層 Lock：不共用可變狀態'
-        : isGIL ? '● 受限全域 GIL：同時僅 1 執行緒運算' : '● 強記憶體隔離：各自擁有專屬 GIL';
+        ? '不共用可變狀態'
+        : isGIL ? '全域 GIL 限制平行運算' : '各直譯器擁有專屬 GIL';
       document.getElementById('svg-csp-line1').setAttribute('fill', isFT ? '#34d399' : isGIL ? '#fbbf24' : '#c084fc');
 
+      document.getElementById('svg-csp-line2').textContent = isSub ? '各自有獨立設定' : '共用唯讀設定';
+      document.getElementById('svg-runtime-sub').textContent = isFT ? '自由執行緒模式' : '3.15t 機制對照';
       document.getElementById('svg-csp-line3').textContent = isSub
-        ? '● 傳遞成本：跨直譯器序列化複製'
-        : '● 傳遞成本：僅搬移指標 (Zero-Copy)';
+        ? '跨直譯器可能序列化複製'
+        : '同程序內傳遞物件參考';
 
       document.getElementById('svg-csp-line4').textContent = isSub
-        ? 'interps = [interpreters.create()...]'
-        : isGIL ? 'sys._is_gil_enabled() == True' : 'assert not sys._is_gil_enabled()';
+        ? 'interpreters.create()'
+        : isGIL ? 'sys._is_gil_enabled() == True' : 'sys._is_gil_enabled() == False';
 
       // 顯示/隱藏 GIL 鎖與 Sub-Interp Pickle 標籤
       document.getElementById('gil-lock-token').setAttribute('opacity', isGIL ? '1' : '0');
@@ -1838,27 +1711,27 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
 
       // 底層 Runtime 標題
       document.getElementById('svg-runtime-title').textContent = isFT
-        ? 'CPython 3.15t 底層無鎖快速路徑與記憶體治理層 (Free-Threaded Runtime)'
+        ? 'CPython 3.15t 執行環境'
         : isGIL
-          ? '傳統 CPython Runtime（單一全域 GIL 保護引用計數與 pymalloc — 高爭用）'
-          : 'CPython 3.15 多子直譯器架構（PEP 788 隔離防護・Per-Interpreter GIL）';
+          ? 'CPython 執行環境・全域 GIL'
+          : 'CPython 多子直譯器執行環境';
 
       document.getElementById('svg-collector-note').textContent = isSub
         ? '✓ interp.close() 完整釋放'
-        : isGIL ? '⚠ 週期 GC 需等待 GIL' : '✓ Eval Breaker → QSBR';
+        : isGIL ? '⚠ 週期 GC 需等待 GIL' : '✓ 等候最後一筆結果';
 
       // 更新主要連線色彩
       const edgeColor = isFT ? '#10b981' : isGIL ? '#f59e0b' : '#a855f7';
-      const markerUrl = isFT ? 'url(#arrow-emerald)' : isGIL ? 'url(#arrow-amber)' : 'url(#arrow-violet)';
       ['edge-p-in', 'edge-in-w0', 'edge-in-w1', 'edge-in-w2', 'edge-in-w3', 'edge-w0-out', 'edge-w1-out', 'edge-w2-out', 'edge-w3-out', 'edge-out-col'].forEach(id => {
         const el = document.getElementById(id);
         el.setAttribute('stroke', edgeColor);
-        el.setAttribute('marker-end', markerUrl);
+        document.getElementById(id + '-head').setAttribute('fill', edgeColor);
       });
 
       // 外框節點主色
-      document.querySelector('#node-workers .node-box').setAttribute('stroke', edgeColor);
-      document.querySelector('#node-runtime_mem .node-box').setAttribute('stroke', edgeColor);
+      document.querySelectorAll('#node-workers .node-box, #node-runtime_mem .node-box').forEach(box => {
+        box.setAttribute('stroke', edgeColor);
+      });
     }
 
     function updateKpiDisplay(jitterPhase) {
@@ -2116,8 +1989,8 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
           state.gilHolderCore = (state.gilHolderCore + 1) % 4;
         }
         // 移動 GIL 鎖標示位置
-        const lockY = 62 + state.gilHolderCore * 66;
-        document.getElementById('gil-lock-token').setAttribute('transform', `translate(658, ${lockY})`);
+        const lockY = 132 + state.gilHolderCore * 80;
+        document.getElementById('gil-lock-token').setAttribute('transform', `translate(703, ${lockY})`);
       }
 
       // 動態調整輸入通道佇列水位 (Legacy GIL 積壓觸發背壓)
@@ -2315,7 +2188,9 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
         <!-- 專屬資料流微架構圖 -->
         <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4">
           <div class="text-[11px] font-mono text-slate-400 mb-2">專屬資料流微架構圖</div>
+          <div class="channel-diagram-scroll" tabindex="0" role="region" aria-label="案例架構圖，可橫向捲動">
           ${uc.diagramSvg}
+          </div>
         </div>
 
         <!-- 痛點與解法雙欄 -->
@@ -2391,6 +2266,18 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
       setMode('free-threaded');
       selectNode('workers');
       selectUseCase('fintech');
+      const architecture = document.getElementById('arch-svg');
+      architecture.setAttribute('role', 'group');
+      architecture.querySelectorAll('[role="button"]').forEach(node => {
+        node.addEventListener('click', () => selectNode(node.id.slice('node-'.length)));
+        node.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectNode(node.id.slice('node-'.length));
+          }
+        });
+      });
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) togglePlay();
       requestAnimationFrame(simulationLoop);
     });
   </script>

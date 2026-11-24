@@ -28,6 +28,6 @@ wrote /tmp/orders-report.json
 ## 交付檢查
 
 - 必要欄位缺失時 fail fast，不允許產生錯誤報表。
-- `created_at` 統一轉成 UTC datetime，再產生月份欄位。
-- `amount` 缺值列不進營收，但品質摘要要保留缺值比例。
+- `created_at` 統一轉成 UTC datetime，以 UTC 日曆月份分組。例如台北 6 月 1 日 00:05 歸入 UTC 5 月。
+- `amount` 缺值列不進營收，品質摘要仍計算缺值比例。若只有表頭，缺值比例輸出 JSON 的 `null`，營收為空陣列。無窮大金額會使驗證失敗。
 - JSON feed 欄位名稱需由測試固定，避免 dashboard 介面被破壞。

@@ -128,7 +128,7 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把外部 payload 和 domain state 分開</h2><p>外部資料可能不可信；核心 model 應只接收已驗證資料。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>從標準庫開始驗證契約流程</h2><p>先用 unittest 與 smoke script 建立可重複驗收，再接 mypy 或 pyright。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>型別策略要分 blocking 與 warning</h2><p>核心 schema 與 runtime validation 應阻擋 release；全域 strictness 可漸進導入。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Type Contract 範例專案</h2><p>範例用工業溫度點位示範 schema、alarm 與 fail-safe，但保持純 Python 標準庫。</p></div></div><pre><code>cd 範例程式碼/type_contract_engineering
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Type Contract 範例專案</h2><p>範例用工業溫度點位示範 schema、alarm 與 fail-safe，但保持純 Python 標準庫。 <a href="範例程式碼/type_contract_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/type_contract_engineering
 python3 -m py_compile src/type_contract_engineering/*.py scripts/run_type_contract_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_type_contract_smoke.py</code></pre><div class="cards"></div></section>
@@ -171,7 +171,7 @@ python3 scripts/run_type_contract_smoke.py</code></pre><div class="cards"></div>
         ["example-failsafe", "Example", "stale 或 fault 觸發 fail-safe", "timestamp 過舊或 status fault 時，不假設讀值仍安全，改發 critical event。", "fail_safe_required=True", "unsafe stale data is handled."]
       ],
       verification: [
-        ["verify-compile", "Verification", "py_compile 是最低成本檢查", "先排除語法錯誤與明顯 import 問題，讓後續測試訊號更乾淨。", "python -m py_compile src/type_contract_engineering/*.py", "compile gate passes."],
+        ["verify-compile", "Verification", "py_compile 是最低成本檢查", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python -m py_compile src/type_contract_engineering/*.py", "compile gate passes."],
         ["verify-unit", "Verification", "unittest 驗證正常與錯誤路徑", "測試要覆蓋 schema 正常、缺欄位、alarm、fail-safe 與 evidence output。", "python -m unittest discover -s tests -v", "regression tests pass."],
         ["verify-report", "Verification", "contract report 是 release evidence", "報告需包含 schema version、required keys、type hints、alarm 與 fail-safe 狀態。", "type_contract_report.json", "contract evidence exists."],
         ["verify-html", "Verification", "HTML 教材也要做 script parse", "互動教材改版後，用 Node 解析 script，避免入口或卡片 JavaScript 中斷。", "new Function(script)", "tutorial scripts parse."]

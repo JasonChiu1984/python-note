@@ -97,7 +97,7 @@
         <div>
           <span class="eyebrow">Python Performance and Memory Engineering</span>
           <h1>把效能問題變成可驗收證據</h1>
-          <p>這條路線把 benchmark、CPU profiling、memory snapshot 與 regression budget 整理成 production workflow。先定義 workload 與 baseline，再用 `cProfile` 找 hotspot，用 `tracemalloc` 看 allocation peak，最後把效能預算與報告放進 release gate。</p>
+          <p>這條路線把 benchmark、CPU profiling、memory snapshot 與 regression budget 整理成 production workflow。先定義 workload 與 baseline，再用 <code>cProfile</code> 找 hotspot，用 <code>tracemalloc</code> 看 allocation peak，最後把效能預算與報告放進 release gate。</p>
           <div class="status-strip"><span>v3.0.0</span><span>32 張互動卡</span><span>standard library sample</span><span>profiling / memory gate</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始效能工程課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
@@ -126,9 +126,9 @@
       </div>
       <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>效能問題先變成可回答的工程問題</h2><p>不要先猜優化點；先定義 workload、baseline 與成功標準。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把測量、剖析、預算與證據分層</h2><p>效能工程不是單次測速，而是可重複的交付流程。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用標準庫建立最小可驗收範例</h2><p>`time`、`cProfile`、`pstats`、`tracemalloc`、`unittest` 足以建立基礎 gate。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用標準庫建立最小可驗收範例</h2><p><code>time</code>、<code>cProfile</code>、<code>pstats</code>、<code>tracemalloc</code>、<code>unittest</code> 足以建立基礎 gate。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>效能參數要能進 release note</h2><p>資料量、iterations、threshold、profile top N 與 memory budget 都要可追蹤。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Performance Memory 範例專案</h2><p>範例用可重現 sensor readings 示範 slow path、optimized path、profile、memory 與 budget report。</p></div></div><pre><code>cd 範例程式碼/performance_memory_engineering
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Performance Memory 範例專案</h2><p>範例用可重現 sensor readings 示範 slow path、optimized path、profile、memory 與 budget report。 <a href="範例程式碼/performance_memory_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/performance_memory_engineering
 python3 -m py_compile src/performance_memory_engineering/*.py scripts/run_performance_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_performance_smoke.py</code></pre><div class="cards"></div></section>
@@ -171,7 +171,7 @@ python3 scripts/run_performance_smoke.py</code></pre><div class="cards"></div></
         ["example-report", "Example", "Evidence JSON 留下交付資料", "報告包含 baseline、candidate、profile、memory 與 budget decision。", "performance_evidence.json", "delivery record is durable."]
       ],
       verification: [
-        ["verify-compile", "Verification", "py_compile 先排除語法問題", "先讓 syntax/import 問題浮出，避免污染測試訊號。", "python -m py_compile src/performance_memory_engineering/*.py", "compile gate passes."],
+        ["verify-compile", "Verification", "py_compile 先排除語法問題", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python -m py_compile src/performance_memory_engineering/*.py", "compile gate passes."],
         ["verify-unit", "Verification", "unittest 覆蓋 correctness 與 budget", "測試要包含輸出一致、profile、memory、budget pass 與 budget fail。", "python -m unittest discover -s tests -v", "regressions are caught."],
         ["verify-smoke", "Verification", "smoke 驗收完整流程", "smoke 成功訊息要固定，方便 CI/CD 與更新紀錄引用。", "performance memory smoke passed", "release smoke is clear."],
         ["verify-html", "Verification", "HTML 教材要做 script parse", "互動教材改版後，用 Node 解析 script，避免卡片與搜尋功能中斷。", "new Function(script)", "tutorial scripts parse."]
