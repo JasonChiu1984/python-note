@@ -1,0 +1,2339 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>Python 3.15 語法與新特性完整學習筆記</title><style>
+:root { color-scheme:light; --ink:#17243a; --muted:#5d7087; --line:#dae5ed; --teal:#147c7b; --bg:#f4f7f9; }
+* { box-sizing:border-box; } html { scroll-behavior:smooth; scroll-padding-top:28px; }
+body { margin:0; color:var(--ink); background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif; line-height:1.85; }
+a { color:#176cb0; text-underline-offset:3px; overflow-wrap:anywhere; }
+.hero { padding:56px max(28px,calc((100vw - 1450px)/2)); background:#152840; color:#f8fbff; border-bottom:7px solid #60b5af; }
+.eyebrow { letter-spacing:3px; color:#9ad5d0; font-size:12px; font-weight:750; }
+.hero h1 { font-size:clamp(31px,4vw,52px); line-height:1.3; letter-spacing:-1px; margin:14px 0 17px; max-width:1100px; }
+.hero p { color:#ccd9e8; margin:8px 0 0; max-width:1100px; }
+.badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+.badges span { padding:4px 11px; border:1px solid #4e657f; border-radius:6px; font-size:12px; }
+.layout { max-width:1510px; margin:auto; display:grid; grid-template-columns:270px minmax(0,1fr); gap:32px; padding:34px 28px 72px; }
+aside { position:sticky; top:20px; align-self:start; max-height:calc(100vh - 40px); overflow:auto; padding:8px 14px 16px 0; scrollbar-width:thin; }
+aside h2 { font-size:15px; margin:0 0 10px; } .toc-h2,.toc-h3 { display:block; text-decoration:none; line-height:1.5; margin:0; padding:7px 9px; border-radius:6px; }
+.toc-h2 { color:#19314d; font-size:13px; font-weight:750; margin-top:10px; background:#e8eff4; }
+.toc-h3 { font-size:12px; color:var(--muted); padding-left:13px; } .toc-h3:hover,.toc-h2:hover { background:#dceeea; color:#105e5c; }
+.toc-hint { color:var(--muted); font-size:12px; margin:6px 0 13px; }
+main { min-width:0; padding:34px 43px 60px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 38px #19314d06; }
+main h2 { font-size:29px; margin:66px 0 22px; line-height:1.5; padding-bottom:12px; border-bottom:2px solid #bedad8; letter-spacing:-.3px; }
+main h2:first-child { margin-top:0; } main h3 { font-size:23px; line-height:1.5; margin:40px 0 16px; color:#205e73; } main h4 { font-size:19px; margin:29px 0 12px; line-height:1.5; }
+main p { margin:13px 0 18px; overflow-wrap:anywhere; } main li { margin:7px 0; } main ul, main ol { padding-left:1.6em; }
+strong { color:#182b43; } code { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-size:.9em; background:#edf3f7; color:#25445e; padding:2px 5px; border-radius:4px; }
+pre { padding:21px 24px; border-radius:9px; border:1px solid #d8e4ed; background:#f5f8fb; line-height:1.65; overflow-x:auto; margin:20px 0 25px; font-size:14px; tab-size:4; }
+pre code { padding:0; border:0; border-radius:0; background:none; color:#21364e; font-size:inherit; white-space:pre; }
+.table-scroll { max-width:100%; overflow-x:auto; margin:20px 0 27px; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14px; line-height:1.7; } th { background:#edf5f4; text-align:left; color:#205c60; font-weight:750; } th,td { padding:12px 14px; border:1px solid #dce6ed; vertical-align:top; } td code { white-space:normal; overflow-wrap:anywhere; } tbody tr:nth-child(even) { background:#fafcfd; }
+blockquote { margin:24px 0; border-left:4px solid #63a9a5; padding:6px 20px; background:#f0f8f7; color:#456271; }
+.diagram { margin:25px 0 36px; } .diagram-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:#f5f8fa; }
+.diagram img { display:block; width:100%; height:auto; min-width:720px; } figcaption { font-size:12px; color:var(--muted); margin-top:9px; }
+footer { text-align:center; color:var(--muted); font-size:12px; padding:0 24px 35px; }
+@media(max-width:1050px) { .layout { grid-template-columns:210px minmax(0,1fr); gap:20px; padding:24px 18px; } main { padding:26px; } }
+@media(max-width:760px) { .hero { padding:34px 22px; } .layout { display:block; padding:18px 12px 35px; } aside { position:static; max-height:310px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:17px; margin-bottom:18px; } main { padding:24px 19px; } main h2 { font-size:25px; margin-top:45px; } main h3 { font-size:21px; } pre { padding:15px; font-size:12px; } }
+@media print { @page { size:A4; margin:16mm; } html { scroll-behavior:auto; } body { background:white; font-size:10.5pt; line-height:1.65; } .hero { background:white; color:#17243a; border-bottom:2px solid #147c7b; padding:0 0 20px; } .hero h1 { font-size:28pt; } .hero p,.eyebrow { color:#456271; } .badges,aside,footer { display:none; } .layout { display:block; padding:0; } main { padding:0; border:0; box-shadow:none; } main h2 { font-size:19pt; break-before:page; margin:0 0 18px; } main h2:first-child { break-before:auto; margin-top:20px; } main h3,main h4 { break-after:avoid; } table { min-width:0; font-size:9pt; } tr { break-inside:avoid; } pre { font-size:8.3pt; white-space:pre-wrap; overflow:visible; } pre code { white-space:pre-wrap; } .table-scroll,.diagram-scroll { overflow:visible; } .diagram img { min-width:0; } .diagram { break-inside:avoid; } a { color:#244b71; text-decoration:none; } }
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+pre .hll { background-color: #ffffcc }
+pre { background: #f8f8f8; }
+pre .c { color: #3D7B7B; font-style: italic } /* Comment */
+pre .err { border: 1px solid #F00 } /* Error */
+pre .k { color: #008000; font-weight: bold } /* Keyword */
+pre .o { color: #666 } /* Operator */
+pre .ch { color: #3D7B7B; font-style: italic } /* Comment.Hashbang */
+pre .cm { color: #3D7B7B; font-style: italic } /* Comment.Multiline */
+pre .cp { color: #9C6500 } /* Comment.Preproc */
+pre .cpf { color: #3D7B7B; font-style: italic } /* Comment.PreprocFile */
+pre .c1 { color: #3D7B7B; font-style: italic } /* Comment.Single */
+pre .cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
+pre .gd { color: #A00000 } /* Generic.Deleted */
+pre .ge { font-style: italic } /* Generic.Emph */
+pre .ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+pre .gr { color: #E40000 } /* Generic.Error */
+pre .gh { color: #000080; font-weight: bold } /* Generic.Heading */
+pre .gi { color: #008400 } /* Generic.Inserted */
+pre .go { color: #717171 } /* Generic.Output */
+pre .gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+pre .gs { font-weight: bold } /* Generic.Strong */
+pre .gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+pre .gt { color: #04D } /* Generic.Traceback */
+pre .kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+pre .kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+pre .kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+pre .kp { color: #008000 } /* Keyword.Pseudo */
+pre .kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+pre .kt { color: #B00040 } /* Keyword.Type */
+pre .m { color: #666 } /* Literal.Number */
+pre .s { color: #BA2121 } /* Literal.String */
+pre .na { color: #687822 } /* Name.Attribute */
+pre .nb { color: #008000 } /* Name.Builtin */
+pre .nc { color: #00F; font-weight: bold } /* Name.Class */
+pre .no { color: #800 } /* Name.Constant */
+pre .nd { color: #A2F } /* Name.Decorator */
+pre .ni { color: #717171; font-weight: bold } /* Name.Entity */
+pre .ne { color: #CB3F38; font-weight: bold } /* Name.Exception */
+pre .nf { color: #00F } /* Name.Function */
+pre .nl { color: #767600 } /* Name.Label */
+pre .nn { color: #00F; font-weight: bold } /* Name.Namespace */
+pre .nt { color: #008000; font-weight: bold } /* Name.Tag */
+pre .nv { color: #19177C } /* Name.Variable */
+pre .ow { color: #A2F; font-weight: bold } /* Operator.Word */
+pre .w { color: #BBB } /* Text.Whitespace */
+pre .mb { color: #666 } /* Literal.Number.Bin */
+pre .mf { color: #666 } /* Literal.Number.Float */
+pre .mh { color: #666 } /* Literal.Number.Hex */
+pre .mi { color: #666 } /* Literal.Number.Integer */
+pre .mo { color: #666 } /* Literal.Number.Oct */
+pre .sa { color: #BA2121 } /* Literal.String.Affix */
+pre .sb { color: #BA2121 } /* Literal.String.Backtick */
+pre .sc { color: #BA2121 } /* Literal.String.Char */
+pre .dl { color: #BA2121 } /* Literal.String.Delimiter */
+pre .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+pre .s2 { color: #BA2121 } /* Literal.String.Double */
+pre .se { color: #AA5D1F; font-weight: bold } /* Literal.String.Escape */
+pre .sh { color: #BA2121 } /* Literal.String.Heredoc */
+pre .si { color: #A45A77; font-weight: bold } /* Literal.String.Interpol */
+pre .sx { color: #008000 } /* Literal.String.Other */
+pre .sr { color: #A45A77 } /* Literal.String.Regex */
+pre .s1 { color: #BA2121 } /* Literal.String.Single */
+pre .ss { color: #19177C } /* Literal.String.Symbol */
+pre .bp { color: #008000 } /* Name.Builtin.Pseudo */
+pre .fm { color: #00F } /* Name.Function.Magic */
+pre .vc { color: #19177C } /* Name.Variable.Class */
+pre .vg { color: #19177C } /* Name.Variable.Global */
+pre .vi { color: #19177C } /* Name.Variable.Instance */
+pre .vm { color: #19177C } /* Name.Variable.Magic */
+pre .il { color: #666 } /* Literal.Number.Integer.Long */</style></head>
+<body><header class="hero"><div class="eyebrow">PYTHON LEARNING NOTES · 2026 EDITION</div><h1>Python 3.15<br>語法與新特性完整學習筆記</h1><p>從核心語法、資料結構與型別註記，到非同步、平行執行與升級實務。含可執行範例、官方來源及兩張工程圖修正版。</p><div class="badges"><span>核對版本 3.15.2</span><span>核對日期 2026-11-24</span><span>一般版＋free-threaded 功能驗證</span><span>繁體中文 · 離線單檔</span></div></header>
+<div class="layout"><aside><h2>章節目錄</h2><p class="toc-hint">點選章節跳轉；⌘F / Ctrl+F 查找語法。</p><nav aria-label="章節目錄"><a class="toc-h2" href="#section-01">如何使用這份筆記</a><a class="toc-h2" href="#section-02">執行環境與版本標籤</a><a class="toc-h2" href="#section-03">第一部｜核心語法與標準函式庫</a><a class="toc-h3" href="#section-04">C01｜先讀懂程式的區塊與名稱</a><a class="toc-h3" href="#section-05">C02｜數值、字串、f-string 與 bytes</a><a class="toc-h3" href="#section-06">C03｜名稱繫結、可變性與複製</a><a class="toc-h3" href="#section-07">C04｜運算子與優先序速查</a><a class="toc-h3" href="#section-08">C05｜容器、切片、解包與推導式</a><a class="toc-h3" href="#section-09">C06｜if、match、迴圈與迴圈 else</a><a class="toc-h3" href="#section-10">C07｜函式參數：位置、關鍵字、可變引數</a><a class="toc-h3" href="#section-11">C08｜LEGB、閉包與裝飾器</a><a class="toc-h3" href="#section-12">C09｜class、dataclass 與物件協定</a><a class="toc-h3" href="#section-13">C10｜迭代器、yield 與 yield from</a><a class="toc-h3" href="#section-14">C11｜例外、原因鏈與 ExceptionGroup</a><a class="toc-h3" href="#section-15">C12｜with 與 contextmanager：把生命週期寫進結構</a><a class="toc-h3" href="#section-16">C13｜typing：說清楚資料契約</a><a class="toc-h3" href="#section-17">C14｜模組、import、入口與環境管理</a><a class="toc-h3" href="#section-18">C15｜檔案、JSON 與標準庫選用</a><a class="toc-h3" href="#section-19">C16｜async 語法與 TaskGroup 的基本使用</a><a class="toc-h2" href="#section-20">第二部｜Python 3.15 新增與升級變更</a><a class="toc-h3" href="#section-21">Python 3.15 新特性與升級指南</a><a class="toc-h3" href="#section-22">版本狀態</a><a class="toc-h3" href="#section-23">真正屬於 3.15 的主要變更</a><a class="toc-h3" href="#section-24">1. lazy import：把載入推遲到第一次使用</a><a class="toc-h3" href="#section-25">2. 推導式解包：一次展開一層</a><a class="toc-h3" href="#section-26">3. frozendict：設定快照與不可變映射</a><a class="toc-h3" href="#section-27">4. sentinel：區分沒傳入與有意傳入 None</a><a class="toc-h3" href="#section-28">5. UTF-8 預設</a><a class="toc-h3" href="#section-29">6. 型別註記：資料邊界更精確</a><a class="toc-h3" href="#section-30">7. profiling / Tachyon</a><a class="toc-h3" href="#section-31">8. 新增實用標準函式庫 API</a><a class="toc-h3" href="#section-32">9. .start 啟動配置</a><a class="toc-h3" href="#section-33">10. 升級應核對的移除與棄用</a><a class="toc-h3" href="#section-34">11. 不要錯標成3.15新功能</a><a class="toc-h3" href="#section-35">12. 升級到3.15的實作順序</a><a class="toc-h3" href="#section-36">13. 本章驗證紀錄與界線</a><a class="toc-h2" href="#section-37">第三部｜非同步、平行與執行環境</a><a class="toc-h3" href="#section-38">版本狀態與沿革</a><a class="toc-h3" href="#section-39">四種並行方式</a><a class="toc-h3" href="#section-40">無 GIL、無鎖與通道不可混淆</a><a class="toc-h3" href="#section-41">3.15 新增的 iterator 同步工具</a><a class="toc-h3" href="#section-42">如何確認目前真的在無 GIL 模式</a><a class="toc-h3" href="#section-43">JIT 與效能說法的界線</a><a class="toc-h3" href="#section-44">本次功能驗證</a><a class="toc-h2" href="#section-45">第四部｜工程實務、版本沿革與學習練習</a><a class="toc-h3" href="#section-46">實務整合：8 個測點的一次資料採集</a><a class="toc-h3" href="#section-47">不要把 3.14 的功能誤認成 3.15 新增</a><a class="toc-h3" href="#section-48">升級專案的實用順序</a><a class="toc-h3" href="#section-49">自我檢查與練習</a><a class="toc-h3" href="#section-50">讀程式時最常見的 12 個誤判</a><a class="toc-h2" href="#section-51">第五部｜工程圖修正版</a><a class="toc-h3" href="#section-52">Production notes-cli：連接箭頭修正</a><a class="toc-h3" href="#section-53">Delivery Blueprint：文字與方框修正</a><a class="toc-h2" href="#section-54">第六部｜驗證紀錄與資料包</a><a class="toc-h3" href="#section-55">資料包內容</a></nav></aside><main><h2 id="section-01">如何使用這份筆記</h2>
+<p><strong>核對版本：Python 3.15.2。資料核對日期：2026 年 11 月 24 日（台北時間）。</strong> Python 3.15.0 已於 2026 年 10 月 9 日正式發布；本次官方下載與文件所列最新 3.15 維護版為 3.15.2，發布於 10 月 25 日。</p>
+<p>這份筆記涵蓋 Python 核心語法、常用標準函式庫、3.15 新增與相容性變更、並行模式，以及工程實務範例。依需求可從頭學習，也可以直接查找對應章節。所有程式使用 Python 與標準函式庫，不需要 Node.js 或網頁建置工具；HTML 教材可直接開啟。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>閱讀目的</th>
+<th>先讀什麼</th>
+<th>完成後應能做到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建立語法基礎</td>
+<td>第一部：核心語法</td>
+<td>寫出函式、類別、例外處理與資料轉換</td>
+</tr>
+<tr>
+<td>已熟悉 Python，準備升級</td>
+<td>第二部：3.15 新增與升級</td>
+<td>判斷哪些新功能值得採用、哪些舊行為會改變</td>
+</tr>
+<tr>
+<td>多台設備與多工作處理</td>
+<td>第三部：並行與執行環境</td>
+<td>正確選擇 asyncio、threads、processes、interpreters</td>
+</tr>
+<tr>
+<td>整合為可維護工具</td>
+<td>第四部：實務與驗證</td>
+<td>處理輸入品質、時間限制、JSON 報告及部署驗收</td>
+</tr>
+<tr>
+<td>修正教材圖表</td>
+<td>第五部：工程圖修正版</td>
+<td>檢視已修正的箭頭、分支與文字內距</td>
+</tr>
+</tbody>
+</table>
+</div><p>範例以溫度資料與設備監控為情境；文中的數值、測點與等待時間都是教學模擬。語法解說、官方規格與本次實測結果分開標示，不將範例結果當作現場設備或特定硬體效能。</p>
+<p>官方依據：<a href="https://www.python.org/downloads/release/python-3150/" target="_blank" rel="noopener noreferrer">Python 3.15.0</a>、<a href="https://www.python.org/downloads/release/python-3152/" target="_blank" rel="noopener noreferrer">Python 3.15.2</a>、<a href="https://docs.python.org/3.15/reference/index.html" target="_blank" rel="noopener noreferrer">完整語言參考</a>、<a href="https://docs.python.org/3.15/library/index.html" target="_blank" rel="noopener noreferrer">標準函式庫參考</a>、<a href="https://docs.python.org/3.15/whatsnew/3.15.html" target="_blank" rel="noopener noreferrer">3.15 變更總覽</a>。</p>
+<h2 id="section-02">執行環境與版本標籤</h2>
+<p>以下使用 <code>python3.15</code> 表示你實際安裝的 Python 3.15 執行檔。Windows 可使用可用的啟動器，例如 <code>py -3.15</code>；啟用虛擬環境後，統一使用 <code>python</code> 即可。</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>--version
+python3.15<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="c1"># macOS / Linux</span>
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+<span class="c1"># Windows PowerShell 使用 .venv\Scripts\Activate.ps1</span>
+
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>--version
+python<span class="w"> </span>examples/core_syntax.py
+python<span class="w"> </span>examples/new_features_315.py
+python<span class="w"> </span>examples/concurrency_315.py
+python<span class="w"> </span>examples/hvac_monitor_315.py<span class="w"> </span>--output<span class="w"> </span>report.json
+</code></pre>
+<p>只有要驗證 free-threaded 行為時，才另建一個對應的環境：</p>
+<pre><code class="language-bash">python3.15t<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv-ft
+.venv-ft/bin/python<span class="w"> </span>examples/concurrency_315.py
+</code></pre>
+<p>不要讓一般版與 free-threaded 版共用同一個 <code>.venv</code>。名稱相同的 <code>python</code> 命令不一定指向相同的執行檔；透過 <code>sys.executable</code> 與 <code>sys.version</code> 確認。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>標籤</th>
+<th>本文件中的意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心語法／既有能力</td>
+<td>Python 3.15 可用，但不是宣稱 3.15 首次加入</td>
+</tr>
+<tr>
+<td>3.15 新增</td>
+<td>官方 3.15 文件或 PEP 確認本版新增</td>
+</tr>
+<tr>
+<td>CPython 實作</td>
+<td>與直譯器實作、建置或平台有關，不是所有 Python 實作的保證</td>
+</tr>
+<tr>
+<td>本次實測</td>
+<td>使用隔離的 CPython 3.15.2 執行；完整紀錄附於資料包</td>
+</tr>
+<tr>
+<td>工程建議</td>
+<td>從語意與工作負載推導的設計選擇，需要對照實際需求</td>
+</tr>
+</tbody>
+</table>
+</div><p>官方依據：<a href="https://docs.python.org/3.15/library/venv.html" target="_blank" rel="noopener noreferrer">venv</a>、<a href="https://docs.python.org/3.15/using/windows.html" target="_blank" rel="noopener noreferrer">Windows 啟動與安裝</a>、<a href="https://docs.python.org/3.15/using/mac.html#installing-free-threaded-binaries" target="_blank" rel="noopener noreferrer">macOS 的 free-threaded 安裝</a>。</p>
+<h2 id="section-03">第一部｜核心語法與標準函式庫</h2>
+<h3 id="section-04">C01｜先讀懂程式的區塊與名稱</h3>
+<p>本篇整理 <strong>Python 3.15 可以使用的核心語法</strong>。多數功能早在先前版本就已存在；本篇不把 <code>match</code>、<code>dataclass</code>、<code>TaskGroup</code> 或泛型參數語法當成 3.15 新功能。閱讀順序可分成三段：先學資料與控制流程，再學函式與物件，最後學例外、型別、模組與非同步。</p>
+<p>Python 以縮排界定區塊。<code>if</code>、<code>for</code>、<code>def</code>、<code>class</code> 等敘述的標頭以冒號結束，其內文增加一層縮排。工程專案通常每層使用四個空白；四個是風格慣例，真正的語法要求是區塊層級一致。不要混用 tab 與空白。括號內可自然換行，通常比行尾反斜線更易維護。</p>
+<pre><code class="language-python"><span class="n">supply_c</span> <span class="o">=</span> <span class="mf">7.2</span>
+<span class="n">return_c</span> <span class="o">=</span> <span class="mf">12.1</span>
+
+<span class="k">if</span> <span class="n">return_c</span> <span class="o">-</span> <span class="n">supply_c</span> <span class="o">&gt;=</span> <span class="mf">4.0</span><span class="p">:</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"冰水溫差符合本次範例條件："</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">return_c</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">supply_c</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> °C"</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre>
+<p>名稱區分大小寫；<code>pump_id</code> 與 <code>Pump_ID</code> 是不同名稱。名稱不能以數字開頭。Python 允許部分 Unicode 字元作為識別字，但混用形似字元會增加審查難度；設備代號與函式名稱宜維持一致的命名規範。<code>#</code> 開始行內註解；函式、類別或模組的第一個字串可成為 docstring，供 <code>help()</code> 與工具讀取。三引號字串本身不是一般註解語法。</p>
+<p><code>class</code>、<code>return</code>、<code>None</code> 等保留字不能拿來當一般變數。soft keyword 只在特定語境具有語法意義，例如 <code>match</code>、<code>case</code>、<code>_</code> 與 <code>type</code> 的相關用法；完整清單應直接查目前的直譯器，避免把不同版本的清單混用。內建名稱如 <code>list</code>、<code>str</code> 並非保留字，卻不宜被同名變數遮蔽。</p>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">keyword</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">keyword</span><span class="o">.</span><span class="n">iskeyword</span><span class="p">(</span><span class="s2">"class"</span><span class="p">))</span>       <span class="c1"># True</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">keyword</span><span class="o">.</span><span class="n">issoftkeyword</span><span class="p">(</span><span class="s2">"match"</span><span class="p">))</span>   <span class="c1"># True</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">keyword</span><span class="o">.</span><span class="n">kwlist</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">keyword</span><span class="o">.</span><span class="n">softkwlist</span><span class="p">)</span>
+</code></pre>
+<p>官方來源：<a href="https://docs.python.org/3.15/reference/lexical_analysis.html" target="_blank" rel="noopener noreferrer">詞彙分析</a>、<a href="https://docs.python.org/3.15/library/keyword.html" target="_blank" rel="noopener noreferrer">keyword</a>。</p>
+<h3 id="section-05">C02｜數值、字串、f-string 與 bytes</h3>
+<p><code>int</code> 適合計數、位址與位元遮罩；其大小受可用記憶體限制，沒有固定的 32 位元或 64 位元上限。<code>float</code> 適合一般連續量計算，但以二進位浮點表示，部分十進位小數無法精確保存。<code>complex</code> 可表示複數。<code>bool</code> 表示真假，雖然與整數有繼承關係，資料驗證仍應明確區分「數值讀值」與「開關狀態」。</p>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+
+<span class="n">raw_count</span> <span class="o">=</span> <span class="mi">12_500</span>
+<span class="n">register</span> <span class="o">=</span> <span class="mh">0x20</span>
+<span class="n">ratio</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">2</span>                 <span class="c1"># 1.5</span>
+<span class="n">whole</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span> <span class="o">//</span> <span class="mi">2</span>               <span class="c1"># -2，向負無限大取整</span>
+<span class="n">close</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">+</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">)</span>
+<span class="n">bill</span> <span class="o">=</span> <span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.1"</span><span class="p">)</span> <span class="o">+</span> <span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.2"</span><span class="p">)</span>
+</code></pre>
+<p><code>Decimal("0.1")</code> 從十進位文字建立精確的十進位值；若先寫成浮點數，再交給 <code>Decimal</code>，原先的近似值也會被帶入。浮點比較宜依問題設定相對與絕對容差，尤其在接近零的讀值附近。<code>round()</code> 與輸出格式化是不同操作：<code>f"{value:.1f}"</code> 只決定文字如何呈現，沒有修改原本讀值。</p>
+<p><code>str</code> 保存文字；單引號、雙引號在基本用途上等價。<code>\n</code>、<code>\t</code> 等跳脫序列用來表達特殊字元；raw string 如 <code>r"C:\logs\ahu"</code> 適合少寫反斜線，但不能以奇數個反斜線結尾。字串不可變，<code>replace()</code>、<code>strip()</code> 等通常回傳新字串。字串索引以 Unicode 碼點為基礎，畫面上一個可見字形不一定等於一個索引單位。</p>
+<pre><code class="language-python"><span class="n">point</span> <span class="o">=</span> <span class="s2">"T10"</span>
+<span class="n">value</span> <span class="o">=</span> <span class="mf">24.375</span>
+<span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">point</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">value</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> °C"</span>   <span class="c1"># T10: 24.4 °C</span>
+<span class="n">debug</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">point</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">value</span><span class="si">=}</span><span class="s2">"</span>       <span class="c1"># 顯示名稱與值</span>
+<span class="n">literal</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="se">{{</span><span class="s2">point</span><span class="se">}}</span><span class="s2"> = </span><span class="si">{</span><span class="n">point</span><span class="si">}</span><span class="s2">"</span>   <span class="c1"># 雙大括號表示文字大括號</span>
+
+<span class="n">payload</span> <span class="o">=</span> <span class="s2">"送風溫度"</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+<span class="n">frame</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">])</span>
+<span class="n">first_byte</span> <span class="o">=</span> <span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>              <span class="c1"># 1，索引結果是整數</span>
+</code></pre>
+<p><code>bytes</code> 是不可變的位元組序列，<code>bytearray</code> 則可修改。文字與位元組的轉換必須指定合適編碼；通訊封包的二進位欄位不是一般文字，不能一律 <code>decode()</code>。解讀多位元組整數時要另行確認 byte order、signed 與欄位長度，例如 <code>int.from_bytes(frame[2:4], "big")</code>。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/introduction.html" target="_blank" rel="noopener noreferrer">數值與字串入門</a>、<a href="https://docs.python.org/3.15/tutorial/inputoutput.html" target="_blank" rel="noopener noreferrer">輸出格式化</a>、<a href="https://docs.python.org/3.15/builtins/stdtypes.html" target="_blank" rel="noopener noreferrer">內建型別</a>、<a href="https://docs.python.org/3.15/tutorial/floatingpoint.html" target="_blank" rel="noopener noreferrer">浮點限制</a>、<a href="https://docs.python.org/3.15/library/decimal.html" target="_blank" rel="noopener noreferrer">decimal</a>。</p>
+<h3 id="section-06">C03｜名稱繫結、可變性與複製</h3>
+<p><code>a = b</code> 把名稱 <code>a</code> 繫結到 <code>b</code> 所參照的物件，不代表複製資料。函式收到的引數同樣涉及物件參照：修改共用串列，呼叫端會看到；把函式內的參數改綁到另一個串列，則不會替呼叫端重新賦值。先分清楚「改物件」與「改名稱」，比背誦傳值或傳址更準確。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="n">original</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"AHU01"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"setpoint"</span><span class="p">:</span> <span class="mf">24.0</span><span class="p">}}</span>
+<span class="n">alias</span> <span class="o">=</span> <span class="n">original</span>
+<span class="n">shallow</span> <span class="o">=</span> <span class="n">original</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">deep</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">original</span><span class="p">)</span>
+
+<span class="n">original</span><span class="p">[</span><span class="s2">"AHU01"</span><span class="p">][</span><span class="s2">"setpoint"</span><span class="p">]</span> <span class="o">=</span> <span class="mf">25.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">alias</span><span class="p">[</span><span class="s2">"AHU01"</span><span class="p">][</span><span class="s2">"setpoint"</span><span class="p">])</span>    <span class="c1"># 25.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">shallow</span><span class="p">[</span><span class="s2">"AHU01"</span><span class="p">][</span><span class="s2">"setpoint"</span><span class="p">])</span>  <span class="c1"># 25.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">deep</span><span class="p">[</span><span class="s2">"AHU01"</span><span class="p">][</span><span class="s2">"setpoint"</span><span class="p">])</span>     <span class="c1"># 24.0</span>
+</code></pre>
+<p>淺複製建立新的外層容器，但裡面的巢狀物件仍可共用。深複製會遞迴複製可複製的內容，代價與語意也不同；連線、檔案等外部資源不能當成一般資料隨意複製。建構設定快照時，應先決定哪些欄位要獨立，再選擇複製方式。</p>
+<p><code>list</code>、<code>dict</code>、<code>set</code> 一般可變；數字、<code>str</code>、<code>bytes</code>、<code>tuple</code> 一般不可變。但「tuple 不可變」只限制其元素參照，並不會把內部串列凍結：<code>([1],)</code> 裡的串列仍能 <code>append()</code>。<code>==</code> 比較值；<code>is</code> 比較是否同一物件。判斷缺值使用 <code>value is None</code>，不要依靠小整數或字串駐留的偶然結果。</p>
+<p>另一個常見陷阱是 <code>rows = [[0] * 3] * 2</code>：兩列指向同一個內層串列。建立獨立二維資料應用 <code>[[0] * 3 for _ in range(2)]</code>。<code>del name</code> 解除名稱繫結，不代表所有引用該物件的名稱都消失，也不是外部資源即時關閉的保證。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/reference/datamodel.html" target="_blank" rel="noopener noreferrer">物件資料模型</a>、<a href="https://docs.python.org/3.15/library/copy.html" target="_blank" rel="noopener noreferrer">淺複製與深複製</a>。</p>
+<h3 id="section-07">C04｜運算子與優先序速查</h3>
+<p>運算子的行為與物件型別有關；例如 <code>+</code> 可以數值相加，也可以串接字串，<code>|</code> 可用於整數位元運算、集合聯集或字典合併。先確認操作對象，再解讀符號。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>類別</th>
+<th>語法</th>
+<th>工程資料用途與提醒</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>算術</td>
+<td><code>+ - * / // % **</code></td>
+<td>加減乘除、整除、餘數與次方；<code>//</code> 不是一律朝零截斷</td>
+</tr>
+<tr>
+<td>矩陣乘法</td>
+<td><code>@</code></td>
+<td>由支援此協定的型別提供；一般數字與串列不直接提供矩陣運算</td>
+</tr>
+<tr>
+<td>比較</td>
+<td><code>== != &lt; &lt;= &gt; &gt;=</code></td>
+<td><code>0 &lt;= valve &lt;= 100</code> 是合法鏈式比較</td>
+</tr>
+<tr>
+<td>邏輯</td>
+<td><code>and or not</code></td>
+<td>具有短路求值；<code>and</code>、<code>or</code> 可回傳運算元，不保證是 bool</td>
+</tr>
+<tr>
+<td>成員</td>
+<td><code>in</code>、<code>not in</code></td>
+<td><code>"T10" in readings</code> 對字典檢查的是鍵</td>
+</tr>
+<tr>
+<td>身分</td>
+<td><code>is</code>、<code>is not</code></td>
+<td>比較同一物件；適合 <code>x is None</code></td>
+</tr>
+<tr>
+<td>位元</td>
+<td><code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code></td>
+<td>解析狀態字、旗標與遮罩</td>
+</tr>
+<tr>
+<td>條件運算式</td>
+<td><code>a if condition else b</code></td>
+<td>選擇一個結果，兩個分支不會一起求值</td>
+</tr>
+<tr>
+<td>賦值運算式</td>
+<td><code>:=</code></td>
+<td>在運算式中繫結名稱，需注意括號與可讀性</td>
+</tr>
+<tr>
+<td>增強賦值</td>
+<td><code>+= -= *=</code> 等</td>
+<td>可能就地修改物件，不能一概當成建立新物件</td>
+</tr>
+</tbody>
+</table>
+</div><p>常見優先序由高到低，可依下表查閱；同層大多由左向右結合，次方與條件運算式有不同結合規則。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>由高到低</th>
+<th>項目</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>括號分組、索引、切片、呼叫、屬性存取</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>await</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>**</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>一元 <code>+</code>、<code>-</code>、<code>~</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>* / // % @</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>+ -</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>&lt;&lt; &gt;&gt;</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>&amp;</code>，接著 <code>^</code>，再接著 <code>|</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>比較、<code>in</code>、<code>not in</code>、<code>is</code>、<code>is not</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>not</code>，接著 <code>and</code>，再接著 <code>or</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>a if condition else b</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>lambda</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>:=</code></td>
+</tr>
+</tbody>
+</table>
+</div><p><code>-2**2</code> 等於 <code>-(2**2)</code>，結果是 <code>-4</code>；<code>2**-2</code> 則允許右側負指數，結果為 <code>0.25</code>。複合位元條件建議寫成 <code>(status &amp; 0b1000) != 0</code>，讓審查者直接看出遮罩範圍。<code>=</code> 是賦值敘述的語法，不是上述運算式優先序的一員。</p>
+<pre><code class="language-python"><span class="n">status</span> <span class="o">=</span> <span class="mb">0b1010</span>
+<span class="n">fan_proven</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">&amp;</span> <span class="mb">0b0010</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+<span class="n">has_alarm</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">&amp;</span> <span class="mb">0b1000</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+<span class="n">state</span> <span class="o">=</span> <span class="s2">"異常"</span> <span class="k">if</span> <span class="n">has_alarm</span> <span class="k">else</span> <span class="s2">"正常"</span>
+
+<span class="n">reading</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="n">wrong_default</span> <span class="o">=</span> <span class="n">reading</span> <span class="ow">or</span> <span class="mf">24.0</span>          <span class="c1"># 得到 24.0，吞掉有效零值</span>
+<span class="n">safe_default</span> <span class="o">=</span> <span class="mf">24.0</span> <span class="k">if</span> <span class="n">reading</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">reading</span>
+</code></pre>
+<p>官方來源：<a href="https://docs.python.org/3.15/reference/expressions.html" target="_blank" rel="noopener noreferrer">運算式與優先序</a>、<a href="https://docs.python.org/3.15/builtins/stdtypes.html" target="_blank" rel="noopener noreferrer">布林運算與比較</a>。</p>
+<h3 id="section-08">C05｜容器、切片、解包與推導式</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>容器</th>
+<th>典型資料</th>
+<th>關鍵行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td>按時間排列的溫度</td>
+<td>有順序、可修改，可含重複值</td>
+</tr>
+<tr>
+<td><code>tuple</code></td>
+<td>一筆 <code>(point, value)</code></td>
+<td>有順序、元素參照不可修改；單元素需逗號 <code>(7.2,)</code></td>
+</tr>
+<tr>
+<td><code>dict</code></td>
+<td>點位名稱對讀值</td>
+<td>依鍵查找，保存插入順序；鍵需可雜湊</td>
+</tr>
+<tr>
+<td><code>set</code></td>
+<td>本輪離線設備集合</td>
+<td>元素唯一；不應依賴迭代順序</td>
+</tr>
+<tr>
+<td><code>frozenset</code></td>
+<td>不變的點位集合</td>
+<td>不可修改，可用於需要可雜湊集合的場合</td>
+</tr>
+</tbody>
+</table>
+</div><p>空字典是 <code>{}</code>，空集合是 <code>set()</code>。字典缺鍵時 <code>d[key]</code> 會拋出 <code>KeyError</code>；<code>d.get(key)</code> 可回傳預設值，但要分辨「不存在」與「存在且值為 None」。修改方法如 <code>list.append()</code>、<code>list.sort()</code> 通常回傳 <code>None</code>；不要寫 <code>values = values.sort()</code>。</p>
+<pre><code class="language-python"><span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">23.5</span><span class="p">,</span> <span class="mf">24.0</span><span class="p">,</span> <span class="mf">24.5</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">]</span>
+<span class="n">latest</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">recent</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>              <span class="c1"># [24.5, 25.0]</span>
+<span class="n">alternate</span> <span class="o">=</span> <span class="n">values</span><span class="p">[::</span><span class="mi">2</span><span class="p">]</span>           <span class="c1"># [23.5, 24.5]</span>
+<span class="n">reversed_values</span> <span class="o">=</span> <span class="n">values</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">first</span><span class="p">,</span> <span class="o">*</span><span class="n">middle</span><span class="p">,</span> <span class="n">last</span> <span class="o">=</span> <span class="n">values</span>
+
+<span class="n">points</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"T10"</span><span class="p">,</span> <span class="s2">"T11"</span><span class="p">,</span> <span class="s2">"T12"</span><span class="p">,</span> <span class="s2">"T13"</span><span class="p">]</span>
+<span class="n">readings</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+<span class="n">hot</span> <span class="o">=</span> <span class="p">{</span><span class="n">point</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">readings</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mf">24.5</span><span class="p">}</span>
+<span class="n">rounded</span> <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
+<span class="n">unique_values</span> <span class="o">=</span> <span class="p">{</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">}</span>
+</code></pre>
+<p>切片採 <code>start:stop:step</code>，<code>stop</code> 不包含在結果中。一般序列切片會容許超出邊界的範圍，但直接索引仍可能拋出 <code>IndexError</code>；步長不能是零。<code>a[:]</code> 對串列是淺複製，不會複製巢狀內容。解包時，星號目標會取得其餘項目形成的串列；沒有星號時，左右項目數必須符合。</p>
+<p><code>[*old, new]</code> 展開 iterable，<code>{**defaults, **overrides}</code> 合併 mapping，後面的同名鍵覆寫前面。函式呼叫的 <code>**kwargs</code> 則不容許把同一個參數值重複提供兩次。推導式適合清楚的轉換與篩選；兩三層巢狀且包含副作用時，改成一般迴圈比較容易除錯。<code>(x * 2 for x in values)</code> 是惰性產生器運算式，不會立刻建出完整串列。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/datastructures.html" target="_blank" rel="noopener noreferrer">資料結構</a>、<a href="https://docs.python.org/3.15/builtins/functions.html" target="_blank" rel="noopener noreferrer">zip 與內建函式</a>。</p>
+<h3 id="section-09">C06｜if、match、迴圈與迴圈 else</h3>
+<p><code>if</code> 由上而下檢查條件，只執行第一個成立分支。空容器、零、<code>None</code> 等通常視為假，但缺值與有效零值常有不同業務意義。監控資料最好先處理缺值，再比較上下限；對可能含 <code>NaN</code> 的浮點資料，還要明確決定無效值策略。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">classify_temperature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"missing"</span>
+    <span class="k">elif</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mf">28.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"high"</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"normal"</span>
+</code></pre>
+<p><code>match</code> 是結構模式比對，能檢查字典、序列、常值與型別結構，不只是多分支 <code>if</code> 的縮寫。guard 是模式成功後的額外條件。一般裸名稱在模式裡通常是捕捉變數，不是讀取既有常數；常數比對可用字面值或帶限定名稱的屬性。<code>_</code> 表示不擷取該部分。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">describe_event</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+    <span class="k">match</span> <span class="n">event</span><span class="p">:</span>
+        <span class="k">case</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"temperature"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)}</span> <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mi">28</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"高溫 </span><span class="si">{</span><span class="n">value</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> °C"</span>
+        <span class="k">case</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"offline"</span><span class="p">,</span> <span class="s2">"device"</span><span class="p">:</span> <span class="n">device</span><span class="p">}:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2"> 離線"</span>
+        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">"其他事件"</span>
+</code></pre>
+<p>此處 <code>float(value)</code> 是類別模式，用來比對浮點物件並擷取其值，不會替字串執行 <code>float()</code> 轉型。字典模式預設允許額外鍵；若需求必須拒絕未知欄位，應另外驗證。模式也不會自動保證數值位於工程量程內。</p>
+<p><code>for</code> 逐項取得 iterable 的內容；<code>range(3)</code> 產生 <code>0、1、2</code>。需要索引時使用 <code>enumerate()</code>，平行走訪資料時使用 <code>zip()</code>，並在兩側長度應相同時考慮 <code>strict=True</code>。<code>while</code> 在每輪開始檢查條件；<code>break</code> 結束最近一層迴圈，<code>continue</code> 跳到下一輪，<code>pass</code> 則是不執行任何操作的佔位敘述。</p>
+<pre><code class="language-python"><span class="n">readings</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"T10"</span><span class="p">:</span> <span class="mf">24.0</span><span class="p">,</span> <span class="s2">"T11"</span><span class="p">:</span> <span class="mf">25.5</span><span class="p">}</span>
+<span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">readings</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mf">28.0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"第一個高溫點"</span><span class="p">,</span> <span class="n">point</span><span class="p">)</span>
+        <span class="k">break</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"本輪沒有找到高溫點"</span><span class="p">)</span>
+</code></pre>
+<p>迴圈的 <code>else</code> 在迴圈正常耗盡或條件變假時執行；<code>break</code> 會跳過它。它不是「最後一輪 if 沒成立」。如果用 <code>return</code> 或例外離開，也不會走到這個 <code>else</code>。走訪字典時增刪鍵容易出錯；可先建立待刪清單或新的篩選結果。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/controlflow.html" target="_blank" rel="noopener noreferrer">控制流程教學</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html" target="_blank" rel="noopener noreferrer">複合敘述與模式比對</a>。</p>
+<h3 id="section-10">C07｜函式參數：位置、關鍵字、可變引數</h3>
+<p>函式把輸入轉成輸出，讓讀值解析、單位換算與狀態判斷可以各自驗證。<code>return</code> 立即離開函式；沒有明確回傳值時結果是 <code>None</code>。<code>return value, quality</code> 是回傳一個 tuple，而不是建立兩條獨立輸出通道。函式定義也會建立物件，因此函式可被傳入、回傳或放進容器。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">summarize</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">*</span><span class="n">samples</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"°C"</span><span class="p">,</span> <span class="o">**</span><span class="n">metadata</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""回傳指定設備的平均讀值摘要。"""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">samples</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"至少需要一筆讀值"</span><span class="p">)</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">+</span> <span class="n">offset</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"device"</span><span class="p">:</span> <span class="n">device</span><span class="p">,</span> <span class="s2">"mean"</span><span class="p">:</span> <span class="n">mean</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="n">unit</span><span class="p">,</span> <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">metadata</span><span class="p">}</span>
+
+<span class="n">summary</span> <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="s2">"AHU01"</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">24.0</span><span class="p">,</span> <span class="mf">26.0</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"°C"</span><span class="p">,</span> <span class="n">floor</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>參數位置</th>
+<th>範例</th>
+<th>呼叫規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code> 前</td>
+<td><code>device</code></td>
+<td>只能以位置提供</td>
+</tr>
+<tr>
+<td><code>/</code> 後、<code>*</code> 前</td>
+<td><code>offset</code></td>
+<td>可用位置或關鍵字</td>
+</tr>
+<tr>
+<td><code>*samples</code></td>
+<td>多筆讀值</td>
+<td>接收其餘位置引數，形成 tuple</td>
+</tr>
+<tr>
+<td><code>*samples</code> 或裸 <code>*</code> 後</td>
+<td><code>unit</code></td>
+<td>只能以關鍵字提供</td>
+</tr>
+<tr>
+<td><code>**metadata</code></td>
+<td>額外欄位</td>
+<td>接收其餘關鍵字引數，形成 dict</td>
+</tr>
+</tbody>
+</table>
+</div><p>如果不需要接收任意位置引數，可寫 <code>def convert(raw, /, *, scale=0.1): ...</code>。已經有 <code>*samples</code> 時，不再額外放裸 <code>*</code>。呼叫端的 <code>*values</code> 與 <code>**options</code> 是展開資料，定義端的星號則描述收集或限制參數，兩者要分開理解。</p>
+<p>一般預設值在執行 <code>def</code> 建立函式時求值，不是每次呼叫重新建立。<code>def collect(value, history=[]): ...</code> 會讓多次呼叫共用同一串列。通常改成 <code>history=None</code>，進入函式後才建立新串列；若 <code>None</code> 本身也是合法且需區分的輸入，可自行建立唯一標記物件。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">collect</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">history</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">history</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">history</span>
+
+<span class="n">ranked</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([(</span><span class="s2">"T10"</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"T11"</span><span class="p">,</span> <span class="mf">23.0</span><span class="p">)],</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</code></pre>
+<p><code>lambda</code> 建立只有一個運算式的匿名函式，適合簡短排序鍵。包含多步驗證、重試或副作用的工作，應使用具名稱與 docstring 的 <code>def</code>。函式參數註記不會自動將字串轉為數字，也不會自動拒絕錯誤型別；檢查責任仍要明確安排。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/controlflow.html#special-parameters" target="_blank" rel="noopener noreferrer">函式與特殊參數</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html#function-definitions" target="_blank" rel="noopener noreferrer">函式定義</a>。</p>
+<h3 id="section-11">C08｜LEGB、閉包與裝飾器</h3>
+<p>一般函式名稱查找可先用 LEGB 理解：Local 是目前函式；Enclosing 是外層函式；Global 是所在模組；Builtins 是內建名稱。函式內只要存在對某名稱的賦值，通常就會把它視為區域名稱；在賦值前讀取，可能得到 <code>UnboundLocalError</code>。<code>if</code> 與一般 <code>for</code> 區塊不會像函式一樣另建區域作用域。</p>
+<p><code>global</code> 讓賦值作用於模組名稱，並不是宣告整個應用程式共同的全域變數。<code>nonlocal</code> 讓內層函式重新繫結最近外層函式的既有名稱。修改外層串列內容與重新繫結外層名稱不同；前者不一定需要 <code>nonlocal</code>。類別與型別參數另有作用域規則；方法內取得實例屬性應寫 <code>self.name</code>，不能把類別本體當成一般 enclosing function。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">make_counter</span><span class="p">():</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">increment</span><span class="p">():</span>
+        <span class="k">nonlocal</span> <span class="n">count</span>
+        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">count</span>
+    <span class="k">return</span> <span class="n">increment</span>
+
+<span class="n">counter</span> <span class="o">=</span> <span class="n">make_counter</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">counter</span><span class="p">(),</span> <span class="n">counter</span><span class="p">())</span>   <span class="c1"># 1 2</span>
+</code></pre>
+<p>閉包保存對外層名稱的存取，並非自動保存建立瞬間的數值。迴圈中建立多個 <code>lambda: i</code>，之後呼叫時通常讀到同一個最後值。需要固定當時資料，可使用工廠函式，或像 <code>lambda i=i: i</code> 這樣把當時值放進預設參數。讀取閉包狀態時也要考量它是否被其他呼叫修改。</p>
+<p>裝飾器接收一個函式或類別，再回傳替代物件。<code>@audit</code> 放在函式上方，大致相當於定義後執行 <code>fn = audit(fn)</code>；多層裝飾器從貼近函式的一層開始套用。使用 <code>functools.wraps</code> 保存名稱、docstring 等資訊，有助於追查與產生說明。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">audit</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"operation"</span><span class="p">:</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">"result"</span><span class="p">:</span> <span class="n">result</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+<span class="nd">@audit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">raw</span> <span class="o">/</span> <span class="mf">10.0</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">normalize</span><span class="p">(</span><span class="mi">245</span><span class="p">))</span>  <span class="c1"># {'operation': 'normalize', 'result': 24.5}</span>
+</code></pre>
+<p>這個裝飾器刻意改變回傳格式，呼叫端必須知道新的契約。工程程式使用裝飾器時，應檢查它是否改變例外、回傳型別與呼叫時機，不能只看被包覆的函式本體。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/reference/executionmodel.html" target="_blank" rel="noopener noreferrer">執行與名稱解析模型</a>、<a href="https://docs.python.org/3.15/library/functools.html#functools.wraps" target="_blank" rel="noopener noreferrer">functools.wraps</a>。</p>
+<h3 id="section-12">C09｜class、dataclass 與物件協定</h3>
+<p>類別把狀態與操作放在同一個物件裡。<code>self</code> 是慣用的實例參數名稱；呼叫 <code>obj.method()</code> 時，物件會成為方法的第一個引數。<code>__init__()</code> 負責初始化已建立的實例，不能回傳另一個物件。類別屬性由實例共享；每個設備各自的讀值串列通常應在 <code>__init__()</code> 建立。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeviceSnapshot</span><span class="p">:</span>
+    <span class="n">device</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">temperature_c</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">alarms</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">temperature_f</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature_c</span> <span class="o">*</span> <span class="mi">9</span> <span class="o">/</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">32</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_raw</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">raw</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">raw</span> <span class="o">/</span> <span class="mf">10.0</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">valid_name</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">and</span> <span class="n">name</span><span class="o">.</span><span class="n">isascii</span><span class="p">()</span>
+</code></pre>
+<p><code>dataclass</code> 可依欄位產生初始化、表示與相等比較等方法；<code>default_factory=list</code> 讓每個實例有自己的串列。<code>frozen=True</code> 阻止一般欄位重新賦值，但不會遞迴凍結欄位裡的串列。它也不是輸入驗證器：註記 <code>float</code> 不會自動拒絕字串。<code>property</code> 讓計算或受控存取具有屬性外觀；唯讀 property 沒有 setter，但其他可變欄位仍可被改動。</p>
+<p><code>classmethod</code> 接收類別 <code>cls</code>，適合替代建構入口，繼承時也能建立子類別實例。<code>staticmethod</code> 不接收隱含 <code>self</code> 或 <code>cls</code>，適合與類別概念相關但不依賴實例狀態的小工具。若工具與類別關係不強，直接用模組函式通常更容易發現。</p>
+<pre><code class="language-python"><span class="k">class</span><span class="w"> </span><span class="nc">Sensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CalibratedSensor</span><span class="p">(</span><span class="n">Sensor</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span>
+</code></pre>
+<p><code>super()</code> 沿著方法解析順序呼叫下一個實作，在多重繼承裡不等於固定指定某個父類別。多重繼承若要合作，方法簽章與 <code>super()</code> 呼叫方式必須配合。一般組合關係，如「監控服務有一個感測器」，常可先用物件持有另一物件表達，不必急著使用繼承。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>特殊方法</th>
+<th>對應操作</th>
+<th>設計用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__repr__</code></td>
+<td><code>repr(obj)</code></td>
+<td>提供可辨識的診斷表示</td>
+</tr>
+<tr>
+<td><code>__str__</code></td>
+<td><code>str(obj)</code></td>
+<td>面向讀者的文字</td>
+</tr>
+<tr>
+<td><code>__len__</code></td>
+<td><code>len(obj)</code></td>
+<td>容器長度</td>
+</tr>
+<tr>
+<td><code>__iter__</code>、<code>__next__</code></td>
+<td><code>for</code>、<code>next()</code></td>
+<td>可迭代與迭代器協定</td>
+</tr>
+<tr>
+<td><code>__getitem__</code></td>
+<td><code>obj[key]</code></td>
+<td>索引或鍵存取</td>
+</tr>
+<tr>
+<td><code>__eq__</code>、<code>__hash__</code></td>
+<td>相等與雜湊</td>
+<td>設計鍵物件時須維持一致性</td>
+</tr>
+<tr>
+<td><code>__enter__</code>、<code>__exit__</code></td>
+<td><code>with</code></td>
+<td>資源取得與釋放</td>
+</tr>
+<tr>
+<td><code>__call__</code></td>
+<td><code>obj(...)</code></td>
+<td>讓實例成為可呼叫物件</td>
+</tr>
+</tbody>
+</table>
+</div><p>這些方法構成物件協定，讓自訂型別融入 Python 語法；不要只因為可以就替設備物件塞入所有運算子。可變物件若用作字典鍵，還要避免相等或雜湊依據在存放期間改變。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/classes.html" target="_blank" rel="noopener noreferrer">類別教學</a>、<a href="https://docs.python.org/3.15/library/dataclasses.html" target="_blank" rel="noopener noreferrer">dataclasses</a>、<a href="https://docs.python.org/3.15/reference/datamodel.html" target="_blank" rel="noopener noreferrer">特殊方法</a>、<a href="https://docs.python.org/3.15/builtins/functions.html" target="_blank" rel="noopener noreferrer">property、classmethod、staticmethod、super</a>。</p>
+<h3 id="section-13">C10｜迭代器、yield 與 yield from</h3>
+<p>iterable 是能提供迭代器的物件；iterator 是保存目前進度、能被 <code>next()</code> 推進的物件。<code>iter(values)</code> 取得迭代器，耗盡後會拋出 <code>StopIteration</code>。串列可反覆建立新的迭代器，而同一個產生器通常只能走訪一次；把它傳給 <code>sum()</code> 後，後續再走訪可能已沒有資料。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">valid_values</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+<span class="n">rows</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"value"</span><span class="p">:</span> <span class="s2">"24.1"</span><span class="p">},</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="s2">"25.3"</span><span class="p">}]</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="n">valid_values</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">stream</span><span class="p">))</span>       <span class="c1"># 24.1</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stream</span><span class="p">))</span>       <span class="c1"># [25.3]</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stream</span><span class="p">))</span>       <span class="c1"># []</span>
+</code></pre>
+<p>函式包含 <code>yield</code> 時，呼叫它會取得產生器；函式本體等到迭代時才前進。每次 <code>yield</code> 暫停並保留區域狀態，適合逐筆解析趨勢檔。這不表示每筆資料一定即時從硬體讀取，實際資料來源仍由函式內容決定。產生器也可能在消費到特定資料時才拋出轉型例外。</p>
+<p><code>yield from iterable</code> 把迭代工作委派給另一個 iterable。它除了逐項轉交值，也支援產生器間的 <code>send()</code>、<code>throw()</code>、關閉與回傳值傳遞；基礎資料串流先掌握逐項委派即可。</p>
+<pre><code class="language-python"><span class="k">def</span><span class="w"> </span><span class="nf">merge_batches</span><span class="p">(</span><span class="n">batches</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">:</span>
+        <span class="k">yield from</span> <span class="n">batch</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">merge_batches</span><span class="p">([[</span><span class="mf">24.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">26.0</span><span class="p">]])))</span>
+</code></pre>
+<p>惰性處理可減少中間容器，但不是所有來源都會自動節省記憶體：如果讀檔前已把整個檔案放進串列，後段再包成產生器，前段配置仍然存在。<code>itertools.islice()</code>、<code>chain()</code>、<code>pairwise()</code> 可支援分段、串接與相鄰差值；需要排序的步驟則通常必須先蒐集相應資料。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/classes.html#iterators" target="_blank" rel="noopener noreferrer">迭代器與產生器</a>、<a href="https://docs.python.org/3.15/reference/expressions.html#yield-expressions" target="_blank" rel="noopener noreferrer">yield 運算式</a>、<a href="https://docs.python.org/3.15/library/itertools.html" target="_blank" rel="noopener noreferrer">itertools</a>。</p>
+<h3 id="section-14">C11｜例外、原因鏈與 ExceptionGroup</h3>
+<p>例外讓正常結果與失敗路徑分開。<code>try</code> 只包住預期可能失敗、且此處知道如何處理的操作；捕捉太大一段程式，容易把程式錯誤誤認為輸入問題。多個 <code>except</code> 由上而下尋找相符類別，具體例外通常放在一般例外之前。沒有合適處理者時，例外會沿呼叫鏈往外傳。</p>
+<pre><code class="language-python"><span class="k">class</span><span class="w"> </span><span class="nc">InvalidReading</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_temperature</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">InvalidReading</span><span class="p">(</span><span class="sa">f</span><span class="s2">"無法解析溫度：</span><span class="si">{</span><span class="n">raw</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">pass</span>  <span class="c1"># 若此函式取得資源，必要清理應明確放在這裡</span>
+</code></pre>
+<p><code>else</code> 放在 <code>try</code> 正常完成時才執行的工作；這裡發生的例外不會被前面的 <code>except</code> 再捕捉。<code>finally</code> 在正常或例外離開時執行，適合必要清理；不要在其中用 <code>return</code> 蓋掉原本的回傳或例外。突然終止行程、斷電等情況也不屬於語言清理保證。</p>
+<p><code>raise</code> 可重新拋出正在處理的例外，<code>raise NewError(...) from exc</code> 明確保留根本原因。<code>from None</code> 只抑制顯示中的原因鏈，不會修復錯誤。<code>except Exception</code> 不包含所有 <code>BaseException</code> 子類別；中斷、退出與取消有自己的控制意義，不宜無差別吞掉。<code>assert</code> 適合開發時檢查不變量，但可能因最佳化選項被移除，不能取代外部輸入驗證。</p>
+<pre><code class="language-python"><span class="n">failures</span> <span class="o">=</span> <span class="p">[</span><span class="ne">ValueError</span><span class="p">(</span><span class="s2">"T10 格式錯誤"</span><span class="p">),</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="s2">"AHU02 逾時"</span><span class="p">)]</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">ExceptionGroup</span><span class="p">(</span><span class="s2">"本輪採樣失敗"</span><span class="p">,</span> <span class="n">failures</span><span class="p">)</span>
+<span class="k">except</span><span class="o">*</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">group</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"資料格式失敗數"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">exceptions</span><span class="p">))</span>
+<span class="k">except</span><span class="o">*</span> <span class="ne">TimeoutError</span> <span class="k">as</span> <span class="n">group</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"逾時數"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">exceptions</span><span class="p">))</span>
+</code></pre>
+<p><code>ExceptionGroup</code> 表達多個失敗，<code>except*</code> 會依其中的例外分組處理，因此同一次處理可執行不只一個分支。未處理的部分仍往外傳。同一個 <code>try</code> 不能混放 <code>except</code> 與 <code>except*</code>；也不能在 <code>except*</code> 區塊中使用 <code>return</code>、<code>break</code> 或 <code>continue</code>。群組可以巢狀，<code>len(group.exceptions)</code> 只計算直接子項，不能一律當作全部葉節點失敗數。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/errors.html" target="_blank" rel="noopener noreferrer">例外教學</a>、<a href="https://docs.python.org/3.15/builtins/exceptions.html" target="_blank" rel="noopener noreferrer">例外類別與原因鏈</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html#except-star" target="_blank" rel="noopener noreferrer">except* 規則</a>。</p>
+<h3 id="section-15">C12｜with 與 contextmanager：把生命週期寫進結構</h3>
+<p><code>with</code> 用來描述進入與離開某個資源範圍。檔案、鎖與某些連線物件支援這個協定。進入時呼叫 <code>__enter__()</code>；成功進入後離開區塊時呼叫 <code>__exit__()</code>，並把例外資訊交給它。<code>__exit__()</code> 回傳真值可抑制例外，因此閱讀自訂 context manager 時要確認它是否吞掉失敗。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">temporary_output</span><span class="p">(</span><span class="n">directory</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span> <span class="k">as</span> <span class="n">owned_dir</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">Path</span><span class="p">(</span><span class="n">owned_dir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"snapshot.tmp"</span>
+</code></pre>
+<p><code>TemporaryDirectory</code> 先建立本次工作專用的目錄，離開時只清理該目錄裡的資源。清理責任應跟著資源的建立與擁有關係安排。</p>
+<p>用 <code>@contextmanager</code> 包裝的產生器應恰好 <code>yield</code> 一次。<code>yield</code> 前準備資源，交出的值成為 <code>as</code> 後的名稱，離開區塊後繼續執行清理。若區塊內拋出例外，例外會在產生器的 <code>yield</code> 位置重新出現；只想記錄而不想吞掉時，處理後須再 <code>raise</code>。</p>
+<p>把資源生命週期放進 <code>with</code>，呼叫端較不容易漏掉關閉。多個 context manager 可放在同一個 <code>with</code>，退出順序與進入相反。進入第二個資源失敗時，已成功進入的第一個仍能退出。需要動態數量的資源時，可查 <code>contextlib.ExitStack</code>；不必手工堆疊多層 <code>try/finally</code>。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/library/contextlib.html" target="_blank" rel="noopener noreferrer">contextlib</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html#the-with-statement" target="_blank" rel="noopener noreferrer">with 敘述</a>。</p>
+<h3 id="section-16">C13｜typing：說清楚資料契約</h3>
+<p>型別註記服務於閱讀、編輯器與靜態檢查工具；Python 不會僅因有註記，就在執行時強制驗證資料。<code>list[float]</code> 描述元素型別，<code>float | None</code> 表示可能缺值。允許 <code>None</code> 與「呼叫時可以省略參數」是兩件事，後者仍需要預設值。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">TypedDict</span>
+
+<span class="nb">type</span> <span class="n">PointMap</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">first</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">items</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">items</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"序列不可為空"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SampleBox</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Reader</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Reading</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">point</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">quality</span><span class="p">:</span> <span class="nb">str</span>
+</code></pre>
+<p><code>type PointMap = ...</code> 是型別別名；<code>T</code> 讓輸入與輸出的型別關係得以保留，例如 <code>first()</code> 回傳輸入序列的元素型別。泛型是描述關係，不代表 Python 會自動產生每種型別的特化機器碼。別名也不等於新增一種執行時數值型別，不能直接把型別別名當作 <code>isinstance()</code> 的一般類別參數。</p>
+<p><code>Protocol</code> 描述「提供哪些成員就能合作」，適合把監控邏輯與不同通訊實作分開；符合介面的類別不必明確繼承它。<code>TypedDict</code> 則描述字典欄位，執行時仍是普通 dict，不會自動檢查缺鍵、額外鍵或型別。需要驗證外部 JSON 時，仍須撰寫解析與檢查。</p>
+<p><code>Any</code> 讓檢查器容許動態操作，會減少型別保證；<code>object</code> 表示型別未知，但使用前須先確認支援的操作。接收未知外部輸入時，用 <code>object</code> 配合 <code>isinstance()</code> 縮小型別，通常比較能保留檢查價值。<code>isinstance(value, (int, float))</code> 也會接受 bool；若業務規則不接受布林數字，應明確排除。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/library/typing.html" target="_blank" rel="noopener noreferrer">typing</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html#type-parameter-lists" target="_blank" rel="noopener noreferrer">泛型與型別參數</a>。</p>
+<h3 id="section-17">C14｜模組、import、入口與環境管理</h3>
+<p>一個 <code>.py</code> 檔通常就是一個模組；模組讓程式依責任分工，例如解析、計算、報表與入口。<code>import math</code> 將模組名稱帶入目前作用域，<code>from math import isclose</code> 則帶入指定名稱。一般匯入會執行模組頂層敘述並利用模組快取；頂層因此宜放定義與必要初始化，不要在被匯入時意外啟動長期採集工作。</p>
+<pre><code class="language-python"><span class="c1"># 假設此檔名為 report_cli.py</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"產生監控摘要"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">SystemExit</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre>
+<p>直接執行檔案時，入口模組名稱是 <code>__main__</code>。<code>python -m package.module</code> 以模組方式啟動，通常更適合套件內的相對匯入。不要把自己的檔案命名為 <code>json.py</code>、<code>typing.py</code> 等常用標準庫名稱，以免搜尋路徑優先找到自己的檔案。<code>from module import *</code> 會讓來源不清楚，維護時通常使用明確匯入。</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="c1"># macOS / Linux</span>
+.venv/bin/python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>--version
+.venv/bin/python<span class="w"> </span>report_cli.py
+<span class="c1"># Windows 對應直譯器：.venv\Scripts\python.exe</span>
+</code></pre>
+<p>虛擬環境隔離專案套件，不是容器或權限隔離機制。它通常應在目標系統依依賴宣告重新建立，而非直接搬移整個目錄。使用 <code>python -m pip</code> 能讓安裝工具與目前選定的直譯器一致；啟用環境是方便的 PATH 調整，直接使用環境內的 Python 路徑也能工作。</p>
+<p><code>pyproject.toml</code> 放專案與工具設定：<code>[build-system]</code> 描述建置後端及建置依賴，<code>[project]</code> 放名稱、版本、支援的 Python 範圍與執行依賴，<code>[tool.*]</code> 放個別工具選項。它不是 Python 執行語法，也不會單憑檔案存在就安裝依賴或鎖定所有間接版本。鎖檔、套件來源與部署重現性應由專案工具流程另外安排。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/tutorial/modules.html" target="_blank" rel="noopener noreferrer">模組教學</a>、<a href="https://docs.python.org/3.15/library/venv.html" target="_blank" rel="noopener noreferrer">venv</a>、<a href="https://packaging.python.org/en/latest/guides/writing-pyproject-toml/" target="_blank" rel="noopener noreferrer">PyPA：pyproject.toml</a>。</p>
+<h3 id="section-18">C15｜檔案、JSON 與標準庫選用</h3>
+<p>文字檔使用 <code>str</code>，二進位檔使用 <code>bytes</code>。<code>"r"</code> 讀取、<code>"w"</code> 寫入並截斷既有檔案、<code>"a"</code> 附加；加上 <code>"b"</code> 表示二進位模式。明確寫出文字編碼與預期檔案路徑，能讓資料交換意圖更清楚。<code>Path</code> 適合組合路徑與基本檔案操作，避免手工拼接不同作業系統的分隔符。</p>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
+
+<span class="n">snapshot</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"device"</span><span class="p">:</span> <span class="s2">"AHU01"</span><span class="p">,</span> <span class="s2">"temperature_c"</span><span class="p">:</span> <span class="mf">24.5</span><span class="p">,</span> <span class="s2">"online"</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+<span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">directory</span><span class="p">:</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"snapshot.json"</span>
+    <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">allow_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">restored</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">restored</span><span class="p">[</span><span class="s2">"temperature_c"</span><span class="p">])</span>
+</code></pre>
+<p><code>dump/load</code> 使用檔案物件，<code>dumps/loads</code> 使用字串資料。<code>ensure_ascii=False</code> 讓中文直接呈現；<code>allow_nan=False</code> 可拒絕非有限浮點值的非標準 JSON 表示。JSON 物件的鍵是字串，tuple 通常轉成 array，<code>datetime</code>、自訂類別與二進位封包也不會自動保留原型別。成功解析 JSON 只代表格式可讀，欄位、型別、單位與量程仍應另外檢查。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>工作</th>
+<th>可先查看的標準庫</th>
+<th>使用方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路徑與暫存</td>
+<td><code>pathlib</code>、<code>tempfile</code></td>
+<td>路徑操作、測試與暫存資源</td>
+</tr>
+<tr>
+<td>結構化檔案</td>
+<td><code>json</code>、<code>csv</code>、<code>tomllib</code></td>
+<td>交換資料、表格、讀取 TOML 設定</td>
+</tr>
+<tr>
+<td>日期與時區</td>
+<td><code>datetime</code>、<code>zoneinfo</code></td>
+<td>記錄帶時區的採樣時間</td>
+</tr>
+<tr>
+<td>時間間隔</td>
+<td><code>time</code></td>
+<td><code>monotonic()</code> 計算逾時，<code>perf_counter()</code> 量測耗時</td>
+</tr>
+<tr>
+<td>數值分析</td>
+<td><code>math</code>、<code>statistics</code>、<code>decimal</code></td>
+<td>有限值判斷、統計與十進位計算</td>
+</tr>
+<tr>
+<td>容器與串流</td>
+<td><code>collections</code>、<code>itertools</code></td>
+<td>計數、佇列資料、惰性轉換</td>
+</tr>
+<tr>
+<td>CLI 與診斷</td>
+<td><code>argparse</code>、<code>logging</code></td>
+<td>參數解析與分級紀錄</td>
+</tr>
+<tr>
+<td>品質檢查</td>
+<td><code>unittest</code>、<code>doctest</code></td>
+<td>行為測試與簡短互動例子驗證</td>
+</tr>
+<tr>
+<td>外部行程</td>
+<td><code>subprocess</code></td>
+<td>以參數陣列執行工具並檢查結果</td>
+</tr>
+</tbody>
+</table>
+</div><p>測量兩個事件的間隔，宜使用單調時鐘；要記錄「何時發生」，則需要可解讀的日期時間。兩者用途不同。工程資料處理可先用標準庫建立清楚的邊界，再評估專門套件是否值得增加安裝與維護成本。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/library/json.html" target="_blank" rel="noopener noreferrer">JSON</a>、<a href="https://docs.python.org/3.15/library/pathlib.html" target="_blank" rel="noopener noreferrer">pathlib</a>、<a href="https://docs.python.org/3.15/tutorial/stdlib.html" target="_blank" rel="noopener noreferrer">標準庫導覽</a>、<a href="https://docs.python.org/3.15/library/index.html" target="_blank" rel="noopener noreferrer">標準庫索引</a>、<a href="https://docs.python.org/3.15/library/time.html" target="_blank" rel="noopener noreferrer">time</a>。</p>
+<h3 id="section-19">C16｜async 語法與 TaskGroup 的基本使用</h3>
+<p>不含 <code>yield</code> 的 <code>async def</code> 定義 coroutine function，呼叫後取得 coroutine object；通常還要 <code>await</code>、交給 task，或由 <code>asyncio.run()</code> 啟動，工作才會執行。<code>await</code> 等待 awaitable 的完成，適合可配合事件迴圈的非同步操作；它不是把一般阻塞函式自動改成非同步的符號。</p>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read_simulated</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">point</span><span class="p">,</span> <span class="mf">24.5</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">collect</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">group</span><span class="p">:</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">group</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">read_simulated</span><span class="p">(</span><span class="n">point</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"T10"</span><span class="p">,</span> <span class="s2">"T11"</span><span class="p">,</span> <span class="s2">"T12"</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">result</span><span class="p">()</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">)</span>
+
+<span class="c1"># 在一般 Python 腳本入口執行：</span>
+<span class="c1"># print(asyncio.run(collect()))</span>
+</code></pre>
+<p><code>TaskGroup</code> 用結構化範圍管理多個 task：離開 <code>async with</code> 前會等候群組內工作完成。一般 task 失敗時會取消其他尚未完成的 task，收集相應失敗後向外提出例外群組；中斷與退出等例外另有特定處理規則。呼叫端應決定哪些失敗可以恢復，不能只把所有例外轉成空結果。</p>
+<p><code>async for</code> 用於非同步迭代器，每次取得下一筆時可以等待；含有 <code>yield</code> 的 <code>async def</code> 則建立非同步產生器。<code>async with</code> 用於其進入或離開本身需要等待的 context manager，對應 <code>__aenter__()</code> 與 <code>__aexit__()</code>。</p>
+<pre><code class="language-python"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">simulated_stream</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">24.0</span><span class="p">,</span> <span class="mf">24.5</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">):</span>
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">value</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">summarize_stream</span><span class="p">():</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">simulated_stream</span><span class="p">():</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+</code></pre>
+<p>一般腳本可在入口使用一次 <code>asyncio.run(main())</code>；已經有運行中事件迴圈的環境，應配合該環境的頂層 <code>await</code> 或整合方式，不能在同一執行緒任意巢狀呼叫 <code>asyncio.run()</code>。取消通常會在可等待位置交付，清理可放在 <code>finally</code>，不宜無意吞掉取消訊號。非同步語法負責等待與協作，是否採用多核心、執行緒或行程，屬於另一層架構決策。</p>
+<p>官方來源：<a href="https://docs.python.org/3.15/library/asyncio-task.html" target="_blank" rel="noopener noreferrer">coroutine 與 TaskGroup</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html#coroutines" target="_blank" rel="noopener noreferrer">非同步敘述</a>、<a href="https://docs.python.org/3.15/reference/expressions.html#asynchronous-generator-functions" target="_blank" rel="noopener noreferrer">非同步產生器</a>。</p>
+<h2 id="section-20">第二部｜Python 3.15 新增與升級變更</h2>
+<h3 id="section-21">Python 3.15 新特性與升級指南</h3>
+<p>查證日期：2026-11-24（UTC）。以下依 Python 3.15.2 官方文件整理；隨附 <code>examples/new_features_315.py</code> 已在 Linux x86-64 的 CPython 3.15.2 實際執行，16 組範例通過。型別檢查器的靜態診斷與其他作業系統行為不包含在這項實測中。</p>
+<h3 id="section-22">版本狀態</h3>
+<p>Python 3.15.0 的官方發布日期為 2026-10-09；截至本次查證，官方 3.15 文件標題是 3.15.2，版本列表將 3.15.2 列為 2026-10-25 發布。請以 3.15.2 作為教材核對版本，而非 alpha/beta。</p>
+<p>來源：<a href="https://www.python.org/downloads/release/python-3150/" target="_blank" rel="noopener noreferrer">3.15.0 發布頁</a>、<a href="https://www.python.org/downloads/release/python-3152/" target="_blank" rel="noopener noreferrer">3.15.2 發布頁</a>、<a href="https://www.python.org/doc/versions/" target="_blank" rel="noopener noreferrer">官方版本列表</a>。</p>
+<h3 id="section-23">真正屬於 3.15 的主要變更</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>分類</th>
+<th>3.15 新增或改變</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>語法</td>
+<td><code>lazy import</code>、<code>lazy from … import …</code></td>
+<td>PEP 810</td>
+</tr>
+<tr>
+<td>語法</td>
+<td>推導式及產生器運算式使用 <code>*</code> / <code>**</code> 解包</td>
+<td>PEP 798</td>
+</tr>
+<tr>
+<td>內建型別</td>
+<td><code>frozendict</code> 淺不可變映射</td>
+<td>PEP 814</td>
+</tr>
+<tr>
+<td>內建型別</td>
+<td><code>sentinel()</code> 唯一標記值</td>
+<td>PEP 661</td>
+</tr>
+<tr>
+<td>編碼</td>
+<td>UTF-8 mode 預設開啟</td>
+<td>PEP 686</td>
+</tr>
+<tr>
+<td>型別註記</td>
+<td>TypedDict 的 <code>closed</code> / <code>extra_items</code></td>
+<td>PEP 728</td>
+</tr>
+<tr>
+<td>型別註記</td>
+<td><code>typing.TypeForm</code></td>
+<td>PEP 747</td>
+</tr>
+<tr>
+<td>型別註記</td>
+<td><code>typing.disjoint_base</code></td>
+<td>PEP 800</td>
+</tr>
+<tr>
+<td>整數數學</td>
+<td><code>math.integer</code> 子模組</td>
+<td>PEP 791</td>
+</tr>
+<tr>
+<td>啟動配置</td>
+<td><code>.start</code> 套件啟動進入點</td>
+<td>PEP 829</td>
+</tr>
+<tr>
+<td>效能工具</td>
+<td><code>profiling.tracing</code> / <code>profiling.sampling</code>（Tachyon）</td>
+<td>PEP 799</td>
+</tr>
+<tr>
+<td>執行環境</td>
+<td>free-threaded Stable ABI 等</td>
+<td>PEP 803、820、793；並行章另述</td>
+</tr>
+<tr>
+<td>底層觀測</td>
+<td>frame pointers 預設啟用</td>
+<td>PEP 831</td>
+</tr>
+</tbody>
+</table>
+</div><p>上述語法、內建型別、編碼、型別註記與整數數學 PEP 在查證時皆顯示 Final、Python-Version 3.15。CPython 的實作與 API 細節，以相應版本的官方文件及實測結果為準。</p>
+<h3 id="section-24">1. lazy import：把載入推遲到第一次使用</h3>
+<pre><code class="language-python"><span class="c1"># Python 3.15+；放在模組頂層。</span>
+<span class="kn">lazy</span><span class="w"> </span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">lazy</span><span class="w"> </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_device_config</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">))</span>
+
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"命令列已啟動；尚未使用設定讀取功能"</span><span class="p">)</span>
+</code></pre>
+<p><code>lazy</code> 是 soft keyword。宣告後建立延遲代理，名稱第一次實際使用時完成模組匯入。載入失敗也延到首次使用時出現；匯入時的註冊、環境設定等副作用同樣延後。只允許模組層級；函式、類別及 try/except/finally 內不允許，<code>*</code> 匯入與 <code>__future__</code> 匯入也不能延遲。</p>
+<p>跨舊版原始碼可用 <code>__lazy_modules__ = ["json", "pathlib"]</code> 搭配普通 import；3.15 會據此延遲，舊版不使用這個特別協定。<code>-X lazy_imports=all</code> / <code>PYTHON_LAZY_IMPORTS=all</code> 是廣泛啟用選項，預設 <code>normal</code> 尊重原始碼宣告。</p>
+<p>工程建議（推論）：CLI 中不一定用到的匯出或報表模組適合評估延遲；連線驅動、授權檢查與必須開機即失敗的初始化不應只為縮短啟動秒數而延後。</p>
+<p>來源：<a href="https://peps.python.org/pep-0810/" target="_blank" rel="noopener noreferrer">PEP 810</a>。</p>
+<h3 id="section-25">2. 推導式解包：一次展開一層</h3>
+<pre><code class="language-python"><span class="n">batches</span> <span class="o">=</span> <span class="p">[(</span><span class="mf">23.4</span><span class="p">,</span> <span class="mf">24.1</span><span class="p">),</span> <span class="p">(</span><span class="mf">25.2</span><span class="p">,),</span> <span class="p">()]</span>
+<span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">batch</span> <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">]</span>
+<span class="n">unique</span> <span class="o">=</span> <span class="p">{</span><span class="o">*</span><span class="n">batch</span> <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">}</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">batch</span> <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">)</span>
+
+<span class="n">parts</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"AHU01"</span><span class="p">:</span> <span class="mf">23.4</span><span class="p">},</span> <span class="p">{</span><span class="s2">"AHU02"</span><span class="p">:</span> <span class="mf">25.2</span><span class="p">},</span> <span class="p">{</span><span class="s2">"AHU01"</span><span class="p">:</span> <span class="mf">23.8</span><span class="p">}]</span>
+<span class="n">latest</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">part</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">}</span>
+
+<span class="k">assert</span> <span class="n">values</span> <span class="o">==</span> <span class="p">[</span><span class="mf">23.4</span><span class="p">,</span> <span class="mf">24.1</span><span class="p">,</span> <span class="mf">25.2</span><span class="p">]</span>
+<span class="k">assert</span> <span class="nb">list</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span> <span class="o">==</span> <span class="n">values</span>
+<span class="k">assert</span> <span class="n">latest</span> <span class="o">==</span> <span class="p">{</span><span class="s2">"AHU01"</span><span class="p">:</span> <span class="mf">23.8</span><span class="p">,</span> <span class="s2">"AHU02"</span><span class="p">:</span> <span class="mf">25.2</span><span class="p">}</span>
+</code></pre>
+<p>此機制只攤平一層，並非遞迴展平。字典重複鍵由後出現的值覆蓋。既有 <code>[*a, *b]</code>、<code>{**a, **b}</code> 在舊版就有，3.15 新增的是解包進入推導式／產生器運算式。</p>
+<p>來源：<a href="https://peps.python.org/pep-0798/" target="_blank" rel="noopener noreferrer">PEP 798</a>。</p>
+<h3 id="section-26">3. frozendict：設定快照與不可變映射</h3>
+<pre><code class="language-python"><span class="n">config</span> <span class="o">=</span> <span class="nb">frozendict</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="s2">"AHU01"</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">config</span><span class="p">[</span><span class="s2">"timeout"</span><span class="p">]</span> <span class="o">==</span> <span class="mf">1.5</span>
+<span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+<span class="n">lookup</span> <span class="o">=</span> <span class="p">{</span><span class="n">config</span><span class="p">:</span> <span class="s2">"已驗證"</span><span class="p">}</span>  <span class="c1"># 本例的鍵與值皆可雜湊。</span>
+
+<span class="c1"># config["timeout"] = 2.0  # TypeError</span>
+<span class="n">nested</span> <span class="o">=</span> <span class="nb">frozendict</span><span class="p">(</span><span class="n">samples</span><span class="o">=</span><span class="p">[])</span>
+<span class="n">nested</span><span class="p">[</span><span class="s2">"samples"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">24.5</span><span class="p">)</span>  <span class="c1"># 內層 list 仍可修改。</span>
+</code></pre>
+<p>凍結的是映射結構，並不遞迴凍結值。所有鍵和值都可雜湊時，整個 frozendict 才可雜湊。它不是 dict 子類，可用 <code>collections.abc.Mapping</code> 接收一般映射。維持插入順序，但相等比較不以順序為準；沒有新的 frozendict literal 語法。</p>
+<p>來源：<a href="https://peps.python.org/pep-0814/" target="_blank" rel="noopener noreferrer">PEP 814</a>、<a href="https://docs.python.org/3.15/builtins/stdtypes.html#frozendict" target="_blank" rel="noopener noreferrer">內建型別</a>。</p>
+<h3 id="section-27">4. sentinel：區分沒傳入與有意傳入 None</h3>
+<pre><code class="language-python"><span class="n">MISSING</span> <span class="o">=</span> <span class="nb">sentinel</span><span class="p">(</span><span class="s2">"MISSING"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">describe_setting</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">MISSING</span> <span class="o">=</span> <span class="n">MISSING</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">MISSING</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"沿用原設定"</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"清除此設定"</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"更新設定為 </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span>
+
+
+<span class="k">assert</span> <span class="n">describe_setting</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"沿用原設定"</span>
+<span class="k">assert</span> <span class="n">describe_setting</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"清除此設定"</span>
+</code></pre>
+<p>每次呼叫 <code>sentinel()</code> 產生不同物件，應建立一次並重用，用 <code>is</code> 判斷。複製會保留 identity；只有能依模組及名稱找回的 sentinel 才能 pickle 並保留 identity。它在布林判斷中為真，不能用 <code>if value:</code> 判斷缺省。目前實作另有 <code>repr=</code> 關鍵字參數；若與 PEP 舊措辭不一致，以 API 文件為準。</p>
+<p>來源：<a href="https://peps.python.org/pep-0661/" target="_blank" rel="noopener noreferrer">PEP 661</a>、<a href="https://docs.python.org/3.15/builtins/functions.html#sentinel" target="_blank" rel="noopener noreferrer">sentinel API</a>。</p>
+<h3 id="section-28">5. UTF-8 預設</h3>
+<p>3.15 預設開啟 UTF-8 mode；沒有指定 encoding 的文字檔案、標準串流與 pipe 行為因此可能改變。既有 Big5、CP950 或其他舊系統檔案不能靠升級自動辨識，應明確指定真正編碼。</p>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"settings.txt"</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
+<span class="n">legacy</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"legacy.csv"</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"cp950"</span><span class="p">)</span>
+</code></pre>
+<p><code>encoding="locale"</code> 可明確指定環境地區編碼；<code>PYTHONUTF8=0</code> 或 <code>-X utf8=0</code> 可停用 UTF-8 mode。<code>python -X warn_default_encoding ...</code> 能協助找出隱含預設編碼使用點。</p>
+<p>來源：<a href="https://peps.python.org/pep-0686/" target="_blank" rel="noopener noreferrer">PEP 686</a>。</p>
+<h3 id="section-29">6. 型別註記：資料邊界更精確</h3>
+<h4>TypedDict 的 closed 與 extra_items</h4>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypedDict</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DeviceConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Measurements</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">extra_items</span><span class="o">=</span><span class="nb">float</span><span class="p">):</span>
+    <span class="n">device</span><span class="p">:</span> <span class="nb">str</span>
+
+<span class="n">ok</span><span class="p">:</span> <span class="n">Measurements</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"device"</span><span class="p">:</span> <span class="s2">"AHU01"</span><span class="p">,</span> <span class="s2">"temperature"</span><span class="p">:</span> <span class="mf">24.5</span><span class="p">}</span>
+</code></pre>
+<p><code>closed=True</code> 不允許額外鍵；<code>extra_items=float</code> 規範未宣告鍵的值型別。兩者不能在同一 TypedDict 定義中同時使用。這是靜態型別協定，執行期仍為一般 dict，不會自動驗證 JSON。</p>
+<p>來源：<a href="https://peps.python.org/pep-0728/" target="_blank" rel="noopener noreferrer">PEP 728</a>。</p>
+<h4>TypeForm</h4>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypeForm</span>
+
+<span class="n">schema</span><span class="p">:</span> <span class="n">TypeForm</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="k">assert</span> <span class="n">TypeForm</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span> <span class="ow">is</span> <span class="n">schema</span>
+</code></pre>
+<p><code>TypeForm[T]</code> 描述代表 T 或其可指派型別的「型別運算式值」，可涵蓋聯集、泛型別名等，範圍比只接受類別物件的 <code>type[T]</code> 廣。<code>TypeForm(x)</code> 在執行期直接傳回 x，不是資料驗證器或轉型函式。</p>
+<p>來源：<a href="https://peps.python.org/pep-0747/" target="_blank" rel="noopener noreferrer">PEP 747</a>、<a href="https://docs.python.org/3.15/library/typing.html#typing.TypeForm" target="_blank" rel="noopener noreferrer">typing.TypeForm</a>。</p>
+<h4>disjoint_base</h4>
+<p><code>@typing.disjoint_base</code> 告訴型別檢查器：不具祖先／子孫關係的兩個 disjoint base 不應被同一類別共同繼承。用於診斷不可能交集或不可達分支；裝飾器本身不等同執行期禁止多重繼承。</p>
+<p>來源：<a href="https://peps.python.org/pep-0800/" target="_blank" rel="noopener noreferrer">PEP 800</a>。</p>
+<h3 id="section-30">7. profiling / Tachyon</h3>
+<p>新增 <code>profiling.tracing</code> 整理原 cProfile 功能，<code>cProfile</code> 保留相容別名；純 Python 的 <code>profile</code> 模組被棄用，預計 3.17 移除。<code>profiling.sampling</code> 是新的統計取樣工具，可啟動腳本、執行模組或附加既有 PID，也能輸出獨立 HTML flame graph。</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>run<span class="w"> </span>worker.py
+python3.15<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>run<span class="w"> </span>--flamegraph<span class="w"> </span>-o<span class="w"> </span>profile.html<span class="w"> </span>worker.py
+python3.15<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>attach<span class="w"> </span><span class="m">12345</span>
+python3.15<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>dump<span class="w"> </span><span class="m">12345</span>
+</code></pre>
+<p>預設取樣率為 1 kHz，並非所有工作負載自動得到 1 MHz。取樣器本身的 CPU 用量、附加權限、平台差異及資料完整性仍須評估；若使用 blocking 模式，取樣會暫停目標。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/profiling.html" target="_blank" rel="noopener noreferrer">profiling</a>、<a href="https://docs.python.org/3.15/library/profiling.sampling.html" target="_blank" rel="noopener noreferrer">sampling</a>。</p>
+<h3 id="section-31">8. 新增實用標準函式庫 API</h3>
+<h4>math.integer：集中整數數學函式</h4>
+<pre><code class="language-python"><span class="kn">from</span><span class="w"> </span><span class="nn">math.integer</span><span class="w"> </span><span class="kn">import</span> <span class="n">comb</span><span class="p">,</span> <span class="n">factorial</span><span class="p">,</span> <span class="n">gcd</span><span class="p">,</span> <span class="n">isqrt</span><span class="p">,</span> <span class="n">lcm</span><span class="p">,</span> <span class="n">perm</span>
+
+<span class="k">assert</span> <span class="n">comb</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">==</span> <span class="mi">56</span>
+<span class="k">assert</span> <span class="n">factorial</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span> <span class="o">==</span> <span class="mi">720</span>
+<span class="k">assert</span> <span class="n">gcd</span><span class="p">(</span><span class="mi">48</span><span class="p">,</span> <span class="mi">18</span><span class="p">)</span> <span class="o">==</span> <span class="mi">6</span>
+<span class="k">assert</span> <span class="n">isqrt</span><span class="p">(</span><span class="mi">99</span><span class="p">)</span> <span class="o">==</span> <span class="mi">9</span>
+<span class="k">assert</span> <span class="n">lcm</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span> <span class="o">==</span> <span class="mi">24</span>
+<span class="k">assert</span> <span class="n">perm</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">20</span>
+</code></pre>
+<p>這個新子模組集中 <code>comb</code>、<code>factorial</code>、<code>gcd</code>、<code>isqrt</code>、<code>lcm</code>、<code>perm</code> 六個整數運算函式，接受整數或實作 <code>__index__()</code> 的物件，結果以整數精確計算。原本 <code>math</code> 中的對應入口保留；新增的是清楚的整數運算命名空間，不能把組合數、最大公因數等算法說成3.15才有。</p>
+<p>來源：<a href="https://peps.python.org/pep-0791/" target="_blank" rel="noopener noreferrer">PEP 791</a>、<a href="https://docs.python.org/3.15/library/math.integer.html" target="_blank" rel="noopener noreferrer">math.integer</a>。</p>
+<h4>JSON 可生成遞迴不可變結構</h4>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="n">snapshot</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+    <span class="s1">'{"device":"AHU01","values":[24.5,24.8]}'</span><span class="p">,</span>
+    <span class="n">object_pairs_hook</span><span class="o">=</span><span class="nb">frozendict</span><span class="p">,</span>
+    <span class="n">array_hook</span><span class="o">=</span><span class="nb">tuple</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">assert</span> <span class="n">snapshot</span><span class="p">[</span><span class="s2">"values"</span><span class="p">]</span> <span class="o">==</span> <span class="p">(</span><span class="mf">24.5</span><span class="p">,</span> <span class="mf">24.8</span><span class="p">)</span>
+</code></pre>
+<p><code>array_hook</code> 會作用在每一個 JSON array 的解碼結果，與 object_pairs_hook 的 frozendict 搭配可讓一般 JSON 結構的容器皆不可變。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/json.html" target="_blank" rel="noopener noreferrer">json</a>。</p>
+<h4>bytearray.take_bytes</h4>
+<pre><code class="language-python"><span class="n">buffer</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">(</span><span class="sa">b</span><span class="s2">"OK</span><span class="se">\n</span><span class="s2">NEXT"</span><span class="p">)</span>
+<span class="n">line</span> <span class="o">=</span> <span class="n">buffer</span><span class="o">.</span><span class="n">take_bytes</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">line</span> <span class="o">==</span> <span class="sa">b</span><span class="s2">"OK</span><span class="se">\n</span><span class="s2">"</span>
+<span class="k">assert</span> <span class="n">buffer</span> <span class="o">==</span> <span class="nb">bytearray</span><span class="p">(</span><span class="sa">b</span><span class="s2">"NEXT"</span><span class="p">)</span>
+<span class="n">rest</span> <span class="o">=</span> <span class="n">buffer</span><span class="o">.</span><span class="n">take_bytes</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">rest</span> <span class="o">==</span> <span class="sa">b</span><span class="s2">"NEXT"</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">buffer</span>
+</code></pre>
+<p>取出部分時會留下剩餘內容並涉及複製；取出全部且清空的 CPython 路徑可零複製。這是 CPython 實作細節，不能宣稱所有 Python 實作一律零複製。</p>
+<p>來源：<a href="https://docs.python.org/3.15/builtins/stdtypes.html#bytearray.take_bytes" target="_blank" rel="noopener noreferrer">bytearray.take_bytes</a>。</p>
+<h4>其他實用 API</h4>
+<ul>
+<li><code>re.prefixmatch()</code>：明確表示只在開頭比對；<code>re.match()</code> 僅 soft deprecated，無移除計畫；既有舊版相容碼可繼續用 match。<a href="https://docs.python.org/3.15/library/re.html" target="_blank" rel="noopener noreferrer">re</a></li>
+<li><code>math.fmax/fmin</code>：以「NaN 視作缺失」規則比較浮點；<code>isnormal/issubnormal/signbit</code> 補足浮點分類和符號檢查。<a href="https://docs.python.org/3.15/library/math.html" target="_blank" rel="noopener noreferrer">math</a></li>
+<li><code>base64</code> 家族擴充 padded、wrapcol、ignorechars、canonical 等參數；不是每個函式都具備全部參數。<a href="https://docs.python.org/3.15/library/base64.html" target="_blank" rel="noopener noreferrer">base64</a></li>
+<li><code>Path.mkdir(parent_mode=...)</code> 與 <code>os.makedirs(parent_mode=...)</code>：可設定中間目錄 mode。<a href="https://docs.python.org/3.15/library/pathlib.html" target="_blank" rel="noopener noreferrer">pathlib</a></li>
+<li><code>ssl</code> 新增 TLS 1.3 cipher suites、key agreement groups 與 signature algorithms 管理 API；部分依賴較新的 OpenSSL 版本，不能只看 Python 版本判斷可用性。<a href="https://docs.python.org/3.15/library/ssl.html" target="_blank" rel="noopener noreferrer">ssl</a></li>
+<li><code>threading.serialize_iterator</code>、<code>synchronized_iterator</code>、<code>concurrent_tee</code>；<code>sys.abi_info</code>：並行章另述。</li>
+</ul>
+<h4>Unicode 字素分段與 TOML 1.1</h4>
+<p><code>unicodedata</code> 更新至 Unicode 17.0.0，新增識別字判斷及字素分段。<code>iter_graphemes()</code> 產生的是 <code>Segment</code> 物件；用 <code>str(segment)</code> 取得文字，<code>start</code> / <code>end</code> 是原始字串位置。這有助於區分 code point 與使用者看見的完整字素。</p>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">unicodedata</span>
+
+<span class="n">segments</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">unicodedata</span><span class="o">.</span><span class="n">iter_graphemes</span><span class="p">(</span><span class="s2">"e</span><span class="se">\u0301</span><span class="s2">"</span><span class="p">))</span>
+<span class="k">assert</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">"e</span><span class="se">\u0301</span><span class="s2">"</span><span class="p">]</span>
+<span class="k">assert</span> <span class="p">(</span><span class="n">segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</code></pre>
+<p><code>tomllib</code> 支援 TOML 1.1.0，例如 inline table 可以跨行並含尾逗號；這是設定檔格式的解析能力，不是 Python 字典語法改變。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/unicodedata.html" target="_blank" rel="noopener noreferrer">unicodedata</a>、<a href="https://docs.python.org/3.15/library/tomllib.html" target="_blank" rel="noopener noreferrer">tomllib</a>。</p>
+<h4>其他語言和工具細節</h4>
+<p><code>match</code> 的數值 literal pattern 現在接受一元正號，例如 <code>case +1:</code>。<code>slice</code> 支援型別下標，例如 <code>slice[float]</code>。tuple 子類可宣告非空 <code>__slots__</code>，有利於為 tuple 衍生物件加上額外屬性。這些都不是整個 match、slice 或 slots 機制第一次出現；是既有功能的擴充。</p>
+<pre><code class="language-python"><span class="k">class</span><span class="w"> </span><span class="nc">TaggedReadings</span><span class="p">(</span><span class="nb">tuple</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"device"</span><span class="p">,)</span>
+
+<span class="n">readings</span> <span class="o">=</span> <span class="n">TaggedReadings</span><span class="p">((</span><span class="mf">24.5</span><span class="p">,</span> <span class="mf">24.8</span><span class="p">))</span>
+<span class="n">readings</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="s2">"AHU01"</span>
+</code></pre>
+<p>來源：<a href="https://docs.python.org/3.15/reference/datamodel.html" target="_blank" rel="noopener noreferrer">Data model</a>、<a href="https://docs.python.org/3.15/whatsnew/3.15.html#other-language-changes" target="_blank" rel="noopener noreferrer">3.15 語言變更</a>。</p>
+<h4>其他3.15變更索引：語言與互動工具</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>變更與使用界線</th>
+<th>官方資料</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>編譯與分析</td>
+<td><code>compile()</code>、<code>ast.parse()</code>、<code>symtable.symtable()</code> 新增模組名稱參數，供 SyntaxWarning 的模組篩選</td>
+<td><a href="https://docs.python.org/3.15/builtins/functions.html" target="_blank" rel="noopener noreferrer">內建函式</a>、<a href="https://docs.python.org/3.15/library/ast.html" target="_blank" rel="noopener noreferrer">ast</a>、<a href="https://docs.python.org/3.15/library/symtable.html" target="_blank" rel="noopener noreferrer">symtable</a></td>
+</tr>
+<tr>
+<td>二進位容器</td>
+<td><code>bytes.replace(count=...)</code> 接受關鍵字；<code>memoryview</code> 支援複數格式 <code>Zf</code> / <code>Zd</code></td>
+<td><a href="https://docs.python.org/3.15/builtins/stdtypes.html" target="_blank" rel="noopener noreferrer">內建型別</a></td>
+</tr>
+<tr>
+<td>物件模型</td>
+<td>tuple 子類非空 slots；<code>__dict__</code> / <code>__weakref__</code> slots 可在更多情況使用；<code>slice[float]</code> 等泛型表示</td>
+<td><a href="https://docs.python.org/3.15/reference/datamodel.html" target="_blank" rel="noopener noreferrer">Data model</a></td>
+</tr>
+<tr>
+<td>匯入與中繼資料</td>
+<td>階層式模組鎖改善父／子模組載入死鎖；快取位置改以 <code>__spec__.cached</code> 為準</td>
+<td><a href="https://docs.python.org/3.15/reference/import.html" target="_blank" rel="noopener noreferrer">Import system</a></td>
+</tr>
+<tr>
+<td>互動工具</td>
+<td>REPL 補完及顏色改善；pdb 採新互動輸入介面；多個 CLI 提供彩色輸出</td>
+<td><a href="https://docs.python.org/3.15/library/pdb.html" target="_blank" rel="noopener noreferrer">pdb</a>、<a href="https://docs.python.org/3.15/using/cmdline.html" target="_blank" rel="noopener noreferrer">命令列與環境變數</a></td>
+</tr>
+</tbody>
+</table>
+</div><h4>其他3.15變更索引：標準函式庫</h4>
+<p>表中列出 API、行為及相容性相關變更；已在前節詳解的 API 不重複長篇說明。部分修正也已回補較早維護版本，因此「3.15包含」不一律代表「其他版本都沒有」。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模組</th>
+<th>3.15 應留意的變更</th>
+<th>官方資料</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>argparse</code></td>
+<td><code>suggest_on_error</code> 預設改 True；BooleanOptionalAction 支援更多前綴；help 的反引號文字可配合彩色顯示。錯誤建議功能本身從3.14已有</td>
+<td><a href="https://docs.python.org/3.15/library/argparse.html" target="_blank" rel="noopener noreferrer">argparse</a></td>
+</tr>
+<tr>
+<td><code>array</code></td>
+<td>新增半精度 <code>e</code> 與複數 <code>Zf</code> / <code>Zd</code>；<code>typecodes</code> 從 str 改 tuple，避免假設每個代碼只有一字元</td>
+<td><a href="https://docs.python.org/3.15/library/array.html" target="_blank" rel="noopener noreferrer">array</a></td>
+</tr>
+<tr>
+<td><code>ast</code></td>
+<td><code>dump(color=...)</code> 與 CLI 色彩；必填欄位及未知 keyword 更嚴格</td>
+<td><a href="https://docs.python.org/3.15/library/ast.html" target="_blank" rel="noopener noreferrer">ast</a></td>
+</tr>
+<tr>
+<td><code>asyncio</code></td>
+<td>新增 <code>TaskGroup.cancel()</code> 提前取消工作群組；TaskGroup 本身是3.11功能</td>
+<td><a href="https://docs.python.org/3.15/library/asyncio-task.html#task-groups" target="_blank" rel="noopener noreferrer">Task groups</a></td>
+</tr>
+<tr>
+<td><code>base64</code>、<code>binascii</code></td>
+<td>padding、換行、忽略字元及 canonical 解碼選項擴充；binascii 新增 Base32 / Ascii85 / Base85 相關函式；Base32及85家族的C實作改善效能</td>
+<td><a href="https://docs.python.org/3.15/library/base64.html" target="_blank" rel="noopener noreferrer">base64</a>、<a href="https://docs.python.org/3.15/library/binascii.html" target="_blank" rel="noopener noreferrer">binascii</a></td>
+</tr>
+<tr>
+<td><code>calendar</code></td>
+<td>HTML5、深色模式、CLI HTML 輸出可指定單月</td>
+<td><a href="https://docs.python.org/3.15/library/calendar.html" target="_blank" rel="noopener noreferrer">calendar</a></td>
+</tr>
+<tr>
+<td><code>collections.Counter</code></td>
+<td><code>^</code> / <code>^=</code> 對稱差，可比較兩組計數差異</td>
+<td><a href="https://docs.python.org/3.15/library/collections.html" target="_blank" rel="noopener noreferrer">collections</a></td>
+</tr>
+<tr>
+<td><code>concurrent.futures</code></td>
+<td>ProcessPoolExecutor 子行程異常退出時，錯誤包含 PID 與 exit code</td>
+<td><a href="https://docs.python.org/3.15/library/concurrent.futures.html" target="_blank" rel="noopener noreferrer">concurrent.futures</a></td>
+</tr>
+<tr>
+<td><code>contextlib</code></td>
+<td>ExitStack 支援更一般的 descriptor；ContextDecorator／AsyncContextDecorator 包裝產生器、協程時，context 延續到迭代或 await 期間，資源生命週期因此改變</td>
+<td><a href="https://docs.python.org/3.15/library/contextlib.html" target="_blank" rel="noopener noreferrer">contextlib</a></td>
+</tr>
+<tr>
+<td><code>ctypes</code></td>
+<td>複數型別 <code>_type_</code> 從 <code>F</code> / <code>D</code> / <code>G</code> 改成 <code>Zf</code> / <code>Zd</code> / <code>Zg</code></td>
+<td><a href="https://docs.python.org/3.15/library/ctypes.html" target="_blank" rel="noopener noreferrer">ctypes</a></td>
+</tr>
+<tr>
+<td><code>dataclasses</code></td>
+<td>自動產生的 <code>__init__</code> 註記不再帶內部型別名稱</td>
+<td><a href="https://docs.python.org/3.15/library/dataclasses.html" target="_blank" rel="noopener noreferrer">dataclasses</a></td>
+</tr>
+<tr>
+<td><code>dbm</code>、<code>shelve</code></td>
+<td><code>reorganize()</code> 回收刪除項目後的空間；shelve 可自訂序列化／反序列化</td>
+<td><a href="https://docs.python.org/3.15/library/dbm.html" target="_blank" rel="noopener noreferrer">dbm</a>、<a href="https://docs.python.org/3.15/library/shelve.html" target="_blank" rel="noopener noreferrer">shelve</a></td>
+</tr>
+<tr>
+<td><code>difflib</code></td>
+<td>unified_diff 的 color 選項；HTML diff 改善樣式與HTML5</td>
+<td><a href="https://docs.python.org/3.15/library/difflib.html" target="_blank" rel="noopener noreferrer">difflib</a></td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>無法正確攤平成郵件的非ASCII信箱地址會拋錯；需按 EAI 與 utf8 policy 處理</td>
+<td><a href="https://docs.python.org/3.15/library/email.policy.html" target="_blank" rel="noopener noreferrer">email.policy</a></td>
+</tr>
+<tr>
+<td><code>faulthandler</code></td>
+<td>多個 traceback API 新增 <code>max_threads</code> 上限</td>
+<td><a href="https://docs.python.org/3.15/library/faulthandler.html" target="_blank" rel="noopener noreferrer">faulthandler</a></td>
+</tr>
+<tr>
+<td><code>functools</code></td>
+<td>singledispatchmethod 支援非descriptor callable；透過class呼叫一般方法時依第二參數dispatch</td>
+<td><a href="https://docs.python.org/3.15/library/functools.html" target="_blank" rel="noopener noreferrer">functools</a></td>
+</tr>
+<tr>
+<td><code>gc</code></td>
+<td>採分代 GC；3.14.0–3.14.4的增量GC已在3.14.5及3.15回退，不宜沿用舊版調校假設</td>
+<td><a href="https://docs.python.org/3.15/library/gc.html" target="_blank" rel="noopener noreferrer">gc</a></td>
+</tr>
+<tr>
+<td><code>hashlib</code></td>
+<td>保證名稱的函式維持可存取屬性，但缺少後端時呼叫仍可能失敗；<code>hasattr()</code> 不等於算法可運作</td>
+<td><a href="https://docs.python.org/3.15/library/hashlib.html" target="_blank" rel="noopener noreferrer">hashlib</a></td>
+</tr>
+<tr>
+<td><code>http.client</code></td>
+<td>HTTPConnection / HTTPSConnection 可設定 <code>max_response_headers</code></td>
+<td><a href="https://docs.python.org/3.15/library/http.client.html" target="_blank" rel="noopener noreferrer">http.client</a></td>
+</tr>
+<tr>
+<td><code>http.server</code></td>
+<td><code>default_content_type</code>、<code>extra_response_headers</code>；CLI <code>--content-type</code>、<code>-H/--header</code></td>
+<td><a href="https://docs.python.org/3.15/library/http.server.html" target="_blank" rel="noopener noreferrer">http.server</a></td>
+</tr>
+<tr>
+<td><code>importlib.metadata</code></td>
+<td>發現metadata目錄卻缺metadata檔案時，改拋 <code>MetadataNotFound</code></td>
+<td><a href="https://docs.python.org/3.15/library/importlib.metadata.html" target="_blank" rel="noopener noreferrer">importlib.metadata</a></td>
+</tr>
+<tr>
+<td><code>inspect</code></td>
+<td><code>getdoc(inherit_class_doc=..., fallback_to_class_doc=...)</code></td>
+<td><a href="https://docs.python.org/3.15/library/inspect.html" target="_blank" rel="noopener noreferrer">inspect</a></td>
+</tr>
+<tr>
+<td><code>json</code></td>
+<td><code>array_hook</code>，以及 frozendict 序列化支援</td>
+<td><a href="https://docs.python.org/3.15/library/json.html" target="_blank" rel="noopener noreferrer">json</a></td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td>保留 <code>@</code> locale modifier；<code>getdefaultlocale()</code> 已撤回棄用，不要沿用舊版移除預告</td>
+<td><a href="https://docs.python.org/3.15/library/locale.html" target="_blank" rel="noopener noreferrer">locale</a></td>
+</tr>
+<tr>
+<td><code>math</code></td>
+<td>fmax / fmin、isnormal / issubnormal / signbit，以及 math.integer 子模組</td>
+<td><a href="https://docs.python.org/3.15/library/math.html" target="_blank" rel="noopener noreferrer">math</a>、<a href="https://docs.python.org/3.15/library/math.integer.html" target="_blank" rel="noopener noreferrer">math.integer</a></td>
+</tr>
+<tr>
+<td><code>mimetypes</code></td>
+<td>新增與修正MIME對照，例如 <code>.ai</code> 對應 <code>application/pdf</code></td>
+<td><a href="https://docs.python.org/3.15/library/mimetypes.html" target="_blank" rel="noopener noreferrer">mimetypes</a></td>
+</tr>
+<tr>
+<td><code>mmap</code></td>
+<td>Windows 新增 <code>trackfd</code>；Linux 5.17+ 可用 <code>set_name()</code> 標註匿名mapping</td>
+<td><a href="https://docs.python.org/3.15/library/mmap.html" target="_blank" rel="noopener noreferrer">mmap</a></td>
+</tr>
+<tr>
+<td><code>os</code>、<code>pathlib</code></td>
+<td>Linux <code>os.statx()</code> 需 kernel 4.11+／glibc 2.28+；建立中間目錄可指定 <code>parent_mode</code></td>
+<td><a href="https://docs.python.org/3.15/library/os.html" target="_blank" rel="noopener noreferrer">os</a>、<a href="https://docs.python.org/3.15/library/pathlib.html" target="_blank" rel="noopener noreferrer">pathlib</a></td>
+</tr>
+<tr>
+<td><code>os.path</code></td>
+<td>realpath 的 strict 模式可用 <code>ALLOW_MISSING</code>，只容許路徑不存在等指定情況；須與允許所有錯誤的模式區分</td>
+<td><a href="https://docs.python.org/3.15/library/os.path.html" target="_blank" rel="noopener noreferrer">os.path</a></td>
+</tr>
+<tr>
+<td><code>pickle</code>、<code>pprint</code></td>
+<td>pickle 支援私有方法與巢狀類別；pprint 新增 <code>expand</code> 及t-string支援</td>
+<td><a href="https://docs.python.org/3.15/library/pickle.html" target="_blank" rel="noopener noreferrer">pickle</a>、<a href="https://docs.python.org/3.15/library/pprint.html" target="_blank" rel="noopener noreferrer">pprint</a></td>
+</tr>
+<tr>
+<td><code>re</code></td>
+<td><code>prefixmatch</code> 表明從字串開頭匹配；舊 match 僅soft deprecated</td>
+<td><a href="https://docs.python.org/3.15/library/re.html" target="_blank" rel="noopener noreferrer">re</a></td>
+</tr>
+<tr>
+<td><code>resource</code>、<code>socket</code></td>
+<td>平台資源上限常數擴充；socket 新增 ISO-TP CAN 協定常數</td>
+<td><a href="https://docs.python.org/3.15/library/resource.html" target="_blank" rel="noopener noreferrer">resource</a>、<a href="https://docs.python.org/3.15/library/socket.html" target="_blank" rel="noopener noreferrer">socket</a></td>
+</tr>
+<tr>
+<td><code>sqlite3</code></td>
+<td>CLI 支援SQL及資料庫物件補完，提示、錯誤與help色彩</td>
+<td><a href="https://docs.python.org/3.15/library/sqlite3.html" target="_blank" rel="noopener noreferrer">sqlite3</a></td>
+</tr>
+<tr>
+<td><code>ssl</code></td>
+<td>TLS 1.3 cipher suites、groups、signature algorithms API 及 <code>HAS_PSK_TLS13</code>；特定功能需新版OpenSSL</td>
+<td><a href="https://docs.python.org/3.15/library/ssl.html" target="_blank" rel="noopener noreferrer">ssl</a></td>
+</tr>
+<tr>
+<td><code>subprocess</code></td>
+<td>含timeout的wait在支援平台採事件式等待；Linux pidfd需kernel5.3+，macOS/BSD採kqueue；其餘有fallback</td>
+<td><a href="https://docs.python.org/3.15/library/subprocess.html" target="_blank" rel="noopener noreferrer">subprocess</a></td>
+</tr>
+<tr>
+<td><code>symtable</code>、<code>sys.monitoring</code></td>
+<td><code>get_cells()</code> / <code>is_cell()</code>；監測exception相關事件可依code object停用</td>
+<td><a href="https://docs.python.org/3.15/library/symtable.html" target="_blank" rel="noopener noreferrer">symtable</a>、<a href="https://docs.python.org/3.15/library/sys.monitoring.html" target="_blank" rel="noopener noreferrer">sys.monitoring</a></td>
+</tr>
+<tr>
+<td><code>tarfile</code></td>
+<td>link target正規化、套用filter與連結替代處理更嚴格；被拒絕成員不因errorlevel=0就繼續解壓；有些修正已回補舊版</td>
+<td><a href="https://docs.python.org/3.15/library/tarfile.html" target="_blank" rel="noopener noreferrer">tarfile</a></td>
+</tr>
+<tr>
+<td><code>threading</code>、<code>sys</code></td>
+<td>共享iterator序列化、同步iterator decorator、concurrent_tee；<code>sys.abi_info</code></td>
+<td><a href="https://docs.python.org/3.15/library/threading.html" target="_blank" rel="noopener noreferrer">threading</a>、<a href="https://docs.python.org/3.15/library/sys.html" target="_blank" rel="noopener noreferrer">sys</a></td>
+</tr>
+<tr>
+<td><code>timeit</code></td>
+<td>autorange可配置目標執行時間；CLI新增 <code>--target-time</code></td>
+<td><a href="https://docs.python.org/3.15/library/timeit.html" target="_blank" rel="noopener noreferrer">timeit</a></td>
+</tr>
+<tr>
+<td><code>tkinter</code></td>
+<td>Text搜尋參數、search_all及內容方法擴充；Event.user_data</td>
+<td><a href="https://docs.python.org/3.15/library/tkinter.html" target="_blank" rel="noopener noreferrer">tkinter</a></td>
+</tr>
+<tr>
+<td><code>tomllib</code></td>
+<td>TOML1.1：跨行inline table、尾逗號、更多escape及時間格式</td>
+<td><a href="https://docs.python.org/3.15/library/tomllib.html" target="_blank" rel="noopener noreferrer">tomllib</a></td>
+</tr>
+<tr>
+<td><code>types</code>、<code>typing</code></td>
+<td>FrameLocalsProxyType、LazyImportType；TypeVarTuple接受bound及variance相關參數，但bound語意仍未定義，不能推論型別檢查器已強制執行</td>
+<td><a href="https://docs.python.org/3.15/library/types.html" target="_blank" rel="noopener noreferrer">types</a>、<a href="https://docs.python.org/3.15/library/typing.html" target="_blank" rel="noopener noreferrer">typing</a></td>
+</tr>
+<tr>
+<td><code>typing.Protocol</code></td>
+<td>泛型Protocol未列出的額外type variable會拋TypeError；執行期型別參數順序修正</td>
+<td><a href="https://docs.python.org/3.15/library/typing.html" target="_blank" rel="noopener noreferrer">typing</a></td>
+</tr>
+<tr>
+<td><code>unicodedata</code></td>
+<td>Unicode17；isxidstart / isxidcontinue、字素分段及其他Unicode屬性</td>
+<td><a href="https://docs.python.org/3.15/library/unicodedata.html" target="_blank" rel="noopener noreferrer">unicodedata</a></td>
+</tr>
+<tr>
+<td><code>unittest</code></td>
+<td>assertLogs 可設formatter；assertWarns對未匹配warning與巢狀context的處理改善</td>
+<td><a href="https://docs.python.org/3.15/library/unittest.html" target="_blank" rel="noopener noreferrer">unittest</a></td>
+</tr>
+<tr>
+<td><code>urllib.parse</code></td>
+<td>URL解析／重組擴充 <code>missing_as_none</code>、<code>keep_empty</code>，保留「欄位不存在」與「空值」的差別</td>
+<td><a href="https://docs.python.org/3.15/library/urllib.parse.html" target="_blank" rel="noopener noreferrer">urllib.parse</a></td>
+</tr>
+<tr>
+<td><code>venv</code></td>
+<td>POSIX環境依 platlibdir 建立路徑，不再一律以lib64 symlink處理</td>
+<td><a href="https://docs.python.org/3.15/library/venv.html" target="_blank" rel="noopener noreferrer">venv</a></td>
+</tr>
+<tr>
+<td><code>warnings</code></td>
+<td>warn_explicit未提供module時，模組filter會考慮由檔案路徑推得的模組名</td>
+<td><a href="https://docs.python.org/3.15/library/warnings.html" target="_blank" rel="noopener noreferrer">warnings</a></td>
+</tr>
+<tr>
+<td><code>wave</code></td>
+<td>IEEE浮點WAV讀寫、格式存取API；open接受path-like／bytes-like路徑</td>
+<td><a href="https://docs.python.org/3.15/library/wave.html" target="_blank" rel="noopener noreferrer">wave</a></td>
+</tr>
+<tr>
+<td><code>webbrowser</code></td>
+<td>macOS新增MacOS控制器，使用 <code>/usr/bin/open</code>；舊MacOSXOSAScript進入棄用</td>
+<td><a href="https://docs.python.org/3.15/library/webbrowser.html" target="_blank" rel="noopener noreferrer">webbrowser</a></td>
+</tr>
+<tr>
+<td><code>xml</code>、<code>xml.parsers.expat</code></td>
+<td>XML名稱／文字合法性檢查；Expat記憶體及entity擴張保護可調整</td>
+<td><a href="https://docs.python.org/3.15/library/xml.html" target="_blank" rel="noopener noreferrer">xml</a>、<a href="https://docs.python.org/3.15/library/pyexpat.html" target="_blank" rel="noopener noreferrer">expat</a></td>
+</tr>
+<tr>
+<td><code>zlib</code></td>
+<td><code>adler32_combine()</code>、<code>crc32_combine()</code> 合併分塊計算的checksum</td>
+<td><a href="https://docs.python.org/3.15/library/zlib.html" target="_blank" rel="noopener noreferrer">zlib</a></td>
+</tr>
+</tbody>
+</table>
+</div><p>版本細節與維護版修復仍以<a href="https://docs.python.org/3.15/whatsnew/changelog.html" target="_blank" rel="noopener noreferrer">完整changelog</a>為準；此索引不逐筆重述bug tracker紀錄。</p>
+<h3 id="section-32">9. .start 啟動配置</h3>
+<p><code>name.start</code> 位於 site-packages，逐行指定 <code>pkg.mod:callable</code>，初始化時以零參數呼叫。它在 .pth 路徑擴充後執行。存在同名 .start 時，.pth 的 import 行被忽略，但 .pth 的路徑功能仍保留。這是套件初始化機制，並非系統服務管理器。</p>
+<p>來源：<a href="https://peps.python.org/pep-0829/" target="_blank" rel="noopener noreferrer">PEP 829</a>、<a href="https://docs.python.org/3.15/library/site.html" target="_blank" rel="noopener noreferrer">site</a>。</p>
+<h4>.pth 遷移時間表</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>版本</th>
+<th>import行的狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.15–3.17</td>
+<td>原有.pth import行仍執行；若有同名.start，改採.start並忽略該.pth的import行</td>
+</tr>
+<tr>
+<td>3.18–3.19</td>
+<td>.pth的import行被忽略</td>
+</tr>
+<tr>
+<td>3.20</td>
+<td>對.pth import行發出警告；.pth文字需採utf-8-sig</td>
+</tr>
+</tbody>
+</table>
+</div><p>此表只描述啟動執行行；不要誤解成3.15已移除整個.pth路徑擴充機制。來源：<a href="https://peps.python.org/pep-0829/" target="_blank" rel="noopener noreferrer">PEP 829</a>。</p>
+<h3 id="section-33">10. 升級應核對的移除與棄用</h3>
+<h4>已移除、改為錯誤或容易誤判的相容點</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>舊用法</th>
+<th>3.15 狀態／替代方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>importlib</code> / <code>zipimport</code> 的 <code>load_module()</code></td>
+<td>已移除；使用 <code>exec_module()</code> 與現代 import spec</td>
+</tr>
+<tr>
+<td><code>http.server.CGIHTTPRequestHandler</code>、<code>--cgi</code></td>
+<td>已移除</td>
+</tr>
+<tr>
+<td><code>pathlib.PurePath.is_reserved()</code></td>
+<td>已移除；Windows 保留路徑檢查用 <code>os.path.isreserved()</code></td>
+</tr>
+<tr>
+<td><code>typing.NamedTuple("P", x=int)</code></td>
+<td>不再支援這個未文件化關鍵字建立形式；改 class 語法或欄位列表</td>
+</tr>
+<tr>
+<td><code>TypedDict("T")</code> 或第二參數為 None</td>
+<td>不再支援；空欄位用 <code>{}</code> 或 class 語法</td>
+</tr>
+<tr>
+<td><code>typing.no_type_check_decorator</code></td>
+<td>已移除</td>
+</tr>
+<tr>
+<td><code>ctypes.SetPointerType()</code></td>
+<td>已移除未文件化函式</td>
+</tr>
+<tr>
+<td><code>glob.glob0()</code> / <code>glob.glob1()</code></td>
+<td>已移除；用 <code>glob.glob(..., root_dir=...)</code></td>
+</tr>
+<tr>
+<td><code>platform.java_ver()</code></td>
+<td>已移除</td>
+</tr>
+<tr>
+<td><code>sre_compile</code> / <code>sre_constants</code> / <code>sre_parse</code></td>
+<td>已移除；應改用公開re API，避免改依賴另一組私有模組</td>
+</tr>
+<tr>
+<td><code>sysconfig.is_python_build(check_home=...)</code></td>
+<td>check_home參數已移除</td>
+</tr>
+<tr>
+<td><code>threading.RLock(...)</code> 任意多餘參數</td>
+<td>C實作不再接受；一般建立用 <code>RLock()</code></td>
+</tr>
+<tr>
+<td><code>code.co_lnotab</code></td>
+<td>已移除；行號映射改用 <code>co_lines()</code></td>
+</tr>
+<tr>
+<td>wave的 <code>getmark()</code> / <code>setmark()</code> / <code>getmarkers()</code></td>
+<td>已移除</td>
+</tr>
+<tr>
+<td><code>datetime.strptime</code> 有 <code>%d</code> 卻沒有年份</td>
+<td>現在拋 ValueError；輸入與格式補上年份</td>
+</tr>
+<tr>
+<td>AST 節點缺必填欄位／帶未知 keyword</td>
+<td>現在拋 TypeError；依 AST 欄位明確建立</td>
+</tr>
+<tr>
+<td><code>importlib.resources.files(package=...)</code></td>
+<td>已移除舊名稱；改 anchor 或位置參數</td>
+</tr>
+<tr>
+<td><code>module.__cached__</code></td>
+<td>匯入系統不再設定／採用；改 <code>module.__spec__.cached</code></td>
+</tr>
+<tr>
+<td><code>typing.ByteString</code> / <code>collections.abc.ByteString</code></td>
+<td>不在 <code>__all__</code>，仍屬棄用期；不能稱3.15整個型別已移除</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td>新棄用；使用 <code>profiling.tracing</code>，預計3.17移除</td>
+</tr>
+<tr>
+<td><code>re.match</code></td>
+<td>僅 soft deprecated；無移除計畫</td>
+</tr>
+</tbody>
+</table>
+</div><p>來源：<a href="https://docs.python.org/3.15/whatsnew/3.15.html#removed" target="_blank" rel="noopener noreferrer">What's New 移除清單</a>、<a href="https://docs.python.org/3.15/library/importlib.html" target="_blank" rel="noopener noreferrer">importlib</a>、<a href="https://docs.python.org/3.15/library/datetime.html" target="_blank" rel="noopener noreferrer">datetime</a>、<a href="https://docs.python.org/3.15/library/ast.html" target="_blank" rel="noopener noreferrer">ast</a>、<a href="https://docs.python.org/3.15/library/importlib.resources.html" target="_blank" rel="noopener noreferrer">importlib.resources</a>、<a href="https://docs.python.org/3.15/library/glob.html" target="_blank" rel="noopener noreferrer">glob</a>、<a href="https://docs.python.org/3.15/library/sysconfig.html" target="_blank" rel="noopener noreferrer">sysconfig</a>、<a href="https://docs.python.org/3.15/library/wave.html" target="_blank" rel="noopener noreferrer">wave</a>。</p>
+<h4>3.15新增棄用、soft deprecation與未來時程</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>狀態與方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profile</code></td>
+<td>3.17移除；改 <code>profiling.tracing</code>，cProfile相容入口仍保留</td>
+</tr>
+<tr>
+<td><code>re.match()</code> / <code>Pattern.match()</code></td>
+<td>soft deprecated，沒有移除計畫；跨舊版仍可沿用</td>
+</tr>
+<tr>
+<td><code>struct</code>複數格式 <code>F</code> / <code>D</code></td>
+<td>soft deprecated；新寫法 <code>Zf</code> / <code>Zd</code></td>
+</tr>
+<tr>
+<td><code>-b</code> / <code>-bb</code></td>
+<td>3.17起改為無作用；不是3.15已移除</td>
+</tr>
+<tr>
+<td>抽象AST節點直接建構</td>
+<td>如 <code>ast.AST()</code>、<code>ast.expr()</code>；預計3.20改錯誤，應建立具體節點</td>
+</tr>
+<tr>
+<td>base64指定替代alphabet卻混用 <code>+</code> / <code>/</code></td>
+<td>新棄用；未來strict會拒絕，非strict會丟棄這些字元</td>
+</tr>
+<tr>
+<td><code>hashlib</code>建構器 <code>string=...</code></td>
+<td>預計3.19移除；使用位置參數可保有較好跨版相容性</td>
+</tr>
+<tr>
+<td>cookie的 <code>js_output()</code></td>
+<td>預計3.19移除</td>
+</tr>
+<tr>
+<td>修改 <code>imaplib.IMAP4.file</code></td>
+<td>屬性已不供讀取實作使用；修改方式棄用，預計3.19移除</td>
+</tr>
+<tr>
+<td>Struct缺format建構、對已初始化物件再次呼叫 <code>__init__</code></td>
+<td>預計3.20移除這些用法</td>
+</tr>
+<tr>
+<td>只繼承runtime-checkable protocol，自己未標 <code>@runtime_checkable</code> 卻用isinstance／issubclass</td>
+<td>預計3.20拋TypeError；明確標註欲作執行期檢查的protocol</td>
+</tr>
+<tr>
+<td><code>typing.ByteString</code>、<code>collections.abc.ByteString</code></td>
+<td>直接匯入／存取現在也有警告；預計3.17移除，可依用途改Buffer或明確union</td>
+</tr>
+<tr>
+<td><code>%e</code>日期解析沒有年份</td>
+<td>3.15新棄用、預計3.17改錯誤；勿與3.15已拋錯的 <code>%d</code> 混為一談</td>
+</tr>
+<tr>
+<td><code>webbrowser.MacOSXOSAScript</code></td>
+<td>預計3.17移除；用 <code>webbrowser.MacOS</code></td>
+</tr>
+<tr>
+<td>多個stdlib的 <code>__version__</code> / <code>version</code> / <code>VERSION</code></td>
+<td>預計3.20移除，Python版本用 <code>sys.version_info</code>；decimal規格版本用 <code>decimal.SPEC_VERSION</code></td>
+</tr>
+</tbody>
+</table>
+</div><p>來源：<a href="https://docs.python.org/3.15/whatsnew/3.15.html#new-deprecations" target="_blank" rel="noopener noreferrer">新增棄用清單</a>、<a href="https://docs.python.org/3.15/library/typing.html" target="_blank" rel="noopener noreferrer">typing</a>、<a href="https://docs.python.org/3.15/library/base64.html" target="_blank" rel="noopener noreferrer">base64</a>、<a href="https://docs.python.org/3.15/library/hashlib.html" target="_blank" rel="noopener noreferrer">hashlib</a>、<a href="https://docs.python.org/3.15/library/struct.html" target="_blank" rel="noopener noreferrer">struct</a>、<a href="https://docs.python.org/3.15/library/datetime.html" target="_blank" rel="noopener noreferrer">datetime</a>、<a href="https://docs.python.org/3.15/library/profiling.html" target="_blank" rel="noopener noreferrer">profiling</a>、<a href="https://docs.python.org/3.15/library/re.html" target="_blank" rel="noopener noreferrer">re</a>。</p>
+<p>跨版升級還要處理較早版本開始棄用的API。例如 asyncio policy system 及 <code>asyncio.iscoroutinefunction()</code> 預計3.16移除；前者改用 <code>asyncio.run(..., loop_factory=...)</code>／Runner，後者用 inspect。這不是3.15才新增的棄用。<a href="https://docs.python.org/3.15/library/asyncio-policy.html" target="_blank" rel="noopener noreferrer">asyncio policies</a></p>
+<h4>C API、ABI與建置變更索引</h4>
+<p>一般應用程式只需確認相依wheel可用；自行寫C／C++擴充、嵌入Python或維護打包系統時，以下內容會直接影響建置和載入。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>變更與注意事項</th>
+<th>官方資料</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PEP 782</td>
+<td>新增PyBytesWriter，逐步建立bytes；<code>PyBytes_FromStringAndSize(NULL, n)</code>／<code>_PyBytes_Resize()</code>僅soft deprecated</td>
+<td><a href="https://peps.python.org/pep-0782/" target="_blank" rel="noopener noreferrer">PEP 782</a></td>
+</tr>
+<tr>
+<td>PEP 788</td>
+<td>解譯器finalization保護與相關執行緒狀態API；舊PyGILState用法進入soft deprecation，嵌入式整合需核對</td>
+<td><a href="https://peps.python.org/pep-0788/" target="_blank" rel="noopener noreferrer">PEP 788</a></td>
+</tr>
+<tr>
+<td>PEP 803／820／793</td>
+<td>free-threaded Stable ABI、統一PySlot、模組export hook；不能假設舊GIL wheel自動相容</td>
+<td><a href="https://peps.python.org/pep-0803/" target="_blank" rel="noopener noreferrer">PEP 803</a>、<a href="https://peps.python.org/pep-0820/" target="_blank" rel="noopener noreferrer">PEP 820</a>、<a href="https://peps.python.org/pep-0793/" target="_blank" rel="noopener noreferrer">PEP 793</a></td>
+</tr>
+<tr>
+<td>PEP 831</td>
+<td>支援平台預設frame pointers，提高原生stack unwind可用性</td>
+<td><a href="https://peps.python.org/pep-0831/" target="_blank" rel="noopener noreferrer">PEP 831</a></td>
+</tr>
+<tr>
+<td>參數解析與容器</td>
+<td>PyArg_ParseArray / PyArg_ParseArrayAndKeywords支援METH_FASTCALL；新增frozendict檢查／建構API及PyTuple_FromArray</td>
+<td><a href="https://docs.python.org/3.15/c-api/arg.html" target="_blank" rel="noopener noreferrer">參數解析</a>、<a href="https://docs.python.org/3.15/c-api/dict.html" target="_blank" rel="noopener noreferrer">dict</a>、<a href="https://docs.python.org/3.15/c-api/tuple.html" target="_blank" rel="noopener noreferrer">tuple</a></td>
+</tr>
+<tr>
+<td>Limited API</td>
+<td>PEP757大整數export／writer、PyObject_CallFinalizerFromDealloc進入limited API；不能把PEP757本身誤標3.15首次出現</td>
+<td><a href="https://docs.python.org/3.15/c-api/long.html" target="_blank" rel="noopener noreferrer">整數C API</a></td>
+</tr>
+<tr>
+<td>ABI與GC</td>
+<td>Py_mod_abi等可檢查ABI；PyCriticalSection進入Stable ABI；新增_DuringGC系列以供tp_traverse安全使用</td>
+<td><a href="https://docs.python.org/3.15/c-api/stable.html" target="_blank" rel="noopener noreferrer">C API穩定性</a>、<a href="https://docs.python.org/3.15/c-api/gcsupport.html" target="_blank" rel="noopener noreferrer">GC支援</a></td>
+</tr>
+<tr>
+<td>系統屬性</td>
+<td>PySys_GetAttr / GetOptionalAttr系列提供新入口，取代舊PySys_GetObject相關用法</td>
+<td><a href="https://docs.python.org/3.15/c-api/sys.html" target="_blank" rel="noopener noreferrer">System functions</a></td>
+</tr>
+<tr>
+<td>已變更條件</td>
+<td>MANAGED_DICT／MANAGED_WEAKREF需同時設HAVE_GC；PyDateTime_IMPORT可安全供執行緒使用，應避免直接檢查PyDateTimeAPI</td>
+<td><a href="https://docs.python.org/3.15/c-api/typeobj.html" target="_blank" rel="noopener noreferrer">型別物件</a>、<a href="https://docs.python.org/3.15/c-api/datetime.html" target="_blank" rel="noopener noreferrer">datetime C API</a></td>
+</tr>
+<tr>
+<td>已移除API</td>
+<td>舊PyUnicode編解碼入口、PyImport_ImportModuleNoBlock、PyWeakref_GetObject／GET_OBJECT、PySys_ResetWarnOptions；改Codec、正常Import、GetRef及清除warning設定</td>
+<td><a href="https://docs.python.org/3.15/whatsnew/3.15.html#removed-c-apis" target="_blank" rel="noopener noreferrer">C API移除清單</a></td>
+</tr>
+<tr>
+<td>舊初始化查詢</td>
+<td>Py_GetPrefix、Py_GetExecPrefix、Py_GetPath、Py_GetProgramFullPath、Py_GetProgramName、Py_GetPythonHome已移除，改PyConfig_Get對應設定</td>
+<td><a href="https://docs.python.org/3.15/c-api/init_config.html" target="_blank" rel="noopener noreferrer">初始化設定</a></td>
+</tr>
+<tr>
+<td>打包與平台</td>
+<td>支援平台的abi3副檔名帶multiarch；macOS安裝器預設加裝free-threaded執行器，仍需選用該執行器；Windows64官方建置使用tail-call interpreter</td>
+<td><a href="https://docs.python.org/3.15/whatsnew/3.15.html#build-changes" target="_blank" rel="noopener noreferrer">平台說明</a>、<a href="https://docs.python.org/3.15/using/mac.html" target="_blank" rel="noopener noreferrer">macOS</a>、<a href="https://docs.python.org/3.15/using/windows.html" target="_blank" rel="noopener noreferrer">Windows</a></td>
+</tr>
+<tr>
+<td>實驗性JIT</td>
+<td>仍屬experimental；建置使用LLVM21，執行使用者不需另裝LLVM；特定基準測試增速不等於每個應用增速</td>
+<td><a href="https://docs.python.org/3.15/whatsnew/3.15.html#upgraded-experimental-jit-compiler" target="_blank" rel="noopener noreferrer">JIT變更</a></td>
+</tr>
+</tbody>
+</table>
+</div><p>底層API的細項可由<a href="https://docs.python.org/3.15/c-api/index.html" target="_blank" rel="noopener noreferrer">Python/C API手冊</a>和<a href="https://docs.python.org/3.15/whatsnew/changelog.html" target="_blank" rel="noopener noreferrer">完整changelog</a>追查；不應將Unstable或私有入口視為跨版契約。</p>
+<h3 id="section-34">11. 不要錯標成3.15新功能</h3>
+<p><code>t"..."</code> template string、延遲求值註記、<code>concurrent.interpreters</code>、<code>InterpreterPoolExecutor</code>、free-threaded 正式支援階段都是3.14重點；<code>match/case</code> 在3.10就有，<code>except*</code> / TaskGroup 是3.11，<code>type Alias = ...</code> 與 <code>def f[T]</code> 是3.12。可納入完整3.15語法教材，但需標記其引入版本。3.15確有一些小語法擴充，例如 match literal pattern 可使用一元正號，不應把整個match稱為新增。</p>
+<p>來源：<a href="https://docs.python.org/3.14/whatsnew/3.14.html" target="_blank" rel="noopener noreferrer">3.14 What's New</a>、<a href="https://docs.python.org/3.15/reference/compound_stmts.html" target="_blank" rel="noopener noreferrer">複合陳述式版本註記</a>。</p>
+<h3 id="section-35">12. 升級到3.15的實作順序</h3>
+<ol>
+<li><strong>先決定最低版本。</strong> 採用 <code>lazy import</code> 或新推導式解包後，整個檔案的最低解析版本就是3.15；把新語法放在 <code>if sys.version_info &gt;= (3, 15):</code> 內，仍無法讓舊版解析器讀懂檔案。若需要跨版，使用舊語法等價式或分開檔案。</li>
+<li><strong>重建隔離環境及相依套件。</strong> 使用3.15建立新的 venv，驗證所有二進位擴充可匯入；free-threaded所需wheel、一般GIL版本及平台ABI要分別看待。</li>
+<li><strong>檢查資料邊界。</strong> 搜尋沒有 encoding 的檔案操作、舊月份日期解析、匯入器、AST工具、TypedDict建立方式，以及依賴 import side effects 的程式。</li>
+<li><strong>先量測再採用效能特性。</strong> lazy import 可能縮短啟動但延後首次請求；profiling、JIT、執行緒改動分別比較啟動、穩態吞吐、p95延遲及記憶體。</li>
+<li><strong>保留驗收證據與回復方法。</strong> 比較同一輸入資料的結果與錯誤處理，不只看是否可啟動；把環境、版本與測試輸出記錄下來。</li>
+</ol>
+<p>以下命令是假設專案內有 tests 目錄的範例；依實際專案路徑調整：</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>--version
+python3.15<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv315
+.venv315/bin/python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+.venv315/bin/python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>check
+.venv315/bin/python<span class="w"> </span>-m<span class="w"> </span>compileall<span class="w"> </span>-q<span class="w"> </span>src
+.venv315/bin/python<span class="w"> </span>-X<span class="w"> </span>dev<span class="w"> </span>-X<span class="w"> </span>warn_default_encoding<span class="w"> </span>-W<span class="w"> </span>default<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>discover<span class="w"> </span>-s<span class="w"> </span>tests<span class="w"> </span>-v
+</code></pre>
+<p>Windows 對應使用 <code>.venv315\Scripts\python.exe</code>。本教材範例則可直接執行：</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>examples/new_features_315.py
+</code></pre>
+<h3 id="section-36">13. 本章驗證紀錄與界線</h3>
+<ul>
+<li>執行器：CPython 3.15.2、Linux x86-64；不是使用舊版 Python 假裝接受新語法。</li>
+<li>16組執行範例通過：延遲匯入、解包推導式、frozendict、sentinel、typing執行期支援、JSON hooks、bytearray、regex、math、UTF-8與目錄、base64、正號pattern、slots/slice、TOML/Unicode、Counter、升級後預期例外。</li>
+<li>另實測 <code>json.__cached__</code> 不存在、<code>json.__spec__.cached</code> 可用；未將不一致文件中的 <code>__package__</code> 移除時程擴大為通用斷言。</li>
+<li>靜態型別檢查器的相容程度、Windows/macOS平台差異、JIT效能與設備現場整合，需在各自目標環境驗證。</li>
+</ul>
+<h2 id="section-37">第三部｜非同步、平行與執行環境</h2>
+<p>查證日期：2026-11-24（Asia/Taipei）。本章區分語法、標準函式庫 API、CPython 建置選項及效能測量，避免混為一談。</p>
+<h3 id="section-38">版本狀態與沿革</h3>
+<p>官方當前穩定版本是 Python 3.15.2，發布日期 2026-10-25；3.15.0 發布於 2026-10-09。</p>
+<ul>
+<li>3.13：提供可選的實驗性 free-threaded CPython 建置，PEP 703；加入實驗性 JIT，PEP 744。</li>
+<li>3.14：free-threaded 建置進入正式支援但仍可選的階段，PEP 779；新增 <code>concurrent.interpreters</code> 與 <code>InterpreterPoolExecutor</code>，PEP 734；新增 <code>sys._jit</code> 觀察介面。</li>
+<li>3.15：新增 <code>threading.serialize_iterator</code>、<code>threading.synchronized_iterator</code>、<code>threading.concurrent_tee</code>；新增 <code>sys.abi_info</code>；macOS 官方安裝器預設額外安裝 <code>python3.15t</code>；free-threaded Stable ABI <code>abi3t</code>；JIT 的追蹤、暫存器配置、產碼與 Linux 原生堆疊展開改善。</li>
+</ul>
+<p>來源：<a href="https://www.python.org/downloads/release/python-3152/" target="_blank" rel="noopener noreferrer">3.15.2 release</a>、<a href="https://docs.python.org/3.15/whatsnew/3.15.html" target="_blank" rel="noopener noreferrer">What's New 3.15</a>、<a href="https://peps.python.org/pep-0779/" target="_blank" rel="noopener noreferrer">PEP 779</a>、<a href="https://peps.python.org/pep-0734/" target="_blank" rel="noopener noreferrer">PEP 734</a>。</p>
+<h3 id="section-39">四種並行方式</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方式</th>
+<th>執行與資料模型</th>
+<th>適合的工作</th>
+<th>主要界線</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>asyncio</code></td>
+<td>單一事件迴圈協作式排程，遇到等待點讓出執行</td>
+<td>多個非同步網路連線、等待外部 I/O</td>
+<td>一個事件迴圈一次執行一個 Task；CPU 迴圈仍會阻塞它</td>
+</tr>
+<tr>
+<td>一般建置的 threads</td>
+<td>同一 interpreter、共享 Python 物件、有 GIL</td>
+<td>阻塞 I/O；能釋放 GIL 的原生運算</td>
+<td>純 Python CPU 工作通常不會在同一 interpreter 多核心同時執行</td>
+</tr>
+<tr>
+<td>free-threaded threads</td>
+<td>同一 interpreter、共享物件、可關閉 GIL</td>
+<td>能分割且能正確同步的 CPU 工作</td>
+<td>移除 GIL 不代表所有操作無鎖；仍要處理競態</td>
+</tr>
+<tr>
+<td>processes / multiple interpreters</td>
+<td>前者不同程序；後者同一程序內不同 interpreter 與執行緒</td>
+<td>可分割的 CPU 工作與明確訊息交換</td>
+<td>傳遞與複製成本、相容性及清理成本需衡量；subinterpreter 不是安全沙箱</td>
+</tr>
+</tbody>
+</table>
+</div><p><code>InterpreterPoolExecutor</code> 的 worker 各有執行緒與 interpreter；在有 GIL 的一般建置也可透過各 interpreter 的 GIL 實現多核心平行。單純 <code>interpreters.create()</code> 不會自動啟動執行緒；<code>interp.call()</code> / <code>interp.exec()</code> 在呼叫端目前執行緒執行，<code>call_in_thread()</code> 才建立新執行緒。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/asyncio-task.html#task-object" target="_blank" rel="noopener noreferrer">asyncio Tasks</a>、<a href="https://docs.python.org/3.15/library/threading.html#gil-and-performance-considerations" target="_blank" rel="noopener noreferrer">threading</a>、<a href="https://docs.python.org/3.15/library/concurrent.interpreters.html" target="_blank" rel="noopener noreferrer">concurrent.interpreters</a>、<a href="https://docs.python.org/3.15/library/concurrent.futures.html#interpreterpoolexecutor" target="_blank" rel="noopener noreferrer">concurrent.futures</a>。</p>
+<h3 id="section-40">無 GIL、無鎖與通道不可混淆</h3>
+<p>「Free-Threaded Parallel Channels」可以用來描述一種以訊息交換分工的架構，但不是 Python 3.15 官方新增的語言語法或單一公開模組名稱。<code>queue.Queue</code> 是執行緒安全的多生產者、多消費者佇列，內部使用同步鎖。<code>asyncio.Queue</code> 適用協程且不是執行緒安全。跨 interpreter 的公開 API 是 <code>concurrent.interpreters.create_queue()</code> 所建立的 <code>Queue</code>。</p>
+<p>free-threaded 的 <code>dict</code>、<code>list</code>、<code>set</code> 使用細粒度同步；某些讀取有無鎖路徑，不能推論整個容器、管線或程式都是 lock-free。<code>value = mapping[key] + 1; mapping[key] = value</code> 這類複合操作需要適當外部同步或單一寫入者設計。</p>
+<p>跨 interpreter Queue 沒有一般 <code>queue.Queue</code> 的 <code>task_done()</code>、<code>join()</code>、<code>shutdown()</code>。大部分物件透過 pickle 複製；部分不可變型別可高效傳遞，<code>memoryview</code> 與 Queue 有特殊共享能力。共享 buffer 仍須同步，不能自行假設任意物件傳輸零複製。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/queue.html" target="_blank" rel="noopener noreferrer">queue</a>、<a href="https://docs.python.org/3.15/library/asyncio-queue.html" target="_blank" rel="noopener noreferrer">asyncio queues</a>、<a href="https://docs.python.org/3.15/library/concurrent.interpreters.html#communicating-between-interpreters" target="_blank" rel="noopener noreferrer">跨 interpreter Queue</a>、<a href="https://docs.python.org/3.15/builtins/threadsafety.html" target="_blank" rel="noopener noreferrer">Thread Safety Guarantees</a>。</p>
+<h3 id="section-41">3.15 新增的 iterator 同步工具</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>API</th>
+<th>工作分配方式</th>
+<th>同步與成本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threading.serialize_iterator(iterable)</code></td>
+<td>多個 consumer 共用同一 iterator，每個值只分給其中一個 consumer</td>
+<td>以鎖序列化 <code>next()</code>；也處理 iterator 的 <code>send()</code>、<code>throw()</code>、<code>close()</code></td>
+</tr>
+<tr>
+<td><code>@threading.synchronized_iterator</code></td>
+<td>裝飾產生 iterator 的函式，使每次回傳的 iterator 自動包裝</td>
+<td>若要分工，consumer 應共用同一次呼叫取得的 iterator</td>
+</tr>
+<tr>
+<td><code>threading.concurrent_tee(iterable, n=2)</code></td>
+<td>每個分支都收到完整且依原順序的串流</td>
+<td>共用同步鎖並緩衝；consumer 速度落差可能增加記憶體需求</td>
+</tr>
+</tbody>
+</table>
+</div><p><code>concurrent_tee</code> 每個分支設計為同時由一個執行緒消費；若同一分支又要讓多執行緒分工，另包 <code>serialize_iterator</code>。這些工具解決 iterator 取值安全，並不自動保證 consumer 的其他共享狀態安全，也不承諾平均分工或效能加速。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/threading.html#iterator-synchronization" target="_blank" rel="noopener noreferrer">Iterator synchronization</a>。</p>
+<h3 id="section-42">如何確認目前真的在無 GIL 模式</h3>
+<pre><code class="language-python"><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sysconfig</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">abi_info</span><span class="o">.</span><span class="n">free_threaded</span><span class="p">)</span>  <span class="c1"># 3.15 新 API：此執行檔是否為 free-threaded 建置</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sysconfig</span><span class="o">.</span><span class="n">get_config_var</span><span class="p">(</span><span class="s2">"Py_GIL_DISABLED"</span><span class="p">))</span>  <span class="c1"># 建置屬性；1 代表支援</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">_is_gil_enabled</span><span class="p">())</span>      <span class="c1"># 執行時 GIL 是否啟用</span>
+
+<span class="n">jit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s2">"_jit"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jit</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">if</span> <span class="n">jit</span> <span class="k">else</span> <span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jit</span><span class="o">.</span><span class="n">is_enabled</span><span class="p">()</span> <span class="k">if</span> <span class="n">jit</span> <span class="k">else</span> <span class="kc">False</span><span class="p">)</span>
+</code></pre>
+<p>檢查建置支援與檢查執行時 GIL 是兩件事。free-threaded 執行檔仍可用 <code>-X gil=1</code> 或 <code>PYTHON_GIL=1</code> 開啟 GIL；不相容的 C extension 匯入時也可能自動重新開啟 GIL。應在實際套件匯入之後再次確認。</p>
+<p>macOS 官方 3.15 安裝器預設同時安裝一般 <code>python3.15</code> 與 free-threaded <code>python3.15t</code>，不代表一般 <code>python3.15</code> 自動無 GIL。兩種建置應分開建立虛擬環境。</p>
+<p>來源：<a href="https://docs.python.org/3.15/library/sys.html#sys.abi_info" target="_blank" rel="noopener noreferrer">sys.abi_info</a>、<a href="https://docs.python.org/3.15/howto/free-threading-python.html" target="_blank" rel="noopener noreferrer">free-threading HOWTO</a>、<a href="https://docs.python.org/3.15/using/mac.html#installing-free-threaded-binaries" target="_blank" rel="noopener noreferrer">macOS free-threaded binaries</a>。</p>
+<h3 id="section-43">JIT 與效能說法的界線</h3>
+<p>Python 3.15 的 JIT 仍標為實驗性 CPython 功能。是否編入與是否啟用分開由 <code>sys._jit.is_available()</code>、<code>sys._jit.is_enabled()</code> 判斷；可用建置可在啟動前設 <code>PYTHON_JIT=1</code>。不要把版本升級、JIT、free-threaded 視為可任意疊加的固定加速倍數。</p>
+<p>3.15 官方 What's New 報告：pyperformance 的幾何平均結果，x86-64 Linux JIT 比已啟用最佳化的一般 interpreter 約快 7–8%；AArch64 macOS 比已最佳化的 tail-calling interpreter 約快 11–12%。個別工作負載約從慢 15% 到快超過 100% 不等。這些是特定建置、硬體、基準程式的官方結果，不能當作本使用者 Mac、Raspberry Pi 或工控服務的實測結果。</p>
+<p>3.15 JIT 改善包含實際執行路徑追蹤、基本暫存器配置、更多最佳化、更佳機器碼，以及支援的 Linux ELF 平台之 GDB/GNU backtrace 展開；執行既有 JIT binary 不需要另外安裝 LLVM。實際部署應檢查延遲分布、記憶體與啟動時間，而不只平均吞吐量。</p>
+<p>本次範例只驗證功能。若日後測效能，必須記錄 Python 完整版本、一般/t 建置、GIL 與 JIT 狀態、套件版本、作業系統、CPU、工作量、worker 數及暖機策略；用相同工作做重複量測。不得從「4 核」推論「必定 4 倍加速」。</p>
+<p>來源：<a href="https://docs.python.org/3.15/whatsnew/3.15.html#upgraded-experimental-jit-compiler" target="_blank" rel="noopener noreferrer">JIT in 3.15</a>、<a href="https://docs.python.org/3.15/library/sys.html#sys._jit" target="_blank" rel="noopener noreferrer">sys._jit</a>、<a href="https://docs.python.org/3.15/using/configure.html#cmdoption-enable-experimental-jit" target="_blank" rel="noopener noreferrer">Configure JIT</a>。</p>
+<h3 id="section-44">本次功能驗證</h3>
+<p>腳本：<code>examples/concurrency_315.py</code>。已分別以隔離環境的 CPython 3.15.2 與 3.15.2 free-threading build 執行；兩者皆以 exit code 0 完成，全部功能 assertion 通過。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>檢查</th>
+<th>一般 3.15.2</th>
+<th>free-threaded 3.15.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sys.abi_info.free_threaded</code></td>
+<td><code>False</code></td>
+<td><code>True</code></td>
+</tr>
+<tr>
+<td>執行前/後 <code>sys._is_gil_enabled()</code></td>
+<td><code>True</code> / <code>True</code></td>
+<td><code>False</code> / <code>False</code></td>
+</tr>
+<tr>
+<td><code>sys._jit.is_available()</code></td>
+<td><code>True</code></td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>sys._jit.is_enabled()</code></td>
+<td><code>False</code></td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>serialize_iterator</code></td>
+<td>40 筆，無重複或遺漏</td>
+<td>40 筆，無重複或遺漏</td>
+</tr>
+<tr>
+<td><code>synchronized_iterator</code></td>
+<td>40 筆，無重複或遺漏</td>
+<td>40 筆，無重複或遺漏</td>
+</tr>
+<tr>
+<td><code>concurrent_tee</code></td>
+<td>兩 consumer 皆收到 0–4</td>
+<td>兩 consumer 皆收到 0–4</td>
+</tr>
+<tr>
+<td>跨 interpreter Queue</td>
+<td>平均值 22.0，正確</td>
+<td>平均值 22.0，正確</td>
+</tr>
+<tr>
+<td><code>InterpreterPoolExecutor</code></td>
+<td>3 筆冪次計算正確</td>
+<td>3 筆冪次計算正確</td>
+</tr>
+<tr>
+<td><code>asyncio.TaskGroup</code></td>
+<td>兩筆模擬讀值正確</td>
+<td>兩筆模擬讀值正確</td>
+</tr>
+</tbody>
+</table>
+</div><p>本次使用的兩個 binary 均報告 <code>3.15.2</code>、<code>Clang 23.1.3</code>（建置字串日期 2026-11-11）。以上是此隔離環境的功能驗證，不是使用者 Mac 或 Raspberry Pi 的效能結果，也不代表所有套件組合的相容性。</p>
+<p>原始 JSON 紀錄：<code>verification/concurrency-normal-result.json</code>、<code>verification/concurrency-free-threaded-result.json</code>。</p>
+<h2 id="section-45">第四部｜工程實務、版本沿革與學習練習</h2>
+<h3 id="section-46">實務整合：8 個測點的一次資料採集</h3>
+<p>資料包內的 <code>examples/hvac_monitor_315.py</code> 把前面的語法串成一支可直接執行的程式。它只使用內建模擬資料，執行後產生 JSON；沒有外部網路連線。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>程式部位</th>
+<th>採用語法／API</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>預設設定</td>
+<td><code>frozendict</code></td>
+<td>固定本次採集使用的上下限與等待時間</td>
+</tr>
+<tr>
+<td>缺省欄位</td>
+<td><code>sentinel("MISSING")</code></td>
+<td>區分欄位不存在與明確傳入 <code>None</code></td>
+</tr>
+<tr>
+<td>測點結果</td>
+<td><code>@dataclass(frozen=True, slots=True)</code></td>
+<td>明確記錄測點、數值、品質與狀態</td>
+</tr>
+<tr>
+<td>數值驗證</td>
+<td><code>isinstance</code>、<code>try/except</code>、<code>math.isfinite</code></td>
+<td>排除布林值、非數字、NaN 和無窮大</td>
+</tr>
+<tr>
+<td>分批資料攤平</td>
+<td><code>[*batch for batch in batches]</code></td>
+<td>使用 3.15 推導式解包整合批次</td>
+</tr>
+<tr>
+<td>多工作管理</td>
+<td><code>asyncio.TaskGroup</code></td>
+<td>確保所有採集工作在結束前完成或取消</td>
+</tr>
+<tr>
+<td>每點時間限制</td>
+<td><code>asyncio.timeout</code></td>
+<td>將超時記為品質狀態，而不是整批無限等待</td>
+</tr>
+<tr>
+<td>報告</td>
+<td><code>json.dumps(..., allow_nan=False)</code></td>
+<td>產生不含 NaN／Infinity 的 JSON</td>
+</tr>
+<tr>
+<td>檔案輸出</td>
+<td><code>Path.write_text(encoding="utf-8")</code></td>
+<td>讓輸出編碼明確且可重現</td>
+</tr>
+</tbody>
+</table>
+</div><p>執行命令：</p>
+<pre><code class="language-bash">python3.15<span class="w"> </span>examples/hvac_monitor_315.py<span class="w"> </span>--output<span class="w"> </span>report.json
+</code></pre>
+<p>本次功能驗證的預期結果如下；<code>generated_at_utc</code> 時間戳記會依執行時間改變。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>測點</th>
+<th>模擬輸入／情況</th>
+<th>品質</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T10</td>
+<td>24.5 °C</td>
+<td>good</td>
+<td>normal</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>31.2 °C</td>
+<td>good</td>
+<td>high</td>
+</tr>
+<tr>
+<td>T12</td>
+<td>欄位缺省</td>
+<td>missing</td>
+<td>no_field</td>
+</tr>
+<tr>
+<td>T13</td>
+<td>明確為 None</td>
+<td>missing</td>
+<td>explicit_null</td>
+</tr>
+<tr>
+<td>T14</td>
+<td>字串 NaN</td>
+<td>invalid</td>
+<td>non_finite</td>
+</tr>
+<tr>
+<td>T15</td>
+<td>True</td>
+<td>invalid</td>
+<td>invalid_type</td>
+</tr>
+<tr>
+<td>T16</td>
+<td>17.0 °C</td>
+<td>good</td>
+<td>low</td>
+</tr>
+<tr>
+<td>T17</td>
+<td>回應超過示範等待時間</td>
+<td>timeout</td>
+<td>read_timeout</td>
+</tr>
+</tbody>
+</table>
+</div><p>這個範例把「資料是否可信」和「可信資料是否超限」分開。超時不應直接變成 0 °C；無效值也不應自動沿用舊值卻隱藏品質。真正做長期採集時，再增加資料時間戳、最新有效值、有效期限、重試策略、設備連線狀態與告警去抖動。</p>
+<p>此範例的 50 ms 時間限制僅用於快速教學測試，不能直接套用於 Modbus、BACnet 或現場網路。限制值應依通訊週期、實測回應分布與設備規格決定。</p>
+<p>官方依據：<a href="https://docs.python.org/3.15/library/dataclasses.html" target="_blank" rel="noopener noreferrer">dataclasses</a>、<a href="https://docs.python.org/3.15/library/asyncio-task.html" target="_blank" rel="noopener noreferrer">TaskGroup 與 timeout</a>、<a href="https://docs.python.org/3.15/library/math.html#math.isfinite" target="_blank" rel="noopener noreferrer">math.isfinite</a>、<a href="https://docs.python.org/3.15/library/json.html" target="_blank" rel="noopener noreferrer">JSON</a>。</p>
+<h3 id="section-47">不要把 3.14 的功能誤認成 3.15 新增</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>能力</th>
+<th>加入版本／階段</th>
+<th>在 3.15 應如何理解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>match</code> / <code>case</code></td>
+<td>3.10</td>
+<td>結構模式比對；3.15 另有小幅模式語法擴充</td>
+</tr>
+<tr>
+<td><code>except*</code> / <code>ExceptionGroup</code></td>
+<td>3.11</td>
+<td>依例外型別分組處理多個失敗</td>
+</tr>
+<tr>
+<td><code>asyncio.TaskGroup</code> / <code>asyncio.timeout</code></td>
+<td>3.11</td>
+<td>管理協程工作生命週期與時間限制</td>
+</tr>
+<tr>
+<td><code>type Alias = ...</code>、<code>def f[T]</code>、<code>class C[T]</code></td>
+<td>3.12</td>
+<td>現代型別別名與型別參數語法</td>
+</tr>
+<tr>
+<td>可選 free-threaded、實驗性 JIT</td>
+<td>3.13</td>
+<td>CPython 的不同建置／執行選項</td>
+</tr>
+<tr>
+<td><code>t"..."</code>、<code>string.templatelib.Template</code></td>
+<td>3.14</td>
+<td>保留文字與插值資訊的模板物件，不是一般 <code>str</code></td>
+</tr>
+<tr>
+<td>註記延遲求值</td>
+<td>3.14</td>
+<td>註記不再一律在定義時立即求值；內省工具須使用相應 API</td>
+</tr>
+<tr>
+<td><code>concurrent.interpreters</code> / <code>InterpreterPoolExecutor</code></td>
+<td>3.14</td>
+<td>同一程序內的多直譯器管理與平行工作池</td>
+</tr>
+<tr>
+<td>free-threaded 正式支援階段</td>
+<td>3.14</td>
+<td>仍是可選建置，不代表每個執行檔都關閉 GIL</td>
+</tr>
+<tr>
+<td><code>compression.zstd</code></td>
+<td>3.14</td>
+<td>標準函式庫提供 Zstandard 壓縮</td>
+</tr>
+</tbody>
+</table>
+</div><h4>f-string 與 t-string 的差別</h4>
+<pre><code class="language-python"><span class="n">temperature</span> <span class="o">=</span> <span class="mf">24.5</span>
+<span class="n">rendered</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"送風溫度 </span><span class="si">{</span><span class="n">temperature</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> °C"</span>  <span class="c1"># str</span>
+<span class="n">template</span> <span class="o">=</span> <span class="sa">t</span><span class="s2">"送風溫度 </span><span class="si">{</span><span class="n">temperature</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> °C"</span>  <span class="c1"># Template，3.14+</span>
+
+<span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rendered</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">template</span><span class="o">.</span><span class="n">values</span> <span class="o">==</span> <span class="p">(</span><span class="mf">24.5</span><span class="p">,)</span>
+</code></pre>
+<p>f-string 立即得到格式化字串；t-string 將靜態文字與插值描述交給後續處理器。t-string 本身不會自動完成 HTML escaping、SQL 參數化或其他安全處理，這些仍由處理器明確實作。</p>
+<p>官方依據：<a href="https://docs.python.org/3.15/whatsnew/3.14.html" target="_blank" rel="noopener noreferrer">3.14 變更總覽</a>、<a href="https://docs.python.org/3.15/library/string.templatelib.html" target="_blank" rel="noopener noreferrer">template strings</a>、<a href="https://docs.python.org/3.15/library/annotationlib.html" target="_blank" rel="noopener noreferrer">annotationlib</a>、<a href="https://peps.python.org/pep-0695/" target="_blank" rel="noopener noreferrer">PEP 695</a>、<a href="https://peps.python.org/pep-0654/" target="_blank" rel="noopener noreferrer">PEP 654</a>。</p>
+<h3 id="section-48">升級專案的實用順序</h3>
+<ol>
+<li><strong>確認實際版本與建置</strong>：記下 <code>python -VV</code>、<code>sys.executable</code>、GIL 狀態與平台；先用一般 3.15.2 建立相容基線。</li>
+<li><strong>重建虛擬環境</strong>：使用新 Python 建立 <code>.venv</code>，依專案依賴宣告安裝；C extension 必須有相容 wheel 或可成功重建。</li>
+<li><strong>編譯與功能驗證</strong>：檢查原有程式語法、單元測試及一條完整實務流程，尤其日期解析、AST、匯入 API 與編碼。</li>
+<li><strong>檢查棄用</strong>：在測試環境顯示 <code>DeprecationWarning</code>，記錄實際觸發者；不要把所有警告一律隱藏。</li>
+<li><strong>再採用新功能</strong>：優先試可降低程式複雜度的功能，例如推導式解包、frozendict 與 sentinel；分次變更便於定位問題。</li>
+<li><strong>另外評估 free-threaded 與 JIT</strong>：各自建立測試基線，用實際工作負載量測啟動時間、尾端延遲、吞吐量與記憶體。</li>
+</ol>
+<pre><code class="language-bash">python3.15<span class="w"> </span>-VV
+python3.15<span class="w"> </span>-m<span class="w"> </span>compileall<span class="w"> </span>-q<span class="w"> </span>src<span class="w"> </span>tests
+python3.15<span class="w"> </span>-W<span class="w"> </span>default<span class="w"> </span>-X<span class="w"> </span>warn_default_encoding<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>discover<span class="w"> </span>-s<span class="w"> </span>tests
+python3.15<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>check
+<span class="c1"># 已有 pytest 的專案可另用 python3.15 -W default -m pytest</span>
+</code></pre>
+<p>上述命令針對具有 <code>src/</code> 與 <code>tests/</code> 的既有專案；本資料包中的四個教學腳本可直接逐一執行。<code>pip check</code> 只能檢查套件依賴宣告的一致性，不能代替功能測試或 free-threaded 的競態驗證。</p>
+<p>官方依據：<a href="https://docs.python.org/3.15/whatsnew/3.15.html#porting-to-python-3-15" target="_blank" rel="noopener noreferrer">3.15 移植指引</a>、<a href="https://docs.python.org/3.15/library/compileall.html" target="_blank" rel="noopener noreferrer">compileall</a>、<a href="https://docs.python.org/3.15/library/unittest.html" target="_blank" rel="noopener noreferrer">unittest</a>、<a href="https://docs.python.org/3.15/library/warnings.html" target="_blank" rel="noopener noreferrer">警告過濾</a>。</p>
+<h3 id="section-49">自我檢查與練習</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>階段</th>
+<th>練習</th>
+<th>驗收條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 語法與容器</td>
+<td>將 20 筆測點資料依設備分組</td>
+<td>不遺漏、不覆寫同設備不同測點；空輸入有定義</td>
+</tr>
+<tr>
+<td>2. 函式與型別</td>
+<td>寫出可選上下限的檢查函式</td>
+<td><code>/</code>、<code>*</code> 參數作用清楚；型別註記與實際驗證分開</td>
+</tr>
+<tr>
+<td>3. 例外與檔案</td>
+<td>讀取 UTF-8／CP950 設定檔</td>
+<td>缺檔、壞編碼、錯誤資料均有明確錯誤；檔案會關閉</td>
+</tr>
+<tr>
+<td>4. 不可變資料</td>
+<td>以 frozendict 建立設定快照</td>
+<td>能說明內層 list 為何仍可變，並改成適當不可變資料</td>
+</tr>
+<tr>
+<td>5. 非同步</td>
+<td>同時模擬 20 台設備回應</td>
+<td>一台超時不會讓其餘結果遺失；取消時有資源清理</td>
+</tr>
+<tr>
+<td>6. 平行</td>
+<td>用 worker 產生不重複的結果集</td>
+<td>先驗證正確性，再比較同工作量的時間；保留版本與 GIL 證據</td>
+</tr>
+<tr>
+<td>7. 升級</td>
+<td>把現有工具移到 3.15.2</td>
+<td>功能、編碼、依賴與棄用檢查都有紀錄，具可回復版本</td>
+</tr>
+</tbody>
+</table>
+</div><h3 id="section-50">讀程式時最常見的 12 個誤判</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>誤判</th>
+<th>應檢查的規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>b = a</code> 就複製了 list</td>
+<td>只是新增名稱參照；需要時明確 copy</td>
+</tr>
+<tr>
+<td><code>is</code> 用於比較數值是否相等</td>
+<td>值比較用 <code>==</code>；身份／None／sentinel 比較用 <code>is</code></td>
+</tr>
+<tr>
+<td><code>list.sort()</code> 會傳回排序後 list</td>
+<td>它原地排序並回傳 None；新 list 用 sorted</td>
+</tr>
+<tr>
+<td><code>[[0] * 3] * 4</code> 是四個獨立列</td>
+<td>外層重複參照同一列；用推導式分別建立</td>
+</tr>
+<tr>
+<td><code>if value</code> 能區分缺值與 0</td>
+<td>0、空字串及空容器都為假；缺值用明確條件</td>
+</tr>
+<tr>
+<td>註記 <code>x: float</code> 會自動擋字串</td>
+<td>型別註記不會自動執行驗證</td>
+</tr>
+<tr>
+<td>frozendict / frozen dataclass 能凍結所有內層物件</td>
+<td>它們不會遞迴凍結內部的可變物件</td>
+</tr>
+<tr>
+<td><code>async def</code> 就會背景自動執行</td>
+<td>呼叫得到 coroutine，仍要 await 或安排 Task</td>
+</tr>
+<tr>
+<td>await 會讓 CPU 計算自動多核心</td>
+<td>await 是協作等待機制，多核心需適當執行模型</td>
+</tr>
+<tr>
+<td>無 GIL 代表 <code>count += 1</code> 無競態</td>
+<td>讀取、運算、寫回仍須正確同步</td>
+</tr>
+<tr>
+<td>lazy import 不會改變錯誤發生時間</td>
+<td>import failure 和副作用會推遲到首次使用</td>
+</tr>
+<tr>
+<td>JIT 開啟就保證所有程式更快</td>
+<td>啟動、暖機、工作量與實作都會影響結果</td>
+</tr>
+</tbody>
+</table>
+</div><p>上表是前述語意與實測的整理，應搭配對應章節的範例閱讀。</p>
+<h2 id="section-51">第五部｜工程圖修正版</h2>
+<p>以下兩張圖依照你提供的截圖重建，已納入本教材。這是可替換的圖表版本；沒有取得原始網頁程式碼，因此沒有宣稱已改寫原始網站。</p>
+<h3 id="section-52">Production notes-cli：連接箭頭修正</h3>
+<p>補齊每一段向右箭頭，統一線寬與箭頭大小；CI 通過後折向 Release，再以虛線表達發布異常時的 Rollback。箭尖落在目標方框邊界，沒有壓到文字，原截圖中的浮動提示框已移除。</p>
+<figure class="diagram"><div class="diagram-scroll"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDQ4IiBoZWlnaHQ9Ijg5NiIgdmlld0JveD0iMCAwIDIwNDggODk2IiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0icHJvZHVjdGlvbi10aXRsZSBwcm9kdWN0aW9uLWRlc2MiPgo8dGl0bGUgaWQ9InByb2R1Y3Rpb24tdGl0bGUiPlByb2R1Y3Rpb24gbm90ZXMtY2xpIOS6pOS7mOa1geeoi++8iOeuremgreS/ruato+eJiO+8iTwvdGl0bGU+CjxkZXNjIGlkPSJwcm9kdWN0aW9uLWRlc2MiPumcgOaxguOAgUFEUuOAgVNMT+OAgUJvdW5kYXJ544CBQ29uZmln44CBTWlncmF0aW9u44CBVGVzdHPjgIFDSeOAgVJlbGVhc2Ug5L6d5bqP6YCj5o6l77yb55m85biD55Ww5bi45pmC5omN5b6eIFJlbGVhc2Ug6YCy5YWlIFJvbGxiYWNr44CCPC9kZXNjPgo8c3R5bGU+dGV4dCB7Zm9udC1mYW1pbHk6QXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWY7fSAuZWRnZSB7ZmlsbDpub25lO3N0cm9rZTojMmY3M2M1O3N0cm9rZS13aWR0aDozLjI7c3Ryb2tlLWxpbmVqb2luOnJvdW5kO3N0cm9rZS1saW5lY2FwOmJ1dHQ7bWFya2VyLWVuZDp1cmwoI3Byb2R1Y3Rpb24tYXJyb3cpO308L3N0eWxlPgo8ZGVmcz48bWFya2VyIGlkPSJwcm9kdWN0aW9uLWFycm93IiB2aWV3Qm94PSIwIDAgMTIgMTIiIHJlZlg9IjEyIiByZWZZPSI2IiBtYXJrZXJXaWR0aD0iMTIiIG1hcmtlckhlaWdodD0iMTIiIG1hcmtlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgb3JpZW50PSJhdXRvIj48cGF0aCBkPSJNIDAgMCBMIDEyIDYgTCAwIDEyIFoiIGZpbGw9IiMyZjczYzUiLz48L21hcmtlcj48L2RlZnM+CjxyZWN0IHdpZHRoPSIyMDQ4IiBoZWlnaHQ9Ijg5NiIgZmlsbD0iI2Y2ZjhmYSIvPgo8dGV4dCB4PSIzOCIgeT0iMTA3IiBmb250LXNpemU9IjY2IiBmb250LXdlaWdodD0iNzUwIiBmaWxsPSIjMTkyNDM0Ij5Qcm9kdWN0aW9uIG5vdGVz4oCTY2xpIOS4gOaineWIsOW6lTwvdGV4dD4KPHRleHQgeD0iMzgiIHk9IjE2MSIgZm9udC1zaXplPSIyNSIgZmlsbD0iIzYxNzE4NiI+6YCZ5piv5Yid57Sa5pWZ5p2Q55qE6LOH5rex5bel56iL6Yqc5o6l6ZmE6YyE77ya55SoIG5vdGVz4oCTY2xpIOeci+aHgumcgOaxguWIsCByZWxlYXNlL3JvbGxiYWNrIOeahOWujOaVtOi3r+e3muOAgua3seWFpeWvpuaIsOiri+aOpee6jOS4ree0muiIh+mrmOmajjwvdGV4dD4KPHRleHQgeD0iMzgiIHk9IjIwMyIgZm9udC1zaXplPSIyNSIgZmlsbD0iIzYxNzE4NiI+5pWZ5p2Q44CCPC90ZXh0Pgo8cmVjdCB4PSI0MCIgeT0iMjQyIiB3aWR0aD0iMTk2OCIgaGVpZ2h0PSI2MTQiIHJ4PSIxMiIgZmlsbD0iI2ZmZiIgc3Ryb2tlPSIjZDllNGYwIiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8cmVjdCB4PSI5NiIgeT0iMzA2IiB3aWR0aD0iMTg1NiIgaGVpZ2h0PSI1MDYiIHJ4PSIyOCIgZmlsbD0iI2Y4ZmJmZSIgc3Ryb2tlPSIjZDllNGYwIiBzdHJva2Utd2lkdGg9IjEuNyIvPgo8ZyBpZD0ibm9kZS1yZXF1aXJlbWVudHMiIGRhdGEtbm9kZT0icmVxdWlyZW1lbnRzIj48cmVjdCBpZD0iYm94LXJlcXVpcmVtZW50cyIgZGF0YS1ib3g9IjEiIHg9IjEzNCIgeT0iNDE3IiB3aWR0aD0iMTY4IiBoZWlnaHQ9IjEzMCIgcng9IjE4IiBmaWxsPSIjZTdmMGZhIiBzdHJva2U9IiMyZTczYzgiIHN0cm9rZS13aWR0aD0iMy4yIi8+Cjx0ZXh0IGlkPSJsYWJlbC1yZXF1aXJlbWVudHMtdGl0bGUiIGRhdGEtbGFiZWw9InRpdGxlIiB4PSIyMTguMCIgeT0iNDcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI5IiBmb250LXdlaWdodD0iNzUwIiBmaWxsPSIjMTExMTExIj7pnIDmsYI8L3RleHQ+Cjx0ZXh0IGlkPSJsYWJlbC1yZXF1aXJlbWVudHMtc3VidGl0bGUiIGRhdGEtbGFiZWw9InN1YnRpdGxlIiB4PSIyMTguMCIgeT0iNTEzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iNjUwIiBmaWxsPSIjNjE3MTg2Ij7pqZfmlLY8L3RleHQ+CjwvZz4KPGcgaWQ9Im5vZGUtYWRyIiBkYXRhLW5vZGU9ImFkciI+PHJlY3QgaWQ9ImJveC1hZHIiIGRhdGEtYm94PSIxIiB4PSIzNDMiIHk9IjQxNyIgd2lkdGg9IjE2OCIgaGVpZ2h0PSIxMzAiIHJ4PSIxOCIgZmlsbD0iI2VlZThmNyIgc3Ryb2tlPSIjNzk1OGFlIiBzdHJva2Utd2lkdGg9IjMuMiIvPgo8dGV4dCBpZD0ibGFiZWwtYWRyLXRpdGxlIiBkYXRhLWxhYmVsPSJ0aXRsZSIgeD0iNDI3LjAiIHk9IjQ3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyOSIgZm9udC13ZWlnaHQ9Ijc1MCIgZmlsbD0iIzExMTExMSI+QURSPC90ZXh0Pgo8dGV4dCBpZD0ibGFiZWwtYWRyLXN1YnRpdGxlIiBkYXRhLWxhYmVsPSJzdWJ0aXRsZSIgeD0iNDI3LjAiIHk9IjUxMyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyNCIgZm9udC13ZWlnaHQ9IjY1MCIgZmlsbD0iIzYxNzE4NiI+5Y+W5o2oPC90ZXh0Pgo8L2c+CjxnIGlkPSJub2RlLXNsbyIgZGF0YS1ub2RlPSJzbG8iPjxyZWN0IGlkPSJib3gtc2xvIiBkYXRhLWJveD0iMSIgeD0iNTUzIiB5PSI0MTciIHdpZHRoPSIxNjgiIGhlaWdodD0iMTMwIiByeD0iMTgiIGZpbGw9IiNlNWY1ZWUiIHN0cm9rZT0iIzJkOTI3NSIgc3Ryb2tlLXdpZHRoPSIzLjIiLz4KPHRleHQgaWQ9ImxhYmVsLXNsby10aXRsZSIgZGF0YS1sYWJlbD0idGl0bGUiIHg9IjYzNy4wIiB5PSI0NzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjkiIGZvbnQtd2VpZ2h0PSI3NTAiIGZpbGw9IiMxMTExMTEiPlNMTzwvdGV4dD4KPHRleHQgaWQ9ImxhYmVsLXNsby1zdWJ0aXRsZSIgZGF0YS1sYWJlbD0ic3VidGl0bGUiIHg9IjYzNy4wIiB5PSI1MTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI2NTAiIGZpbGw9IiM2MTcxODYiPumAn+W6pjwvdGV4dD4KPC9nPgo8ZyBpZD0ibm9kZS1ib3VuZGFyeSIgZGF0YS1ub2RlPSJib3VuZGFyeSI+PHJlY3QgaWQ9ImJveC1ib3VuZGFyeSIgZGF0YS1ib3g9IjEiIHg9Ijc2MiIgeT0iNDE3IiB3aWR0aD0iMjAzIiBoZWlnaHQ9IjEzMCIgcng9IjE4IiBmaWxsPSIjZmZmNWQwIiBzdHJva2U9IiNkMDllMDAiIHN0cm9rZS13aWR0aD0iMy4yIi8+Cjx0ZXh0IGlkPSJsYWJlbC1ib3VuZGFyeS10aXRsZSIgZGF0YS1sYWJlbD0idGl0bGUiIHg9Ijg2My41IiB5PSI0NzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjkiIGZvbnQtd2VpZ2h0PSI3NTAiIGZpbGw9IiMxMTExMTEiPkJvdW5kYXJ5PC90ZXh0Pgo8dGV4dCBpZD0ibGFiZWwtYm91bmRhcnktc3VidGl0bGUiIGRhdGEtbGFiZWw9InN1YnRpdGxlIiB4PSI4NjMuNSIgeT0iNTEzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iNjUwIiBmaWxsPSIjNjE3MTg2Ij5wYWNrYWdlPC90ZXh0Pgo8L2c+CjxnIGlkPSJub2RlLWNvbmZpZyIgZGF0YS1ub2RlPSJjb25maWciPjxyZWN0IGlkPSJib3gtY29uZmlnIiBkYXRhLWJveD0iMSIgeD0iMTAwNiIgeT0iNDE3IiB3aWR0aD0iMjAzIiBoZWlnaHQ9IjEzMCIgcng9IjE4IiBmaWxsPSIjZmFlOGU5IiBzdHJva2U9IiNkNDQ0NDkiIHN0cm9rZS13aWR0aD0iMy4yIi8+Cjx0ZXh0IGlkPSJsYWJlbC1jb25maWctdGl0bGUiIGRhdGEtbGFiZWw9InRpdGxlIiB4PSIxMTA3LjUiIHk9IjQ3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyOSIgZm9udC13ZWlnaHQ9Ijc1MCIgZmlsbD0iIzExMTExMSI+Q29uZmlnPC90ZXh0Pgo8dGV4dCBpZD0ibGFiZWwtY29uZmlnLXN1YnRpdGxlIiBkYXRhLWxhYmVsPSJzdWJ0aXRsZSIgeD0iMTEwNy41IiB5PSI1MTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI2NTAiIGZpbGw9IiM2MTcxODYiPmVudjwvdGV4dD4KPC9nPgo8ZyBpZD0ibm9kZS1taWdyYXRpb24iIGRhdGEtbm9kZT0ibWlncmF0aW9uIj48cmVjdCBpZD0iYm94LW1pZ3JhdGlvbiIgZGF0YS1ib3g9IjEiIHg9IjEyNTAiIHk9IjQxNyIgd2lkdGg9IjIwMyIgaGVpZ2h0PSIxMzAiIHJ4PSIxOCIgZmlsbD0iI2U3ZjBmYSIgc3Ryb2tlPSIjMmU3M2M4IiBzdHJva2Utd2lkdGg9IjMuMiIvPgo8dGV4dCBpZD0ibGFiZWwtbWlncmF0aW9uLXRpdGxlIiBkYXRhLWxhYmVsPSJ0aXRsZSIgeD0iMTM1MS41IiB5PSI0NzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjkiIGZvbnQtd2VpZ2h0PSI3NTAiIGZpbGw9IiMxMTExMTEiPk1pZ3JhdGlvbjwvdGV4dD4KPHRleHQgaWQ9ImxhYmVsLW1pZ3JhdGlvbi1zdWJ0aXRsZSIgZGF0YS1sYWJlbD0ic3VidGl0bGUiIHg9IjEzNTEuNSIgeT0iNTEzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iNjUwIiBmaWxsPSIjNjE3MTg2Ij5zY2hlbWE8L3RleHQ+CjwvZz4KPGcgaWQ9Im5vZGUtdGVzdHMiIGRhdGEtbm9kZT0idGVzdHMiPjxyZWN0IGlkPSJib3gtdGVzdHMiIGRhdGEtYm94PSIxIiB4PSIxNDk0IiB5PSI0MTciIHdpZHRoPSIxNjgiIGhlaWdodD0iMTMwIiByeD0iMTgiIGZpbGw9IiNlNWY1ZWUiIHN0cm9rZT0iIzJkOTI3NSIgc3Ryb2tlLXdpZHRoPSIzLjIiLz4KPHRleHQgaWQ9ImxhYmVsLXRlc3RzLXRpdGxlIiBkYXRhLWxhYmVsPSJ0aXRsZSIgeD0iMTU3OC4wIiB5PSI0NzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjkiIGZvbnQtd2VpZ2h0PSI3NTAiIGZpbGw9IiMxMTExMTEiPlRlc3RzPC90ZXh0Pgo8dGV4dCBpZD0ibGFiZWwtdGVzdHMtc3VidGl0bGUiIGRhdGEtbGFiZWw9InN1YnRpdGxlIiB4PSIxNTc4LjAiIHk9IjUxMyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyNCIgZm9udC13ZWlnaHQ9IjY1MCIgZmlsbD0iIzYxNzE4NiI+cHl0ZXN0PC90ZXh0Pgo8L2c+CjxnIGlkPSJub2RlLWNpIiBkYXRhLW5vZGU9ImNpIj48cmVjdCBpZD0iYm94LWNpIiBkYXRhLWJveD0iMSIgeD0iMTcwNCIgeT0iNDE3IiB3aWR0aD0iMTY4IiBoZWlnaHQ9IjEzMCIgcng9IjE4IiBmaWxsPSIjZmZmNWQwIiBzdHJva2U9IiNkMDllMDAiIHN0cm9rZS13aWR0aD0iMy4yIi8+Cjx0ZXh0IGlkPSJsYWJlbC1jaS10aXRsZSIgZGF0YS1sYWJlbD0idGl0bGUiIHg9IjE3ODguMCIgeT0iNDcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI5IiBmb250LXdlaWdodD0iNzUwIiBmaWxsPSIjMTExMTExIj5DSTwvdGV4dD4KPHRleHQgaWQ9ImxhYmVsLWNpLXN1YnRpdGxlIiBkYXRhLWxhYmVsPSJzdWJ0aXRsZSIgeD0iMTc4OC4wIiB5PSI1MTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI2NTAiIGZpbGw9IiM2MTcxODYiPmdhdGU8L3RleHQ+CjwvZz4KPGcgaWQ9Im5vZGUtcmVsZWFzZSIgZGF0YS1ub2RlPSJyZWxlYXNlIj48cmVjdCBpZD0iYm94LXJlbGVhc2UiIGRhdGEtYm94PSIxIiB4PSIxNDk0IiB5PSI2NTEiIHdpZHRoPSIxNjgiIGhlaWdodD0iMTAyIiByeD0iMTgiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iIzkxYTRiZSIgc3Ryb2tlLXdpZHRoPSIzLjIiLz4KPHRleHQgaWQ9ImxhYmVsLXJlbGVhc2UtdGl0bGUiIGRhdGEtbGFiZWw9InRpdGxlIiB4PSIxNTc4LjAiIHk9IjcxMi4wIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iNzUwIiBmaWxsPSIjMTExMTExIj5SZWxlYXNlPC90ZXh0Pgo8L2c+CjxnIGlkPSJub2RlLXJvbGxiYWNrIiBkYXRhLW5vZGU9InJvbGxiYWNrIj48cmVjdCBpZD0iYm94LXJvbGxiYWNrIiBkYXRhLWJveD0iMSIgeD0iMTcwNCIgeT0iNjUxIiB3aWR0aD0iMTY4IiBoZWlnaHQ9IjEwMiIgcng9IjE4IiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiM5MWE0YmUiIHN0cm9rZS13aWR0aD0iMy4yIi8+Cjx0ZXh0IGlkPSJsYWJlbC1yb2xsYmFjay10aXRsZSIgZGF0YS1sYWJlbD0idGl0bGUiIHg9IjE3ODguMCIgeT0iNzEyLjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI3NTAiIGZpbGw9IiMxMTExMTEiPlJvbGxiYWNrPC90ZXh0Pgo8L2c+CjxwYXRoIGRhdGEtZWRnZT0icmVxdWlyZW1lbnRzLWFkciIgY2xhc3M9ImVkZ2UiIGQ9Ik0gMzAzLjYgNDgyLjAgSCAzNDEuNCIvPgo8cGF0aCBkYXRhLWVkZ2U9ImFkci1zbG8iIGNsYXNzPSJlZGdlIiBkPSJNIDUxMi42IDQ4Mi4wIEggNTUxLjQiLz4KPHBhdGggZGF0YS1lZGdlPSJzbG8tYm91bmRhcnkiIGNsYXNzPSJlZGdlIiBkPSJNIDcyMi42IDQ4Mi4wIEggNzYwLjQiLz4KPHBhdGggZGF0YS1lZGdlPSJib3VuZGFyeS1jb25maWciIGNsYXNzPSJlZGdlIiBkPSJNIDk2Ni42IDQ4Mi4wIEggMTAwNC40Ii8+CjxwYXRoIGRhdGEtZWRnZT0iY29uZmlnLW1pZ3JhdGlvbiIgY2xhc3M9ImVkZ2UiIGQ9Ik0gMTIxMC42IDQ4Mi4wIEggMTI0OC40Ii8+CjxwYXRoIGRhdGEtZWRnZT0ibWlncmF0aW9uLXRlc3RzIiBjbGFzcz0iZWRnZSIgZD0iTSAxNDU0LjYgNDgyLjAgSCAxNDkyLjQiLz4KPHBhdGggZGF0YS1lZGdlPSJ0ZXN0cy1jaSIgY2xhc3M9ImVkZ2UiIGQ9Ik0gMTY2My42IDQ4Mi4wIEggMTcwMi40Ii8+CjxwYXRoIGRhdGEtZWRnZT0iY2ktcmVsZWFzZSIgY2xhc3M9ImVkZ2UiIGQ9Ik0gMTc4OCA1NDguNiBWIDU4NCBRIDE3ODggNTk2IDE3NzYgNTk2IEggMTU5MCBRIDE1NzggNTk2IDE1NzggNjA4IFYgNjQ5LjQiLz4KPHBhdGggZGF0YS1lZGdlPSJyZWxlYXNlLXJvbGxiYWNrIiBjbGFzcz0iZWRnZSIgZD0iTSAxNjYzLjYgNzAyIEggMTcwMi40IiBzdHJva2UtZGFzaGFycmF5PSI1IDQiLz4KPHRleHQgeD0iMTgxMCIgeT0iNTkzIiBmb250LXNpemU9IjIwIiBmaWxsPSIjNDI2NThlIj7pgJrpgY48L3RleHQ+Cjx0ZXh0IHg9IjE2ODMiIHk9Ijc4OCIgZm9udC1zaXplPSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzYxNzE4NiI+6Jmb57ea77ya55m85biD55Ww5bi45pmC5omN5Z+36KGMIFJvbGxiYWNrPC90ZXh0Pgo8L3N2Zz4=" alt="Production notes-cli：補齊前段箭頭，CI 接到 Release，異常時再 Rollback"></div><figcaption>Production notes-cli：補齊前段箭頭，CI 接到 Release，異常時再 Rollback</figcaption></figure>
+<h3 id="section-53">Delivery Blueprint：文字與方框修正</h3>
+<p>上排卡片擴大為 350 × 180，下排卡片為 500 × 250，保留所有文字。Service Core 與兩張下排卡片的長句完整放入框內；下方灰線連接至兩個切面。此圖的線段表達關聯，沒有另增新的操作步驟。</p>
+<figure class="diagram"><div class="diagram-scroll"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0ndXRmLTgnPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAwIiBoZWlnaHQ9Ijk1MCIgdmlld0JveD0iMCAwIDE0MDAgOTUwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0iZGlhZ3JhbS10aXRsZSBkaWFncmFtLWRlc2MiIGxhbmc9InpoLUhhbnQiIHN0eWxlPSJmb250LWZhbWlseTpBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiI+CiAgPHRpdGxlIGlkPSJkaWFncmFtLXRpdGxlIj5QeXRob24gUHJvamVjdCBEZWxpdmVyeSBCbHVlcHJpbnQ8L3RpdGxlPgogIDxkZXNjIGlkPSJkaWFncmFtLWRlc2MiPuW+numcgOaxguOAgemFjee9ruOAgeWft+ihjOOAgempl+itieWIsCByZWxlYXNlIGV2aWRlbmNlIOeahOaVtOWQiOW8j+W3peeoi+a1geOAgklucHV0IExheWVyIOmAo+aOpSBTZXJ2aWNlIENvcmXvvIzlho3pgKPmjqUgRXZpZGVuY2XvvJtTZXJ2aWNlIENvcmUg5ZCR5LiL6Zec6IGv5rK755CG5YiH6Z2i6IiH6amX5pS25YiH6Z2i44CCPC9kZXNjPgogIDxyZWN0IHdpZHRoPSIxNDAwIiBoZWlnaHQ9Ijk1MCIgZmlsbD0iI0Y1RjlGQSIgLz4KICA8cmVjdCB4PSI0MCIgeT0iNDAiIHdpZHRoPSIxMzIwIiBoZWlnaHQ9Ijg3MCIgcng9IjQwIiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNENkUxRUIiIHN0cm9rZS13aWR0aD0iMyIgZGF0YS1mcmFtZT0idHJ1ZSIgLz4KICA8dGV4dCBpZD0icGFnZV90aXRsZSIgeD0iMTA0IiB5PSIxNDciIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI1MCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzE3MjMzNyIgZGF0YS1sYWJlbD0icGFnZS10aXRsZSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+UHl0aG9uIFByb2plY3QgRGVsaXZlcnkgQmx1ZXByaW50PC90ZXh0PgogIDx0ZXh0IGlkPSJwYWdlX3N1YnRpdGxlIiB4PSIxMDQiIHk9IjIwNyIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iNDAwIiBmaWxsPSIjNUM3NDk0IiBkYXRhLWxhYmVsPSJwYWdlLXN1YnRpdGxlIiB4bWw6c3BhY2U9InByZXNlcnZlIj7lvp7pnIDmsYLjgIHphY3nva7jgIHln7fooYzjgIHpqZforYnliLAgcmVsZWFzZSBldmlkZW5jZSDnmoTmlbTlkIjlvI/lt6XnqIvmtYE8L3RleHQ+CiAgPGcgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBhcmlhLWhpZGRlbj0idHJ1ZSIgZGF0YS1jb25uZWN0b3JzPSJ0cnVlIj4KICAgIDxwYXRoIGlkPSJpbnB1dF90b19zZXJ2aWNlIiBkPSJNIDQ1NCAzNjAgTCA1MjQgMzYwIiBzdHJva2U9IiMyNDdGN0QiIHN0cm9rZS13aWR0aD0iNyIgZGF0YS1zb3VyY2U9ImlucHV0IiBkYXRhLXRhcmdldD0ic2VydmljZSIgLz4KICAgIDxwYXRoIGlkPSJzZXJ2aWNlX3RvX2V2aWRlbmNlIiBkPSJNIDg3NCAzNjAgTCA5NDQgMzYwIiBzdHJva2U9IiMyRTcwQjQiIHN0cm9rZS13aWR0aD0iNyIgZGF0YS1zb3VyY2U9InNlcnZpY2UiIGRhdGEtdGFyZ2V0PSJldmlkZW5jZSIgLz4KICAgIDxwYXRoIGlkPSJzZXJ2aWNlX3RvX2JyYW5jaCIgZD0iTSA2OTkgNDUwIEwgNjk5IDUxMCIgc3Ryb2tlPSIjODM5M0E4IiBzdHJva2Utd2lkdGg9IjYiIGRhdGEtc291cmNlPSJzZXJ2aWNlIiBkYXRhLXRhcmdldD0iYnJhbmNoIiAvPgogICAgPHBhdGggaWQ9ImJyYW5jaF90b19nb3Zlcm5hbmNlIiBkPSJNIDY5OSA1MTAgTCA0MDYgNTEwIiBzdHJva2U9IiM4MzkzQTgiIHN0cm9rZS13aWR0aD0iNiIgZGF0YS1zb3VyY2U9ImJyYW5jaCIgZGF0YS10YXJnZXQ9ImJyYW5jaF9nb3Zlcm5hbmNlIiAvPgogICAgPHBhdGggaWQ9ImJyYW5jaF90b19hY2NlcHRhbmNlIiBkPSJNIDY5OSA1MTAgTCA5OTQgNTEwIiBzdHJva2U9IiM4MzkzQTgiIHN0cm9rZS13aWR0aD0iNiIgZGF0YS1zb3VyY2U9ImJyYW5jaCIgZGF0YS10YXJnZXQ9ImJyYW5jaF9hY2NlcHRhbmNlIiAvPgogICAgPHBhdGggaWQ9ImdvdmVybmFuY2VfbGluayIgZD0iTSA0MDYgNTEwIEwgNDA2IDU4MCIgc3Ryb2tlPSIjODM5M0E4IiBzdHJva2Utd2lkdGg9IjYiIGRhdGEtc291cmNlPSJicmFuY2hfZ292ZXJuYW5jZSIgZGF0YS10YXJnZXQ9ImdvdmVybmFuY2UiIC8+CiAgICA8cGF0aCBpZD0iYWNjZXB0YW5jZV9saW5rIiBkPSJNIDk5NCA1MTAgTCA5OTQgNTgwIiBzdHJva2U9IiM4MzkzQTgiIHN0cm9rZS13aWR0aD0iNiIgZGF0YS1zb3VyY2U9ImJyYW5jaF9hY2NlcHRhbmNlIiBkYXRhLXRhcmdldD0iYWNjZXB0YW5jZSIgLz4KICA8L2c+CiAgPGcgZGF0YS1ub2RlPSJpbnB1dCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTA0IDI3MCkiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjM1MCIgaGVpZ2h0PSIxODAiIHJ4PSIzMCIgZmlsbD0iI0U1RjVGMiIgc3Ryb2tlPSIjODJDQUMxIiBzdHJva2Utd2lkdGg9IjIiIGRhdGEtYm94PSJ0cnVlIiAvPgogICAgPHRleHQgaWQ9ImlucHV0X3RpdGxlIiB4PSIzMiIgeT0iNTgiIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzI0N0Y3RCIgZGF0YS1sYWJlbD0idGl0bGUiIHhtbDpzcGFjZT0icHJlc2VydmUiPklucHV0IExheWVyPC90ZXh0PgogICAgPHRleHQgaWQ9ImlucHV0X2xpbmVfMSIgeD0iMzIiIHk9IjEwNyIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI2IiBmb250LXdlaWdodD0iNDAwIiBmaWxsPSIjMjk0RjVFIiBkYXRhLWxhYmVsPSJsaW5lLTEiIHhtbDpzcGFjZT0icHJlc2VydmUiPm9wZXJhdG9yIGNvbmZpZzwvdGV4dD4KICAgIDx0ZXh0IGlkPSJpbnB1dF9saW5lXzIiIHg9IjMyIiB5PSIxNDYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNiIgZm9udC13ZWlnaHQ9IjQwMCIgZmlsbD0iIzI5NEY1RSIgZGF0YS1sYWJlbD0ibGluZS0yIiB4bWw6c3BhY2U9InByZXNlcnZlIj5kZXZpY2Ugc25hcHNob3RzPC90ZXh0PgogIDwvZz4KICA8ZyBkYXRhLW5vZGU9InNlcnZpY2UiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNCAyNzApIj4KICAgIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIzNTAiIGhlaWdodD0iMTgwIiByeD0iMzAiIGZpbGw9IiNFREY0RkIiIHN0cm9rZT0iIzlBQkJERCIgc3Ryb2tlLXdpZHRoPSIyIiBkYXRhLWJveD0idHJ1ZSIgLz4KICAgIDx0ZXh0IGlkPSJzZXJ2aWNlX3RpdGxlIiB4PSIzMiIgeT0iNTgiIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzJFNzBCNCIgZGF0YS1sYWJlbD0idGl0bGUiIHhtbDpzcGFjZT0icHJlc2VydmUiPlNlcnZpY2UgQ29yZTwvdGV4dD4KICAgIDx0ZXh0IGlkPSJzZXJ2aWNlX2xpbmVfMSIgeD0iMzIiIHk9IjEwNyIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI2IiBmb250LXdlaWdodD0iNDAwIiBmaWxsPSIjMjk0RjVFIiBkYXRhLWxhYmVsPSJsaW5lLTEiIHhtbDpzcGFjZT0icHJlc2VydmUiPnZhbGlkYXRpb248L3RleHQ+CiAgICA8dGV4dCBpZD0ic2VydmljZV9saW5lXzIiIHg9IjMyIiB5PSIxNDYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNiIgZm9udC13ZWlnaHQ9IjQwMCIgZmlsbD0iIzI5NEY1RSIgZGF0YS1sYWJlbD0ibGluZS0yIiB4bWw6c3BhY2U9InByZXNlcnZlIj5pZGVtcG90ZW5jeSArIGFsYXJtPC90ZXh0PgogIDwvZz4KICA8ZyBkYXRhLW5vZGU9ImV2aWRlbmNlIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5NDQgMjcwKSI+CiAgICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzUwIiBoZWlnaHQ9IjE4MCIgcng9IjMwIiBmaWxsPSIjRjVFRkZBIiBzdHJva2U9IiNCOUEwREIiIHN0cm9rZS13aWR0aD0iMiIgZGF0YS1ib3g9InRydWUiIC8+CiAgICA8dGV4dCBpZD0iZXZpZGVuY2VfdGl0bGUiIHg9IjMyIiB5PSI1OCIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM0IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNzY1MUFBIiBkYXRhLWxhYmVsPSJ0aXRsZSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+RXZpZGVuY2U8L3RleHQ+CiAgICA8dGV4dCBpZD0iZXZpZGVuY2VfbGluZV8xIiB4PSIzMiIgeT0iMTA3IiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjYiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiMyOTRGNUUiIGRhdGEtbGFiZWw9ImxpbmUtMSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+aGVhbHRoIHJlcG9ydDwvdGV4dD4KICAgIDx0ZXh0IGlkPSJldmlkZW5jZV9saW5lXzIiIHg9IjMyIiB5PSIxNDYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgTm90byBTYW5zIENKSyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNiIgZm9udC13ZWlnaHQ9IjQwMCIgZmlsbD0iIzI5NEY1RSIgZGF0YS1sYWJlbD0ibGluZS0yIiB4bWw6c3BhY2U9InByZXNlcnZlIj5yZWxlYXNlIHBheWxvYWQ8L3RleHQ+CiAgPC9nPgogIDxnIGRhdGEtbm9kZT0iZ292ZXJuYW5jZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTU2IDU4MCkiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjUwMCIgaGVpZ2h0PSIyNTAiIHJ4PSIzMiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDZFMUVCIiBzdHJva2Utd2lkdGg9IjIiIGRhdGEtYm94PSJ0cnVlIiAvPgogICAgPHRleHQgaWQ9ImdvdmVybmFuY2VfdGl0bGUiIHg9IjMyIiB5PSI2MiIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM2IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTcyMzM3IiBkYXRhLWxhYmVsPSJ0aXRsZSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+5rK755CG5YiH6Z2iPC90ZXh0PgogICAgPHRleHQgaWQ9ImdvdmVybmFuY2VfbGluZV8xIiB4PSIzMiIgeT0iMTEzIiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+c2NoZW1hIC8gY29uZmlnIGNvbnRyYWN0PC90ZXh0PgogICAgPHRleHQgaWQ9ImdvdmVybmFuY2VfbGluZV8yIiB4PSIzMiIgeT0iMTU1IiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMiIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+dGltZW91dCAvIHJldHJ5IC8gZmFpbC1zYWZlPC90ZXh0PgogICAgPHRleHQgaWQ9ImdvdmVybmFuY2VfbGluZV8zIiB4PSIzMiIgeT0iMTk3IiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+YXVkaXQgdHJhaWwgLyBydW5ib29rIC8gcm9sbGJhY2s8L3RleHQ+CiAgPC9nPgogIDxnIGRhdGEtbm9kZT0iYWNjZXB0YW5jZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzQ0IDU4MCkiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjUwMCIgaGVpZ2h0PSIyNTAiIHJ4PSIzMiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDZFMUVCIiBzdHJva2Utd2lkdGg9IjIiIGRhdGEtYm94PSJ0cnVlIiAvPgogICAgPHRleHQgaWQ9ImFjY2VwdGFuY2VfdGl0bGUiIHg9IjMyIiB5PSI2MiIgZm9udC1mYW1pbHk9IkFyaWFsLCBOb3RvIFNhbnMgQ0pLIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM2IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTcyMzM3IiBkYXRhLWxhYmVsPSJ0aXRsZSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+6amX5pS25YiH6Z2iPC90ZXh0PgogICAgPHRleHQgaWQ9ImFjY2VwdGFuY2VfbGluZV8xIiB4PSIzMiIgeT0iMTEzIiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+cHlfY29tcGlsZSAvIHVuaXR0ZXN0PC90ZXh0PgogICAgPHRleHQgaWQ9ImFjY2VwdGFuY2VfbGluZV8yIiB4PSIzMiIgeT0iMTU1IiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMiIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+c21va2UgLyBIVE1MIHBhcnNlPC90ZXh0PgogICAgPHRleHQgaWQ9ImFjY2VwdGFuY2VfbGluZV8zIiB4PSIzMiIgeT0iMTk3IiBmb250LWZhbWlseT0iQXJpYWwsIE5vdG8gU2FucyBDSksgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM1Qzc0OTQiIGRhdGEtbGFiZWw9ImxpbmUtMyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+Z2l0IGRpZmYgLS1jaGVjayAvIHJlbGVhc2Ugbm90ZTwvdGV4dD4KICA8L2c+Cjwvc3ZnPg==" alt="Python Project Delivery Blueprint：完整保留文字並擴大卡片與內距"></div><figcaption>Python Project Delivery Blueprint：完整保留文字並擴大卡片與內距</figcaption></figure>
+<p>兩圖的原生形狀與連線均收錄在 <code>python-315-diagrams.drawio</code>，可繼續編輯；SVG 亦可直接替換到網頁或文件。</p>
+<h2 id="section-54">第六部｜驗證紀錄與資料包</h2>
+<p>本次實際使用 CPython 3.15.2 一般建置與 CPython 3.15.2 free-threading build。範例都只使用標準函式庫，未連接真實設備。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>驗證結果與範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心語法</td>
+<td><code>examples/core_syntax.py</code> 的 33 項行為檢查通過；另有 26 個核心教學片段逐一執行成功</td>
+</tr>
+<tr>
+<td>3.15 新特性</td>
+<td><code>examples/new_features_315.py</code> 的 16 組功能檢查通過；包含預期應拋出例外的案例</td>
+</tr>
+<tr>
+<td>並行</td>
+<td>一般版及 free-threaded 版皆通過；GIL 狀態分別為啟用與停用</td>
+</tr>
+<tr>
+<td>整合監控範例</td>
+<td>8 筆模擬資料均符合預期，涵蓋正常、高低限、缺值、None、NaN、bool 與超時</td>
+</tr>
+<tr>
+<td>兩張工程圖</td>
+<td>以離線向量渲染器量測，文字均在方框內；已檢視 PNG 渲染結果</td>
+</tr>
+<tr>
+<td>教材網頁</td>
+<td>單一 HTML，內嵌 SVG 與樣式；目錄錨點、表格與程式碼以靜態結構檢查</td>
+</tr>
+</tbody>
+</table>
+</div><p>**驗證界線：**功能通過不代表型別檢查器已通過，也不代表任何第三方套件、現場設備或硬體效能已驗證。這次沒有執行效能排名；JIT、並行與 free-threaded 的效能應以實際工作負載測量。瀏覽器自動化受此執行環境限制，未將網頁檢查宣稱為 Chromium 實測；圖中文字則已經實際字型度量與向量渲染驗證。</p>
+<h3 id="section-55">資料包內容</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>檔案／目錄</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>python-315-complete-guide.html</code></td>
+<td>離線可讀的整合教材，含兩張修正圖與章節目錄</td>
+</tr>
+<tr>
+<td><code>python-315-complete-guide.md</code></td>
+<td>適合 Obsidian、Git 或 Markdown 編輯器的文字教材</td>
+</tr>
+<tr>
+<td><code>examples/</code></td>
+<td>四個可直接執行的 Python 3.15 教學腳本</td>
+</tr>
+<tr>
+<td><code>verification/</code></td>
+<td>本次實際執行輸出、版本資訊與圖表量測紀錄</td>
+</tr>
+<tr>
+<td><code>python-315-diagrams.drawio</code></td>
+<td>兩頁原生可編輯工程圖</td>
+</tr>
+<tr>
+<td><code>production-notes-cli-fixed.svg</code> / <code>.png</code></td>
+<td>第一張修正圖，PNG 為 4096 × 1792</td>
+</tr>
+<tr>
+<td><code>python-project-delivery-blueprint.svg</code> / <code>.png</code></td>
+<td>第二張修正圖，PNG 為 2800 × 1900</td>
+</tr>
+</tbody>
+</table>
+</div><p>微小 bugfix 與完整條目請沿著 <a href="https://docs.python.org/3.15/whatsnew/changelog.html" target="_blank" rel="noopener noreferrer">3.15 完整 changelog</a> 查閱；本教材提供核心語法、主要行為變更、實務 API 索引與可執行範例，不把整份 CPython commit log 改寫成教學。</p>
+</main></div><footer>Python學習筆記 · 依官方文件核對與 CPython 3.15.2 功能驗證 · 2026-11-24</footer></body></html>

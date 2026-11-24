@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +18,15 @@ def collect_python_pages() -> set[str]:
 
 
 def collect_index_links(index_text: str) -> list[str]:
-    return re.findall(r'href="(python_[^"]+\.html)"', index_text)
+    links: list[str] = []
+    for href in re.findall(r'''\bhref\s*=\s*["']([^"']+)["']''', index_text):
+        target = urlsplit(href)
+        if target.scheme or target.netloc:
+            continue
+        path = unquote(target.path).removeprefix("./").lstrip("/")
+        if path.endswith(".html"):
+            links.append(path)
+    return links
 
 
 def collect_progress_keys(index_text: str) -> list[tuple[str, str, int]]:
@@ -37,7 +46,7 @@ def validate() -> list[str]:
     progress_entries = collect_progress_keys(index_text)
     errors: list[str] = []
 
-    missing_targets = sorted(page for page in linked_pages if page not in python_pages)
+    missing_targets = sorted({page for page in linked_pages if not (ROOT / page).is_file()})
     if missing_targets:
         errors.append(f"index links missing target pages: {', '.join(missing_targets)}")
 
@@ -46,10 +55,12 @@ def validate() -> list[str]:
     if missing_progress_ids:
         errors.append(f"showProgress targets missing DOM ids: {', '.join(missing_progress_ids)}")
 
-    if len(progress_entries) != len(set(linked_pages)):
+    # Standalone topics and reference guides do not track course completion.
+    linked_courses = set(linked_pages) & python_pages
+    if len(progress_entries) != len(linked_courses):
         errors.append(
             "showProgress entry count does not match linked tutorial count: "
-            f"{len(progress_entries)} vs {len(set(linked_pages))}"
+            f"{len(progress_entries)} vs {len(linked_courses)}"
         )
 
     orphan_pages = sorted(python_pages - set(linked_pages) - LEGACY_ORPHAN_PAGES)
