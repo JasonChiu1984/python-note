@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Industrial Protocol Comparison 教學 - Modbus、OPC UA、BACnet、MQTT v3.4.0</title>
+  <title>工業通訊八協定比較與 Python 實作</title>
   <style>
     :root {
       --ink: #172033;
@@ -72,15 +72,29 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+    .lab-guide { padding: clamp(1rem, 2.4vw, 1.8rem); }
+    .lab-guide > p + p { margin-top: 0.75rem; }
+    .lab-guide h3 { margin-top: 2rem; scroll-margin-top: 1rem; }
+    .lab-links { margin-bottom: 1rem; }
+    .lab-guide a:not(.quick-links a) { color: #245b99; text-underline-offset: 3px; }
+    .lab-guide pre { overflow-x: auto; }
+    .lab-guide li + li { margin-top: 0.35rem; }
+    .lab-table { overflow-x: auto; margin-bottom: 1rem; }
+    .lab-table table { width: 100%; min-width: 48rem; border-collapse: collapse; }
+    .lab-table :is(th, td) { padding: 0.6rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    .lab-table thead { background: #e6f5ef; }
+    .lab-table td:first-child { font-weight: 850; }
+    .lab-guide :is(a, .lab-table):focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside>
-      <a class="brand" href="#top"><span class="logo">PX</span><span><strong>Protocol Compare</strong><br><small>Modbus / OPC UA / BACnet / MQTT</small></span></a>
+      <a class="brand" href="#top"><span class="logo">PX</span><span><strong>Protocol Compare</strong><br><small>八協定比較與實作</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
-        <a href="#overview">Overview</a>
+        <a href="#protocol-lab">八協定比較與實作</a>
+        <a href="#overview">四協定基礎卡</a>
         <a href="#architecture">Architecture</a>
         <a href="#modbus">Modbus</a>
         <a href="#opcua">OPC UA</a>
@@ -96,13 +110,13 @@
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Industrial Protocol Comparison</span>
-          <h1>把四種工業協定放在同一張工程地圖</h1>
-          <p>這頁不是單看某一個協定，而是把 Modbus、OPC UA、BACnet、MQTT 放到同一個工業資料流中比較：哪一層用它、資料怎麼表示、怎麼連線、怎麼維運、Python 在哪一層最常出現。</p>
-          <div class="status-strip"><span>v3.4.0</span><span>32 張互動卡</span><span>2 張比較表</span><span>Architecture + Format</span></div>
-          <div class="hero-actions"><a class="button primary" href="#comparison">先看比較表</a><a class="button blue" href="python_industrial_data_gateway_tutorial.html">回工業閘道教材</a><a class="button" href="審查報告/2026-05-16/2026-05-16_133805_四種工業協定同圖工程地圖專業報告.html">查看工程報告</a><a class="button" href="index.html">回教材入口</a></div>
+          <h1>工業通訊八協定比較與 Python 實作</h1>
+          <p>比較 Modbus、BACnet、OPC UA、MQTT、Zigbee、PROFINET、PROFIBUS DP 與 CC-Link。以 AHU01 送風溫度串起點位、資料型別、通訊流程和品質驗收。</p>
+          
+          <div class="hero-actions"><a class="button primary" href="#eight-matrix">比較八種協定</a><a class="button blue" href="python_industrial_data_gateway_tutorial.html">回工業閘道教材</a><a class="button" href="#protocol-lab">查看 Python 實作</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
         <div class="surface">
-          <svg viewBox="0 0 900 390" role="img" aria-label="工業協定角色比較總圖">
+          <svg viewBox="0 0 900 390" role="img" aria-label="Modbus、OPC UA、BACnet 與 MQTT 的常見組合">
             <defs><marker id="px-arrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0.8 0.8l5.2 2.7-5.2 2.7z" fill="#2d8a69"></path></marker></defs>
             <rect x="24" y="26" width="852" height="302" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
             <g font-weight="900" text-anchor="middle">
@@ -130,6 +144,184 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：FC03、NodeId、BBMD、foreign device、QoS、retain、subscription">
         <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#mqtt">MQTT</a><a href="#comparison">比較表</a></div>
       </div>
+      <section class="section-block" id="protocol-lab">
+        <div class="section-head"><h2>八種協定比較與 Python 實作</h2></div>
+        <div class="surface lab-guide">
+          <div class="quick-links lab-links" aria-label="實作章節">
+            <a href="#eight-matrix">比較表</a>
+            <a href="#lab-modbus">Modbus</a>
+            <a href="#lab-bacnet">BACnet</a>
+            <a href="#lab-opcua">OPC UA</a>
+            <a href="#lab-mqtt">MQTT</a>
+            <a href="#lab-zigbee">Zigbee</a>
+            <a href="#lab-profinet">PROFINET</a>
+            <a href="#lab-profibus">PROFIBUS</a>
+            <a href="#lab-cclink">CC-Link</a>
+          </div>
+<p>本實作以 AHU01 送風溫度 22.0 °C 為共同測點，將八種來源對應到值、資料品質及來源識別。Modbus、BACnet、OPC UA、MQTT、Zigbee 另提供選用 SDK 的唯讀接線腳本。PROFINET、PROFIBUS DP、CC-Link 則由 PLC／專用主站採集循環 I/O，再由 Python 讀取一致的快照。</p>
+<p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/README.md">範例執行說明</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/protocol_lab.py">離線 Python 程式</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/read_live.py">實機讀值程式</a></p>
+<h3 id="eight-matrix">八種通訊比較</h3>
+<div class="lab-table" role="region" aria-label="八種通訊比較表" tabindex="0"><table>
+<thead>
+<tr>
+<th>協定</th>
+<th>傳輸與拓樸</th>
+<th>資料模型／更新</th>
+<th>典型場景</th>
+<th>Python 整合位置與驗收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modbus</td>
+<td>RTU 多站序列匯流排；TCP 透過 IP 網路</td>
+<td>Coil、Discrete Input、Input／Holding Register；請求與回應</td>
+<td>VFD、電表、流量計、PLC</td>
+<td>由 client 輪詢。確認 Unit ID、FC、零起算位址、跨字順序</td>
+</tr>
+<tr>
+<td>BACnet</td>
+<td>BACnet/IP、MS/TP 或 BACnet/SC；依需要跨網與路由</td>
+<td>Device、object、property；ReadProperty、RPM、COV</td>
+<td>AHU、DDC、冷凍站與 BMS</td>
+<td>以物件採集。驗證 Device Instance 唯一、品質旗標、COV 續訂與路由</td>
+</tr>
+<tr>
+<td>OPC UA</td>
+<td>此範例使用 Client/Server、SecureChannel 與 Session</td>
+<td>Namespace URI、NodeId、DataValue；Read 與 Subscription</td>
+<td>PLC／SCADA、MES、Historian</td>
+<td>UA client。核對信任、型別、StatusCode、時間戳與失聯恢復</td>
+</tr>
+<tr>
+<td>MQTT</td>
+<td>Broker 與 publisher/subscriber；TCP/TLS</td>
+<td>Topic＋應用自行定義的 payload；QoS 0/1/2</td>
+<td>Edge 至中控、資料平台</td>
+<td>以 client 接收遙測。測 QoS 1 重複、離線重連、retained 與過期</td>
+</tr>
+<tr>
+<td>Zigbee</td>
+<td>IEEE 802.15.4；協調器、路由器與末端裝置，可建網狀路由</td>
+<td>Endpoint、cluster、attribute；裝置報告或命令</td>
+<td>電池溫溼度、占用、門磁</td>
+<td>接協調器橋接端。驗證配對、裝置支援、上報週期及 stale</td>
+</tr>
+<tr>
+<td>PROFINET IO</td>
+<td>工業乙太網路；IO Controller、IO Device，可配工程拓樸</td>
+<td>Slot／Subslot、循環 I/O、非循環 Record、診斷</td>
+<td>分散 I/O、PLC、伺服與驅動</td>
+<td>PLC／主站執行循環，Python 讀資料快照。驗證 GSDML、站名、子模組品質</td>
+</tr>
+<tr>
+<td>PROFIBUS DP</td>
+<td>常見 RS-485 多站匯流排，依配置可有光纖</td>
+<td>Master/Slave 循環 I/O，DP-V1 另可用非循環服務</td>
+<td>既有 PLC、遠端 I/O、變頻器</td>
+<td>用 DP 主站。驗證 GSD、站號、模組資料長度、Data_Exchange 與診斷</td>
+</tr>
+<tr>
+<td>CC-Link Classic</td>
+<td>專用 RS-485 型現場網路；主站與遠端站</td>
+<td>循環 RX/RY 位元與 RWr/RWw 字；依站種及占用站數配置</td>
+<td>三菱 PLC、遠端 I/O、驅動設備</td>
+<td>PLC 主站模組交換資料，Python 讀對應 PLC 區。須辨識 Classic 與 CC-Link IE 家族</td>
+</tr>
+</tbody>
+</table></div>
+<p>依需求分層。VFD 電流可由 Modbus 讀取，AHU 測點與告警可由 BACnet 取得，SCADA 或 MES 可用 OPC UA 取結構化資料，而 MQTT 用於發布已加上時間、單位及品質的遙測。PROFINET、PROFIBUS DP 與 CC-Link 的循環時間、watchdog 與故障輸出由主站與裝置工程配置驗收。非即時的 Python 採集不應承擔控制迴路或消防連鎖。</p>
+<h3 id="lab-modbus">Modbus TCP／RTU 實作</h3>
+<ol>
+<li>依設備表確認資料區與讀取方式。若手冊以 40001 表示第一個 Holding Register，常映射到 PDU 位址 0；仍以廠牌表頭的起算方式驗證。FC03 讀 Holding，FC04 讀 Input。</li>
+<li>實機 TCP 填主機、埠、Unit ID、offset；RTU 填序列裝置、baud、parity、stop bits、站號。透過 TCP/RTU 閘道時，Unit ID 通常用來選下游站。</li>
+<li>讀兩個 16-bit word。範例使用高字在前，<code>41B0 0000</code> 解成 IEEE 754 <code>22.0</code>。若設備用低字先送，可用 <code>--low-word-first</code>。單字內 byte swap 若存在，須依設備規格另外定義。</li>
+<li>比對設備面板可信讀值。分開記錄 Modbus exception、transport timeout 和解碼錯誤；重試應受總輪詢期限約束。</li>
+</ol>
+<pre><code class="language-bash">python protocol_lab.py modbus
+python read_live.py modbus 192.0.2.40 --unit 7 --offset 0
+python read_live.py modbus /dev/ttyUSB0 --serial --unit 7 --baudrate 9600 --parity E
+</code></pre>
+<p><a href="https://www.modbus.org/modbus-specifications">Modbus Organization 規格與序列實作指引</a> · <a href="https://pymodbus.readthedocs.io/en/stable/source/client.html">PyModbus client</a></p>
+<h3 id="lab-bacnet">BACnet 實作</h3>
+<ol>
+<li>用工程資料確認 Device Instance，例如 420101；物件為 <code>analogInput:1</code>。真正的讀取鍵是裝置位址、物件類型、實例與 property，Device Instance 與 IP 位址是不同欄位。</li>
+<li>先讀 <code>presentValue</code>、<code>units</code>、<code>statusFlags</code>。壞品質、out-of-service 或被 override 要獨立處理，<code>inAlarm</code> 只表示程序告警。多點採集可依設備 PICS 驗證 RPM 與分段能力，再決定批量大小。</li>
+<li>支援 COV 的點設 lifetime 並提前續訂，重連後先讀當前值，再重建訂閱。若訂閱失敗，可用受限輪詢作回退；持續評估讀值新鮮度。</li>
+<li>BACnet/IP 跨 IP 子網的廣播按拓樸使用 BBMD、FD，跨 BACnet 網路依路由器設定。BACnet/SC 依部署採 Hub 與信任憑證；下例使用 BACnet/IP。</li>
+</ol>
+<pre><code class="language-bash">python protocol_lab.py bacnet
+python read_live.py bacnet 192.0.2.41 --bind 192.0.2.10/24 --instance 1
+</code></pre>
+<p><a href="https://bacnetinternational.org/bacnetsc/">BACnet International BACnet/SC</a> · <a href="https://bac0.readthedocs.io/en/latest/read.html">BAC0 ReadProperty</a></p>
+<h3 id="lab-opcua">OPC UA 實作</h3>
+<ol>
+<li>從 Server 取得 Endpoint 與安全策略。正式驗收用雙端信任的憑證與 SignAndEncrypt；範例支援 <code>Basic256Sha256</code>，落地前核對 Server 實際提供的策略。</li>
+<li>配置 <code>Namespace URI + String Identifier</code>。連線後透過 URI 解析 namespace index，避免把某台 Server 的 <code>ns=2</code> 硬寫成跨 Server 常數。</li>
+<li>讀 DataValue 保留 Variant、StatusCode、SourceTimestamp。離線範例故意產生 Uncertain，確認上層仍帶品質。Bad 不當有效值輸出。</li>
+<li>連續監看使用 Subscription 與 MonitoredItem，分開設定 sampling interval、publishing interval 和 queue size，核對 Server 修訂值，測試斷線恢復與缺值。</li>
+</ol>
+<pre><code class="language-bash">python protocol_lab.py opcua
+python read_live.py opcua opc.tcp://192.0.2.42:4840 urn:example:plant AHU01.SAT \
+  --certificate client.der --private-key client-key.pem --server-certificate server.der
+</code></pre>
+<p><a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.1">OPC UA Part 4 Subscription</a> · <a href="https://opcua-asyncio.readthedocs.io/en/latest/api/asyncua.common.html">asyncua DataValue</a></p>
+<h3 id="lab-mqtt">MQTT 實作</h3>
+<ol>
+<li>先訂 topic，例如 <code>site/lab/ahu01/telemetry</code>。定義 schema 版本、點位、單位、品質、值；正式資料再帶 UTC 時間戳與訊息 ID。</li>
+<li>發布端採 QoS 1 可能重複投遞，以 event_id 或來源＋序號做應用層去重。Retained 是快照，Session Expiry 管會話存續，兩者需分別驗收。</li>
+<li>接收範例透過 TLS 等待精確 topic 的一則非 retained 訊息，避免把開機收到的快照當作新點值。驗收 broker 憑證、權限、錯誤 JSON、錯誤單位、逾時與重連。</li>
+</ol>
+<pre><code class="language-bash">python protocol_lab.py mqtt
+python read_live.py mqtt broker.lab.example site/lab/ahu01/telemetry --ca lab-ca.pem
+</code></pre>
+<p><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a> · <a href="https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html">Eclipse Paho Python</a></p>
+<h3 id="lab-zigbee">Zigbee 實作</h3>
+<ol>
+<li>將支援的協調器接到 Zigbee2MQTT；於受管測試網路短暫開啟加入、讓裝置配對、再關閉加入。電池末端裝置可能睡眠，應以主動上報週期判斷是否逾期。</li>
+<li>以裝置 expose 清單確認 <code>temperature</code>。若使用原生 ZCL，Temperature Measurement cluster <code>0x0402</code> 的 measured value <code>0x0000</code> 通常是 0.01 °C；本例訂閱 Zigbee2MQTT 的 JSON，值已是 °C。</li>
+<li>映射 friendly name 與設備唯一識別，記下 <code>temperature</code>、availability 及最近上報時間。linkquality 屬無線鏈路指標，無法單靠它判定溫度是否仍有效。</li>
+</ol>
+<pre><code class="language-bash">python protocol_lab.py zigbee
+python read_live.py zigbee broker.lab.example zigbee2mqtt/ahu01-room --ca lab-ca.pem --wait 120
+</code></pre>
+<p><a href="https://csa-iot.org/all-solutions/zigbee/">CSA Zigbee</a> · <a href="https://www.zigbee2mqtt.io/guide/usage/mqtt_topics_and_messages.html">Zigbee2MQTT Topics and Messages</a></p>
+<h3 id="lab-profinet">PROFINET IO 實作</h3>
+<ol>
+<li>匯入 IO Device 的 GSDML，依安裝插槽配置 module/submodule。配置設備站名，將 slot 2／subslot 1 的輸入映射到 PLC；該位置是教學用配置。</li>
+<li>在 IO Controller 核對實際與設定模組、預期 Update Time，及所需 RT／IRT 能力。以 PLC 或主站的一致性讀取取得兩個 input bytes，並帶出子模組的有效性與診斷。</li>
+<li>接至 Python 的 JSON 快照可長成下例，<code>00 DC</code> 等於 220 deci-°C；<code>valid=false</code> 時輸出 bad/null。測試拔除 IO Device、替換站名或拔除子模組時的品質反應。</li>
+</ol>
+<pre><code class="language-json">{&quot;device&quot;:&quot;ahu01-io&quot;,&quot;slot&quot;:2,&quot;subslot&quot;:1,&quot;valid&quot;:true,&quot;bytes&quot;:&quot;00 DC&quot;}
+</code></pre>
+<pre><code class="language-bash">python protocol_lab.py profinet --snapshot pn.json
+</code></pre>
+<p><a href="https://www.profibus.com/download/profinet-technology-and-application-system-description">PI PROFINET 系統說明</a></p>
+<h3 id="lab-profibus">PROFIBUS DP 實作</h3>
+<ol>
+<li>使用支援 DP 的 PLC 主站介面或獨立 Gateway。匯入 GSD、設定實際站號、選擇模組與 I/O 長度，核對 RS-485 物理接線、總線兩端終端與 baud rate 下的線長限制。</li>
+<li>確認站 5 進入 Data_Exchange、無診斷錯誤，將兩個一致的 input bytes 與站狀態交給上層。循環讀 input image；需要參數或診斷資料時核對 DP-V1 能力。</li>
+<li>將 <code>input_offset</code> 定義成站映射區內偏移。測站離線及診斷告警後，不能把上一筆良好值當作當前值。</li>
+</ol>
+<pre><code class="language-json">{&quot;station&quot;:5,&quot;input_offset&quot;:0,&quot;data_exchange&quot;:true,&quot;bytes&quot;:&quot;00 DC&quot;}
+</code></pre>
+<pre><code class="language-bash">python protocol_lab.py profibus --snapshot dp.json
+</code></pre>
+<p><a href="https://www.profibus.com/download/profibus-technology-and-application-system-description">PI PROFIBUS 系統說明</a></p>
+<h3 id="lab-cclink">CC-Link Classic 實作</h3>
+<ol>
+<li>確認設備標示為 CC-Link Classic 並匹配主站／遠端站、版本、站號、baud、占用站數與設備手冊。CC-Link IE Field、IE Field Basic、IE TSN 各自依對應規格配置。</li>
+<li>主站視角中，RX／RWr 從遠端讀回，RY／RWw 向遠端送出。於 PLC link refresh 區讀站 1 的 RWr0 與鏈路狀態；實際 RWr 起點、點數及刷新位址以模組參數為準。</li>
+<li><code>rwr0=220</code> 在此快照契約中表示帶符號 0.1 °C。用設備文件確認有號值、比例與遠端診斷，再核對 <code>0xFFCE</code> 是否正確回報 −5.0 °C；<code>link_ok=false</code> 時拒用讀值。</li>
+</ol>
+<pre><code class="language-json">{&quot;station&quot;:1,&quot;rwr0&quot;:220,&quot;link_ok&quot;:true}
+</code></pre>
+<pre><code class="language-bash">python protocol_lab.py cc-link --snapshot cclink.json
+</code></pre>
+<p><a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab02">CLPA Network Specifications</a></p>
+        </div>
+      </section>
+
       <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先比角色，不先背欄位</h2><p>現場最容易出錯的不是記不得 port，而是拿錯心智模型。先知道每個協定站在哪一層，後面才不會把 polling、subscription、routing、broker 混在一起。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>協定差異本質上是責任邊界差異</h2><p>同一筆溫度資料，在四個協定中會呈現為 register、NodeId、BACnet object、MQTT payload。比較時要從責任邊界看，不是只看是否可讀寫。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="modbus" data-group="modbus"><div class="section-head"><div><span class="eyebrow">Modbus</span><h2>Modbus：register-based polling</h2><p>最常出現在 PLC、meter、VFD 與 RTU/TCP 網段。Python 常扮演 poller、decoder、gateway adapter。</p></div></div><div class="surface" style="margin-bottom:1rem;"><svg viewBox="0 0 620 220" role="img" aria-label="Modbus 資料流圖"><rect x="30" y="60" width="130" height="70" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="95" y="103" text-anchor="middle" font-weight="900">Device</text><path d="M162 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="248" y="60" width="130" height="70" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="313" y="96" text-anchor="middle" font-weight="900">FC03 / FC16</text><text x="313" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">40001 / words</text><path d="M380 95h84" stroke="#2d8a69" stroke-width="4"></path><rect x="466" y="60" width="124" height="70" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="528" y="96" text-anchor="middle" font-weight="900">Python</text><text x="528" y="118" text-anchor="middle" fill="#5d6b7d" font-size="14">decode + map</text></svg></div><div class="cards"></div></section>
