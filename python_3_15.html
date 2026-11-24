@@ -34,8 +34,9 @@
   </script>
 
   <style>
-    .channel-diagram-frame { overflow: hidden; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
+    .channel-diagram-frame { min-width:0; max-width:100%; overflow: hidden; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
     .channel-architecture, .channel-case-diagram { display: block; width: 100%; height: auto; }
+    main section, pre, #usecase-content, #usecase-content .grid > div { min-width:0; }
     .arch-node:focus-visible { outline: none; }
     .arch-node:focus-visible .node-box { stroke: #fff; stroke-width: 3px; }
     @media (prefers-reduced-motion: reduce) {
@@ -117,6 +118,7 @@
     #toast {
       transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
     }
+  .diagram-scroll{min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}.diagram-scroll svg{width:100%;height:auto}.diagram-scroll[data-full] svg{min-width:var(--diagram-min, 960px)}.diagram-zoom{margin:.35rem .75rem;padding:.3rem .65rem;border:1px solid currentColor;border-radius:.35rem;background:transparent;color:inherit;cursor:pointer}.diagram-scroll:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.diagram-scroll-tip{margin:.45rem .75rem;font-size:.875rem;line-height:1.45}@media(min-width:1350px){.diagram-scroll-tip{display:none}}
   </style>
 </head>
 <body class="font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
@@ -392,7 +394,7 @@
           </div>
 
           <!-- 響應式 SVG 畫布 -->
-          <div class="channel-diagram-frame">
+          <div class="channel-diagram-frame"><p id="scroll-arch" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-arch-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="平行通道架構圖 / Parallel channel architecture" aria-describedby="scroll-arch" id="scroll-arch-view" style="--diagram-min:1222px">
             <svg xmlns="http://www.w3.org/2000/svg" id="arch-svg" class="channel-architecture select-none" viewBox="0 0 1120 696" role="img" aria-labelledby="parallel-channel-title parallel-channel-desc">
 <title id="parallel-channel-title">Python 3.15 平行通道架構</title><desc id="parallel-channel-desc">生產者將訊息送入有界佇列，由四個 Worker 平行處理，透過輸出佇列交給收集器；下方有應用傳遞契約與執行環境。</desc>
 <rect x="0" y="0" width="1120" height="696" rx="0" fill="#111B2A"/>
@@ -517,7 +519,7 @@
 <text x="828" y="640" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">執行緒本地堆配置</text>
 </g>
 <g id="svg-packets" aria-hidden="true" pointer-events="none"></g>
-</svg>
+</svg></div>
           </div>
         </div>
 
@@ -598,7 +600,7 @@
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono">Zero-Copy</span>
           </div>
           <div class="text-sm font-bold text-white mt-2">即時金融行情與多維風控</div>
-          <p class="text-xs text-slate-400 mt-1">高頻 Tick 以 frozendict 零複製廣播</p>
+          <p class="text-xs text-slate-400 mt-1">以 frozendict 封裝行情並分派工作</p>
         </button>
 
         <button onclick="selectUseCase('llm')" data-uc="llm" class="uc-tab text-left p-4 rounded-2xl border transition">
@@ -823,11 +825,11 @@
 
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-amber-300">3. 觀察持有 GIL 期間的堆疊</span>
-                <button onclick="copyText('python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
+                <span class="text-xs font-semibold text-amber-300">3. GIL 陽性對照：觀察持有 GIL 時的堆疊</span>
+                <button onclick="copyText('PYTHON_GIL=1 python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-mono transition">複製</button>
               </div>
-              <code class="block text-xs sm:text-sm font-mono text-amber-200 overflow-x-auto">python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py</code>
-              <p class="text-[11px] text-slate-400">此模式只保留持有 GIL 的樣本。要找出哪次匯入改變 GIL 狀態，可在各次匯入前後讀取狀態並保留警告。</p>
+              <code class="block text-xs sm:text-sm font-mono text-amber-200 overflow-x-auto">PYTHON_GIL=1 python3.15t -m profiling.sampling run -a --mode gil python-315-learning-kit/examples/concurrency_315.py</code>
+              <p class="text-[11px] text-slate-400">此命令刻意啟用 GIL。模式只保留持有 GIL 的樣本，不量測等待；請比對範例輸出的 GIL 狀態，不能憑空報表判斷。要找出哪次匯入改變 GIL 狀態，可在各次匯入前後讀取狀態並保留警告。</p>
             </div>
 
             <div class="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 space-y-2">
@@ -893,7 +895,7 @@
           </div>
 
           <div class="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 text-xs text-slate-400 flex items-center justify-between gap-2">
-            <pre><code id="gil-startup-check" class="font-mono text-emerald-300">import sys
+            <pre class="min-w-0 overflow-x-auto"><code id="gil-startup-check" class="font-mono text-emerald-300">import sys
 if sys._is_gil_enabled():
     raise RuntimeError("此程式需要停用 GIL")</code></pre>
             <button onclick="copyText(document.getElementById('gil-startup-check').textContent)" class="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-[11px] transition">複製啟動檢查</button>
@@ -960,15 +962,15 @@ if sys._is_gil_enabled():
           throughputBadge: '1.0x 基準',
           throughputPct: 25,
           cpuBase: 26,
-          cpuNote: '僅 1 核執行 / 3 核等待',
+          cpuNote: '純 Python 位元組碼以單執行緒輪替',
           contentionBase: 78.5,
-          contentionNote: '嚴重 GIL 搶鎖爭用',
+          contentionNote: '示意 GIL 等待',
           contentionBar: 82,
           copyTitle: '零複製',
           copySub: '但受限 GIL',
-          copyDesc: '雖共享記憶體，但同時僅 1 執行緒可運算'
+          copyDesc: '可共享物件；同一 GIL 下僅一條執行緒同時執行純 Python 位元組碼'
         },
-        bannerText: '目前處於 <strong class="text-amber-300">傳統 GIL 多執行緒模擬</strong>：同時僅有 <strong class="text-red-400">1 顆核心</strong> 能持有 <code class="font-mono text-red-300">🔒 GIL</code> 執行位元組碼，其餘 3 顆核心陷入阻塞等待，導致輸入佇列積壓並觸發背壓。'
+        bannerText: '目前處於 <strong class="text-amber-300">傳統 GIL 多執行緒模擬</strong>：同一個 GIL 下，同一時間只有一條執行緒執行純 Python 位元組碼。此圖示範 CPU 密集工作；I/O 或會釋放 GIL 的原生程式碼不受同樣限制。'
       },
       'sub-interpreters': {
         label: '多子直譯器隔離通道 (concurrent.interpreters)',
@@ -990,7 +992,7 @@ if sys._is_gil_enabled():
           copySub: 'Pickle / Shareable',
           copyDesc: '依物件類型共享或序列化，模組狀態各自獨立'
         },
-        bannerText: '目前處於 <strong class="text-violet-300">多子直譯器隔離通道模擬</strong>：4 個獨立子直譯器各自擁有專屬 GIL 實現真多核運算，透過 <code class="font-mono text-violet-300">interpreters.create_queue()</code> 傳遞資料並承擔少量序列化複製成本，換取最高記憶體隔離度。'
+        bannerText: '目前處於 <strong class="text-violet-300">多子直譯器隔離通道模擬</strong>：4 個獨立子直譯器各自擁有專屬 GIL 實現真多核運算，透過 <code class="font-mono text-violet-300">interpreters.create_queue()</code> 傳遞資料並承擔少量序列化複製成本，分離模組與直譯器狀態；仍在同一行程內，不是安全沙箱。'
       }
     };
 
@@ -1001,7 +1003,7 @@ if sys._is_gil_enabled():
         peps: ['PEP 814 frozendict', 'mimalloc'],
         detail: '單一生產者專責從外部串流（網路、檔案、迭代器）讀取原始事件，並封裝成不可變的 frozendict 載荷。由於 Python 3.15t 採用 mimalloc 執行緒本地配置器，配置路徑可減少部分同步爭用，且由單一執行緒消費上游迭代器，避免跨執行緒併發迭代造成的競態遺漏。',
         modeDesc: {
-          'free-threaded': '在本地 mimalloc Heap 快速配置 frozendict 不可變載荷，直接將物件指標寫入輸入通道（零複製），完全無需額外業務鎖。',
+          'free-threaded': '生產者建立只含不可變值的 frozendict，佇列在同一行程內傳遞物件參照。範例不共用可變業務狀態，因此不用另加業務鎖；佇列本身仍會同步。',
           'legacy-gil': '每次建立物件與呼叫 put() 皆必須與下游 Workers 爭搶同一把全域 GIL，當下游阻塞時易受背壓限制。',
           'sub-interpreters': '主直譯器負責產生可跨直譯器傳遞的基本型別或可 Pickle 物件，投入 interpreters.create_queue() 進行隔離分派。'
         },
@@ -1063,7 +1065,7 @@ if sys._is_gil_enabled():
         modeDesc: {
           'free-threaded': '所有 worker 都退出後，主執行緒才送出 STOP，避免 Collector 漏掉最後一筆結果。',
           'legacy-gil': '接收速率受限於單核吞吐瓶頸，收尾使用標準引用計數與週期 GC 回收。',
-          'sub-interpreters': '主直譯器回收各子直譯器回傳結果後，依序呼叫 interp.close() 完整釋放隔離直譯器記憶體空間。'
+          'sub-interpreters': '主直譯器回收各子直譯器回傳結果後，依序呼叫 interp.close() 銷毀子直譯器，不保證程序的 RSS 立即下降。'
         },
         code: `def collector(out_chan: queue.SimpleQueue) -> list[frozendict]:\n    results = []\n    while True:\n        item = out_chan.get()\n        if item is STOP:  # PEP 661 唯一身分比對\n            break\n        results.append(item)\n    return results`
       }
@@ -1114,11 +1116,11 @@ if sys._is_gil_enabled():
         badge: 'CASE 01 · 金融高頻行情與風控',
         accent: 'emerald',
         title: '即時金融行情與多維風控計算管線',
-        subtitle: '高頻 Tick 以 frozendict 零複製廣播給多組策略與風控 Worker，徹底消除 multiprocessing 跨行程序列化延遲。',
+        subtitle: '將行情資料封裝為 frozendict，透過有界佇列分派給工作執行緒。每筆由一個 Worker 處理。',
         painPoint: '傳統多行程（multiprocessing）每秒傳遞上萬筆市場行情快照（OrderBook / Tick）時，應量測序列化與 IPC 對尾端延遲的影響；而傳統多執行緒又受限於 GIL 無法同時運算 VaR、Gamma 曝險與滑價模型。',
         solution: '透過 Python 3.15t 無 GIL 執行緒與內建 frozendict，行情接入端只需建立一次不可變 Tick 快照，並將參考放入佇列，由其中一個可用 worker 處理該筆行情。若每個策略都要收到同一筆行情，則需分別投遞。',
         diagramSvg: `
-          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="fintech-flow-title fintech-flow-desc">
+          <p id="scroll-case-1" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-case-1-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="實務架構圖 / Scenario architecture" aria-describedby="scroll-case-1" id="scroll-case-1-view" style="--diagram-min:960px"><svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="fintech-flow-title fintech-flow-desc">
 <title id="fintech-flow-title">金融行情風控</title><desc id="fintech-flow-desc">解碼行情、經有界通道分派風控工作，再合併結果。</desc>
 <rect x="0" y="0" width="960" height="280" rx="0" fill="#111B2A"/>
 <path d="M 220 140 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 136 L 252 140 L 243 144 Z" fill="#71859D"/>
@@ -1149,7 +1151,7 @@ if sys._is_gil_enabled():
 <text x="756" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">風控閘門與下單路由</text>
 <text x="756" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SimpleQueue</text>
 <text x="756" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">彙整告警與交易訊號</text>
-</svg>
+</svg></div>
         `,
         code: `import math, queue, sys, threading
 
@@ -1228,7 +1230,7 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
         painPoint: '大型語料前處理（正規化、Tokenizer 分塊、MinHash / SHA-256 去重）高度耗費 CPU。若使用多行程處理 GB 級文件，記憶體複製與序列化開銷極大；若無背壓控制，上游瞬間塞爆 RAM 會導致下游 GPU Embedding 服務 OOM 崩潰。',
         solution: '利用單一 Producer 順序串流讀取檔案避免磁碟隨機 I/O，透過 queue.Queue(maxsize=64) 施加精準背壓，讓多核 CPU Workers 無鎖平行清洗並以批次 tuple 寫入 SimpleQueue 餵給 GPU 向量化執行緒。',
         diagramSvg: `
-          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="etl-flow-title etl-flow-desc">
+          <p id="scroll-case-2" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-case-2-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="實務架構圖 / Scenario architecture" aria-describedby="scroll-case-2" id="scroll-case-2-view" style="--diagram-min:960px"><svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="etl-flow-title etl-flow-desc">
 <title id="etl-flow-title">LLM 語料 ETL</title><desc id="etl-flow-desc">串流讀取語料，經有界佇列交由四個 Worker 清洗分塊，最後去重組批。</desc>
 <rect x="0" y="0" width="960" height="192" rx="0" fill="#111B2A"/>
 <path d="M 220 96 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 92 L 252 96 L 243 100 Z" fill="#71859D"/>
@@ -1250,7 +1252,7 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
 <text x="756" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">去重與組批</text>
 <text x="756" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Batch Collector → GPU</text>
 <text x="756" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">STOP 時送出尾批</text>
-</svg>
+</svg></div>
         `,
         code: `import hashlib, queue, re, threading
 
@@ -1336,7 +1338,7 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
         painPoint: '雲端微服務每秒湧入數十萬筆存取日誌，進行正則解析、IP 黑名單比對、SQLi/XSS 偵測與防竄改雜湊計算屬於典型 CPU 密集任務，單核直譯器往往跟不上尖峰流量而遺漏即時入侵告警。',
         solution: '將大型資安規則庫與威脅情資表載入為唯讀 `frozendict` / `frozenset`，讓所有 Worker 共用唯讀規則進行平行比對，僅將命中的異常事件透過 `SimpleQueue` 非阻塞匯流至告警引擎。',
         diagramSvg: `
-          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="audit-flow-title audit-flow-desc">
+          <p id="scroll-case-3" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-case-3-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="實務架構圖 / Scenario architecture" aria-describedby="scroll-case-3" id="scroll-case-3-view" style="--diagram-min:960px"><svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="audit-flow-title audit-flow-desc">
 <title id="audit-flow-title">資安日誌稽核</title><desc id="audit-flow-desc">日誌經微批次佇列分派至平行比對引擎，命中項目送往 SIEM。</desc>
 <rect x="0" y="0" width="960" height="192" rx="0" fill="#111B2A"/>
 <path d="M 220 96 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 92 L 252 96 L 243 100 Z" fill="#71859D"/>
@@ -1358,7 +1360,7 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
 <text x="756" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SIEM 告警匯流</text>
 <text x="756" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SimpleQueue</text>
 <text x="756" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">只送出命中項目</text>
-</svg>
+</svg></div>
         `,
         code: `import hashlib, queue, re, threading
 
@@ -1444,7 +1446,7 @@ def run_secops_pipeline(log_stream: list[str], batch_size: int = 200) -> list[fr
         painPoint: '自由執行緒環境匯入未宣告支援的擴充可能重啟 GIL。子直譯器只能提供同程序內的狀態隔離。不可信外掛需採具獨立權限及資源限制的程序或沙箱。',
         solution: '用 concurrent.interpreters 建立子直譯器，透過 create_queue() 傳遞可分享或可序列化的資料，以明確訊息標示停止。工作結束後再關閉直譯器。',
         diagramSvg: `
-          <svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="subinterp-flow-title subinterp-flow-desc">
+          <p id="scroll-case-4" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-case-4-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="實務架構圖 / Scenario architecture" aria-describedby="scroll-case-4" id="scroll-case-4-view" style="--diagram-min:960px"><svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 280" role="img" aria-labelledby="subinterp-flow-title subinterp-flow-desc">
 <title id="subinterp-flow-title">多子直譯器隔離</title><desc id="subinterp-flow-desc">主直譯器以隔離通道派發工作，收集三個子直譯器的結果。</desc>
 <rect x="0" y="0" width="960" height="280" rx="0" fill="#111B2A"/>
 <path d="M 220 140 H 252" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 243 136 L 252 140 L 243 144 Z" fill="#71859D"/>
@@ -1475,7 +1477,7 @@ def run_secops_pipeline(log_stream: list[str], batch_size: int = 200) -> list[fr
 <text x="756" y="123" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">回收結果並清理</text>
 <text x="756" y="145" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">工作結束後釋放</text>
 <text x="756" y="167" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">interp.close()</text>
-</svg>
+</svg></div>
         `,
         code: `from concurrent import interpreters
 
@@ -1715,7 +1717,7 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
           : 'CPython 多子直譯器執行環境';
 
       document.getElementById('svg-collector-note').textContent = isSub
-        ? '✓ interp.close() 完整釋放'
+        ? '✓ interp.close() 關閉子直譯器'
         : isGIL ? '⚠ 週期 GC 需等待 GIL' : '✓ 等候最後一筆結果';
 
       // 更新主要連線色彩
@@ -2279,5 +2281,6 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
       requestAnimationFrame(simulationLoop);
     });
   </script>
+<script>(function(){document.addEventListener('click',function(event){var button=event.target.closest('.diagram-zoom');if(!button)return;var region=document.getElementById(button.getAttribute('aria-controls'));if(!region)return;var zoom=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(zoom));button.textContent=zoom?'符合畫面':'放大圖表';region.toggleAttribute('data-full',zoom);if(!zoom)region.scrollLeft=0;});}());</script>
 </body>
 </html>
