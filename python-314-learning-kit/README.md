@@ -1,6 +1,6 @@
 # Python 3.14 語法與新特性學習資料包
 
-直接開啟 [離線 HTML 教材](python-314-complete-guide.html)，或在 Obsidian 閱讀 [Markdown 原稿](python-314-complete-guide.md)。共 16 個核心語法單元，本版特性包括 t-string、延後求值的註記、Zstandard、子直譯器及程序移植。整理日期為 2026-11-24（台北），使用 3.14.10 官方文件，實跑為 CPython 3.14.7。
+兩種語言可在頁首切換，兩版均可離線閱讀。直接開啟 [繁體中文 HTML](python-314-complete-guide.html) 或 [English HTML](python-314-complete-guide.en.html)，或在 Obsidian 閱讀 [Markdown 原稿](python-314-complete-guide.md)。共 16 個核心語法單元，本版特性包括 t-string、延後求值的註記、Zstandard、子直譯器及程序移植。整理日期為 2026-11-24（台北），使用 3.14.10 官方文件，實跑為 CPython 3.14.7。
 
 ## 執行範例
 

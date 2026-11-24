@@ -1,0 +1,1189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python 3.14 Complete Guide to Syntax and New Features</title>
+<style>
+:root { color-scheme:light; --ink:#17243a; --muted:#5d7087; --line:#dae5ed; --teal:#147c7b; --bg:#f4f7f9; }
+* { box-sizing:border-box; } html { scroll-behavior:smooth; scroll-padding-top:28px; }
+body { margin:0; color:var(--ink); background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif; line-height:1.85; }
+a { color:#176cb0; text-underline-offset:3px; overflow-wrap:anywhere; }
+.hero { padding:56px max(28px,calc((100vw - 1450px)/2)); background:#152840; color:#f8fbff; border-bottom:7px solid #60b5af; }
+.eyebrow { letter-spacing:3px; color:#9ad5d0; font-size:12px; font-weight:750; }
+.hero h1 { font-size:clamp(31px,4vw,52px); line-height:1.3; letter-spacing:-1px; margin:14px 0 17px; max-width:1100px; }
+.hero p { color:#ccd9e8; margin:8px 0 0; max-width:1100px; }
+.badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+.badges span { padding:4px 11px; border:1px solid #4e657f; border-radius:6px; font-size:12px; }
+.layout { max-width:1510px; margin:auto; display:grid; grid-template-columns:270px minmax(0,1fr); gap:32px; padding:34px 28px 72px; }
+aside { position:sticky; top:20px; align-self:start; max-height:calc(100vh - 40px); overflow:auto; padding:8px 14px 16px 0; scrollbar-width:thin; }
+aside h2 { font-size:15px; margin:0 0 10px; } .toc-h2,.toc-h3 { display:block; text-decoration:none; line-height:1.5; margin:0; padding:7px 9px; border-radius:6px; }
+.toc-h2 { color:#19314d; font-size:13px; font-weight:750; margin-top:10px; background:#e8eff4; }
+.toc-h3 { font-size:12px; color:var(--muted); padding-left:13px; } .toc-h3:hover,.toc-h2:hover { background:#dceeea; color:#105e5c; }
+.toc-hint { color:var(--muted); font-size:12px; margin:6px 0 13px; }
+main { min-width:0; padding:34px 43px 60px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 38px #19314d06; }
+main h2 { font-size:29px; margin:66px 0 22px; line-height:1.5; padding-bottom:12px; border-bottom:2px solid #bedad8; letter-spacing:-.3px; }
+main h2:first-child { margin-top:0; } main h3 { font-size:23px; line-height:1.5; margin:40px 0 16px; color:#205e73; } main h4 { font-size:19px; margin:29px 0 12px; line-height:1.5; }
+main p { margin:13px 0 18px; overflow-wrap:anywhere; } main li { margin:7px 0; } main ul, main ol { padding-left:1.6em; }
+strong { color:#182b43; } code { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-size:.9em; background:#edf3f7; color:#25445e; padding:2px 5px; border-radius:4px; }
+pre { padding:21px 24px; border-radius:9px; border:1px solid #d8e4ed; background:#f5f8fb; line-height:1.65; overflow-x:auto; margin:20px 0 25px; font-size:14px; tab-size:4; }
+pre code { padding:0; border:0; border-radius:0; background:none; color:#21364e; font-size:inherit; white-space:pre; }
+.table-scroll { max-width:100%; overflow-x:auto; margin:20px 0 27px; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14px; line-height:1.7; } th { background:#edf5f4; text-align:left; color:#205c60; font-weight:750; } th,td { padding:12px 14px; border:1px solid #dce6ed; vertical-align:top; } td code { white-space:normal; overflow-wrap:anywhere; } tbody tr:nth-child(even) { background:#fafcfd; }
+blockquote { margin:24px 0; border-left:4px solid #63a9a5; padding:6px 20px; background:#f0f8f7; color:#456271; }
+.diagram { margin:25px 0 36px; } .diagram-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:#f5f8fa; }
+.diagram img { display:block; width:100%; height:auto; min-width:720px; } figcaption { font-size:12px; color:var(--muted); margin-top:9px; }
+footer { text-align:center; color:var(--muted); font-size:12px; padding:0 24px 35px; }
+@media(max-width:1050px) { .layout { grid-template-columns:210px minmax(0,1fr); gap:20px; padding:24px 18px; } main { padding:26px; } }
+@media(max-width:760px) { .hero { padding:34px 22px; } .layout { display:block; padding:18px 12px 35px; } aside { position:static; max-height:310px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:17px; margin-bottom:18px; } main { padding:24px 19px; } main h2 { font-size:25px; margin-top:45px; } main h3 { font-size:21px; } pre { padding:15px; font-size:12px; } }
+@media print { @page { size:A4; margin:16mm; } html { scroll-behavior:auto; } body { background:white; font-size:10.5pt; line-height:1.65; } .hero { background:white; color:#17243a; border-bottom:2px solid #147c7b; padding:0 0 20px; } .hero h1 { font-size:28pt; } .hero p,.eyebrow { color:#456271; } .badges,aside,footer { display:none; } .layout { display:block; padding:0; } main { padding:0; border:0; box-shadow:none; } main h2 { font-size:19pt; break-before:page; margin:0 0 18px; } main h2:first-child { break-before:auto; margin-top:20px; } main h3,main h4 { break-after:avoid; } table { min-width:0; font-size:9pt; } tr { break-inside:avoid; } pre { font-size:8.3pt; white-space:pre-wrap; overflow:visible; } pre code { white-space:pre-wrap; } .table-scroll,.diagram-scroll { overflow:visible; } .diagram img { min-width:0; } .diagram { break-inside:avoid; } a { color:#244b71; text-decoration:none; } }
+pre { line-height: 125%; }
+
+a:focus-visible, pre:focus-visible, .table-scroll:focus-visible {
+    outline: 2px solid #147c7b; outline-offset: 3px;
+}
+.hero .links { display: flex; flex-wrap: wrap; gap: 7px 22px; margin-top: 18px; }
+.hero a, .hero a:visited { color: #b1ece7; }
+.diagram img { min-width: 0; }
+h2, h3 { overflow-wrap: anywhere; }
+html { scroll-padding-top: 84px; }
+.language-bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px max(16px, calc((100vw - 1450px) / 2));
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+}
+.language-bar .brand { color: var(--ink); font-weight: 750; text-decoration: none; }
+.language-buttons { display: flex; gap: 4px; padding: 4px; background: #edf3f6; border-radius: 9px; }
+.language-buttons a, .language-buttons span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    color: #344b61;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.language-buttons a:hover { background: #dbece9; }
+.language-buttons [aria-current] { background: #126f6d; color: #fff; }
+aside { top: 84px; max-height: calc(100vh - 104px); }
+@media (max-width: 920px) { aside { max-height: 300px; } }
+@media print {
+    .language-bar, .hero .links { display: none; }
+    .table-scroll { overflow: visible; }
+    table { min-width: 0; }
+}
+</style>
+</head>
+<body id="top">
+<div class="language-bar">
+  <a class="brand" href="#top">Python 3.14</a>
+  <nav class="language-buttons" aria-label="Reading language"><a href="python-314-complete-guide.html" lang="zh-Hant" hreflang="zh-Hant" data-switch>中文</a><span lang="en" aria-current="page">English</span></nav>
+</div>
+<header class="hero">
+  <a href="#content">Skip to the guide</a>
+  <h1>Python 3.14 Complete Guide to Syntax and New Features</h1>
+  <p>Core syntax, release changes, concurrency, and an HVAC simulation</p>
+  <div class="links">
+    <a href="python-314-complete-guide.md">Chinese Markdown source</a>
+    <a href="README.md">Example instructions (Chinese)</a>
+    <a href="verification.json">Verification record</a>
+  </div>
+</header>
+<div class="layout">
+  <aside><h2>Chapter contents</h2><nav aria-label="Chapter contents"><a class="toc-h2" href="#section-01">How to use these notes</a><a class="toc-h2" href="#section-02">Set up your environment</a><a class="toc-h2" href="#section-03">Part I | Core syntax and the standard library</a><a class="toc-h3" href="#section-04">C01 | Understanding code blocks and names</a><a class="toc-h3" href="#section-05">C02 | Numbers, strings, f-strings, and bytes</a><a class="toc-h3" href="#section-06">C03 | Name binding, mutability, and copying</a><a class="toc-h3" href="#section-07">C04 | Operators and precedence at a glance</a><a class="toc-h3" href="#section-08">C05 | Containers, slicing, unpacking, and comprehensions</a><a class="toc-h3" href="#section-09">C06 | if, match, loops, and loop else clauses</a><a class="toc-h3" href="#section-10">C07 | Function parameters: positional, keyword, and variadic arguments</a><a class="toc-h3" href="#section-11">C08 | LEGB, closures, and decorators</a><a class="toc-h3" href="#section-12">C09 | class, dataclass, and object protocols</a><a class="toc-h3" href="#section-13">C10 | Iterators, yield, and yield from</a><a class="toc-h3" href="#section-14">C11 | Exceptions, exception chaining, and ExceptionGroup</a><a class="toc-h3" href="#section-15">C12 | with and contextmanager: expressing lifetimes in code structure</a><a class="toc-h3" href="#section-16">C13 | typing: making data contracts explicit</a><a class="toc-h3" href="#section-17">C14 | Modules, import, entry points, and environment management</a><a class="toc-h3" href="#section-18">C15 | Files, JSON, and choosing standard library modules</a><a class="toc-h3" href="#section-19">C16 | async syntax and basic TaskGroup usage</a><a class="toc-h2" href="#section-20">Part II — Python 3.14 Features and Migration</a><a class="toc-h3" href="#section-21">1. Template strings and safe rendering</a><a class="toc-h3" href="#section-22">2. Deferred evaluation, forward references, and annotationlib</a><a class="toc-h3" href="#section-23">3. Exception syntax, finally, and library tools</a><a class="toc-h3" href="#section-24">4. Migrating from Python 3.13</a><a class="toc-h2" href="#section-25">Part III — From One Event Loop to Multiple Cores</a><a class="toc-h3" href="#section-26">Execution models and data boundaries</a><a class="toc-h3" href="#section-27">Backpressure, synchronization, and shutdown</a><a class="toc-h3" href="#section-28">Free threading becomes a supported build</a><a class="toc-h2" href="#section-29">Part IV — HVAC Project and Upgrade Checks</a><a class="toc-h3" href="#section-30">Eight simulated points from validation to JSON output</a><a class="toc-h3" href="#section-31">Version selection and syntax compatibility</a><a class="toc-h3" href="#section-32">Turn tests into release gates</a><a class="toc-h3" href="#section-33">Exercises and acceptance checks</a><a class="toc-h2" href="#section-34">Part V — Engineering Diagrams</a><a class="toc-h3" href="#section-35">From planning to implementation and release</a><a class="toc-h3" href="#section-36">Service components, governance, and release evidence</a><a class="toc-h2" href="#section-37">Part VI — Verification Record</a></nav></aside>
+  <main id="content" tabindex="-1"><h2 id="section-01">How to use these notes</h2>
+<p>This guide adapts the 16 core units from the Python 3.15 guide with examples that run on Python 3.14. It covers template strings, deferred annotation evaluation, subinterpreters, and Zstandard. Documentation was checked against <strong>3.14.10</strong>, and the examples were verified on <strong>CPython 3.14.7</strong>. Reviewed on <strong>2026-11-24 (Taipei)</strong>.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Learning goal</th>
+<th>Reading order</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Learn the fundamentals</td>
+<td>Use C01–C06 for data and control flow, C07–C13 for functions, exceptions, and types, and C14–C16 for tooling and I/O.</td>
+</tr>
+<tr>
+<td>Upgrade from an earlier release</td>
+<td>Start with new features and migration, then read about concurrency and release checks.</td>
+</tr>
+<tr>
+<td>Build a small project</td>
+<td>Run the HVAC simulation, compare its output with the expected report, and try the exercises.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="section-02">Set up your environment</h2>
+<pre tabindex="0"><code class="language-bash">python3.14 --version
+python3.14 -m venv .venv
+# macOS / Linux
+source .venv/bin/activate
+# Windows 則用 py -3.14 -m venv .venv
+# 並在 PowerShell 執行 .venv\Scripts\Activate.ps1
+</code></pre>
+<p>The command <code>python3.14</code> refers to the Python 3.14 interpreter. After activating the virtual environment, use <code>python</code>. The examples use the standard library. Leave out <code>-O</code> so that test assertions run. SQLite and Zstandard examples need their corresponding extension modules in the CPython build.</p>
+<p>Official sources · <a href="https://docs.python.org/3.14/reference/index.html">Language reference</a> · <a href="https://docs.python.org/3.14/library/index.html">Standard library</a> · <a href="https://devguide.python.org/versions/">Python versions and support</a></p>
+<h2 id="section-03">Part I | Core syntax and the standard library</h2>
+<h3 id="section-04">C01 | Understanding code blocks and names</h3>
+<p>This section covers <strong>core syntax available in Python 3.14</strong>. <code>match</code>, <code>dataclass</code>, <code>TaskGroup</code>, and type parameter syntax were introduced in 3.10, 3.7, 3.11, and 3.12, respectively. Start with data and control flow, then learn functions and objects before moving on to exceptions, types, modules, and asynchronous code.</p>
+<p>Python uses indentation to delimit blocks. The headers of statements such as <code>if</code>, <code>for</code>, <code>def</code>, and <code>class</code> end with a colon, and their bodies are indented one level further. Engineering projects typically use four spaces per level. Four spaces is a style convention; the actual syntax requirement is consistent block indentation. Do not mix tabs and spaces. Lines can break naturally inside parentheses, which is usually easier to maintain than trailing backslashes.</p>
+<pre tabindex="0"><code class="language-python">supply_c = 7.2
+return_c = 12.1
+
+if return_c - supply_c &gt;= 4.0:
+    message = (
+        &quot;冰水溫差符合本次範例條件：&quot;
+        f&quot;{return_c - supply_c:.1f} °C&quot;
+    )
+    print(message)
+</code></pre>
+<p>Names are case-sensitive: <code>pump_id</code> and <code>Pump_ID</code> are different names. Names cannot begin with a digit. Python allows certain Unicode characters in identifiers, but mixing look-alike characters makes review more difficult. Use consistent naming conventions for equipment identifiers and function names. <code>#</code> begins an inline comment. The first string in a function, class, or module can serve as a docstring, accessible to <code>help()</code> and other tools. A triple-quoted string is not, in itself, general comment syntax.</p>
+<p>Reserved words such as <code>class</code>, <code>return</code>, and <code>None</code> cannot be used as ordinary variable names. A soft keyword has syntactic meaning only in specific contexts, as in the relevant uses of <code>match</code>, <code>case</code>, <code>_</code>, and <code>type</code>. Query the current interpreter directly for the complete list to avoid mixing lists from different versions. Built-in names such as <code>list</code> and <code>str</code> are not reserved words, but you should avoid shadowing them with variables of the same name.</p>
+<pre tabindex="0"><code class="language-python">import keyword
+
+print(keyword.iskeyword(&quot;class&quot;))       # True
+print(keyword.issoftkeyword(&quot;match&quot;))   # True
+print(keyword.kwlist)
+print(keyword.softkwlist)
+</code></pre>
+<p>Official sources: <a href="https://docs.python.org/3.14/reference/lexical_analysis.html" target="_blank" rel="noopener noreferrer">Lexical analysis</a>, <a href="https://docs.python.org/3.14/library/keyword.html" target="_blank" rel="noopener noreferrer">keyword</a>.</p>
+<h3 id="section-05">C02 | Numbers, strings, f-strings, and bytes</h3>
+<p><code>int</code> is suitable for counts, addresses, and bitmasks. Its size is limited by available memory, with no fixed 32-bit or 64-bit upper bound. <code>float</code> is suitable for general calculations involving continuous quantities, but uses binary floating-point representation, so some decimal fractions cannot be stored exactly. <code>complex</code> represents complex numbers. <code>bool</code> represents truth values. Although it inherits from an integer type, data validation should still explicitly distinguish numerical readings from on/off states.</p>
+<pre tabindex="0"><code class="language-python">import math
+from decimal import Decimal
+
+raw_count = 12_500
+register = 0x20
+ratio = 3 / 2                 # 1.5
+whole = -3 // 2               # -2，向負無限大取整
+close = math.isclose(0.1 + 0.2, 0.3)
+bill = Decimal(&quot;0.1&quot;) + Decimal(&quot;0.2&quot;)
+</code></pre>
+<p><code>Decimal(&quot;0.1&quot;)</code> constructs an exact decimal from decimal text. Passing a float to <code>Decimal</code> preserves the approximation already present in that float. Choose relative and absolute tolerances appropriate for the problem, especially close to zero. <code>round()</code> rounds a value, while <code>f&quot;{value:.1f}&quot;</code> controls its display without changing the original reading.</p>
+<p><code>str</code> stores text. Single and double quotes work the same way for basic string literals. Escape sequences such as <code>\n</code> and <code>\t</code> represent special characters. Raw strings such as <code>r&quot;C:\logs\ahu&quot;</code> reduce escaping, but cannot end in an odd number of backslashes. Strings are immutable, so methods such as <code>replace()</code> and <code>strip()</code> return a string result. Indexing works on Unicode code points. One visible glyph can span several code points.</p>
+<pre tabindex="0"><code class="language-python">point = &quot;T10&quot;
+value = 24.375
+label = f&quot;{point}: {value:.1f} °C&quot;   # T10: 24.4 °C
+debug = f&quot;{point=}, {value=}&quot;       # 顯示名稱與值
+literal = f&quot;{{point}} = {point}&quot;   # 雙大括號表示文字大括號
+
+payload = &quot;送風溫度&quot;.encode(&quot;utf-8&quot;)
+text = payload.decode(&quot;utf-8&quot;)
+frame = bytes([1, 3, 0, 32])
+first_byte = frame[0]              # 1，索引結果是整數
+</code></pre>
+<p><code>bytes</code> is an immutable sequence of bytes. <code>bytearray</code> is mutable. Choose an encoding when converting between text and bytes. Decode only the text fields of a binary packet with <code>decode()</code>. For multi-byte integers, check byte order, signedness, and field length. One example is <code>int.from_bytes(frame[2:4], &quot;big&quot;)</code>.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/introduction.html" target="_blank" rel="noopener noreferrer">Introduction to numbers and strings</a>, <a href="https://docs.python.org/3.14/tutorial/inputoutput.html" target="_blank" rel="noopener noreferrer">Output formatting</a>, <a href="https://docs.python.org/3.14/library/stdtypes.html" target="_blank" rel="noopener noreferrer">Built-in types</a>, <a href="https://docs.python.org/3.14/tutorial/floatingpoint.html" target="_blank" rel="noopener noreferrer">Floating-point limitations</a>, <a href="https://docs.python.org/3.14/library/decimal.html" target="_blank" rel="noopener noreferrer">decimal</a>.</p>
+<h3 id="section-06">C03 | Name binding, mutability, and copying</h3>
+<p><code>a = b</code> binds the name <code>a</code> to the object referenced by <code>b</code>; it does not copy the data. Arguments received by a function also involve object references: the caller sees changes made to a shared list, but rebinding a parameter inside the function to another list does not reassign the caller's variable. Distinguishing changes to an object from changes to a name is more accurate than memorizing labels such as pass-by-value or pass-by-reference.</p>
+<pre tabindex="0"><code class="language-python">from copy import deepcopy
+
+original = {&quot;AHU01&quot;: {&quot;setpoint&quot;: 24.0}}
+alias = original
+shallow = original.copy()
+deep = deepcopy(original)
+
+original[&quot;AHU01&quot;][&quot;setpoint&quot;] = 25.0
+print(alias[&quot;AHU01&quot;][&quot;setpoint&quot;])    # 25.0
+print(shallow[&quot;AHU01&quot;][&quot;setpoint&quot;])  # 25.0
+print(deep[&quot;AHU01&quot;][&quot;setpoint&quot;])     # 24.0
+</code></pre>
+<p>A shallow copy creates a new outer container, but nested objects inside it may still be shared. A deep copy recursively copies content that can be copied, with different costs and semantics. External resources such as connections and files cannot be copied arbitrarily like ordinary data. When creating a configuration snapshot, first decide which fields need to be independent, then choose a copying strategy.</p>
+<p><code>list</code>, <code>dict</code>, and <code>set</code> are generally mutable; numbers, <code>str</code>, <code>bytes</code>, and <code>tuple</code> are generally immutable. However, a tuple's immutability restricts only its element references; it does not freeze lists inside it. The list in <code>([1],)</code> still supports <code>append()</code>. <code>==</code> compares values, while <code>is</code> checks whether two references identify the same object. Use <code>value is None</code> to check for a missing value, and do not rely on incidental results from small-integer caching or string interning.</p>
+<p>Another common pitfall is <code>rows = [[0] * 3] * 2</code>: both rows point to the same inner list. Use <code>[[0] * 3 for _ in range(2)]</code> to create independent rows in two-dimensional data. <code>del name</code> removes a name binding; it does not remove every other name referencing that object, nor does it guarantee that external resources are closed immediately.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/reference/datamodel.html" target="_blank" rel="noopener noreferrer">Object data model</a>, <a href="https://docs.python.org/3.14/library/copy.html" target="_blank" rel="noopener noreferrer">Shallow and deep copying</a>.</p>
+<h3 id="section-07">C04 | Operators and precedence at a glance</h3>
+<p>An operator's behavior depends on the object types involved. For example, <code>+</code> can add numbers or concatenate strings, while <code>|</code> can perform integer bitwise operations, set unions, or dictionary merges. Identify the operands before interpreting the symbol.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Syntax</th>
+<th>Uses and cautions for engineering data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arithmetic</td>
+<td><code>+ - * / // % **</code></td>
+<td>Addition, subtraction, multiplication, division, floor division, remainder, and exponentiation; <code>//</code> does not always truncate toward zero</td>
+</tr>
+<tr>
+<td>Matrix multiplication</td>
+<td><code>@</code></td>
+<td>Provided by types that support this protocol; ordinary numbers and lists do not directly provide matrix operations</td>
+</tr>
+<tr>
+<td>Comparison</td>
+<td><code>== != &lt; &lt;= &gt; &gt;=</code></td>
+<td><code>0 &lt;= valve &lt;= 100</code> is a valid chained comparison</td>
+</tr>
+<tr>
+<td>Logical</td>
+<td><code>and or not</code></td>
+<td>Uses short-circuit evaluation; <code>and</code> and <code>or</code> can return operands and are not guaranteed to return bool</td>
+</tr>
+<tr>
+<td>Membership</td>
+<td><code>in</code>、<code>not in</code></td>
+<td><code>&quot;T10&quot; in readings</code> tests dictionary keys.</td>
+</tr>
+<tr>
+<td>Identity</td>
+<td><code>is</code>、<code>is not</code></td>
+<td>Checks whether references identify the same object; suitable for <code>x is None</code></td>
+</tr>
+<tr>
+<td>Bitwise</td>
+<td><code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code></td>
+<td>Parse status words, flags, and masks</td>
+</tr>
+<tr>
+<td>Conditional expression</td>
+<td><code>a if condition else b</code></td>
+<td>Selects one result; the two branches are not both evaluated</td>
+</tr>
+<tr>
+<td>Assignment expression</td>
+<td><code>:=</code></td>
+<td>Binds a name within an expression; pay attention to parentheses and readability</td>
+</tr>
+<tr>
+<td>Augmented assignment</td>
+<td><code>+= -= *=</code> and others</td>
+<td>May modify an object in place; cannot always be treated as creating a new object</td>
+</tr>
+</tbody>
+</table></div>
+<p>The following table lists common precedence levels from highest to lowest. Operators at the same level mostly associate from left to right; exponentiation and conditional expressions follow different associativity rules.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Highest to lowest</th>
+<th>Item</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Parenthesized grouping, indexing, slicing, calls, and attribute access</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>await</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>**</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Unary <code>+</code>, <code>-</code>, and <code>~</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>* / // % @</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>+ -</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>&lt;&lt; &gt;&gt;</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>&amp;</code>, then <code>^</code>, then <code>|</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Comparisons, <code>in</code>, <code>not in</code>, <code>is</code>, and <code>is not</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>not</code>, then <code>and</code>, then <code>or</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>a if condition else b</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>lambda</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>:=</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>-2**2</code> is equivalent to <code>-(2**2)</code> and produces <code>-4</code>. <code>2**-2</code> allows a negative exponent on the right and produces <code>0.25</code>. For compound bitwise conditions, write <code>(status &amp; 0b1000) != 0</code> so reviewers can immediately see the scope of the mask. <code>=</code> belongs to assignment statement syntax; it is not part of the expression precedence hierarchy above.</p>
+<pre tabindex="0"><code class="language-python">status = 0b1010
+fan_proven = (status &amp; 0b0010) != 0
+has_alarm = (status &amp; 0b1000) != 0
+state = &quot;異常&quot; if has_alarm else &quot;正常&quot;
+
+reading = 0.0
+wrong_default = reading or 24.0          # 得到 24.0，吞掉有效零值
+safe_default = 24.0 if reading is None else reading
+</code></pre>
+<p>Official sources: <a href="https://docs.python.org/3.14/reference/expressions.html" target="_blank" rel="noopener noreferrer">Expressions and precedence</a>, <a href="https://docs.python.org/3.14/library/stdtypes.html" target="_blank" rel="noopener noreferrer">Boolean operations and comparisons</a>.</p>
+<h3 id="section-08">C05 | Containers, slicing, unpacking, and comprehensions</h3>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Container</th>
+<th>Typical data</th>
+<th>Key behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td>Temperatures in chronological order</td>
+<td>Ordered and mutable; may contain duplicate values</td>
+</tr>
+<tr>
+<td><code>tuple</code></td>
+<td>One <code>(point, value)</code> record</td>
+<td>Ordered, with immutable element references; a single element requires a comma: <code>(7.2,)</code></td>
+</tr>
+<tr>
+<td><code>dict</code></td>
+<td>Measurement point names mapped to readings</td>
+<td>Lookup by key; preserves insertion order; keys must be hashable</td>
+</tr>
+<tr>
+<td><code>set</code></td>
+<td>The set of devices offline in the current cycle</td>
+<td>Unique elements; do not rely on iteration order</td>
+</tr>
+<tr>
+<td><code>frozenset</code></td>
+<td>An immutable set of measurement points</td>
+<td>Cannot be modified; suitable when a hashable set is required</td>
+</tr>
+</tbody>
+</table></div>
+<p>An empty dictionary is <code>{}</code>; an empty set is <code>set()</code>. When a dictionary key is missing, <code>d[key]</code> raises <code>KeyError</code>. <code>d.get(key)</code> can return a default value, but distinguish a missing key from a key that exists with the value None. Mutating methods such as <code>list.append()</code> and <code>list.sort()</code> usually return <code>None</code>. Do not write <code>values = values.sort()</code>.</p>
+<pre tabindex="0"><code class="language-python">values = [23.5, 24.0, 24.5, 25.0]
+latest = values[-1]
+recent = values[-2:]              # [24.5, 25.0]
+alternate = values[::2]           # [23.5, 24.5]
+reversed_values = values[::-1]
+first, *middle, last = values
+
+points = [&quot;T10&quot;, &quot;T11&quot;, &quot;T12&quot;, &quot;T13&quot;]
+readings = dict(zip(points, values, strict=True))
+hot = {point: value for point, value in readings.items() if value &gt;= 24.5}
+rounded = [round(value, 1) for value in values]
+unique_values = {value for value in values}
+</code></pre>
+<p>Slicing uses <code>start:stop:step</code>, and <code>stop</code> is excluded from the result. Ordinary sequence slicing allows ranges that extend beyond the bounds, but direct indexing can still raise <code>IndexError</code>. The step cannot be zero. For a list, <code>a[:]</code> makes a shallow copy and does not copy nested contents. During unpacking, a starred target receives the remaining items as a list. Without a starred target, the number of items on each side must match.</p>
+<p><code>[*old, new]</code> unpacks an iterable. <code>{**defaults, **overrides}</code> merges mappings, with later keys overwriting earlier keys of the same name. By contrast, <code>**kwargs</code> in a function call does not allow a value for the same parameter to be supplied twice. Comprehensions are suitable for clear transformations and filtering. When there are two or three nested levels with side effects, an ordinary loop is easier to debug. <code>(x * 2 for x in values)</code> is a lazy generator expression; it does not immediately construct a complete list.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/datastructures.html" target="_blank" rel="noopener noreferrer">Data structures</a>, <a href="https://docs.python.org/3.14/library/functions.html" target="_blank" rel="noopener noreferrer">zip and built-in functions</a>.</p>
+<h3 id="section-09">C06 | if, match, loops, and loop else clauses</h3>
+<p><code>if</code> checks conditions from top to bottom and executes only the first matching branch. Empty containers, zero, <code>None</code>, and similar values are generally treated as false, but a missing value and a valid zero often have different meanings in the application. For monitoring data, handle missing values before comparing upper and lower limits. For floating-point data that may contain <code>NaN</code>, explicitly decide how to handle invalid values as well.</p>
+<pre tabindex="0"><code class="language-python">def classify_temperature(value):
+    if value is None:
+        return &quot;missing&quot;
+    elif value &gt;= 28.0:
+        return &quot;high&quot;
+    else:
+        return &quot;normal&quot;
+</code></pre>
+<p><code>match</code> performs structural pattern matching. It can examine dictionaries, sequences, literals, and type structures; it is more than shorthand for a multi-branch <code>if</code>. A guard is an additional condition checked after a pattern matches. An ordinary bare name in a pattern usually captures a variable rather than reading an existing constant. To match a constant, use a literal or an attribute with a qualified name. <code>_</code> means that portion is not captured.</p>
+<pre tabindex="0"><code class="language-python">def describe_event(event):
+    match event:
+        case {&quot;kind&quot;: &quot;temperature&quot;, &quot;value&quot;: float(value)} if value &gt;= 28:
+            return f&quot;高溫 {value:.1f} °C&quot;
+        case {&quot;kind&quot;: &quot;offline&quot;, &quot;device&quot;: device}:
+            return f&quot;{device} 離線&quot;
+        case _:
+            return &quot;其他事件&quot;
+</code></pre>
+<p>Here, <code>float(value)</code> is a class pattern that matches a floating-point object and captures its value; it does not apply a <code>float()</code> conversion to a string. Dictionary patterns allow extra keys by default. If unknown fields must be rejected, validate them separately. A pattern also does not automatically guarantee that a number falls within the engineering measurement range.</p>
+<p><code>for</code> retrieves items from an iterable one at a time; <code>range(3)</code> produces <code>0、1、2</code>. Use <code>enumerate()</code> when you need an index and <code>zip()</code> to traverse data in parallel. Consider <code>strict=True</code> when both inputs should have the same length. <code>while</code> checks its condition at the start of each iteration. <code>break</code> exits the innermost loop, <code>continue</code> advances to the next iteration, and <code>pass</code> is a placeholder statement that performs no operation.</p>
+<pre tabindex="0"><code class="language-python">readings = {&quot;T10&quot;: 24.0, &quot;T11&quot;: 25.5}
+for point, value in readings.items():
+    if value &gt; 28.0:
+        print(&quot;第一個高溫點&quot;, point)
+        break
+else:
+    print(&quot;本輪沒有找到高溫點&quot;)
+</code></pre>
+<p>A loop's <code>else</code> clause runs when iteration is exhausted normally or the condition becomes false. <code>break</code> skips it. It does not mean that the if condition failed on the final iteration. Leaving through <code>return</code> or an exception also prevents execution from reaching this <code>else</code> clause. Adding or deleting dictionary keys during iteration is error-prone; first build a list of keys to delete or create a new filtered result.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/controlflow.html" target="_blank" rel="noopener noreferrer">Control flow tutorial</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html" target="_blank" rel="noopener noreferrer">Compound statements and pattern matching</a>.</p>
+<h3 id="section-10">C07 | Function parameters: positional, keyword, and variadic arguments</h3>
+<p>Functions transform inputs into outputs so that reading parsing, unit conversion, and status evaluation can each be verified independently. <code>return</code> exits a function immediately. Without an explicit return value, the result is <code>None</code>. <code>return value, quality</code> returns one tuple; it does not create two independent output channels. Defining a function also creates an object, so functions can be passed as arguments, returned, or stored in containers.</p>
+<pre tabindex="0"><code class="language-python">def summarize(device, /, offset=0.0, *samples, unit=&quot;°C&quot;, **metadata):
+    &quot;&quot;&quot;回傳指定設備的平均讀值摘要。&quot;&quot;&quot;
+    if not samples:
+        raise ValueError(&quot;至少需要一筆讀值&quot;)
+    mean = sum(samples) / len(samples) + offset
+    return {&quot;device&quot;: device, &quot;mean&quot;: mean, &quot;unit&quot;: unit, &quot;metadata&quot;: metadata}
+
+summary = summarize(&quot;AHU01&quot;, 0.2, 24.0, 26.0, unit=&quot;°C&quot;, floor=3)
+</code></pre>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Parameter position</th>
+<th>Example</th>
+<th>Calling rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before <code>/</code></td>
+<td><code>device</code></td>
+<td>Must be supplied by position</td>
+</tr>
+<tr>
+<td>After <code>/</code> and before <code>*</code></td>
+<td><code>offset</code></td>
+<td>May be supplied by position or keyword</td>
+</tr>
+<tr>
+<td><code>*samples</code></td>
+<td>Multiple readings</td>
+<td>Collects the remaining positional arguments into a tuple</td>
+</tr>
+<tr>
+<td>After <code>*samples</code> or a bare <code>*</code></td>
+<td><code>unit</code></td>
+<td>Must be supplied by keyword</td>
+</tr>
+<tr>
+<td><code>**metadata</code></td>
+<td>Additional fields</td>
+<td>Collects the remaining keyword arguments into a dict</td>
+</tr>
+</tbody>
+</table></div>
+<p>If you do not need to accept an arbitrary number of positional arguments, you can write <code>def convert(raw, /, *, scale=0.1): ...</code>. When <code>*samples</code> is already present, do not add a separate bare <code>*</code>. At the call site, <code>*values</code> and <code>**options</code> unpack data. In a definition, the stars specify how arguments are collected or restricted. Understand these uses separately.</p>
+<p>Ordinary default values are evaluated when <code>def</code> executes to create the function, not recreated for each call. <code>def collect(value, history=[]): ...</code> causes multiple calls to share the same list. Usually, change this to <code>history=None</code> and create a new list inside the function. If <code>None</code> is itself a valid input that must be distinguished, create a unique sentinel object.</p>
+<pre tabindex="0"><code class="language-python">def collect(value, history=None):
+    if history is None:
+        history = []
+    history.append(value)
+    return history
+
+ranked = sorted([(&quot;T10&quot;, 25.0), (&quot;T11&quot;, 23.0)], key=lambda item: item[1])
+</code></pre>
+<p><code>lambda</code> creates an anonymous function containing a single expression, suitable for a short sort key. For work involving multiple validation steps, retries, or side effects, use a named <code>def</code> with a docstring. Function parameter annotations do not automatically convert strings to numbers or reject incorrect types; responsibility for validation must still be assigned explicitly.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/controlflow.html#special-parameters" target="_blank" rel="noopener noreferrer">Functions and special parameters</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html#function-definitions" target="_blank" rel="noopener noreferrer">Function definitions</a>.</p>
+<h3 id="section-11">C08 | LEGB, closures, and decorators</h3>
+<p>LEGB is a useful starting point for understanding name lookup in ordinary functions: Local is the current function, Enclosing is an outer function, Global is the containing module, and Builtins contains built-in names. If a function contains an assignment to a name, that name is generally treated as local. Reading it before assignment may raise <code>UnboundLocalError</code>. <code>if</code> and ordinary <code>for</code> blocks do not create a separate local scope as functions do.</p>
+<p><code>global</code> makes assignments affect a module-level name; it does not declare a global variable shared by the entire application. <code>nonlocal</code> lets an inner function rebind an existing name in the nearest enclosing function scope where it is bound. Modifying the contents of an outer list differs from rebinding the outer name; the former does not necessarily require <code>nonlocal</code>. Classes and type parameters have additional scope rules. To access an instance attribute inside a method, write <code>self.name</code>. Do not treat the class body as an ordinary enclosing function.</p>
+<pre tabindex="0"><code class="language-python">def make_counter():
+    count = 0
+    def increment():
+        nonlocal count
+        count += 1
+        return count
+    return increment
+
+counter = make_counter()
+print(counter(), counter())   # 1 2
+</code></pre>
+<p>A closure preserves access to names in an enclosing scope; it does not automatically capture their values at the moment it is created. If multiple <code>lambda: i</code> functions are created in a loop, later calls usually read the same final value. To preserve the data at that moment, use a factory function or capture the current value in a default parameter, as in <code>lambda i=i: i</code>. When reading closure state, also consider whether other calls may have modified it.</p>
+<p>A decorator takes a function or class and returns a replacement object. Placing <code>@audit</code> above a function is roughly equivalent to executing <code>fn = audit(fn)</code> after the definition. Multiple decorators are applied starting with the one closest to the function. Use <code>functools.wraps</code> to preserve information such as the name and docstring, which helps with tracing behavior and generating documentation.</p>
+<pre tabindex="0"><code class="language-python">from functools import wraps
+
+def audit(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        return {&quot;operation&quot;: fn.__name__, &quot;result&quot;: result}
+    return wrapper
+
+@audit
+def normalize(raw):
+    return raw / 10.0
+
+print(normalize(245))  # {'operation': 'normalize', 'result': 24.5}
+</code></pre>
+<p>This decorator deliberately changes the return format, so callers must understand the new contract. When using decorators in engineering programs, check whether they change exceptions, return types, or when calls occur. Examining only the wrapped function body is insufficient.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/reference/executionmodel.html" target="_blank" rel="noopener noreferrer">Execution and name resolution model</a>, <a href="https://docs.python.org/3.14/library/functools.html#functools.wraps" target="_blank" rel="noopener noreferrer">functools.wraps</a>.</p>
+<h3 id="section-12">C09 | class, dataclass, and object protocols</h3>
+<p>A class brings state and operations together in the same object. <code>self</code> is the conventional name for the instance parameter. When <code>obj.method()</code> is called, the object becomes the method's first argument. <code>__init__()</code> initializes an instance that has already been created and cannot return another object. Class attributes are shared by instances. A separate list of readings for each device should generally be created in <code>__init__()</code>.</p>
+<pre tabindex="0"><code class="language-python">from dataclasses import dataclass, field
+
+@dataclass
+class DeviceSnapshot:
+    device: str
+    temperature_c: float
+    alarms: list[str] = field(default_factory=list)
+
+    @property
+    def temperature_f(self):
+        return self.temperature_c * 9 / 5 + 32
+
+    @classmethod
+    def from_raw(cls, device, raw):
+        return cls(device, raw / 10.0)
+
+    @staticmethod
+    def valid_name(name):
+        return bool(name) and name.isascii()
+</code></pre>
+<p><code>dataclass</code> can generate methods for initialization, representation, equality comparison, and other behavior from its fields. <code>default_factory=list</code> gives each instance its own list. <code>frozen=True</code> prevents ordinary field reassignment, but does not recursively freeze lists stored in fields. It is not an input validator either: a <code>float</code> annotation does not automatically reject strings. <code>property</code> gives computation or controlled access the appearance of an attribute. A read-only property has no setter, but other mutable fields can still be changed.</p>
+<p><code>classmethod</code> receives the class as <code>cls</code> and is suitable for an alternative construction entry point; when inherited, it can also create subclass instances. <code>staticmethod</code> receives no implicit <code>self</code> or <code>cls</code> and suits small utilities related to the class's concept that do not depend on instance state. If a utility is not closely related to the class, a module-level function is usually easier to discover.</p>
+<pre tabindex="0"><code class="language-python">class Sensor:
+    def __init__(self, name):
+        self.name = name
+
+class CalibratedSensor(Sensor):
+    def __init__(self, name, offset):
+        super().__init__(name)
+        self.offset = offset
+</code></pre>
+<p><code>super()</code> calls the next implementation along the method resolution order. In multiple inheritance, it does not mean a fixed reference to one particular parent class. For cooperative multiple inheritance, method signatures and the use of <code>super()</code> must be coordinated. Ordinary composition relationships, such as a monitoring service having a sensor, can often be represented by one object holding another without immediately resorting to inheritance.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Special method</th>
+<th>Corresponding operation</th>
+<th>Design purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__repr__</code></td>
+<td><code>repr(obj)</code></td>
+<td>Provide an identifiable diagnostic representation</td>
+</tr>
+<tr>
+<td><code>__str__</code></td>
+<td><code>str(obj)</code></td>
+<td>Text intended for readers</td>
+</tr>
+<tr>
+<td><code>__len__</code></td>
+<td><code>len(obj)</code></td>
+<td>Container length</td>
+</tr>
+<tr>
+<td><code>__iter__</code>、<code>__next__</code></td>
+<td><code>for</code>、<code>next()</code></td>
+<td>Iterable and iterator protocols</td>
+</tr>
+<tr>
+<td><code>__getitem__</code></td>
+<td><code>obj[key]</code></td>
+<td>Index or key access</td>
+</tr>
+<tr>
+<td><code>__eq__</code>、<code>__hash__</code></td>
+<td>Equality and hashing</td>
+<td>Maintain consistency when designing objects to use as keys</td>
+</tr>
+<tr>
+<td><code>__enter__</code>、<code>__exit__</code></td>
+<td><code>with</code></td>
+<td>Resource acquisition and release</td>
+</tr>
+<tr>
+<td><code>__call__</code></td>
+<td><code>obj(...)</code></td>
+<td>Make instances callable</td>
+</tr>
+</tbody>
+</table></div>
+<p>These methods form object protocols that integrate custom types with Python syntax. Do not add every operator to an equipment object simply because you can. If a mutable object is used as a dictionary key, also ensure that the basis for its equality or hash does not change while it is stored there.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/classes.html" target="_blank" rel="noopener noreferrer">Classes tutorial</a>, <a href="https://docs.python.org/3.14/library/dataclasses.html" target="_blank" rel="noopener noreferrer">dataclasses</a>, <a href="https://docs.python.org/3.14/reference/datamodel.html" target="_blank" rel="noopener noreferrer">Special methods</a>, <a href="https://docs.python.org/3.14/library/functions.html" target="_blank" rel="noopener noreferrer">property, classmethod, staticmethod, and super</a>.</p>
+<h3 id="section-13">C10 | Iterators, yield, and yield from</h3>
+<p>An iterable is an object that can provide an iterator. An iterator tracks its current position and can be advanced with <code>next()</code>. <code>iter(values)</code> obtains an iterator, which raises <code>StopIteration</code> when exhausted. A list can provide new iterators repeatedly, whereas a particular generator can generally be traversed only once. After it is passed to <code>sum()</code>, a later traversal may have no data left.</p>
+<pre tabindex="0"><code class="language-python">def valid_values(rows):
+    for row in rows:
+        value = row.get(&quot;value&quot;)
+        if value is not None:
+            yield float(value)
+
+rows = [{&quot;value&quot;: &quot;24.1&quot;}, {&quot;value&quot;: None}, {&quot;value&quot;: &quot;25.3&quot;}]
+stream = valid_values(rows)
+print(next(stream))       # 24.1
+print(list(stream))       # [25.3]
+print(list(stream))       # []
+</code></pre>
+<p>When a function contains <code>yield</code>, calling it returns a generator; the function body does not advance until iteration begins. Each <code>yield</code> pauses execution and preserves local state, which is useful for parsing trend files one record at a time. This does not mean each record is necessarily read from hardware in real time; the function body still determines the actual data source. A generator may also raise a conversion exception only when a particular record is consumed.</p>
+<p><code>yield from iterable</code> delegates iteration to another iterable. In addition to forwarding values one by one, it supports <code>send()</code>, <code>throw()</code>, closing, and return-value propagation between generators. For basic data streams, start by understanding delegation of individual items.</p>
+<pre tabindex="0"><code class="language-python">def merge_batches(batches):
+    for batch in batches:
+        yield from batch
+
+print(list(merge_batches([[24.0, 25.0], [26.0]])))
+</code></pre>
+<p>Lazy processing can reduce intermediate containers, but not every source automatically saves memory. If an earlier step has already loaded the entire file into a list, wrapping later processing in a generator does not remove that earlier allocation. <code>itertools.islice()</code>, <code>chain()</code>, and <code>pairwise()</code> support slicing a stream, chaining streams, and calculating differences between adjacent items. Steps that require sorting usually need to collect the relevant data first.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/classes.html#iterators" target="_blank" rel="noopener noreferrer">Iterators and generators</a>, <a href="https://docs.python.org/3.14/reference/expressions.html#yield-expressions" target="_blank" rel="noopener noreferrer">yield expressions</a>, <a href="https://docs.python.org/3.14/library/itertools.html" target="_blank" rel="noopener noreferrer">itertools</a>.</p>
+<h3 id="section-14">C11 | Exceptions, exception chaining, and ExceptionGroup</h3>
+<p>Exceptions separate normal results from failure paths. A <code>try</code> block should cover only operations that may fail as expected and whose failures can be handled here. Catching exceptions around too much code can misclassify programming errors as input problems. Multiple <code>except</code> clauses are checked from top to bottom for a matching class; specific exceptions usually belong before general ones. If no suitable handler is found, the exception propagates outward through the call chain.</p>
+<pre tabindex="0"><code class="language-python">class InvalidReading(ValueError):
+    pass
+
+def parse_temperature(raw):
+    try:
+        value = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise InvalidReading(f&quot;無法解析溫度：{raw!r}&quot;) from exc
+    else:
+        return value
+    finally:
+        pass  # 若此函式取得資源，必要清理應明確放在這裡
+</code></pre>
+<p>Use <code>else</code> for work that should run only when <code>try</code> completes normally. Exceptions raised there are not caught by the preceding <code>except</code> clauses. <code>finally</code> runs on both normal and exceptional exit and is suitable for necessary cleanup. Do not use <code>return</code> inside it to override the original return value or exception. Abrupt process termination, power loss, and similar events are also outside the language's cleanup guarantees.</p>
+<p><code>raise</code> can re-raise the exception currently being handled, while <code>raise NewError(...) from exc</code> explicitly preserves the underlying cause. <code>from None</code> only suppresses the displayed exception chain; it does not fix the error. <code>except Exception</code> does not include every subclass of <code>BaseException</code>. Interrupts, exits, and cancellation have their own control-flow meanings and should not be swallowed indiscriminately. <code>assert</code> is suitable for checking invariants during development, but optimization options may remove it, so it cannot replace validation of external input.</p>
+<pre tabindex="0"><code class="language-python">failures = [ValueError(&quot;T10 格式錯誤&quot;), TimeoutError(&quot;AHU02 逾時&quot;)]
+try:
+    raise ExceptionGroup(&quot;本輪採樣失敗&quot;, failures)
+except* ValueError as group:
+    print(&quot;資料格式失敗數&quot;, len(group.exceptions))
+except* TimeoutError as group:
+    print(&quot;逾時數&quot;, len(group.exceptions))
+</code></pre>
+<p><code>ExceptionGroup</code> represents multiple failures, and <code>except*</code> handles them in groups according to the exceptions they contain, so more than one branch can run during a single handling operation. Unhandled portions still propagate outward. A single <code>try</code> cannot mix <code>except</code> and <code>except*</code>, and an <code>except*</code> block cannot contain <code>return</code>, <code>break</code>, or <code>continue</code>. Groups can be nested, so <code>len(group.exceptions)</code> counts only immediate children; it cannot always be treated as the total number of failures at the leaf nodes.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/errors.html" target="_blank" rel="noopener noreferrer">Exceptions tutorial</a>, <a href="https://docs.python.org/3.14/library/exceptions.html" target="_blank" rel="noopener noreferrer">Exception classes and chaining</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html#except-star" target="_blank" rel="noopener noreferrer">except* rules</a>.</p>
+<h3 id="section-15">C12 | with and contextmanager: expressing lifetimes in code structure</h3>
+<p><code>with</code> describes entering and leaving a resource scope. Files, locks, and some connection objects support this protocol. Entry calls <code>__enter__()</code>. After successful entry, leaving the block calls <code>__exit__()</code> and passes it the exception information. Returning a truthy value from <code>__exit__()</code> can suppress an exception, so check whether a custom context manager swallows failures when reviewing it.</p>
+<pre tabindex="0"><code class="language-python">from contextlib import contextmanager
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+@contextmanager
+def temporary_output(directory):
+    with TemporaryDirectory(dir=directory) as owned_dir:
+        yield Path(owned_dir) / &quot;snapshot.tmp&quot;
+</code></pre>
+<p><code>TemporaryDirectory</code> first creates a directory dedicated to the current task and, on exit, cleans up only resources within that directory. Cleanup responsibility should follow how resources are created and owned.</p>
+<p>A generator wrapped with <code>@contextmanager</code> should <code>yield</code> exactly once. Prepare resources before <code>yield</code>; the yielded value is bound to the name after <code>as</code>, and execution resumes with cleanup after the block is exited. If the block raises an exception, that exception reappears at the generator's <code>yield</code> point. If you intend only to log the exception without swallowing it, use <code>raise</code> again after handling it.</p>
+<p>Expressing a resource's lifetime with <code>with</code> makes it harder for callers to forget to close it. Multiple context managers can appear in a single <code>with</code>, and they exit in the reverse order of entry. If entering the second resource fails, the first, which was entered successfully, can still exit. When the number of resources is dynamic, see <code>contextlib.ExitStack</code> instead of manually nesting multiple <code>try/finally</code> blocks.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/library/contextlib.html" target="_blank" rel="noopener noreferrer">contextlib</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html#the-with-statement" target="_blank" rel="noopener noreferrer">The with statement</a>.</p>
+<h3 id="section-16">C13 | typing: making data contracts explicit</h3>
+<p>Type annotations help readers, editors, and static checking tools. Python does not enforce runtime data validation merely because annotations are present. <code>list[float]</code> describes the element type, while <code>float | None</code> allows a missing value. Allowing <code>None</code> and allowing an argument to be omitted from a call are different things; the latter still requires a default value.</p>
+<pre tabindex="0"><code class="language-python">from collections.abc import Sequence
+from typing import Protocol, TypedDict
+
+type PointMap = dict[str, float]
+
+def first[T](items: Sequence[T]) -&gt; T:
+    if not items:
+        raise ValueError(&quot;序列不可為空&quot;)
+    return items[0]
+
+class SampleBox[T]:
+    def __init__(self, value: T):
+        self.value = value
+
+class Reader(Protocol):
+    def read(self, point: str) -&gt; float: ...
+
+class Reading(TypedDict):
+    point: str
+    value: float
+    quality: str
+</code></pre>
+<p><code>type PointMap = ...</code> is a type alias. <code>T</code> preserves the relationship between input and output types; for example, <code>first()</code> returns the element type of its input sequence. Generics describe relationships; they do not mean Python automatically generates specialized machine code for each type. An alias also does not create a new runtime numeric type, and a type alias cannot simply be used as an ordinary class argument to <code>isinstance()</code>.</p>
+<p><code>Protocol</code> describes which members an object must provide to work with other code. It is useful for separating monitoring logic from different communication implementations, and a class that satisfies the interface does not have to inherit from it explicitly. <code>TypedDict</code> describes dictionary fields, but remains an ordinary dict at runtime; it does not automatically check for missing keys, extra keys, or types. Validating external JSON still requires parsing and validation code.</p>
+<p><code>Any</code> allows dynamic operations through the type checker, reducing type guarantees. <code>object</code> indicates that the type is unknown, but supported operations must be established before use. For unknown external input, using <code>object</code> with <code>isinstance()</code> to narrow the type generally preserves more of the value of type checking. <code>isinstance(value, (int, float))</code> also accepts bool. If the application's rules do not accept Boolean values as numbers, exclude them explicitly.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/library/typing.html" target="_blank" rel="noopener noreferrer">typing</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html#type-parameter-lists" target="_blank" rel="noopener noreferrer">Generics and type parameters</a>.</p>
+<h3 id="section-17">C14 | Modules, import, entry points, and environment management</h3>
+<p>A <code>.py</code> file is usually a module. Modules divide a program by responsibility, such as parsing, calculation, reporting, and entry points. <code>import math</code> brings the module name into the current scope, whereas <code>from math import isclose</code> brings in the specified name. Ordinary importing executes a module's top-level statements and uses the module cache. The top level should therefore contain definitions and necessary initialization, without accidentally starting long-running data collection when the module is imported.</p>
+<pre tabindex="0"><code class="language-python"># 假設此檔名為 report_cli.py
+
+def main() -&gt; int:
+    print(&quot;產生監控摘要&quot;)
+    return 0
+
+if __name__ == &quot;__main__&quot;:
+    raise SystemExit(main())
+</code></pre>
+<p>When a file is run directly, its entry module is named <code>__main__</code>. <code>python -m package.module</code> launches it as a module, which is usually better suited to relative imports within a package. Avoid naming your own files after common standard library modules, such as <code>json.py</code> or <code>typing.py</code>, because the search path may find your file first. <code>from module import *</code> makes the origin of names unclear; explicit imports are usually preferable for maintenance.</p>
+<pre tabindex="0"><code class="language-bash">python3.14 -m venv .venv
+# macOS / Linux
+.venv/bin/python -m pip --version
+.venv/bin/python report_cli.py
+# Windows 對應直譯器：.venv\Scripts\python.exe
+</code></pre>
+<p>A virtual environment isolates a project's packages; it is not a container or a mechanism for isolating permissions. It should generally be recreated on the target system from dependency declarations rather than moved as an entire directory. Using <code>python -m pip</code> keeps the installer aligned with the currently selected interpreter. Activating an environment is a convenient PATH adjustment; using the direct path to the environment's Python executable also works.</p>
+<p><code>pyproject.toml</code> holds project and tool configuration: <code>[build-system]</code> describes the build backend and build dependencies; <code>[project]</code> contains the name, version, supported Python version range, and runtime dependencies; <code>[tool.*]</code> contains options for individual tools. It is not executable Python syntax, and the file's mere presence does not install dependencies or lock all transitive dependency versions. Lockfiles, package sources, and reproducible deployment must be handled separately by the project's tooling workflow.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/tutorial/modules.html" target="_blank" rel="noopener noreferrer">Modules tutorial</a>, <a href="https://docs.python.org/3.14/library/venv.html" target="_blank" rel="noopener noreferrer">venv</a>, <a href="https://packaging.python.org/en/latest/guides/writing-pyproject-toml/" target="_blank" rel="noopener noreferrer">PyPA: pyproject.toml</a>.</p>
+<h3 id="section-18">C15 | Files, JSON, and choosing standard library modules</h3>
+<p>Text files use <code>str</code> and binary files use <code>bytes</code>. Use <code>&quot;r&quot;</code> to read, <code>&quot;w&quot;</code> to write and truncate an existing file, or <code>&quot;a&quot;</code> to append. Adding <code>&quot;b&quot;</code> selects binary mode. Specify the encoding and expected file location. Use <code>Path</code> to compose paths and perform basic operations with the platform's path conventions.</p>
+<pre tabindex="0"><code class="language-python">import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+snapshot = {&quot;device&quot;: &quot;AHU01&quot;, &quot;temperature_c&quot;: 24.5, &quot;online&quot;: True}
+with TemporaryDirectory() as directory:
+    path = Path(directory) / &quot;snapshot.json&quot;
+    with path.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as file:
+        json.dump(snapshot, file, ensure_ascii=False, indent=2, allow_nan=False)
+    with path.open(&quot;r&quot;, encoding=&quot;utf-8&quot;) as file:
+        restored = json.load(file)
+    print(restored[&quot;temperature_c&quot;])
+</code></pre>
+<p><code>dump/load</code> work with file objects, while <code>dumps/loads</code> work with string data. <code>ensure_ascii=False</code> displays Chinese characters directly. <code>allow_nan=False</code> rejects nonstandard JSON representations of non-finite floating-point values. JSON object keys are strings, tuples usually become arrays, and <code>datetime</code> values, custom classes, and binary packets do not automatically retain their original types. Successfully parsing JSON only means the format can be read; fields, types, units, and measurement ranges still need separate validation.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Standard library modules to check first</th>
+<th>Typical uses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paths and temporary storage</td>
+<td><code>pathlib</code>、<code>tempfile</code></td>
+<td>Path operations, testing, and temporary resources</td>
+</tr>
+<tr>
+<td>Structured files</td>
+<td><code>json</code>、<code>csv</code>、<code>tomllib</code></td>
+<td>Data exchange, tables, and reading TOML configuration</td>
+</tr>
+<tr>
+<td>Dates and time zones</td>
+<td><code>datetime</code>、<code>zoneinfo</code></td>
+<td>Record sampling times with time-zone information</td>
+</tr>
+<tr>
+<td>Time intervals</td>
+<td><code>time</code></td>
+<td><code>monotonic()</code> for calculating timeouts; <code>perf_counter()</code> for measuring elapsed time</td>
+</tr>
+<tr>
+<td>Numerical analysis</td>
+<td><code>math</code>、<code>statistics</code>、<code>decimal</code></td>
+<td>Finite-value checks, statistics, and decimal arithmetic</td>
+</tr>
+<tr>
+<td>Containers and streams</td>
+<td><code>collections</code>、<code>itertools</code></td>
+<td>Counting, queued data, and lazy transformations</td>
+</tr>
+<tr>
+<td>CLI and diagnostics</td>
+<td><code>argparse</code>、<code>logging</code></td>
+<td>Argument parsing and logging by severity level</td>
+</tr>
+<tr>
+<td>Quality checks</td>
+<td><code>unittest</code>、<code>doctest</code></td>
+<td>Behavioral tests and verification of short interactive examples</td>
+</tr>
+<tr>
+<td>External processes</td>
+<td><code>subprocess</code></td>
+<td>Run tools with argument lists and check their results</td>
+</tr>
+</tbody>
+</table></div>
+<p>Use a monotonic clock to measure the interval between two events. To record when an event occurred, use an interpretable date and time. These serve different purposes. For engineering data processing, first establish clear boundaries with the standard library, then evaluate whether specialized packages justify their additional installation and maintenance costs.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/library/json.html" target="_blank" rel="noopener noreferrer">JSON</a>, <a href="https://docs.python.org/3.14/library/pathlib.html" target="_blank" rel="noopener noreferrer">pathlib</a>, <a href="https://docs.python.org/3.14/tutorial/stdlib.html" target="_blank" rel="noopener noreferrer">Tour of the standard library</a>, <a href="https://docs.python.org/3.14/library/index.html" target="_blank" rel="noopener noreferrer">Standard library index</a>, <a href="https://docs.python.org/3.14/library/time.html" target="_blank" rel="noopener noreferrer">time</a>.</p>
+<h3 id="section-19">C16 | async syntax and basic TaskGroup usage</h3>
+<p>Without <code>yield</code>, <code>async def</code> defines a coroutine function, and calling it produces a coroutine object. The work usually still needs to be started with <code>await</code>, scheduled as a task, or launched through <code>asyncio.run()</code> before it runs. <code>await</code> waits for an awaitable to complete and suits asynchronous operations that cooperate with the event loop. It does not automatically turn an ordinary blocking function into an asynchronous one.</p>
+<pre tabindex="0"><code class="language-python">import asyncio
+
+async def read_simulated(point: str) -&gt; tuple[str, float]:
+    await asyncio.sleep(0)
+    return point, 24.5
+
+async def collect() -&gt; dict[str, float]:
+    async with asyncio.TaskGroup() as group:
+        tasks = [
+            group.create_task(read_simulated(point))
+            for point in (&quot;T10&quot;, &quot;T11&quot;, &quot;T12&quot;)
+        ]
+    return dict(task.result() for task in tasks)
+
+# 在一般 Python 腳本入口執行：
+# print(asyncio.run(collect()))
+</code></pre>
+<p><code>TaskGroup</code> manages multiple tasks within a structured scope: it waits for the group's work to finish before leaving <code>async with</code>. When a task fails with an ordinary exception, the other unfinished tasks are canceled; the corresponding failures are collected and raised outward as an exception group. Exceptions such as interrupts and exits have specific handling rules. Callers should decide which failures are recoverable instead of merely converting every exception into an empty result.</p>
+<p><code>async for</code> works with asynchronous iterators and can wait each time it retrieves the next item. When it contains <code>yield</code>, <code>async def</code> creates an asynchronous generator. <code>async with</code> is used with context managers whose entry or exit itself requires waiting, corresponding to <code>__aenter__()</code> and <code>__aexit__()</code>.</p>
+<pre tabindex="0"><code class="language-python">async def simulated_stream():
+    for value in (24.0, 24.5, 25.0):
+        await asyncio.sleep(0)
+        yield value
+
+async def summarize_stream():
+    values = []
+    async for value in simulated_stream():
+        values.append(value)
+    return sum(values) / len(values)
+</code></pre>
+<p>An ordinary script can call <code>asyncio.run(main())</code> once at its entry point. In an environment that already has a running event loop, use that environment's top-level <code>await</code> or integration mechanism; you cannot arbitrarily nest <code>asyncio.run()</code> calls in the same thread. Cancellation is usually delivered at an await point. Cleanup can go in <code>finally</code>, and cancellation signals should not be swallowed unintentionally. Asynchronous syntax handles waiting and cooperation; choosing multiple cores, threads, or processes is a separate architectural decision.</p>
+<p>Official sources: <a href="https://docs.python.org/3.14/library/asyncio-task.html" target="_blank" rel="noopener noreferrer">Coroutines and TaskGroup</a>, <a href="https://docs.python.org/3.14/reference/compound_stmts.html#coroutines" target="_blank" rel="noopener noreferrer">Asynchronous statements</a>, <a href="https://docs.python.org/3.14/reference/expressions.html#asynchronous-generator-functions" target="_blank" rel="noopener noreferrer">Asynchronous generators</a>.</p>
+<h2 id="section-20">Part II — Python 3.14 Features and Migration</h2>
+<p>Python 3.14 was released on October 7, 2025. The focus is on template strings, deferred annotations, the new subinterpreter APIs, and migration changes for multiprocessing and garbage collection. See <a href="examples/new_features_314.py">new_features_314.py</a> for runnable examples.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>New or changed in Python 3.14</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strings</td>
+<td>PEP 750 template strings produce a <code>Template</code>.</td>
+<td>Choose a renderer and handle interpolations for the output context.</td>
+</tr>
+<tr>
+<td>Annotations</td>
+<td>PEPs 649 and 749 defer evaluation and introduce <code>annotationlib</code>.</td>
+<td>Check annotation formats, forward references, and evaluation safety.</td>
+</tr>
+<tr>
+<td>Exception syntax</td>
+<td>Multiple exception types can omit parentheses when there is no <code>as</code> clause.</td>
+<td>Keep the parentheses in source code shared with 3.13.</td>
+</tr>
+<tr>
+<td>Syntax warnings</td>
+<td><code>finally</code> can emit a warning for <code>return</code>, <code>break</code>, or <code>continue</code> that leaves the block.</td>
+<td>Keep cleanup and normal return paths explicit.</td>
+</tr>
+<tr>
+<td>Runtime environment</td>
+<td>Supported free-threaded build, subinterpreter management, and interpreter pools</td>
+<td>Check C extension compatibility, data-transfer costs, build configuration, and GIL status.</td>
+</tr>
+<tr>
+<td>Standard library</td>
+<td><code>compression.zstd</code>、<code>map(strict=True)</code>、asyncio call graph、<code>operator.is_none</code></td>
+<td>Check whether the build includes zstd and how the API consumes iterators.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Official sources · <a href="https://docs.python.org/3.14/whatsnew/3.14.html">What's New in Python 3.14</a> · <a href="https://peps.python.org/pep-0745/">PEP 745 release schedule</a></p>
+<h3 id="section-21">1. Template strings and safe rendering</h3>
+<p>An f-string produces a <code>str</code>. A t-string evaluates its interpolation expressions and wraps literal segments and <code>Interpolation</code> objects in a <code>Template</code>. A renderer can then apply the escaping and formatting rules for the intended output. Choose those rules explicitly for HTML or use database parameters for SQL.</p>
+<pre tabindex="0"><code class="language-python">from string.templatelib import Template
+
+point = &quot;&lt;T10&gt;&quot;
+message = t&quot;&lt;p&gt;{point}&lt;/p&gt;&quot;
+assert isinstance(message, Template)
+assert message.strings == (&quot;&lt;p&gt;&quot;, &quot;&lt;/p&gt;&quot;)
+assert message.interpolations[0].value == &quot;&lt;T10&gt;&quot;
+</code></pre>
+<p>The <a href="examples/new_features_314.py">example renderer</a> escapes HTML text content and rejects unsupported conversions and format specifications. HTML attributes, URLs, and JavaScript need their own encoding rules. Use parameterized database queries. For 3.13 compatibility, use f-strings or build safe fragments in application code. Keep the new syntax in a module imported only on compatible versions.</p>
+<p>Official sources · <a href="https://docs.python.org/3.14/library/string.templatelib.html">Template strings</a> · <a href="https://peps.python.org/pep-0750/">PEP 750</a></p>
+<h3 id="section-22">2. Deferred evaluation, forward references, and annotationlib</h3>
+<p>Most function, class, and module annotations are evaluated on demand. <code>from __future__ import annotations</code> still uses stringized annotations. Runtime frameworks can request <code>annotationlib.Format.VALUE</code>, <code>FORWARDREF</code>, or <code>STRING</code> as appropriate. Resolved values are useful for building schemas. <code>FORWARDREF</code> can retain references to names that are not yet available.</p>
+<pre tabindex="0"><code class="language-python">from annotationlib import Format, get_annotations
+
+def parse() -&gt; Reading:
+    return Reading()
+
+assert get_annotations(parse, format=Format.STRING)[&quot;return&quot;] == &quot;Reading&quot;
+
+class Reading:
+    pass
+
+assert get_annotations(parse)[&quot;return&quot;] is Reading
+</code></pre>
+<p>Introspecting annotations can execute arbitrary code. An annotation format controls evaluation. Use independent isolation for untrusted Python sources. When migrating FastAPI or another annotation-driven framework, test forward references, import cycles, and the generated data contracts.</p>
+<p>Official sources · <a href="https://docs.python.org/3.14/library/annotationlib.html">annotationlib</a> · <a href="https://peps.python.org/pep-0649/">PEP 649</a> · <a href="https://peps.python.org/pep-0749/">PEP 749</a></p>
+<h3 id="section-23">3. Exception syntax, finally, and library tools</h3>
+<pre tabindex="0"><code class="language-python">try:
+    float(&quot;offline&quot;)
+except ValueError, TypeError:
+    print(&quot;invalid reading&quot;)
+</code></pre>
+<p>Parentheses are optional around multiple exception types without <code>as</code>. Keep them when using <code>as exc</code>. In <code>finally</code>, a <code>return</code>, <code>break</code>, or <code>continue</code> that exits the block emits a compile-time <code>SyntaxWarning</code>. Keep cleanup within the block and put the normal return afterward. When cleanup can raise, check what happens to the original exception.</p>
+<ul>
+<li><code>compression.zstd</code> compresses and decompresses bytes. Custom CPython builds may lack <code>_zstd</code>. Run <code>python -c &quot;from compression import zstd&quot;</code> to check the installed interpreter.</li>
+<li><code>map(..., strict=True)</code> raises <code>ValueError</code> when consumption reaches inputs of unequal length. Validate inputs first or use a transaction when writes must succeed as one unit.</li>
+<li><code>asyncio.capture_call_graph()</code> helps inspect wait relationships in the current event loop. Record timeouts and cancellation events to interpret the scheduling behavior.</li>
+<li>The interactive shell adds syntax highlighting and import autocompletion. Inspect <code>sys._jit</code> for experimental JIT availability.</li>
+</ul>
+<p>Official sources · <a href="https://peps.python.org/pep-0758/">PEP 758</a> · <a href="https://peps.python.org/pep-0765/">PEP 765</a> · <a href="https://docs.python.org/3.14/library/compression.zstd.html">Zstandard</a> · <a href="https://docs.python.org/3.14/library/asyncio-graph.html">Asyncio call graph</a></p>
+<h3 id="section-24">4. Migrating from Python 3.13</h3>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Risk area</th>
+<th>Change</th>
+<th>How to verify</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process start method</td>
+<td>On Unix platforms supporting <code>forkserver</code>, the default changes from <code>fork</code> to <code>forkserver</code>. macOS and Windows still default to <code>spawn</code>.</td>
+<td>Define workers at the top level of importable modules, use the main guard, and pass configuration explicitly. Record <code>multiprocessing.get_start_method()</code>.</td>
+</tr>
+<tr>
+<td>GC patch level</td>
+<td>3.14.0 through 3.14.4 used incremental GC. 3.14.5 restored 3.13's generational behavior, including generation 1 and threshold2.</td>
+<td>Test memory, latency, and long-running behavior on the patch release you deploy.</td>
+</tr>
+<tr>
+<td>Annotations</td>
+<td>Names may be resolved only at introspection time or when reading <code>__annotations__</code>.</td>
+<td>Test schemas, forward references, and circular imports.</td>
+</tr>
+<tr>
+<td>Removals</td>
+<td><code>asyncio.get_child_watcher()</code> and <code>set_child_watcher()</code> were removed.</td>
+<td>Migrate to the current subprocess API and check external event-loop wrappers.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Run <code>python -W error::SyntaxWarning -m compileall -q -f src tests</code> in CI before the project tests. After removing or replacing a legacy path, test actual imports and replay representative data.</p>
+<p>Official sources · <a href="https://docs.python.org/3.14/whatsnew/3.14.html#porting-to-python-3-14">3.14 porting guide</a> · <a href="https://docs.python.org/3.14/whatsnew/3.14.html#garbage-collection">3.14 GC changes</a> · <a href="https://docs.python.org/3.14/library/multiprocessing.html#contexts-and-start-methods">Multiprocessing start methods</a></p>
+<h2 id="section-25">Part III — From One Event Loop to Multiple Cores</h2>
+<h3 id="section-26">Execution models and data boundaries</h3>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Typical workload</th>
+<th>Data transfer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>asyncio.TaskGroup</code></td>
+<td>Wait on several I/O connections concurrently.</td>
+<td>Share Python objects within one event loop.</td>
+</tr>
+<tr>
+<td><code>ThreadPoolExecutor</code></td>
+<td>Blocking I/O or CPU-bound work verified on a free-threaded build.</td>
+<td>Share objects within the same process and interpreter. Coordinated access requires synchronization.</td>
+</tr>
+<tr>
+<td><code>InterpreterPoolExecutor</code></td>
+<td>Divisible CPU work with interpreter-level isolation within one process.</td>
+<td>The callable, arguments, and result are transferred using pickle. Avoid closures and interactive definitions.</td>
+</tr>
+<tr>
+<td><code>ProcessPoolExecutor</code></td>
+<td>CPU batches with a process boundary.</td>
+<td>Account for serialization, the main entry point, the start method, and resources in each process.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Interpreters in 3.14 have isolated module state. Use <code>concurrent.interpreters.create_queue()</code> to exchange values between them. Some types can be shared directly. Others are typically serialized and copied. Use an independent security boundary for untrusted work. <code>interp.exec()</code> uses the caller's thread by default. Use <code>call_in_thread()</code> or a pool for concurrency.</p>
+<p><a href="examples/concurrency_314.py">concurrency_314.py</a> checks a bounded queue, cross-interpreter data transfer, <code>InterpreterPoolExecutor</code>, and shutdown. An interpreter queue has a different API from <code>queue.Queue</code> and lacks <code>shutdown()</code> and <code>task_done()</code>. For long-lived producers and consumers, define a transferable stop message, time limits, and cleanup.</p>
+<p>Official sources · <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a> · <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a></p>
+<h3 id="section-27">Backpressure, synchronization, and shutdown</h3>
+<p><code>queue.Queue(maxsize=...)</code> and <code>asyncio.Queue(maxsize=...)</code> limit pending items. A full queue blocks a default put. For graceful shutdown, stop production and call <code>shutdown()</code>. Consumers drain the queue until the shutdown exception arrives. Pair each successful get with <code>task_done()</code>. With <code>queue.Queue</code>, call <code>q.join()</code>. With <code>asyncio.Queue</code>, use <code>await q.join()</code>. Record job success and failure separately. With <code>immediate=True</code>, track discarded items as well.</p>
+<p>Both queues gained these APIs in 3.13, with exceptions <code>queue.ShutDown</code> and <code>asyncio.QueueShutDown</code> respectively. Use <code>asyncio.Queue</code> within an event loop and a threaded queue across threads. Threaded queues synchronize their own internals. Your program must coordinate operations that span shared data.</p>
+<h3 id="section-28">Free threading becomes a supported build</h3>
+<pre tabindex="0"><code class="language-python">import sys
+import sysconfig
+
+print(sys.version)
+print(&quot;free-threaded build:&quot;, bool(sysconfig.get_config_var(&quot;Py_GIL_DISABLED&quot;)))
+print(&quot;GIL enabled:&quot;, sys._is_gil_enabled())
+</code></pre>
+<p>PEP 779 makes free threading a supported optional build in 3.14. The standard build still uses the GIL. Check the actual 3.14t runtime state and third-party extensions, because importing an incompatible extension can enable the GIL. Run the same tests in separate standard and free-threaded environments and compare wheels for protocol and serialization libraries.</p>
+<p>Official sources · <a href="https://peps.python.org/pep-0779/">PEP 779</a> · <a href="https://docs.python.org/3.14/howto/free-threading-python.html">3.14 free-threading HOWTO</a></p>
+<h2 id="section-29">Part IV — HVAC Project and Upgrade Checks</h2>
+<h3 id="section-30">Eight simulated points from validation to JSON output</h3>
+<p>The <a href="examples/hvac_monitor_314.py">HVAC simulation</a> reads points T10–T17. Each record carries <code>quality</code> to indicate whether the reading is trustworthy, and <code>status</code> to describe a failure or a threshold violation. Evaluate high and low temperature only on good readings. Timeouts and missing values carry no usable temperature for control logic.</p>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Measurement point</th>
+<th>Simulated input</th>
+<th>quality</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T10</td>
+<td><code>24.5</code></td>
+<td>good</td>
+<td>normal</td>
+</tr>
+<tr>
+<td>T11</td>
+<td><code>31.2</code></td>
+<td>good</td>
+<td>high</td>
+</tr>
+<tr>
+<td>T12</td>
+<td>Field absent</td>
+<td>missing</td>
+<td>no_field</td>
+</tr>
+<tr>
+<td>T13</td>
+<td><code>None</code></td>
+<td>missing</td>
+<td>explicit_null</td>
+</tr>
+<tr>
+<td>T14</td>
+<td><code>&quot;NaN&quot;</code></td>
+<td>invalid</td>
+<td>non_finite</td>
+</tr>
+<tr>
+<td>T15</td>
+<td><code>True</code></td>
+<td>invalid</td>
+<td>invalid_type</td>
+</tr>
+<tr>
+<td>T16</td>
+<td><code>17.0</code></td>
+<td>good</td>
+<td>low</td>
+</tr>
+<tr>
+<td>T17</td>
+<td>Simulated wait exceeds the timeout</td>
+<td>timeout</td>
+<td>read_timeout</td>
+</tr>
+</tbody>
+</table></div>
+<pre tabindex="0"><code class="language-bash">python3.14 examples/hvac_monitor_314.py --output report.json
+python3.14 -m json.tool report.json
+</code></pre>
+<p>The expected counts are <code>good=3</code>, <code>missing=2</code>, <code>invalid=2</code>, and <code>timeout=1</code>. The timestamp changes on each run, so test the report contract. Settings use <code>MappingProxyType</code>, a read-only view of a new dictionary with immutable numeric values. A writable reference to the backing dictionary or a mutable nested value could change what the view exposes. Use the <code>object()</code> marker with <code>is</code> within one process. Transmit <code>quality</code> and <code>status</code> as structured fields across processes, interpreters, or JSON.</p>
+<p>This example reads eight fixed simulated records. Field collection requires global and per-driver concurrency limits, a policy for overload, source timestamps, stale-data checks, and alarm debounce. The example uses simulated I/O.</p>
+<h3 id="section-31">Version selection and syntax compatibility</h3>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Earliest version or status</th>
+<th>Maintaining multiple versions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>match</code></td>
+<td>3.10</td>
+<td>Normalize input first. Type patterns do not coerce values.</td>
+</tr>
+<tr>
+<td><code>TaskGroup</code>、<code>timeout()</code>、<code>except*</code></td>
+<td>3.11</td>
+<td>Handle timeouts, external cancellation, and job failures separately.</td>
+</tr>
+<tr>
+<td><code>type Alias = ...</code>、<code>class Box[T]</code></td>
+<td>3.12</td>
+<td>Default type arguments are supported starting in 3.13.</td>
+</tr>
+<tr>
+<td><code>ReadOnly</code>, <code>TypeIs</code>, and <code>shutdown()</code> for both queue types</td>
+<td>3.13</td>
+<td>Verify the type checker, queue class, and exception name.</td>
+</tr>
+<tr>
+<td>t-string、<code>annotationlib</code>、<code>InterpreterPoolExecutor</code>、<code>compression.zstd</code></td>
+<td>3.14</td>
+<td>Use the minimum supported version as the syntax baseline. Put 3.14-only syntax in separate modules.</td>
+</tr>
+<tr>
+<td><code>lazy import</code>, unpacking in comprehensions, <code>frozendict</code>, built-in <code>sentinel</code>, and Tachyon</td>
+<td>3.15</td>
+<td>Use ordinary imports, nested comprehensions, frozen dataclasses or read-only mappings, structured status markers, and <code>cProfile</code>.</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>if sys.version_info ...</code> controls which branch runs. Older interpreters still parse the entire file before executing it. Put newer syntax in modules imported only on supported versions and run CI with the actual minimum interpreter.</p>
+<p>Official sources · <a href="https://docs.python.org/3.13/whatsnew/3.13.html">3.13 changes</a> · <a href="https://docs.python.org/3.14/whatsnew/3.14.html">3.14 changes</a> · <a href="https://docs.python.org/3.15/whatsnew/3.15.html">3.15 changes</a></p>
+<h3 id="section-32">Turn tests into release gates</h3>
+<ol>
+<li>Set the minimum supported version and add standard builds to the CI matrix. Run the documented suite on every advertised version. Test free threading in a separate job.</li>
+<li>Use UTF-8 for application-managed text files and test Chinese text, line endings, and encoding errors. Exercise the platform-specific installation and startup flows on Windows and macOS.</li>
+<li>Compilation checks syntax and selected warnings. Also run startup, typing, dependency, and integration checks. Replay real samples when upgrading.</li>
+<li>Retain reports and previous artifacts. If process startup, data formats, or memory behavior change, practice rollback and collect longer-running metrics.</li>
+</ol>
+<pre tabindex="0"><code class="language-bash">python3.14 -VV
+python3.14 -W error::SyntaxWarning -m compileall -q -f examples
+python3.14 -W default -X warn_default_encoding examples/core_syntax.py
+python3.14 examples/new_features_314.py
+python3.14 examples/concurrency_314.py
+python3.14 -m cProfile -s cumulative examples/hvac_monitor_314.py
+</code></pre>
+<p><code>cProfile</code> shows call counts and cumulative time. The intentional timeout in this sample makes it suitable for reading a profile report. For cross-version measurements, use the same machine, build type, and workload, and record warmup, repeat count, latency distribution, and memory separately.</p>
+<h3 id="section-33">Exercises and acceptance checks</h3>
+<div class="table-scroll" role="region" aria-label="Data table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Hint</th>
+<th>Expected result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test the 18.0°C and 28.0°C boundaries.</td>
+<td>Read the greater-than and less-than checks in <code>validate()</code>.</td>
+<td>Both points report good / normal. Values just outside the bounds trigger an alarm.</td>
+</tr>
+<tr>
+<td>Test missing, non-finite, and Boolean inputs.</td>
+<td>Call <code>validate()</code> for each and check the quality and value on <code>Reading</code>.</td>
+<td>An absent field and <code>None</code> retain distinct statuses. <code>inf</code> and <code>True</code> are rejected.</td>
+</tr>
+<tr>
+<td>Reduce the queue capacity to one.</td>
+<td>Keep work IDs, collect the results, and sort them.</td>
+<td>Each ID appears once and the queue is empty after graceful shutdown.</td>
+</tr>
+<tr>
+<td>Design a report for work left at shutdown.</td>
+<td>Distinguish work taken by a worker, work completed, and work still queued.</td>
+<td>Record discarded pending jobs when forcing a shutdown.</td>
+</tr>
+<tr>
+<td>Port an example to the next release.</td>
+<td>Run the original first and adopt one new API at a time.</td>
+<td>Preserve the reporting contract for <code>quality</code>, <code>status</code>, and <code>value_c</code>.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="section-34">Part V — Engineering Diagrams</h2>
+<h3 id="section-35">From planning to implementation and release</h3>
+<p>Proceed to release once CI passes. If the release fails, follow the dashed rollback path and retain the last known-good artifact.</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgwIiBoZWlnaHQ9IjcyMCIgdmlld0JveD0iMCAwIDEyODAgNzIwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0icHJvZHVjdGlvbi1ub3Rlcy1jbGktZml4ZWQtZW4tdGl0bGUgcHJvZHVjdGlvbi1ub3Rlcy1jbGktZml4ZWQtZW4tZGVzYyIgbGFuZz0iZW4iIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaWRZTWlkIG1lZXQiPgo8dGl0bGUgaWQ9InByb2R1Y3Rpb24tbm90ZXMtY2xpLWZpeGVkLWVuLXRpdGxlIj5Qcm9kdWN0aW9uIG5vdGVzLWNsaSB3b3JrZmxvdzwvdGl0bGU+PGRlc2MgaWQ9InByb2R1Y3Rpb24tbm90ZXMtY2xpLWZpeGVkLWVuLWRlc2MiPkZvbGxvdyB0ZW4gbm9kZXMgZnJvbSByZXF1aXJlbWVudHMgdG8gcmVsZWFzZTsgcm9sbGJhY2sgaXMgY29uZGl0aW9uYWwgb24gYSByZWxlYXNlIGFub21hbHkuPC9kZXNjPgo8cmVjdCB3aWR0aD0iMTI4MCIgaGVpZ2h0PSI3MjAiIGZpbGw9IiNGNUY4RjciLz4KPHRleHQgeD0iNTYiIHk9IjYyIiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iSW5zdHJ1bWVudCBTZXJpZiwgU29uZ3RpIFRDLCBHZW9yZ2lhLCBzZXJpZiIgZm9udC1zaXplPSIzNiIgZm9udC13ZWlnaHQ9IjQwMCI+UHJvZHVjdGlvbiBub3Rlcy1jbGkgd29ya2Zsb3c8L3RleHQ+Cjx0ZXh0IHg9IjU2IiB5PSI5OSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI0MDAiPkZyb20gYWNjZXB0YW5jZSBjcml0ZXJpYSB0byBhIHZlcmlmaWVkIHJlbGVhc2UgYW5kIGNvbmRpdGlvbmFsIHJvbGxiYWNrLjwvdGV4dD4KPHBhdGggZD0iTSAzMTIgMjA0IEggMzYwIiBmaWxsPSJub25lIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTSAzNTAgMTk5IEwgMzYwIDIwNCBMIDM1MCAyMDkgWiIgZmlsbD0iIzE0Njk2MiIvPgo8cGF0aCBkPSJNIDYxNiAyMDQgSCA2NjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE0Njk2MiIgc3Ryb2tlLXdpZHRoPSIyLjI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNIDY1NCAxOTkgTCA2NjQgMjA0IEwgNjU0IDIwOSBaIiBmaWxsPSIjMTQ2OTYyIi8+CjxwYXRoIGQ9Ik0gOTIwIDIwNCBIIDk2OCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTQ2OTYyIiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik0gOTU4IDE5OSBMIDk2OCAyMDQgTCA5NTggMjA5IFoiIGZpbGw9IiMxNDY5NjIiLz4KPHBhdGggZD0iTSAxMDk2IDI1MiBWIDMzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTQ2OTYyIiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik0gMTA5MSAzMjIgTCAxMDk2IDMzMiBMIDExMDEgMzIyIFoiIGZpbGw9IiMxNDY5NjIiLz4KPHBhdGggZD0iTSA5NjggMzgwIEggOTIwIiBmaWxsPSJub25lIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTSA5MzAgMzc1IEwgOTIwIDM4MCBMIDkzMCAzODUgWiIgZmlsbD0iIzE0Njk2MiIvPgo8cGF0aCBkPSJNIDY2NCAzODAgSCA2MTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE0Njk2MiIgc3Ryb2tlLXdpZHRoPSIyLjI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNIDYyNiAzNzUgTCA2MTYgMzgwIEwgNjI2IDM4NSBaIiBmaWxsPSIjMTQ2OTYyIi8+CjxwYXRoIGQ9Ik0gMzYwIDM4MCBIIDMxMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTQ2OTYyIiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik0gMzIyIDM3NSBMIDMxMiAzODAgTCAzMjIgMzg1IFoiIGZpbGw9IiMxNDY5NjIiLz4KPHBhdGggZD0iTSAxODQgNDI4IFYgNTA4IiBmaWxsPSJub25lIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTSAxNzkgNDk4IEwgMTg0IDUwOCBMIDE4OSA0OTggWiIgZmlsbD0iIzE0Njk2MiIvPgo8cGF0aCBkPSJNIDMxMiA1NTYgSCAzNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzYwNzY4NSIgc3Ryb2tlLXdpZHRoPSIyLjI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1kYXNoYXJyYXk9IjYgNSIvPjxwYXRoIGQ9Ik0gMzUwIDU1MSBMIDM2MCA1NTYgTCAzNTAgNTYxIFoiIGZpbGw9IiM2MDc2ODUiLz4KPHRleHQgeD0iNTYiIHk9IjEzOSIgZmlsbD0iIzE0Njk2MiIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI2MDAiPlBsYW4gJmFtcDsgZGVzaWduPC90ZXh0Pgo8dGV4dCB4PSI1NiIgeT0iMzE1IiBmaWxsPSIjMTQ2OTYyIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgZm9udC13ZWlnaHQ9IjYwMCI+SW1wbGVtZW50ICZhbXA7IHZlcmlmeTwvdGV4dD4KPHRleHQgeD0iNTYiIHk9IjQ5MSIgZmlsbD0iIzE0Njk2MiIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI2MDAiPlJlbGVhc2UgcGhhc2U8L3RleHQ+Cjx0ZXh0IHg9IjE5OSIgeT0iNDczIiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjQwMCI+Q0kgcGFzc2VzPC90ZXh0Pgo8cGF0aCBkPSJNIDU2IDYzNSBIIDEyMjQiIHN0cm9rZT0iI0M3RDRENSIgc3Ryb2tlLXdpZHRoPSIxIi8+CjxwYXRoIGQ9Ik0gNTYgNjY2IEggMTAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTSA5MCA2NjEgTCAxMDAgNjY2IEwgOTAgNjcxIFoiIGZpbGw9IiMxNDY5NjIiLz4KPHRleHQgeD0iMTE1IiB5PSI2NzIiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iNDAwIj5Xb3JrZmxvdzwvdGV4dD4KPHBhdGggZD0iTSA1ODggNjY2IEggNjMyIiBmaWxsPSJub25lIiBzdHJva2U9IiM2MDc2ODUiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtZGFzaGFycmF5PSI2IDUiLz48cGF0aCBkPSJNIDYyMiA2NjEgTCA2MzIgNjY2IEwgNjIyIDY3MSBaIiBmaWxsPSIjNjA3Njg1Ii8+Cjx0ZXh0IHg9IjY0OCIgeT0iNjcyIiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgZm9udC13ZWlnaHQ9IjQwMCI+Um9sbGJhY2sgb25seSBpZiBhIHJlbGVhc2UgZ29lcyB3cm9uZzwvdGV4dD4KPGcgZGF0YS1ub2RlPSJyZXF1aXJlbWVudHMiPjxyZWN0IHg9IjU2IiB5PSIxNTYiIHdpZHRoPSIyNTYiIGhlaWdodD0iOTYiIHJ4PSI2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiM2MDc2ODUiIHN0cm9rZS13aWR0aD0iMS4yNSIvPjx0ZXh0IHg9Ijc2IiB5PSIxOTMiIGZpbGw9IiMxNzI4M0MiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI1IiBmb250LXdlaWdodD0iNjAwIj5SZXF1aXJlbWVudHM8L3RleHQ+PHRleHQgeD0iNzYiIHk9IjIyNSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPkFjY2VwdGFuY2UgY3JpdGVyaWE8L3RleHQ+PC9nPgo8ZyBkYXRhLW5vZGU9ImFkciI+PHJlY3QgeD0iMzYwIiB5PSIxNTYiIHdpZHRoPSIyNTYiIGhlaWdodD0iOTYiIHJ4PSI2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiM2MDc2ODUiIHN0cm9rZS13aWR0aD0iMS4yNSIvPjx0ZXh0IHg9IjM4MCIgeT0iMTkzIiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNSIgZm9udC13ZWlnaHQ9IjYwMCI+QURSPC90ZXh0Pjx0ZXh0IHg9IjM4MCIgeT0iMjI1IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+RGVzaWduIHRyYWRlLW9mZnM8L3RleHQ+PC9nPgo8ZyBkYXRhLW5vZGU9InNsbyI+PHJlY3QgeD0iNjY0IiB5PSIxNTYiIHdpZHRoPSIyNTYiIGhlaWdodD0iOTYiIHJ4PSI2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiM2MDc2ODUiIHN0cm9rZS13aWR0aD0iMS4yNSIvPjx0ZXh0IHg9IjY4NCIgeT0iMTkzIiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNSIgZm9udC13ZWlnaHQ9IjYwMCI+U0xPPC90ZXh0Pjx0ZXh0IHg9IjY4NCIgeT0iMjI1IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+UGVyZm9ybWFuY2UgdGFyZ2V0czwvdGV4dD48L2c+CjxnIGRhdGEtbm9kZT0iYm91bmRhcnkiPjxyZWN0IHg9Ijk2OCIgeT0iMTU2IiB3aWR0aD0iMjU2IiBoZWlnaHQ9Ijk2IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI5ODgiIHk9IjE5MyIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPkJvdW5kYXJ5PC90ZXh0Pjx0ZXh0IHg9Ijk4OCIgeT0iMjI1IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+UGFja2FnZSBib3VuZGFyaWVzPC90ZXh0PjwvZz4KPGcgZGF0YS1ub2RlPSJjb25maWciPjxyZWN0IHg9Ijk2OCIgeT0iMzMyIiB3aWR0aD0iMjU2IiBoZWlnaHQ9Ijk2IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI5ODgiIHk9IjM2OSIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPkNvbmZpZzwvdGV4dD48dGV4dCB4PSI5ODgiIHk9IjQwMSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPkVudmlyb25tZW50IHNldHRpbmdzPC90ZXh0PjwvZz4KPGcgZGF0YS1ub2RlPSJtaWdyYXRpb24iPjxyZWN0IHg9IjY2NCIgeT0iMzMyIiB3aWR0aD0iMjU2IiBoZWlnaHQ9Ijk2IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI2ODQiIHk9IjM2OSIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPk1pZ3JhdGlvbjwvdGV4dD48dGV4dCB4PSI2ODQiIHk9IjQwMSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPlNjaGVtYSBldm9sdXRpb248L3RleHQ+PC9nPgo8ZyBkYXRhLW5vZGU9InRlc3RzIj48cmVjdCB4PSIzNjAiIHk9IjMzMiIgd2lkdGg9IjI1NiIgaGVpZ2h0PSI5NiIgcng9IjYiIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iIzYwNzY4NSIgc3Ryb2tlLXdpZHRoPSIxLjI1Ii8+PHRleHQgeD0iMzgwIiB5PSIzNjkiIGZpbGw9IiMxNzI4M0MiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI1IiBmb250LXdlaWdodD0iNjAwIj5UZXN0czwvdGV4dD48dGV4dCB4PSIzODAiIHk9IjQwMSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPnB5dGVzdDwvdGV4dD48L2c+CjxnIGRhdGEtbm9kZT0iY2kiPjxyZWN0IHg9IjU2IiB5PSIzMzIiIHdpZHRoPSIyNTYiIGhlaWdodD0iOTYiIHJ4PSI2IiBmaWxsPSIjRTVGMUVDIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9Ijc2IiB5PSIzNjkiIGZpbGw9IiMxNDY5NjIiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI1IiBmb250LXdlaWdodD0iNjAwIj5DSTwvdGV4dD48dGV4dCB4PSI3NiIgeT0iNDAxIiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+UXVhbGl0eSBnYXRlPC90ZXh0PjwvZz4KPGcgZGF0YS1ub2RlPSJyZWxlYXNlIj48cmVjdCB4PSI1NiIgeT0iNTA4IiB3aWR0aD0iMjU2IiBoZWlnaHQ9Ijk2IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI3NiIgeT0iNTQ1IiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNSIgZm9udC13ZWlnaHQ9IjYwMCI+UmVsZWFzZTwvdGV4dD48dGV4dCB4PSI3NiIgeT0iNTc3IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+RGVwbG95IHRoZSByZWxlYXNlPC90ZXh0PjwvZz4KPGcgZGF0YS1ub2RlPSJyb2xsYmFjayI+PHJlY3QgeD0iMzYwIiB5PSI1MDgiIHdpZHRoPSIyNTYiIGhlaWdodD0iOTYiIHJ4PSI2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiM2MDc2ODUiIHN0cm9rZS13aWR0aD0iMS4yNSIvPjx0ZXh0IHg9IjM4MCIgeT0iNTQ1IiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNSIgZm9udC13ZWlnaHQ9IjYwMCI+Um9sbGJhY2s8L3RleHQ+PHRleHQgeD0iMzgwIiB5PSI1NzciIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5SZXN0b3JlIHByaW9yIHJlbGVhc2U8L3RleHQ+PC9nPgo8L3N2Zz4K" alt="Production notes-cli workflow" class="diagram-image" style="max-width:100%;height:auto;border-radius:8px" /></p>
+<h3 id="section-36">Service components, governance, and release evidence</h3>
+<p>Solid arrows in the top row show the data flow. The two dashed links below connect governance and acceptance checks to the service core.</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgwIiBoZWlnaHQ9IjcyMCIgdmlld0JveD0iMCAwIDEyODAgNzIwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0icHl0aG9uLXByb2plY3QtZGVsaXZlcnktYmx1ZXByaW50LWVuLXRpdGxlIHB5dGhvbi1wcm9qZWN0LWRlbGl2ZXJ5LWJsdWVwcmludC1lbi1kZXNjIiBsYW5nPSJlbiIgcHJlc2VydmVBc3BlY3RSYXRpbz0ieE1pZFlNaWQgbWVldCI+Cjx0aXRsZSBpZD0icHl0aG9uLXByb2plY3QtZGVsaXZlcnktYmx1ZXByaW50LWVuLXRpdGxlIj5QeXRob24gUHJvamVjdCBEZWxpdmVyeSBCbHVlcHJpbnQ8L3RpdGxlPjxkZXNjIGlkPSJweXRob24tcHJvamVjdC1kZWxpdmVyeS1ibHVlcHJpbnQtZW4tZGVzYyI+SW5wdXRzIGZsb3cgdGhyb3VnaCB0aGUgc2VydmljZSB0byBkZWxpdmVyeSBldmlkZW5jZTsgZ292ZXJuYW5jZSBhbmQgYWNjZXB0YW5jZSBhcmUgYXNzb2NpYXRlZCB3aXRoIHRoZSBzZXJ2aWNlLjwvZGVzYz4KPHJlY3Qgd2lkdGg9IjEyODAiIGhlaWdodD0iNzIwIiBmaWxsPSIjRjVGOEY3Ii8+Cjx0ZXh0IHg9IjU2IiB5PSI2MiIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9Ikluc3RydW1lbnQgU2VyaWYsIFNvbmd0aSBUQywgR2VvcmdpYSwgc2VyaWYiIGZvbnQtc2l6ZT0iMzYiIGZvbnQtd2VpZ2h0PSI0MDAiPlB5dGhvbiBQcm9qZWN0IERlbGl2ZXJ5IEJsdWVwcmludDwvdGV4dD4KPHRleHQgeD0iNTYiIHk9Ijk5IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjQwMCI+SW5wdXRzLCBzZXJ2aWNlIGJlaGF2aW9yIGFuZCByZWxlYXNlIGV2aWRlbmNlIGluIG9uZSB2aWV3LjwvdGV4dD4KPHBhdGggZD0iTSAzODggMjI4IEggNDU2IiBmaWxsPSJub25lIiBzdHJva2U9IiMxNDY5NjIiIHN0cm9rZS13aWR0aD0iMi4yNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTSA0NDYgMjIzIEwgNDU2IDIyOCBMIDQ0NiAyMzMgWiIgZmlsbD0iIzE0Njk2MiIvPgo8cGF0aCBkPSJNIDgyNCAyMjggSCA4OTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE0Njk2MiIgc3Ryb2tlLXdpZHRoPSIyLjI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNIDg4MiAyMjMgTCA4OTIgMjI4IEwgODgyIDIzMyBaIiBmaWxsPSIjMTQ2OTYyIi8+CjxwYXRoIGQ9Ik0gNTQ4IDMwMCBWIDM2NCBRIDU0OCAzNzIgNTQwIDM3MiBIIDM2MCBRIDM1MiAzNzIgMzUyIDM4MCBWIDQzNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWRhc2hhcnJheT0iNiA1Ii8+CjxwYXRoIGQ9Ik0gNzMyIDMwMCBWIDM2NCBRIDczMiAzNzIgNzQwIDM3MiBIIDkyMCBRIDkyOCAzNzIgOTI4IDM4MCBWIDQzNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWRhc2hhcnJheT0iNiA1Ii8+CjxwYXRoIGQ9Ik0gNTYgNjM1IEggMTIyNCIgc3Ryb2tlPSIjQzdENEQ1IiBzdHJva2Utd2lkdGg9IjEiLz4KPHBhdGggZD0iTSA1NiA2NjYgSCAxMDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE0Njk2MiIgc3Ryb2tlLXdpZHRoPSIyLjI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNIDkwIDY2MSBMIDEwMCA2NjYgTCA5MCA2NzEgWiIgZmlsbD0iIzE0Njk2MiIvPgo8dGV4dCB4PSIxMTUiIHk9IjY3MiIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI0MDAiPkRhdGEgYW5kIGV2aWRlbmNlIGZsb3c8L3RleHQ+CjxwYXRoIGQ9Ik0gNTg4IDY2NiBIIDYzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjIuMjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWRhc2hhcnJheT0iNiA1Ii8+Cjx0ZXh0IHg9IjY0OCIgeT0iNjcyIiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgZm9udC13ZWlnaHQ9IjQwMCI+R292ZXJuYW5jZSBhbmQgYWNjZXB0YW5jZSBhc3NvY2lhdGlvbnM8L3RleHQ+CjxnIGRhdGEtbm9kZT0iaW5wdXQiPjxyZWN0IHg9IjU2IiB5PSIxNTYiIHdpZHRoPSIzMzIiIGhlaWdodD0iMTQ0IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI3NiIgeT0iMTkzIiBmaWxsPSIjMTcyODNDIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNSIgZm9udC13ZWlnaHQ9IjYwMCI+SW5wdXQgTGF5ZXI8L3RleHQ+PHRleHQgeD0iNzYiIHk9IjIyNSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPm9wZXJhdG9yIGNvbmZpZzwvdGV4dD48dGV4dCB4PSI3NiIgeT0iMjQ4IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+ZGV2aWNlIHNuYXBzaG90czwvdGV4dD48L2c+CjxnIGRhdGEtbm9kZT0ic2VydmljZSI+PHJlY3QgeD0iNDU2IiB5PSIxNTYiIHdpZHRoPSIzNjgiIGhlaWdodD0iMTQ0IiByeD0iNiIgZmlsbD0iI0U1RjFFQyIgc3Ryb2tlPSIjMTQ2OTYyIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI0NzYiIHk9IjE5MyIgZmlsbD0iIzE0Njk2MiIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPlNlcnZpY2UgQ29yZTwvdGV4dD48dGV4dCB4PSI0NzYiIHk9IjIyNSIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPnZhbGlkYXRpb248L3RleHQ+PHRleHQgeD0iNDc2IiB5PSIyNDgiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5pZGVtcG90ZW5jeSArIGFsYXJtPC90ZXh0PjwvZz4KPGcgZGF0YS1ub2RlPSJldmlkZW5jZSI+PHJlY3QgeD0iODkyIiB5PSIxNTYiIHdpZHRoPSIzMzIiIGhlaWdodD0iMTQ0IiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI5MTIiIHk9IjE5MyIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPkV2aWRlbmNlPC90ZXh0Pjx0ZXh0IHg9IjkxMiIgeT0iMjI1IiBmaWxsPSIjNDI1ODZBIiBmb250LWZhbWlseT0iR2Vpc3QsIE5vdG8gU2FucyBUQywgUGluZ0ZhbmcgVEMsIE1pY3Jvc29mdCBKaGVuZ0hlaSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjQwMCI+aGVhbHRoIHJlcG9ydDwvdGV4dD48dGV4dCB4PSI5MTIiIHk9IjI0OCIgZmlsbD0iIzQyNTg2QSIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI0MDAiPnJlbGVhc2UgcGF5bG9hZDwvdGV4dD48L2c+CjxnIGRhdGEtbm9kZT0iZ292ZXJuYW5jZSI+PHJlY3QgeD0iMTEyIiB5PSI0MzYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYwIiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSIxMzIiIHk9IjQ3MyIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPkdvdmVybmFuY2U8L3RleHQ+PHRleHQgeD0iMTMyIiB5PSI1MDUiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5zY2hlbWEgLyBjb25maWcgY29udHJhY3Q8L3RleHQ+PHRleHQgeD0iMTMyIiB5PSI1MjgiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj50aW1lb3V0IC8gcmV0cnkgLyBmYWlsLXNhZmU8L3RleHQ+PHRleHQgeD0iMTMyIiB5PSI1NTEiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5hdWRpdCB0cmFpbCAvIHJ1bmJvb2sgLyByb2xsYmFjazwvdGV4dD48L2c+CjxnIGRhdGEtbm9kZT0iYWNjZXB0YW5jZSI+PHJlY3QgeD0iNjg4IiB5PSI0MzYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYwIiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjNjA3Njg1IiBzdHJva2Utd2lkdGg9IjEuMjUiLz48dGV4dCB4PSI3MDgiIHk9IjQ3MyIgZmlsbD0iIzE3MjgzQyIgZm9udC1mYW1pbHk9IkdlaXN0LCBOb3RvIFNhbnMgVEMsIFBpbmdGYW5nIFRDLCBNaWNyb3NvZnQgSmhlbmdIZWksIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI2MDAiPkFjY2VwdGFuY2U8L3RleHQ+PHRleHQgeD0iNzA4IiB5PSI1MDUiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5weV9jb21waWxlIC8gdW5pdHRlc3Q8L3RleHQ+PHRleHQgeD0iNzA4IiB5PSI1MjgiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5zbW9rZSAvIEhUTUwgcGFyc2U8L3RleHQ+PHRleHQgeD0iNzA4IiB5PSI1NTEiIGZpbGw9IiM0MjU4NkEiIGZvbnQtZmFtaWx5PSJHZWlzdCwgTm90byBTYW5zIFRDLCBQaW5nRmFuZyBUQywgTWljcm9zb2Z0IEpoZW5nSGVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNDAwIj5naXQgZGlmZiAtLWNoZWNrIC8gcmVsZWFzZSBub3RlPC90ZXh0PjwvZz4KPC9zdmc+Cg==" alt="Python project delivery blueprint" class="diagram-image" style="max-width:100%;height:auto;border-radius:8px" /></p>
+<h2 id="section-37">Part VI — Verification Record</h2>
+<p>The examples were run on macOS arm64 with a standard <strong>CPython 3.14.7</strong> build and the GIL enabled. The runtime and documentation versions are recorded separately. The run covered functional behavior. See <a href="verification.json">verification.json</a> for detailed results.</p>
+<p>See the <a href="https://docs.python.org/3.14/whatsnew/changelog.html">official changelog</a> for the full list of changes.</p>
+</main>
+</div>
+<footer>Python Learning Notes · 2026-11-24</footer>
+<script>
+  const otherLanguage = document.querySelector("[data-switch]");
+  const edition = new URL(otherLanguage.href);
+  function syncChapterLink() {
+    edition.hash = window.location.hash;
+    otherLanguage.href = edition.href;
+  }
+  window.addEventListener("hashchange", syncChapterLink);
+  syncChapterLink();
+</script>
+</body>
+</html>

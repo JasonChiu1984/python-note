@@ -46,10 +46,49 @@ a:focus-visible, pre:focus-visible, .table-scroll:focus-visible {
 .hero a, .hero a:visited { color: #b1ece7; }
 .diagram img { min-width: 0; }
 h2, h3 { overflow-wrap: anywhere; }
-@media print { .hero .links { display: none; } .table-scroll { overflow: visible; } table { min-width: 0; } }
+html { scroll-padding-top: 84px; }
+.language-bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px max(16px, calc((100vw - 1450px) / 2));
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+}
+.language-bar .brand { color: var(--ink); font-weight: 750; text-decoration: none; }
+.language-buttons { display: flex; gap: 4px; padding: 4px; background: #edf3f6; border-radius: 9px; }
+.language-buttons a, .language-buttons span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    color: #344b61;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.language-buttons a:hover { background: #dbece9; }
+.language-buttons [aria-current] { background: #126f6d; color: #fff; }
+aside { top: 84px; max-height: calc(100vh - 104px); }
+@media (max-width: 920px) { aside { max-height: 300px; } }
+@media print {
+    .language-bar, .hero .links { display: none; }
+    .table-scroll { overflow: visible; }
+    table { min-width: 0; }
+}
 </style>
 </head>
-<body>
+<body id="top">
+<div class="language-bar">
+  <a class="brand" href="#top">Python 3.13</a>
+  <nav class="language-buttons" aria-label="閱讀語言"><span lang="zh-Hant" aria-current="page">中文</span><a href="python-313-complete-guide.en.html" lang="en" hreflang="en" data-switch>English</a></nav>
+</div>
 <header class="hero">
   <a href="#content">跳至教材正文</a>
   <h1>Python 3.13 語法與新特性完整學習筆記</h1>
@@ -1154,5 +1193,15 @@ python3.13 -m cProfile -s cumulative examples/hvac_monitor_313.py
 </main>
 </div>
 <footer>Python 學習筆記 · 2026-11-24</footer>
+<script>
+  const otherLanguage = document.querySelector("[data-switch]");
+  const edition = new URL(otherLanguage.href);
+  function syncChapterLink() {
+    edition.hash = window.location.hash;
+    otherLanguage.href = edition.href;
+  }
+  window.addEventListener("hashchange", syncChapterLink);
+  syncChapterLink();
+</script>
 </body>
 </html>
