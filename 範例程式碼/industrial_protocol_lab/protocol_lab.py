@@ -18,10 +18,12 @@ class Reading:
     quality: Quality
 
 
-def temperature(source: str, value: float, quality: Quality = "good") -> Reading:
+def temperature(source: str, value: float | None, quality: Quality = "good") -> Reading:
+    if quality == "bad":
+        return Reading(source, None, quality)
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise ValueError("Expected a finite temperature")
-    return Reading(source, float(value) if quality != "bad" else None, quality)
+    return Reading(source, float(value), quality)
 
 
 def modbus_float(registers: list[int], *, low_word_first: bool = False) -> float:
@@ -36,23 +38,28 @@ def modbus_demo() -> Reading:
     return temperature("modbus:7/holding/0", modbus_float([0x41B0, 0x0000]))
 
 
-def bacnet_demo() -> Reading:
-    # Typed ReadProperty results after BACnet decoding. Units 62 = degrees Celsius.
-    props = {"presentValue": 22.0, "units": 62, "statusFlags": [False, False, False, False]}
-    in_alarm, fault, overridden, out_of_service = props["statusFlags"]
-    if props["units"] != 62:
+def bacnet_read(source: str, value: float, units: int | str, flags: list) -> Reading:
+    if units != 62 and str(units) not in {"62", "degreesCelsius", "degrees-celsius"}:
         raise ValueError("BACnet point must use degrees Celsius")
+    # In-alarm is a process alarm and can coexist with a valid reading.
+    _, fault, overridden, out_of_service = flags
     quality = "bad" if fault or out_of_service else "uncertain" if overridden else "good"
-    # in_alarm is the process alarm state. It does not invalidate the reading.
-    return temperature("bacnet:device/420101/analogInput/1", props["presentValue"], quality)
+    return temperature(source, value, quality)
+
+
+def bacnet_demo() -> Reading:
+    # Typed ReadProperty results. Units 62 = degrees Celsius.
+    return bacnet_read("bacnet:device/420101/analogInput/1", 22.0, 62, [False] * 4)
+
+
+def opcua_quality(status_code: int) -> Quality:
+    return ("good", "uncertain", "bad", "bad")[status_code >> 30]
 
 
 def opcua_demo() -> Reading:
     # DataValue decoded by the OPC UA SDK. The upper two bits are severity.
     data = {"value": 22.0, "status": 0x40000000, "source_timestamp": "2026-11-24T08:00:00Z"}
-    severity = data["status"] >> 30
-    status = ("good", "uncertain", "bad", "bad")[severity]
-    return temperature("opcua:urn:example:plant/AHU01.SAT", data["value"], status)
+    return temperature("opcua:urn:example:plant/AHU01.SAT", data["value"], opcua_quality(data["status"]))
 
 
 def mqtt_read(topic: str, payload: bytes) -> Reading:
@@ -62,8 +69,6 @@ def mqtt_read(topic: str, payload: bytes) -> Reading:
     quality = message["quality"]
     if quality not in {"good", "uncertain", "bad"} or message["unit"] != "degC":
         raise ValueError("Unexpected quality or unit")
-    if quality == "bad" and message["value"] is None:
-        return Reading(f"mqtt:{topic}", None, "bad")
     return temperature(f"mqtt:{topic}", message["value"], quality)
 
 
@@ -96,6 +101,18 @@ def read_input_image(protocol: str, point: str, payload: bytes, quality: Quality
     return temperature(source, deci_c / 10, quality)
 
 
+def fieldbus_ua_frame(protocol: str, point: str, payload, ua_quality: Quality) -> Reading:
+    if ua_quality == "bad":
+        return read_input_image(protocol, point, b"", ua_quality)
+    if not isinstance(payload, (bytes, bytearray, list, tuple)):
+        raise ValueError("Expected a ByteString or Byte array")
+    frame = bytes(payload)
+    if len(frame) != 3 or frame[0] not in (0, 1):
+        raise ValueError("Expected valid flag (0 or 1) followed by two input bytes")
+    quality = ua_quality if frame[0] == 1 else "bad"
+    return read_input_image(protocol, point, frame[1:], quality)
+
+
 def fieldbus_read(protocol: str, snapshot: dict) -> Reading:
     if protocol == "profinet":
         point = f"{snapshot['device']}/{snapshot['slot']}/{snapshot['subslot']}"
@@ -103,9 +120,11 @@ def fieldbus_read(protocol: str, snapshot: dict) -> Reading:
     elif protocol == "profibus":
         point = f"station/{snapshot['station']}/I{snapshot['input_offset']}"
         valid = snapshot["data_exchange"]
-    else:
+    elif protocol == "cc-link":
         point = f"station/{snapshot['station']}/RWr0"
         valid = snapshot["link_ok"]
+    else:
+        raise ValueError(f"Unknown fieldbus: {protocol}")
 
     if type(valid) is not bool:
         raise ValueError("Expected a Boolean station or submodule status")

@@ -134,6 +134,8 @@
     .lab-links { margin-bottom: 1rem; }
     .lab-guide a:not(.quick-links a) { color: #245b99; text-underline-offset: 3px; }
     .lab-guide pre { overflow-x: auto; }
+    .lab-guide pre + p, .lab-guide ol + p { margin-top: 0.75rem; }
+    .lab-note { margin: 1rem 0; padding: 0.75rem 1rem; border-left: 4px solid var(--green); background: #f1f8f5; }
     .lab-guide li + li { margin-top: 0.35rem; }
     .lab-table { overflow-x: auto; margin-bottom: 1rem; }
     .lab-table table { width: 100%; min-width: 48rem; border-collapse: collapse; }
@@ -150,13 +152,16 @@
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
         <a href="#protocol-lab">八協定比較與實作</a>
+        <a href="#protocol-selection">優缺點與場景</a>
+        <a href="#protocol-speed-compare">速度快慢比較</a>
+        <a href="#protocol-speed-security">速度與安全性</a>
         <a href="#overview">四協定基礎卡</a>
         <a href="#architecture">Architecture</a>
         <a href="#modbus">Modbus</a>
         <a href="#opcua">OPC UA</a>
         <a href="#bacnet">BACnet</a>
         <a href="#mqtt">MQTT</a>
-        <a href="#comparison">Comparison</a>
+        <a href="#comparison">四協定進階比較</a>
         <a href="#troubleshooting">Troubleshooting</a>
         <a href="#best-practices">Best Practices</a>
       </nav>
@@ -198,13 +203,17 @@
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：FC03、NodeId、BBMD、foreign device、QoS、retain、subscription">
-        <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#mqtt">MQTT</a><a href="#comparison">比較表</a></div>
+        <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#mqtt">MQTT</a><a href="#eight-matrix">八協定比較表</a></div>
       </div>
       <section class="section-block" id="protocol-lab">
         <div class="section-head"><h2>八種協定比較與 Python 實作</h2></div>
         <div class="surface lab-guide">
           <div class="quick-links lab-links" aria-label="實作章節">
             <a href="#eight-matrix">比較表</a>
+            <a href="#protocol-selection">優缺點與場景</a>
+            <a href="#protocol-speed-compare">速度快慢比較</a>
+            <a href="#protocol-speed-security">速度與安全性</a>
+            <a href="#lab-setup">環境準備</a>
             <a href="#lab-modbus">Modbus</a>
             <a href="#lab-bacnet">BACnet</a>
             <a href="#lab-opcua">OPC UA</a>
@@ -214,8 +223,8 @@
             <a href="#lab-profibus">PROFIBUS</a>
             <a href="#lab-cclink">CC-Link</a>
           </div>
-<p>本實作以 AHU01 送風溫度 22.0 °C 為共同測點，將八種來源對應到值、資料品質及來源識別。Modbus、BACnet、OPC UA、MQTT、Zigbee 另提供選用 SDK 的唯讀接線腳本。PROFINET、PROFIBUS DP、CC-Link 則由 PLC／專用主站採集循環 I/O，再由 Python 讀取一致的快照。</p>
-<p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/README.md">範例執行說明</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/protocol_lab.py">離線 Python 程式</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/read_live.py">實機讀值程式</a></p>
+<p>以 AHU01 送風溫度 22.0 °C 練習表示數值、資料品質及來源。Zigbee 的無線裝置也使用 22.0 °C 練習解碼，在現場應記為獨立的室溫測點。PROFINET、PROFIBUS DP、CC-Link 由 PLC 或專用主站採集循環 I/O，Python 透過閘道讀取快照。</p>
+<p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/README.md">完整實作手冊與 PLC 範例</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/protocol_lab.py" download>離線程式</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/read_live.py" download>讀值程式</a> · <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/lab_endpoints.py" download>測試端點</a></p>
 <h3 id="eight-matrix">八種通訊比較</h3>
 <div class="lab-table" role="region" aria-label="八種通訊比較表" tabindex="0"><table>
 <thead>
@@ -287,6 +296,63 @@
 </tbody>
 </table></div>
 <p>依需求分層。VFD 電流可由 Modbus 讀取，AHU 測點與告警可由 BACnet 取得，SCADA 或 MES 可用 OPC UA 取結構化資料，而 MQTT 用於發布已加上時間、單位及品質的遙測。PROFINET、PROFIBUS DP 與 CC-Link 的循環時間、watchdog 與故障輸出由主站與裝置工程配置驗收。非即時的 Python 採集不應承擔控制迴路或消防連鎖。</p>
+<h3 id="protocol-selection">八種協定的優缺點與使用場景</h3>
+<div class="lab-table" role="region" aria-labelledby="protocol-selection" tabindex="0"><table>
+  <thead><tr><th scope="col">協定</th><th scope="col">優點</th><th scope="col">限制</th><th scope="col">使用場景</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><a href="#lab-modbus">Modbus TCP／RTU</a></th><td>設備支援廣，連續暫存器可批次讀取，RS-485 可共用既有配線。</td><td>單位、比例、有號值及字序依設備點表。多站串行輪詢時，一站逾時會拖長整輪。</td><td>變頻器頻率、電表功率、流量計瞬時量與累積量。既有 RTU 設備可用 TCP／RTU 閘道集中採集。</td></tr>
+    <tr><th scope="row"><a href="#lab-bacnet">BACnet</a></th><td>樓控物件可帶單位、品質與告警。支援的點可用 COV 推送變更，減少持續輪詢。</td><td>裝置對 COV、批讀及分段的支援有差異。跨 VLAN 要處理探索、BBMD／路由，或規劃 SC Hub。</td><td>AHU、DDC、冰水系統、BMS。以 EBO 聚合送風溫度、設備狀態、排程與告警。</td></tr>
+    <tr><th scope="row"><a href="#lab-opcua">OPC UA</a></th><td>資料有型別、品質、時間戳及可瀏覽的結構，適合跨系統訂閱。</td><td>須維護 NodeId 與憑證。大量訂閱需要伺服器資源，資料採樣與發布各有週期。</td><td>PLC／工業閘道到 SCADA、Historian、MES。把溫度、設備狀態與品質一併提供給上位系統。</td></tr>
+    <tr><th scope="row"><a href="#lab-mqtt">MQTT</a></th><td>發布端和訂閱端可獨立部署，同一批遙測可被多個系統接收，支援 QoS 和會話設定。</td><td>需要 broker 與 topic 規劃。資料格式、去重、逾期及業務確認由應用處理。</td><td>各機房閘道上送遙測、跨站告警、能源資料與資料平台整合。</td></tr>
+    <tr><th scope="row"><a href="#lab-zigbee">Zigbee</a></th><td>低功耗，適合電池端裝置。具路由能力的節點可以延伸覆蓋。</td><td>訊號受牆面、金屬櫃和同頻干擾影響。電池裝置會休眠，更新受回報條件與週期影響。</td><td>既有空間加裝室溫、濕度、門磁或占用感測。透過協調器橋接到 MQTT。</td></tr>
+    <tr><th scope="row"><a href="#lab-profinet">PROFINET IO</a></th><td>循環 I/O 更新可配置，有模組／通道診斷，RT 和 IRT 支援不同即時要求。</td><td>設備、GSDML、組態工具及網路配置須相容。IRT 需要支援的硬體與拓樸。</td><td>PLC 遠端 I/O、驅動器與機台控制。需要同步的多軸運動則核對 IRT 支援。</td></tr>
+    <tr><th scope="row"><a href="#lab-profibus">PROFIBUS DP</a></th><td>成熟的主站循環 I/O，既有 DP 設備多，可直接讀站與模組診斷。</td><td>RS-485 線長受速率限制，終端、接頭或站號配置錯誤可影響整段。</td><td>既有產線的 DP 變頻器、ET 200 遠端 I/O 或控制設備保留與改造。</td></tr>
+    <tr><th scope="row"><a href="#lab-cclink">CC-Link</a></th><td>Classic 以位元和字交換循環 I/O，三菱 PLC 的 Link Refresh 便於映射到 CPU。</td><td>須核對站種、占用站數與刷新區；Classic、IE Field Basic、IE Field 和 IE TSN 的設備與配置不同。</td><td>三菱 PLC、遠端 I/O、變頻器。既有 Classic 用專用匯流排，乙太網路案依設備支援選 IE 版本。</td></tr>
+  </tbody>
+</table></div>
+<h3 id="protocol-speed-compare">速度快慢比較</h3>
+<p><strong>線速</strong>是實體鏈路每秒可傳的位元數。<strong>更新週期</strong>是連續兩次取樣、輪詢或循環 I/O 之間的時間。<strong>端到端延遲</strong>從來源變化到 Python、SCADA 或 BMS 看見新值為止，還會受到 PLC 掃描、閘道、排隊、重送及上位系統刷新影響。</p>
+<div class="lab-table" role="region" aria-labelledby="protocol-speed-compare" tabindex="0"><table>
+  <thead><tr><th scope="col">協定</th><th scope="col">相對速度與比較條件</th><th scope="col">驗收時量哪一段</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">PROFINET IO</th><td>八種之中，若需求是短週期且低抖動的控制 I/O，優先比較 RT／IRT。部分 RT 設備可配置至 250 µs，需核對控制器及裝置支援。</td><td>實際 I/O 更新週期、最大抖動、watchdog 超時及故障恢復。</td></tr>
+    <tr><th scope="row">PROFIBUS DP</th><td>專用主站可循環交換 I/O，適合有固定掃描預算的控制。站數、資料量和線速會改變週期，與 CC-Link 的快慢要按相同 I/O 負載實測。</td><td>從站輸入變化到 PLC 程序映像更新及最壞循環時間。</td></tr>
+    <tr><th scope="row">CC-Link</th><td>Classic 與 IE 版本均有循環資料交換。Classic 的 link scan 與 PLC refresh 都影響速度。選 IE 版本時需分辨 IE Field Basic、IE Field 和 IE TSN。</td><td>從遠端站變化到主站 RWr／RX，再到 PLC 刷新區的時間。</td></tr>
+    <tr><th scope="row">Modbus</th><td>TCP 在同一區網讀單一連續點塊時，通常較低速 RTU 更快。若 TCP 之後仍要轉 RTU，多站串行掃描及逾時通常主導更新。</td><td>同時記錄單次請求往返與全部站點掃描 P95／P99。</td></tr>
+    <tr><th scope="row">BACnet</th><td>IP／SC 的 COV 可在變化後通知，免等下次輪詢。採輪詢時受排程與批讀影響，MS/TP 還要等 token。</td><td>數值越過 COV 增量後到 BMS 入庫的時間，並比較批讀的整輪時間。</td></tr>
+    <tr><th scope="row">OPC UA</th><td>在同一區網，訂閱速度主要看採樣及發布設定。例：100 ms 採樣加 500 ms 發布，兩層等待在理想無積壓時合計可接近 600 ms，另加來源及網路時間。</td><td>來源變化到訂閱端接收的時間，核對伺服器實際採用的兩個週期。</td></tr>
+    <tr><th scope="row">MQTT</th><td>同一區網且 Broker 無積壓時，立即發布可比等待固定掃描更早到達。跨站、重送與離線積壓會增加延遲。</td><td>Publisher 到 Subscriber 的延遲，分開記錄固定發布週期及恢復後補送。</td></tr>
+    <tr><th scope="row">Zigbee</th><td>電池感測器通常以事件或上報週期更新。即使無線封包很快到達，長上報週期仍會使溫度資料更新較慢。</td><td>從感測器實際變化到 MQTT 橋接端的新鮮讀值，另記上報間隔與漏報。</td></tr>
+  </tbody>
+</table></div>
+<p>上位監控可用同一個來源變化、相同網段與相同點數，比對 Modbus TCP 輪詢、BACnet COV、OPC UA 訂閱與 MQTT 即時發布的端到端 P95／P99。比如 1 秒輪詢單是等待下次輪詢就可能接近 1 秒，COV 或立即發布則在各自條件成立後送出。</p>
+<h3 id="protocol-speed-security">通訊速度、安全性與驗收</h3>
+<div class="lab-table" role="region" aria-labelledby="protocol-speed-security" tabindex="0"><table>
+  <thead><tr><th scope="col">協定</th><th scope="col">線速、更新與延遲</th><th scope="col">安全能力</th><th scope="col">現場驗收</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Modbus</th><td>RTU 常見 9,600／19,200 bit/s。TCP 使用乙太網路，更新取決於點塊、站數、設備回應與逾時設定。</td><td>傳統 Modbus TCP／RTU 無原生驗證或加密。支援 Modbus Security 的 TCP 端點可用 TLS 與 X.509 憑證。傳統設備用 OT 分區及存取規則限制讀寫。</td><td>量測一整輪、單站逾時時的掃描，以及寫入是否被限制。</td></tr>
+    <tr><th scope="row">BACnet</th><td>MS/TP 常見設備檔位如 38.4／76.8 kbit/s，更新受 token 週期、站數與負載影響。IP／SC 仍要量測實際 COV 或批讀延遲。</td><td>傳統 BACnet/IP、MS/TP 本身無加密。BACnet/SC 使用 TLS WebSocket 和憑證，跨入傳統 BACnet 分段後依該段的能力保護。</td><td>確認 Device Instance、COV 續訂、跨網單播與探索、憑證過期，以及重連取回目前值。</td></tr>
+    <tr><th scope="row">OPC UA</th><td>由伺服器採樣與 publishing interval 決定更新。例：100 ms 採樣、500 ms 發布，另加 PLC 與網路延遲。查 Server 實際接受的參數。</td><td>正式端點使用 <code>SignAndEncrypt</code>、信任清單及應用憑證，再按使用者角色授權。<code>SecurityPolicy=None</code> 不提供通訊簽章或加密。</td><td>記錄 SourceTimestamp、狀態碼、訂閱遺漏。檢查不受信任憑證及未授權寫入是否被拒。</td></tr>
+    <tr><th scope="row">MQTT</th><td>無固定週期。延遲由發布頻率、QoS、Broker 排隊、網路與重連決定。</td><td>部署 TLS 驗證 Broker，按需啟用 mTLS。由 Broker 實作帳號與 topic ACL；跨 Broker 轉送時逐段驗證。</td><td>從發布到訂閱端量測延遲，測重複、離線積壓、訊息逾期及沒有授權的 topic。</td></tr>
+    <tr><th scope="row">Zigbee</th><td>2.4 GHz 原始速率 250 kbit/s。感測點實際更新受上報條件、休眠、多跳與重送影響。</td><td>使用 AES-128 與金鑰機制。限制加入期間，保護金鑰及協調器，另為橋接 Broker 設 TLS 與 ACL。</td><td>核對上報間隔、漏報、離線與電量。分開測射頻連線及橋接發布。</td></tr>
+    <tr><th scope="row">PROFINET IO</th><td>常見 100 Mbit/s 乙太網路。PI 列出的 RT 可配置週期範圍為 250 µs 到 512 ms，實際由控制器與設備共同決定。IRT 依硬體與同步配置驗收。</td><td>確認控制器、設備與工程工具支援的 PROFINET Security Class 與功能。既有裝置以 OT 分區、限制工程存取、保護交換器埠為主。</td><td>量測循環更新、抖動、watchdog 與恢復時間。驗證資料狀態 IOPS／IOCS 與診斷。</td></tr>
+    <tr><th scope="row">PROFIBUS DP</th><td>典型銅纜 DP RS-485 為 9.6 kbit/s 至 12 Mbit/s。主站循環受速率、站數、I/O 長度和重試影響。</td><td>傳統 DP 無原生加密或裝置鑑別。限制匯流排實體接入及 PLC 工程介面存取。</td><td>核對線長與終端，量測 Data_Exchange、週期及一站中斷對其他站的影響。</td></tr>
+    <tr><th scope="row">CC-Link</th><td>Classic 為 156 kbit/s 至 10 Mbit/s。IE Field Basic 使用 100 Mbit/s 乙太網路，循環需按站數與 CPU 實測。兩者的線速都只是掃描時間的其中一項因素。</td><td>Classic 無原生加密或裝置鑑別。保護匯流排及工程介面。IE 系列依版本和設備規格確認，使用 OT 網路分區。</td><td>量測 link scan、CPU refresh、站離線後舊值的品質標示，以及恢復時間。</td></tr>
+  </tbody>
+</table></div>
+<div class="lab-note"><strong>20 台 RTU 的輪詢估算。</strong>若每台讀取兩個 Holding Register，請求 8 bytes、回應 9 bytes，在 9,600 bit/s、8E1 下，每台光是 17 bytes 的傳輸就約 19.5 ms。20 台合計約 390 ms，還要加幀間靜默、設備處理及例外等待。如果輪詢目標是 1 秒，需實測正常及單站離線情境。</div>
+<p>以正常負載、尖峰負載及單站離線三種情境記錄完整掃描週期、端到端 P95／P99、逾時率與恢復時間。對需要確定時限的控制 I/O，另核對規定的最長更新與 watchdog。跨設備量測端到端時間時，先同步並確認時鐘誤差。</p>
+<p>規格與指引：<a href="https://www.modbus.org/modbus-specifications">Modbus Organization</a> · <a href="https://bacnetinternational.org/bacnetsc/">BACnet International</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4.8">OPC Foundation</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT</a> · <a href="https://csa-iot.org/all-solutions/zigbee/zigbee-faq/">CSA Zigbee</a> · <a href="https://us.profinet.com/profinet-rt-real-time-performance/">PI PROFINET RT</a> · <a href="https://www.profibus.com/fileadmin/media/downloadsection/installation_guide/PROFIBUS_Design_Guideline_8012_V129_Sep20.pdf">PI PROFIBUS 設計指引</a> · <a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab05">CLPA</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST OT Security</a></p>
+<h3 id="lab-setup">準備實驗環境</h3>
+<p>使用 Python 3.11 以上。八組離線驗證只需標準函式庫。網路練習再按需要安裝 SDK。</p>
+<pre><code>cd "範例程式碼/industrial_protocol_lab"
+python3 protocol_lab.py all
+python3 -m venv .venv
+source .venv/bin/activate
+# 選擇要練習的協定再安裝
+python -m pip install 'pymodbus==3.11.1' pyserial
+python -m pip install BAC0 asyncua 'paho-mqtt==2.1.0'</code></pre>
+<div class="lab-note">離線執行會得到八行 JSON。每種用例值為 22.0 °C，其中 OPC UA 的品質刻意設為 <code>uncertain</code>。以下各段的兩終端操作使用同一虛擬環境。</div>
 <h3 id="lab-modbus">Modbus TCP／RTU 實作</h3>
 <ol>
 <li>依設備表確認資料區與讀取方式。若手冊以 40001 表示第一個 Holding Register，常映射到 PDU 位址 0；仍以廠牌表頭的起算方式驗證。FC03 讀 Holding，FC04 讀 Input。</li>
@@ -295,9 +361,14 @@
 <li>比對設備面板可信讀值。分開記錄 Modbus exception、transport timeout 和解碼錯誤；重試應受總輪詢期限約束。</li>
 </ol>
 <pre><code class="language-bash">python protocol_lab.py modbus
+# 終端 A
+python lab_endpoints.py modbus
+# 終端 B
+python read_live.py modbus 127.0.0.1 --port 15020 --unit 7 --offset 0
 python read_live.py modbus 192.0.2.40 --unit 7 --offset 0
 python read_live.py modbus /dev/ttyUSB0 --serial --unit 7 --baudrate 9600 --parity E
 </code></pre>
+<p>本機預期 <code>value_c=22.0</code>。監看封包時，FC03 的請求 PDU 為 <code>03 00 00 00 02</code>，回應 PDU 為 <code>03 04 41 B0 00 00</code>。TCP 的 MBAP header 帶交易 ID 與 Unit ID，RTU 幀帶站號與 CRC。將本機範例的 offset 改為 1，可驗證協定例外能被辨識。</p>
 <p><a href="https://www.modbus.org/modbus-specifications">Modbus Organization 規格與序列實作指引</a> · <a href="https://pymodbus.readthedocs.io/en/stable/source/client.html">PyModbus client</a></p>
 <h3 id="lab-bacnet">BACnet 實作</h3>
 <ol>
@@ -307,8 +378,13 @@ python read_live.py modbus /dev/ttyUSB0 --serial --unit 7 --baudrate 9600 --pari
 <li>BACnet/IP 跨 IP 子網的廣播按拓樸使用 BBMD、FD，跨 BACnet 網路依路由器設定。BACnet/SC 依部署採 Hub 與信任憑證；下例使用 BACnet/IP。</li>
 </ol>
 <pre><code class="language-bash">python protocol_lab.py bacnet
+# 終端 A
+python lab_endpoints.py bacnet
+# 終端 B
+python read_live.py bacnet 127.0.0.1:47809 --bind 127.0.0.1/32 --instance 1
 python read_live.py bacnet 192.0.2.41 --bind 192.0.2.10/24 --instance 1
 </code></pre>
+<p>本機預期讀到 Analog Input 1 的 22.0 °C、攝氏單位與四個 status flags。實機可另加 <code>--bbmd 192.0.2.2:47808 --bbmd-ttl 300</code> 驗證已配置的 Foreign Device 路徑。先確認固定 IP 的單播讀取，接著分開驗證跨網探索與 COV 續訂。</p>
 <p><a href="https://bacnetinternational.org/bacnetsc/">BACnet International BACnet/SC</a> · <a href="https://bac0.readthedocs.io/en/latest/read.html">BAC0 ReadProperty</a></p>
 <h3 id="lab-opcua">OPC UA 實作</h3>
 <ol>
@@ -318,9 +394,14 @@ python read_live.py bacnet 192.0.2.41 --bind 192.0.2.10/24 --instance 1
 <li>連續監看使用 Subscription 與 MonitoredItem，分開設定 sampling interval、publishing interval 和 queue size，核對 Server 修訂值，測試斷線恢復與缺值。</li>
 </ol>
 <pre><code class="language-bash">python protocol_lab.py opcua
+# 終端 A
+python lab_endpoints.py opcua
+# 終端 B
+python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.SAT --watch 4 --timeout 15
 python read_live.py opcua opc.tcp://192.0.2.42:4840 urn:example:plant AHU01.SAT \
   --certificate client.der --private-key client-key.pem --server-certificate server.der
 </code></pre>
+<p>本機 Server 每兩秒輪播三種溫度與 BadNoData。訂閱範例輸出四次通知，保留 <code>quality</code>、UA 狀態碼與 <code>source_timestamp</code>。BadNoData 的值為 <code>null</code>。未指定 <code>--watch</code> 時執行一次 Read。</p>
 <p><a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.1">OPC UA Part 4 Subscription</a> · <a href="https://opcua-asyncio.readthedocs.io/en/latest/api/asyncua.common.html">asyncua DataValue</a></p>
 <h3 id="lab-mqtt">MQTT 實作</h3>
 <ol>
@@ -328,9 +409,17 @@ python read_live.py opcua opc.tcp://192.0.2.42:4840 urn:example:plant AHU01.SAT 
 <li>發布端採 QoS 1 可能重複投遞，以 event_id 或來源＋序號做應用層去重。Retained 是快照，Session Expiry 管會話存續，兩者需分別驗收。</li>
 <li>接收範例透過 TLS 等待精確 topic 的一則非 retained 訊息，避免把開機收到的快照當作新點值。驗收 broker 憑證、權限、錯誤 JSON、錯誤單位、逾時與重連。</li>
 </ol>
+<p>以 <code>mosquitto -c mosquitto-lab.conf -v</code> 啟動本機 broker。設定檔只在 <code>127.0.0.1</code> 監聽，使用以下兩行。</p>
+<pre><code>listener 1883 127.0.0.1
+allow_anonymous true</code></pre>
 <pre><code class="language-bash">python protocol_lab.py mqtt
+# 開另一個終端先訂閱，再從第三個終端發布
+python read_live.py mqtt 127.0.0.1 site/lab/ahu01/telemetry --loopback-plaintext --wait 60
+mosquitto_pub -h 127.0.0.1 -V mqttv5 -q 1 -t site/lab/ahu01/telemetry \
+  -m '{"schema":1,"point":"AHU01.SAT","value":22.0,"unit":"degC","quality":"good"}'
 python read_live.py mqtt broker.lab.example site/lab/ahu01/telemetry --ca lab-ca.pem
 </code></pre>
+<p>先送 retained 快照，再啟動讀取程式。在另一個終端發布新訊息後，程式才應輸出 22.0 °C。真正的資料新鮮度仍依來源時間戳與應用 TTL 判定。QoS 1 驗收包含重複訊息，避免歷史資料重複入庫。</p>
 <p><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a> · <a href="https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html">Eclipse Paho Python</a></p>
 <h3 id="lab-zigbee">Zigbee 實作</h3>
 <ol>
@@ -339,8 +428,13 @@ python read_live.py mqtt broker.lab.example site/lab/ahu01/telemetry --ca lab-ca
 <li>映射 friendly name 與設備唯一識別，記下 <code>temperature</code>、availability 及最近上報時間。linkquality 屬無線鏈路指標，無法單靠它判定溫度是否仍有效。</li>
 </ol>
 <pre><code class="language-bash">python protocol_lab.py zigbee
+# 沿用前段本機 broker，兩個終端分別訂閱與發送橋接測試訊息
+python read_live.py zigbee 127.0.0.1 zigbee2mqtt/ahu01-room --loopback-plaintext --wait 60
+mosquitto_pub -h 127.0.0.1 -t zigbee2mqtt/ahu01-room -m '{"battery":95}'
+mosquitto_pub -h 127.0.0.1 -t zigbee2mqtt/ahu01-room -m '{"temperature":22.0,"battery":95}'
 python read_live.py zigbee broker.lab.example zigbee2mqtt/ahu01-room --ca lab-ca.pem --wait 120
 </code></pre>
+<p>預期忽略只有電池欄位的訊息。實機驗收還要核對裝置加入、IEEE 位址、Exposes、實際 report interval 和 <code>zigbee2mqtt/ahu01-room/availability</code>。橋接器若附帶快取溫度，另依裝置上報來源判斷溫度時間。</p>
 <p><a href="https://csa-iot.org/all-solutions/zigbee/">CSA Zigbee</a> · <a href="https://www.zigbee2mqtt.io/guide/usage/mqtt_topics_and_messages.html">Zigbee2MQTT Topics and Messages</a></p>
 <h3 id="lab-profinet">PROFINET IO 實作</h3>
 <ol>
@@ -351,7 +445,9 @@ python read_live.py zigbee broker.lab.example zigbee2mqtt/ahu01-room --ca lab-ca
 <pre><code class="language-json">{&quot;device&quot;:&quot;ahu01-io&quot;,&quot;slot&quot;:2,&quot;subslot&quot;:1,&quot;valid&quot;:true,&quot;bytes&quot;:&quot;00 DC&quot;}
 </code></pre>
 <pre><code class="language-bash">python protocol_lab.py profinet --snapshot pn.json
+python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.PROFINET.Snapshot --fieldbus profinet
 </code></pre>
+<p>在 TIA Portal 指派 <code>ahu01-io</code> 的設備名稱後，記下對應子模組 HW ID、輸入長度及診斷狀態。將有效性及兩個 input bytes 封裝成同一筆 <code>ByteString</code>。本機 OPC UA 測試端點提供模擬資料，詳見下方 PLC 快照格式。</p>
 <p><a href="https://www.profibus.com/download/profinet-technology-and-application-system-description">PI PROFINET 系統說明</a></p>
 <h3 id="lab-profibus">PROFIBUS DP 實作</h3>
 <ol>
@@ -362,7 +458,9 @@ python read_live.py zigbee broker.lab.example zigbee2mqtt/ahu01-room --ca lab-ca
 <pre><code class="language-json">{&quot;station&quot;:5,&quot;input_offset&quot;:0,&quot;data_exchange&quot;:true,&quot;bytes&quot;:&quot;00 DC&quot;}
 </code></pre>
 <pre><code class="language-bash">python protocol_lab.py profibus --snapshot dp.json
+python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.PROFIBUS.Snapshot --fieldbus profibus
 </code></pre>
+<p>先在 DP Master 線上診斷確認站 5 已進入 Data_Exchange，再核對模組輸入資料的 PLC 位址。讀值與已選編號的站診斷放在同一份快照。驗收 RS-485 終端供電、站號重複及設備重新上線。</p>
 <p><a href="https://www.profibus.com/download/profibus-technology-and-application-system-description">PI PROFIBUS 系統說明</a></p>
 <h3 id="lab-cclink">CC-Link Classic 實作</h3>
 <ol>
@@ -373,8 +471,20 @@ python read_live.py zigbee broker.lab.example zigbee2mqtt/ahu01-room --ca lab-ca
 <pre><code class="language-json">{&quot;station&quot;:1,&quot;rwr0&quot;:220,&quot;link_ok&quot;:true}
 </code></pre>
 <pre><code class="language-bash">python protocol_lab.py cc-link --snapshot cclink.json
+python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.CCLink.Snapshot --fieldbus cc-link --watch 4 --timeout 15
 </code></pre>
-<p><a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab02">CLPA Network Specifications</a></p>
+<p>例如在 GX Works 主站 Link Refresh 將站 1 首個 RWr word 映射到 D100，再將該字高、低位元組與站有效性一起發布。占用站數和 CPU 刷新位址依專案設定查表。若設備標示 IE Field Basic，使用對應的乙太網路版主站設定與掃描參數。<a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab05">CLPA Network Specifications</a></p>
+<h3 id="lab-plc">PLC 快照格式與故障驗收</h3>
+<p>PLC 或閘道按一個掃描的狀態建立 <code>[valid, high_byte, low_byte]</code>，其中後兩個 byte 表示有號 16-bit、每單位 0.1 °C。使用一次 OPC UA Read 或 Subscription 取得完整欄位。可用下列對照驗證。</p>
+<div class="lab-table" role="region" aria-label="PLC 快照故障驗收表" tabindex="0"><table>
+  <thead><tr><th scope="col">封包</th><th scope="col">預期值</th><th scope="col">品質</th><th scope="col">驗收條件</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>01 00 DC</code></th><td>22.0 °C</td><td>good</td><td>感測器與站有效，現場顯示一致。</td></tr>
+    <tr><th scope="row"><code>01 FF CE</code></th><td>−5.0 °C</td><td>good</td><td>確認 signed Int16 與 byte order。</td></tr>
+    <tr><th scope="row"><code>00 00 DC</code></th><td>null</td><td>bad</td><td>站離線仍留有 22.0 的原始資料，上位監控顯示失效。</td></tr>
+  </tbody>
+</table></div>
+<p>PROFINET 與 PROFIBUS 的 TIA Portal SCL 一致性讀取、CC-Link 的 Link Refresh 對映及三組可重播 JSON，見 <a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_protocol_lab/README.md">完整實作手冊</a>。在 PLC 量測中斷到失效的時間，在 Python 記錄首次壞品質與首次有效新樣本。</p>
         </div>
       </section>
 
