@@ -10,7 +10,12 @@ main>header>p,section>p,.code-steps{max-inline-size:90ch}
 .code-steps{padding-inline-start:1.45rem}
 .code-steps li{margin:.45rem 0;overflow-wrap:anywhere}
 section,pre,.scroll{min-width:0;max-width:100%}
-</style></head><body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#workflow">讀寫流程</a></li><li><a href="#schema">欄位與資料型別</a></li><li><a href="#table-border">表格與框線</a></li><li><a href="#lab">實作與驗證</a></li><li><a href="#analysis">資料清理與分析</a></li><li><a href="#safety">安全修改檔案</a></li><li><a href="#references">官方資料</a></li></ul></nav><main>
+
+.excel-usage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,29rem),1fr));gap:.75rem}
+.excel-usage-grid article{min-width:0;padding:.85rem;border:1px solid #d5e3ed;border-radius:.7rem;background:#fff;overflow-wrap:anywhere}
+.excel-usage-grid article h3{margin-top:0;color:#19496f}
+.excel-usage-grid pre{max-width:100%;overflow:auto}
+</style></head><body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#workflow">讀寫流程</a></li><li><a href="#schema">欄位與資料型別</a></li><li><a href="#table-border">表格與框線</a></li><li><a href="#lab">實作與驗證</a></li><li><a href="#analysis">資料清理與分析</a></li><li><a href="#safety">安全修改檔案</a></li><li><a href="#references">官方資料</a></li><li><a href="#usage-reference">API 細項用法</a></li></ul></nav><main>
 <header><span class="tag">PYTHON ENGINEERING · XLSX</span><h1>Python Excel 資料處理</h1><p>用 openpyxl 從零建立設備點表，寫入文字、數字、日期與公式，加上真正的 Excel 表格和框線，存檔後再讀回驗證。</p></header>
 <section id="workflow"><h2>01｜一份點表的讀寫流程</h2><ol class="flow"><li>定義欄位<span>識別碼、設備、讀值、時間</span></li><li>逐列寫入<span>表頭與資料各用 append</span></li><li>建立表格<span>指定 Table 範圍及樣式</span></li><li>套框線<span>指定四邊與凍結表頭</span></li><li>存檔驗收<span>重開 .xlsx，檢查值、型別、公式與格式</span></li></ol><p>不要只看寫入時的記憶體物件。檔案格式、Excel 表格元件與公式都應從存檔結果讀回檢查。</p>
 <h3>從命令列到驗收</h3><p><code>python -m pip install openpyxl</code> 把套件裝到目前的 Python；建議在專用虛擬環境執行。<code>ArgumentParser</code> 讀取可省略的 <code>output</code>，用 <code>Path</code> 建立路徑；沒指定時使用 <code>hvac_readings.xlsx</code>。入口先呼叫 <code>write_report()</code>，再由 <code>read_and_check()</code> 重開成品。檔案成功寫入不代表內容正確；兩階段都成功才算通過。</p>
@@ -173,4 +178,77 @@ if __name__ == &quot;__main__&quot;:
 </section><section id="safety"><h2>06｜讀入舊檔與避免覆寫</h2><ol><li>從唯讀的原始檔或備份起步，先確認檔名、工作表與欄位，再做修改；保留原始 XLSX 及修改前的可回復副本。</li><li><code>Workbook.save()</code> 本身可以覆寫，因此範例寫到同一資料夾的暫存檔，再以不覆蓋的方式建立新檔名；再次指定相同輸出會報錯。需要支援硬連結的檔案系統。若同步或網路磁碟不支援，先在本機支援的資料夾產生後，確認新檔名再移交；不要用原檔測試。</li><li>含巨集、外部連結、嵌入物件或其他 Excel 特性的檔案，不要假設 openpyxl 可完整往返保存。先做測試複本及檔案層驗收；大量資料只要取值時可考慮 <code>read_only=True</code> 並在完成後關閉工作簿。</li></ol>
 <h3>程式追蹤：先寫暫存，絕不覆蓋</h3><ol class="code-steps"><li><code>suffix.lower()</code> 只接受 <code>.xlsx</code>；<code>path.exists()</code> 及早攔截重名，但不能防止檢查後出現另一個同名檔。</li><li><code>NamedTemporaryFile(dir=path.parent, delete=False)</code> 在目的地同目錄建立暫存，離開 <code>with</code> 關閉其檔案控制代碼；<code>wb.save(temp)</code> 只寫暫存。<code>path.hardlink_to(temp)</code> 才發布檔名；若在此時已存在同名檔，不能覆寫。這要求所在檔案系統支援硬連結與寫入權限。</li><li><code>finally</code> 執行 <code>temp.unlink(missing_ok=True)</code> 及 <code>wb.close()</code>。發布成功後，移除暫存這個名稱不會刪掉新檔名；發布失敗也會清理暫存。這是防覆寫示範，不保證斷電耐久，也不取代來源檔備份。</li></ol>
 </section>
+<section id="usage-reference"><h2>07｜Excel API 細項用法與驗收</h2>
+<p>依照工作選方法。下列程式片段取自同一份合成點表流程；其中 <code>wb</code>、<code>ws</code>、<code>path</code>、<code>output</code> 代表實驗中的活頁簿、工作表與路徑，不需逐段拼接。下載實驗即可一次執行並檢查結果。</p>
+<p><a href="python_excel_usage_lab.py" download>下載 Excel 細項用法實驗</a> · <a href="#lab">回原完整 HVAC 點表實作</a></p>
+<pre aria-label="執行 Excel 細項實驗"><code>python -m venv .venv
+# macOS／Linux 使用 .venv/bin/python；Windows 改用 .venv\Scripts\python.exe
+.venv/bin/python -m pip install openpyxl
+.venv/bin/python python_excel_usage_lab.py
+# 另想測 pandas：
+.venv/bin/python -m pip install pandas
+.venv/bin/python python_excel_usage_lab.py --pandas</code></pre>
+<p class="note">此實驗只在暫存目錄建立合成 XLSX，驗證後自動清除；正常執行會列出 <code>PASS</code>。請勿用 <code>python -O</code>，以免關閉檢查。任何來自外部、預期是文字的值應先依欄位規格驗證，不可不經檢查就當 Excel 公式寫入。</p>
+<div class="excel-usage-grid">
+<article><h3>01｜讀取檔案與工作表</h3><p><strong>何時用：</strong>先確定讀哪一個工作表；正式匯入不依賴開檔者上次選到的頁籤。</p><p><strong>必要參數：</strong>data_only=False 保留公式；read_only=True 低記憶體，不能用來編輯。</p><pre><code>book = load_workbook(path, read_only=True, data_only=False)
+try:
+    ws = book[&quot;點表&quot;]
+    assert ws[&quot;A2&quot;].value == &quot;0012&quot;
+finally:
+    book.close()</code></pre><p><strong>如何驗：</strong>用明確工作表名稱、第一筆 ID、必要欄名驗證，找不到就報錯；記得關閉唯讀活頁簿。</p></article>
+<article><h3>02｜選取儲存格與批次讀值</h3><p><strong>何時用：</strong>定點取值用 A1 或 cell；連續資料用 iter_rows。</p><p><strong>必要參數：</strong>row、column、min_row、max_row、min_col、max_col 皆從 1 起算。</p><pre><code>assert ws.cell(row=2, column=1).value == ws[&quot;A2&quot;].value
+rows = list(ws.iter_rows(min_row=2, max_row=3,
+                         min_col=1, max_col=2, values_only=True))
+assert rows == [(&quot;0012&quot;, 7.125), (&quot;0048&quot;, 10)]</code></pre><p><strong>如何驗：</strong>values_only=True 回傳值，不含字型與公式型別；空白欄位通常是 None，不等於 0。一般工作表可用 ws[&quot;A2:B3&quot;] 取儲存格矩陣，大檔勿轉整份 list。</p></article>
+<article><h3>03｜定點寫入、追加與安全存檔</h3><p><strong>何時用：</strong>cell 與 A1 適合固定欄位；append 適合寫表頭、追加一列。</p><p><strong>必要參數：</strong>append 傳入列資料；檔案模式 xb 只建立新檔。</p><pre><code>ws.append([&quot;ID&quot;, &quot;溫度&quot;])
+ws.append([&quot;0012&quot;, 7.125])
+ws.cell(row=3, column=1, value=&quot;0048&quot;)
+ws[&quot;B3&quot;] = 10
+with output.open(&quot;xb&quot;) as dest:
+    wb.save(dest)</code></pre><p><strong>如何驗：</strong>寫完再用 openpyxl 重開比對。若要保證不留下半成品，採原教材的同目錄暫存＋不覆蓋發布，單獨 xb 不保證寫入原子性。</p></article>
+<article><h3>04｜字型、背景、對齊、框線</h3><p><strong>何時用：</strong>細項由不同物件控制；背景填滿須指定 solid。</p><p><strong>必要參數：</strong>Font.bold/color、PatternFill.fill_type/fgColor、Alignment.wrap_text、Border.bottom。</p><pre><code>ws[&quot;A1&quot;].font = Font(bold=True, color=&quot;FFFFFFFF&quot;)
+ws[&quot;A1&quot;].fill = PatternFill(fill_type=&quot;solid&quot;, fgColor=&quot;FF285B82&quot;)
+ws[&quot;A1&quot;].alignment = Alignment(horizontal=&quot;center&quot;, wrap_text=True)
+ws[&quot;A1&quot;].border = Border(bottom=Side(style=&quot;thin&quot;, color=&quot;FFD4DFEB&quot;))</code></pre><p><strong>如何驗：</strong>儲存後檢查 cell.font.bold、cell.fill.patternType 或 cell.border.bottom.style。變更時應指派新樣式，不以修改共用樣式物件影響其他格。</p></article>
+<article><h3>05｜數值、時間與凍結窗格</h3><p><strong>何時用：</strong>格式改的是顯示，凍結改的是檢視；都不修改值。</p><p><strong>必要參數：</strong>number_format 是 Excel 格式字串；freeze_panes 指第一個不凍結的儲存格。</p><pre><code>ws[&quot;B2&quot;].number_format = &#x27;0.00&quot; °C&quot;&#x27;
+ws[&quot;C2&quot;].number_format = &quot;yyyy-mm-dd hh:mm&quot;
+ws.freeze_panes = &quot;B2&quot;</code></pre><p><strong>如何驗：</strong>B2 顯示兩位小數，讀回仍可為 7.125；B2 代表凍結第 1 列及 A 欄。Excel 日期不保存時區，需先定時區規則或加專用欄。</p></article>
+<article><h3>06｜表格與工作表篩選</h3><p><strong>何時用：</strong>具名 Table 與工作表篩選是不同設定；避免在同一範圍重疊配置。</p><p><strong>必要參數：</strong>Table.displayName 唯一、ref 含文字表頭；add_filter_column 的列索引從 0 起算且相對範圍。</p><pre><code>table = Table(displayName=&quot;HVACPoints&quot;, ref=&quot;A1:E3&quot;)
+table.tableStyleInfo = TableStyleInfo(name=&quot;TableStyleMedium2&quot;,
+                                      showRowStripes=True)
+ws.add_table(table)
+checks.auto_filter.ref = &quot;A1:B2&quot;
+checks.auto_filter.add_filter_column(1, [&quot;待查&quot;])</code></pre><p><strong>如何驗：</strong>重開後查 ws.tables[&quot;HVACPoints&quot;].ref。篩選規則寫到檔案後由試算表應用程式套用；Python 若需立即得到子集，應自行篩選。</p></article>
+<article><h3>07｜資料驗證與條件格式</h3><p><strong>何時用：</strong>驗證協助手動輸入，條件格式協助檢視；不是 Python 驗證的替代。</p><p><strong>必要參數：</strong>DataValidation.type、formula1、allow_blank、showErrorMessage；CellIsRule.operator、formula、fill。</p><pre><code>rule = DataValidation(type=&quot;list&quot;, formula1=&#x27;&quot;正常,待查&quot;&#x27;,
+                      allow_blank=False, showErrorMessage=True)
+ws.add_data_validation(rule)
+rule.add(&quot;D2:D20&quot;)
+ws.conditional_formatting.add(
+    &quot;B2:B20&quot;, CellIsRule(operator=&quot;greaterThan&quot;, formula=[&quot;9&quot;],
+    fill=PatternFill(fill_type=&quot;solid&quot;, fgColor=&quot;FFFFDFAD&quot;)))</code></pre><p><strong>如何驗：</strong>重開後檢查規則的範圍及數量，並在試算表中確認效果。Python 寫值不會自動執行 Excel 輸入驗證。</p></article>
+<article><h3>08｜公式與上次計算快取</h3><p><strong>何時用：</strong>同一格可讀公式字串或已保存的結果；兩次載入分開驗證。</p><p><strong>必要參數：</strong>data_only=False 讀原式；data_only=True 只讀快取，不是執行公式。</p><pre><code>ws[&quot;E2&quot;] = &quot;=B2*2&quot;
+assert ws[&quot;E2&quot;].data_type == &quot;f&quot;
+with_cache = load_workbook(path, read_only=True, data_only=True)
+try:
+    previous_result = with_cache[&quot;點表&quot;][&quot;E2&quot;].value
+finally:
+    with_cache.close()</code></pre><p><strong>如何驗：</strong>新寫入尚未重算的公式通常沒有快取；讀到數值也可能過期。改公式勿把 data_only=True 的載入副本存回原檔。</p></article>
+<article><h3>09｜大檔串流讀寫</h3><p><strong>何時用：</strong>唯讀模式逐列讀；只寫模式逐列輸出，不做事後隨機編輯。</p><p><strong>必要參數：</strong>Workbook(write_only=True) 要 create_sheet；要格式時用 WriteOnlyCell。</p><pre><code>out = Workbook(write_only=True)
+stream = out.create_sheet(&quot;序列&quot;)
+stream.freeze_panes = &quot;A2&quot;
+stream.append([&quot;索引&quot;, &quot;讀值&quot;])
+for i in range(1, 1001):
+    v = WriteOnlyCell(stream, value=i / 10)
+    v.number_format = &quot;0.0&quot;
+    stream.append([i, v])
+with output.open(&quot;xb&quot;) as dest:
+    out.save(dest)</code></pre><p><strong>如何驗：</strong>窗格等工作表設定放在 append 前，只寫工作簿只存一次。重新以 read_only=True 迭代至最後一列，驗得 (1000, 100.0)。</p></article>
+<article><h3>10｜pandas 分析與 openpyxl 保形</h3><p><strong>何時用：</strong>讀值、清理、彙總用 pandas；需要調整工作簿的儲存格或樣式時用 openpyxl，重要版型另以副本驗。</p><p><strong>必要參數：</strong>read_excel 的 sheet_name、usecols、dtype、engine、keep_default_na 控制匯入。</p><pre><code>df = pd.read_excel(path, sheet_name=&quot;點表&quot;,
+                   usecols=[&quot;ID&quot;, &quot;溫度&quot;, &quot;狀態&quot;],
+                   dtype={&quot;ID&quot;: &quot;string&quot;}, engine=&quot;openpyxl&quot;,
+                   keep_default_na=False)
+df[&quot;溫度&quot;] = pd.to_numeric(df[&quot;溫度&quot;], errors=&quot;coerce&quot;)
+assert df[&quot;ID&quot;].is_unique and df[&quot;溫度&quot;].between(-50, 100).all()
+summary = df.groupby(&quot;狀態&quot;, dropna=False)[&quot;溫度&quot;].agg([&quot;count&quot;, &quot;mean&quot;])</code></pre><p><strong>如何驗：</strong>驗證 ID 0012、0048 與分組結果。dtype=string 只能保存來源的文字，不能憑空恢復只靠數字格式顯示的前導零；輸出新檔，別假定 DataFrame 往返會保留圖表、公式或樣式。</p></article>
+</div><p>查官方參考：<a href="https://openpyxl.readthedocs.io/en/stable/filters.html">篩選與排序</a>、<a href="https://openpyxl.readthedocs.io/en/stable/validation.html">資料驗證</a>、<a href="https://openpyxl.readthedocs.io/en/stable/formatting.html">條件格式</a>、<a href="https://openpyxl.readthedocs.io/en/stable/optimized.html">串流模式</a>、<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html">pandas.read_excel</a>。</p></section>
 <section id="references"><h2>官方資料</h2><ul><li><a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl：建立、儲存、載入工作簿</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html">openpyxl：工作表表格</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/styles.html">openpyxl：儲存格樣式</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/datetime.html">openpyxl：日期及時間</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/charts/bar.html">openpyxl：長條圖、資料範圍與類別</a></li></ul></section></main></div></body></html>

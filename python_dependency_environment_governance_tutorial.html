@@ -71,6 +71,23 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 15ch; }
     }
+  
+  .contract-panel{padding:clamp(.75rem,2vw,1.25rem);min-width:0;overflow-wrap:anywhere;background:white;border:1px solid var(--line);border-radius:8px}
+  .contract-panel p,.contract-panel ul,.contract-panel pre{margin:.7rem 0}
+  .contract-panel h2,.contract-panel h3{margin:.6rem 0}
+  .contract-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12.5rem),1fr));gap:.62rem;list-style:none;margin:.7rem 0;padding:0;counter-reset:phase}
+  .contract-flow li{min-width:0;border:1px solid #8eb1cf;border-inline-start:4px solid #2d6daa;border-radius:7px;background:#edf5ff;padding:.61rem;counter-increment:phase}
+  .contract-flow li::before{content:counter(phase,decimal-leading-zero);color:#216984;font-size:.8rem;font-weight:750}
+  .contract-flow li strong,.contract-flow li span{display:block}
+  .contract-flow li span{font-size:.925rem;color:#365170}
+  .contract-table{max-width:100%;overflow:auto;border:1px solid #c6d6e7;border-radius:7px;margin:.65rem 0}
+  .contract-table table{width:100%;min-width:39rem;border-collapse:collapse}
+  .contract-table caption,.contract-table th,.contract-table td{padding:.55rem;text-align:start;vertical-align:top}
+  .contract-table caption{font-weight:800}
+  .contract-table th{white-space:nowrap;background:#edf5ff;color:#163549}
+  .contract-table td{border-bottom:1px solid #d8e3ef}
+  .contract-panel :focus-visible{outline:3px solid #2f6fbb;outline-offset:2px}
+  @media (max-width:980px){.layout,.hero,.tool-panel,.cards,.steps{grid-template-columns:minmax(0,1fr)}}
   </style>
 </head>
 <body>
@@ -78,7 +95,7 @@
     <aside>
       <a class="brand" href="#top"><span class="logo">DG</span><span><strong>Dependency</strong><br><small>venv、requirements、constraints</small></span></a>
       <nav aria-label="章節導覽">
-        <a href="index.html">回教材入口</a>
+        <a href="index.html">回教材入口</a><a href="#contract-architecture">架構圖</a><a href="#contract-artifacts">格式與工具</a><a href="#contract-targets">目標／ABI</a><a href="#contract-example">專案／CI</a><a href="#contract-gate">驗收與回退</a><a href="#contract-lab">離線實驗</a>
         <a href="#overview">Overview</a>
         <a href="#architecture">Architecture</a>
         <a href="#setup">Setup</a>
@@ -88,35 +105,100 @@
         <a href="#troubleshooting">Troubleshooting</a>
         <a href="#best-practices">Best Practices</a>
       </nav>
-      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+      <div class="progress-box" id="progressSummary">完成 0 / 34</div>
     </aside>
     <main>
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Dependency Environment Governance</span>
-          <h1>把環境與依賴做成可交付的專案契約</h1>
-          <p>很多 Python 專案不是死在功能，而是死在環境漂移：本機用系統 Python、CI 裝到不同小版號、production dev 套件混裝、requirements 沒 pin、constraints 缺席。這條路線把 runtime baseline、<code>venv</code>、requirements 分層、constraints、啟動命令、升級窗口與交付證據收斂成一個可驗證流程。</p>
-          <div class="status-strip"><span>v3.5.0</span><span>32 張互動卡</span><span>requirements + constraints</span><span>runtime + release evidence</span></div>
-          <div class="hero-actions"><a class="button primary" href="#overview">開始依賴治理課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
-        </div>
-        <div class="surface">
-          <svg viewBox="0 0 780 430" role="img" aria-label="Python dependency environment governance flow">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
-            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="52" y="104" width="128" height="76" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="116" y="136">Python</text><text x="116" y="162">Baseline</text>
-              <path d="M191 142h48" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="242" y="104" width="128" height="76" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="306" y="136">venv</text><text x="306" y="162">Activation</text>
-              <path d="M381 142h48" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="432" y="78" width="146" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="505" y="109">requirements.txt</text><text x="505" y="134">prod deps</text>
-              <rect x="432" y="184" width="146" height="74" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="505" y="215">requirements-dev</text><text x="505" y="240">-r prod</text>
-              <path d="M589 142h44" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="636" y="104" width="96" height="76" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="684" y="136">Report</text><text x="684" y="162">Evidence</text>
-            </g>
-            <text x="390" y="314" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">專案要可重現，不只要能安裝成功，還要能證明安裝契約、啟動命令與升級邊界都一致</text>
-          </svg>
-        </div>
+          <h1>把環境與依賴做成可交付的專案契約</h1><p>交付時不只要交程式碼，也要回答「用哪個 Python、依賴版本由誰審查、裝的是哪個成品、如何證明目標端真的能啟動」。以下從宣告、鎖定、離線成品到驗收證據拆成可重做步驟。原有 34 張互動複習卡與進度保留在下方。</p><div class="hero-actions"><a class="button primary" href="#contract-architecture">開始依賴治理教學</a><a class="button blue" href="#contract-example">看範例與 CI</a><a class="button" href="#overview">既有 32 張複習卡</a></div>        </div>
+        <div class="surface contract-panel"><h2>可交付契約的四個階段</h2><ol class="contract-flow"><li><strong>輸入宣告</strong><span>專案直接依賴、Python 範圍、build backend 與環境 marker。</span></li><li><strong>解析與固定</strong><span>在明確目標環境求解 transitive closure，審查版本、來源與雜湊。</span></li><li><strong>受控成品</strong><span>只保留目標 ABI／平台可用 wheels、清單與可信摘要。</span></li><li><strong>驗收與保存</strong><span>乾淨 venv 離線安裝、pip check、入口測試與報告；保留回退包。</span></li></ol></div>
       </section>
+<section class="section-block contract-guide" id="contract-architecture"><div class="section-head"><div><h2>架構圖｜環境、解析結果與交付成品是不同文件</h2></div></div><div class="contract-panel"><ol class="contract-flow"><li><strong>輸入宣告</strong><span>專案直接依賴、Python 範圍、build backend 與環境 marker。</span></li><li><strong>解析與固定</strong><span>在明確目標環境求解 transitive closure，審查版本、來源與雜湊。</span></li><li><strong>受控成品</strong><span>只保留目標 ABI／平台可用 wheels、清單與可信摘要。</span></li><li><strong>驗收與保存</strong><span>乾淨 venv 離線安裝、pip check、入口測試與報告；保留回退包。</span></li></ol><p>定義的是交付契約，不是「我的電腦可以啟動」。<code>venv</code> 隔離 Python 套件目錄，不固定 OS、底層系統函式庫、CPU、憑證或其他執行參數。以明確的 Python 執行檔建立虛擬環境，避免複製 .venv 到另一台機器；切換 shell 不是隔離的必要條件。</p><p><a href="python_dependency_environment_governance.drawio">下載可編輯架構圖與流程圖（Draw.io 兩頁）</a></p></div></section><section class="section-block contract-guide" id="contract-artifacts"><div class="section-head"><div><h2>比較圖表｜每份交付資料能回答什麼</h2></div></div><div class="contract-panel"><div class="contract-table" role="region" tabindex="0" aria-label="工程取捨（定性比較，不是效能測量）"><table><caption>工程取捨（定性比較，不是效能測量）</caption><thead><tr><th scope="col">物件</th><th scope="col">責任</th><th scope="col">重跑與維護成本</th><th scope="col">不足之處</th></tr></thead><tbody><tr><th scope="row">宣告</th><td>pyproject.toml 標明直接依賴與支援範圍。</td><td>需求改動時更新；可套多環境。</td><td>不固定解出的完整版本或成品。</td></tr><tr><th scope="row">constraints</th><td>在同一解析中限制被要求套件的版本。</td><td>適合跨服務統一相容範圍，需定期更新。</td><td>只限制版本，不會要求安裝該套件。</td></tr><tr><th scope="row">lock／核准清單</th><td>每個目標對應已求解版本、來源候選與預期雜湊；內容依鎖格式。</td><td>依平台與相依更新重解析並看差異。</td><td>不等於已準備離線成品，也不保證 OS／外部動態庫。</td></tr><tr><th scope="row">wheelhouse</th><td>本地預備可安裝的 wheel 目錄。</td><td>占儲存成本，讓部署無需重新下載；按 ABI 管理。</td><td>沒有核准版本／雜湊檢查時仍可能選到錯誤內容。</td></tr><tr><th scope="row">驗收證據</th><td>pip inspect、pip check、真實匯入／CLI smoke、建置資訊、測試結果。</td><td>每次部署重新保存，利於追蹤。</td><td>報告不是來源認證，不應包含私有 index URL、認證資料或機密。</td></tr></tbody></table></div>
+<p>雜湊驗證比較的是檔案位元組；當雜湊清單與套件可一併被改寫時，無法證明來源，也不是簽章。由受信管道驗證核准清單或政策要求的 attestation，並將候選成品與那份清單綁定。<code>pip freeze</code> 是當下已裝環境的快照，不是解析器輸出的多目標 lock，也可能包含開發套件與本機路徑。</p>
+<h3>工具定位</h3><ul><li><strong>venv</strong> 建執行環境；<strong>pip</strong> 解析、下載、安裝檔案及讀取安裝證據，<code>pip lock</code> 在查核所見文件仍標示實驗性，產出的 lock 只保證當前 Python 版本及平台。</li><li><strong>pip-tools</strong> 的 <code>pip-compile</code> 依輸入產生 pinned requirements，可加入 hashes；在目標一致的環境解析並審查。<strong>uv</strong> 的 <code>uv.lock</code> 是 uv 專案流程產品，<strong>Poetry</strong> 使用 <code>poetry.lock</code>；不要假設 pip 可直接讀它們。需要互通時核對工具、版本與支援格式，<code>pylock.toml</code> 有 PyPA 規格但不代表每種工具已支援相同功能。目前 pip 文件把 <code>pip install -r pylock.toml</code> 的支援也標為實驗性；使用前核對目標端工具版本並實測。<code>uv sync --locked</code> 不允許更新鎖檔，鎖檔過期會失敗；<code>--frozen</code> 使用既有鎖檔，但不檢查它與專案宣告是否一致。CI 要偵測依賴宣告與鎖檔漂移時，用 <code>--locked</code>。<a href="https://pip.pypa.io/en/stable/cli/pip_install/#options">pip install 文件</a> · <a href="https://docs.astral.sh/uv/concepts/projects/sync/">uv 鎖定與同步文件</a>。</li><li><strong>build</strong> 驅動 PEP 517 後端出成品，不替應用程式決定依賴鎖；<strong>pip check</strong> 驗已裝依賴的中繼資料是否相容，不掃漏洞也不驗雜湊。</li></ul></div></section><section class="section-block contract-guide" id="contract-targets"><div class="section-head"><div><h2>平台契約｜marker、Python 門檻與 ABI 分開</h2></div></div><div class="contract-panel">
+<ul><li><code>requires-python</code> 聲明發行包可搭配哪些 Python 版本，不能固定執行端一定使用哪個 Python。</li><li><strong>環境 marker</strong> 以 PEP 508 條件決定本次依賴是否適用，例如 Python 版本或 OS；marker 不是 wheel tag。<code>python_version</code> 是 major.minor，需比較修補版時另使用合適欄位。</li><li><strong>wheel tag</strong> 是 Python tag、ABI tag、平台 tag 的組合。<code>py3-none-any</code> 可表示無特定 ABI 與平台的 Python 3 wheel，但仍要看 Requires-Python 和依賴。<code>cp313-cp313-…</code> 不等於 free-threaded <code>cp313-cp313t-…</code>。不要直接把 macOS arm64 產物搬到 Linux x86_64，也要看 manylinux/musllinux 等平台基線。</li><li><code>sysconfig.get_platform()</code> 是執行環境識別的一個訊號，不是完整的 wheel 相容 tag 集合；需要判斷候選時以對應的安裝器或 <code>packaging.tags.sys_tags()</code> 為準，並在目標 Python 實際安裝／匯入。</li></ul></div></section><section class="section-block contract-guide" id="contract-example"><div class="section-head"><div><h2>範例專案｜鎖定、準備成品與驗收</h2></div></div><div class="contract-panel">
+<p>以下是 Linux／CPython 3.11 目標的工作範例。先準備兩個檔案和已核准的建置工具（pip-tools、build 與明確版本的 build backend）；建置與取依賴可使用經核准的內部來源，目標安裝不現場重新解析來源版本。實際門檻以自己專案的支援矩陣為準。不是本文的離線實驗實測結果。</p>
+<h3>1. 宣告與最小可匯入入口</h3><pre tabindex="0"><code>[build-system]
+requires = [&quot;setuptools&gt;=68&quot;]
+build-backend = &quot;setuptools.build_meta&quot;
+
+[project]
+name = &quot;env-contract-demo&quot;
+version = &quot;0.1.0&quot;
+requires-python = &quot;&gt;=3.11&quot;
+dependencies = [
+  &quot;packaging&gt;=24,&lt;27&quot;,
+  &quot;typing-extensions&gt;=4.12,&lt;5; python_version &lt; &#x27;3.12&#x27;&quot;,
+]
+
+[tool.setuptools.packages.find]
+where = [&quot;src&quot;]</code></pre><pre tabindex="0"><code># src/env_contract_demo/__init__.py
+from packaging.version import Version
+
+
+def smoke():
+    return Version(&quot;1.0&quot;) &lt; Version(&quot;2.0&quot;)</code></pre>
+<p>範例的 <code>[build-system]</code> 表達最低可用後端，並不鎖定建置輸入。正式釋出要在受控工具環境固定建置工具及間接依賴；本例用 <code>python -m build --no-isolation</code>，需先在該環境依鎖檔安裝好後端及必要建置依賴。範例用 <code>typing-extensions</code> 只用來示範 marker，不是套件的必要功能。</p><h3>2. 生成核准候選、目標驗收</h3><pre tabindex="0"><code>set -eu
+# 受控建置端；TOOLS 指向已由工具鎖檔建立的虛擬環境
+&quot;$TOOLS/bin/python&quot; -m piptools compile --generate-hashes   --output-file requirements.lock pyproject.toml
+&quot;$TOOLS/bin/python&quot; -m pip download --require-hashes   --only-binary=:all: -r requirements.lock -d wheelhouse
+&quot;$TOOLS/bin/python&quot; -m build --no-isolation --wheel --outdir wheelhouse
+
+# 目標端；先核驗鎖檔及 app wheel SHA-256 的已核准來源
+printf &#x27;%s  %s\n&#x27; &quot;$APP_SHA256&quot; wheelhouse/env_contract_demo-0.1.0-py3-none-any.whl   | sha256sum --check -
+python3.11 -m venv .venv
+PY=&quot;$PWD/.venv/bin/python&quot;
+&quot;$PY&quot; -m pip install --no-index --find-links wheelhouse --only-binary=:all:   --require-hashes -r requirements.lock
+&quot;$PY&quot; -m pip install --no-index --no-deps wheelhouse/env_contract_demo-0.1.0-py3-none-any.whl
+&quot;$PY&quot; -m pip check
+&quot;$PY&quot; -I -c &#x27;from env_contract_demo import smoke; assert smoke()&#x27;
+&quot;$PY&quot; -m pip inspect &gt; installed-evidence.json</code></pre>
+<p>範例 <code>APP_SHA256</code> 需先由可信發布紀錄取得；不能從同一不可信 wheel 現算再當核准值。使用 <code>--require-hashes</code> 時，所有依賴（含間接相依）都須釘選並附預期檔案雜湊。部署輸入的鎖檔應經審查、不得含網路 direct URL、VCS 或他人可改寫的本地路徑；若需保證真正離線，另以隔離網路作防護，<code>--no-index</code> 只關索引，不阻擋所有可能的直接 URL。每個目標平台應生成對應 wheelhouse；建置端缺 wheel 時停止，改在批准的建置管線出成品，不偷偷允許目標端從來源建置。Windows 採 <code>.venv\Scripts\python.exe</code>，雜湊驗證命令也須換成受控等效方案。</p>
+<h3>3. CI 配置（驗收 job；不發布）</h3><p>先將已審核的鎖檔、wheelhouse 與 app SHA-256 準備妥當，本範例假設由受控 checkout／流程輸入取得；不應將大型 wheel 任意提交。正式版釘選 Action commit；依目標分 job、保留受控證據。<code>setup-python</code> 與 checkout 可以用網路，承諾離線的是最後的成品安裝階段。</p><pre tabindex="0"><code>name: Verify approved offline contract
+on: [workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: &#x27;3.11&#x27;
+      - name: Verify pre-staged artifacts and smoke
+        env:
+          APP_SHA256: ${{ vars.APP_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n &quot;$APP_SHA256&quot;
+          wheel=&quot;wheelhouse/env_contract_demo-0.1.0-py3-none-any.whl&quot;
+          printf &#x27;%s  %s\n&#x27; &quot;$APP_SHA256&quot; &quot;$wheel&quot; | sha256sum --check -
+          python -m venv .venv
+          py=&quot;$PWD/.venv/bin/python&quot;
+          &quot;$py&quot; -m pip install --no-index --find-links wheelhouse --only-binary=:all: --require-hashes -r requirements.lock
+          &quot;$py&quot; -m pip install --no-index --no-deps &quot;$wheel&quot;
+          &quot;$py&quot; -m pip check
+          &quot;$py&quot; -I -c &#x27;from env_contract_demo import smoke; assert smoke()&#x27;
+          &quot;$py&quot; -m pip inspect &gt; installed-evidence.json</code></pre>
+<h3>4. 常用 Python API 與命令</h3><p><code>venv.EnvBuilder</code> 可程式化建立環境，之後由目標環境完整路徑呼叫；<code>subprocess.run</code> 用參數列表與 <code>check=True</code>，不要用不受信輸入組 shell。<code>importlib.metadata.version()</code> 詢問發行名稱，和 Python import 名稱可能不同。</p><pre tabindex="0"><code>import importlib.metadata as md
+import subprocess
+import sys
+import sysconfig
+
+print(sys.executable, sys.version.split()[0], sysconfig.get_platform())
+print(&quot;venv:&quot;, sys.prefix != sys.base_prefix)
+try:
+    print(md.version(&quot;env-contract-demo&quot;))
+except md.PackageNotFoundError:
+    raise SystemExit(&quot;project distribution is not installed&quot;)
+subprocess.run([sys.executable, &quot;-m&quot;, &quot;pip&quot;, &quot;check&quot;], check=True)</code></pre>
+<p>在已核准的環境用途不同：<code>pip check</code> 應作 gate，<code>pip inspect</code> 產出安裝內容 JSON 供比對；<code>pip debug --verbose</code> 供人工診斷安裝器選擇的相容 tags，避免把除錯版輸出格式當 CI 合約。對外分享 evidence 前先移除內部 URL、路徑及其他機密。</p></div></section><section class="section-block contract-guide" id="contract-gate"><div class="section-head"><div><h2>流程圖｜正常、失敗到回退</h2></div></div><div class="contract-panel"><ol class="contract-flow"><li><strong>設定目標</strong><span>Python 小版本、實作、OS、架構與 runtime image。</span></li><li><strong>更新鎖定</strong><span>在受控建置端解析；以目標矩陣分別核准差異。</span></li><li><strong>準備成品</strong><span>下載或建置選定 wheels；留鎖檔和摘要。</span></li><li><strong>隔離驗收</strong><span>離線驗雜湊並安裝，測 API／CLI、必要的 ABI 匯入。</span></li><li><strong>核准或回退</strong><span>證據不符停止；改用已核准舊成品組合，不現場重解。</span></li></ol><div class="contract-table" role="region" tabindex="0" aria-label="驗收停點"><table><caption>驗收停點</caption><thead><tr><th scope="col">症狀</th><th scope="col">原因範圍</th><th scope="col">安全處置</th></tr></thead><tbody><tr><th scope="row">No matching distribution</th><td>ABI、Requires-Python、架構、OS／libc 或 wheelhouse 缺件。</td><td>核對目標 tag 與鎖定版本；在正確 runner 補建，不切換到未核准來源。</td></tr><tr><th scope="row">SHA-256 不符</th><td>檔案損壞、候選錯誤或來源不可信。</td><td>停止安裝，查可信清單及儲存紀錄；不隨意更新雜湊來過關。</td></tr><tr><th scope="row">安裝過了、啟動失敗</th><td>缺外部 DLL／共享函式庫、原生 ABI 或應用環境錯誤。</td><td>在乾淨目標環境做實際入口與原生匯入，不能用 pip check 取代。</td></tr><tr><th scope="row">升級後不相容</th><td>需求變更、新的可見 API 或部署環境與驗收不一致。</td><td>隔離候選，回退到先前核准的 runtime＋lock＋wheelhouse；設定／資料遷移另驗相容性。</td></tr></tbody></table></div>
+<p>逐環境留：Python/實作/版本、OS 架構與映像 ID、工具與鎖檔版本、核准成品摘要、測試日期／結果、事故與回退證據。不把開發環境 <code>pip freeze</code> 當正式回退檔。</p></div></section><section class="section-block contract-guide" id="contract-lab"><div class="section-head"><div><h2>無網路練習｜比對合成 wheel 契約</h2></div></div><div class="contract-panel"><p><a href="python_dependency_contract_lab.py" download>下載完整 Python 離線範例</a>。使用 Python 3.11 以上，只用標準函式庫。在暫存目錄生成合成 wheel，驗 SHA-256、標籤、Python 版本與中繼資料；可看到改一 byte 的漂移，以及合成 Python 3.10 不符合門檻被拒絕。這個實驗不安裝套件，不是通用 wheel 驗證器、解析器或完整鎖檔實作。</p><pre tabindex="0"><code>python python_dependency_contract_lab.py demo
+python python_dependency_contract_lab.py --self-test</code></pre>
+<h3>官方規格與工具文件</h3><ul><li><a href="https://docs.python.org/3/library/venv.html">Python venv</a> · <a href="https://docs.python.org/3/library/importlib.metadata.html">importlib.metadata</a> · <a href="https://docs.python.org/3/library/sysconfig.html">sysconfig</a></li><li><a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">PyPA pyproject.toml</a> · <a href="https://packaging.python.org/en/latest/specifications/dependency-specifiers/">dependency specifiers</a> · <a href="https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/">wheel tags</a> · <a href="https://packaging.python.org/en/latest/specifications/pylock-toml/">pylock.toml</a></li><li><a href="https://pip.pypa.io/en/stable/user_guide/#constraints-files">pip constraints</a> · <a href="https://pip.pypa.io/en/stable/topics/secure-installs/">pip 雜湊驗證</a> · <a href="https://pip.pypa.io/en/stable/cli/pip_lock/">pip lock</a> · <a href="https://pip.pypa.io/en/stable/cli/pip_inspect/">pip inspect</a> · <a href="https://pip.pypa.io/en/stable/cli/pip_check/">pip check</a></li><li><a href="https://pip-tools.readthedocs.io/en/stable/">pip-tools</a> · <a href="https://docs.astral.sh/uv/concepts/projects/layout/">uv 專案形式</a> · <a href="https://python-poetry.org/docs/basic-usage/">Poetry</a> · <a href="https://build.pypa.io/en/stable/">PyPA build</a>。</li></ul></div></section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋 venv、requirements、constraints、runtime、startup、upgrade">
         <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>

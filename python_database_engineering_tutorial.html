@@ -133,6 +133,28 @@
       .db-map:not(.db-flow) {grid-template-columns:1fr}
       .db-map:not(.db-flow) li:not(:last-child)::after {content:"↓"; top:100%; left:50%}
     }
+
+    .db-error-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,23rem),1fr));gap:.75rem}
+    .db-error-grid article{min-width:0;padding:.75rem 1rem;border:1px solid #cbd9e8;border-radius:.65rem;background:#f7fbff;overflow-wrap:anywhere}
+    .db-error-grid h3{margin-top:0;color:#17456e}
+    .db-error-table{overflow:auto;border:1px solid #cbd9e8;border-radius:.55rem}
+    .db-error-table:focus-visible{outline:3px solid #246b9e;outline-offset:2px}
+    .db-error-table table{border-collapse:collapse;width:100%;min-width:36rem}
+    .db-error-table th,.db-error-table td{padding:.5rem .65rem;text-align:start;vertical-align:top;border-bottom:1px solid #cbd9e8}
+    #common-errors pre{overflow:auto;max-width:100%} #common-errors code{overflow-wrap:anywhere}
+      .db-engine-details{max-width:100%;min-width:0;border:1px solid var(--line);border-radius:.6rem;overflow-wrap:anywhere}
+    .db-engine-details table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:0}
+    .db-engine-details :is(th,td){width:auto;padding:.6rem;text-align:left;vertical-align:top}
+    .db-engine-details th:first-child{width:18%}
+    .db-eng-label{display:none}
+    @media(max-width:970px){
+      .db-engine-details{border:0}
+      .db-engine-details :is(tbody,tr,th,td){display:block;width:auto}
+      .db-engine-details thead{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+      .db-engine-details tbody tr{margin:.6rem 0;border:1px solid var(--line);border-radius:.65rem}
+      .db-engine-details th:first-child{width:auto}
+      .db-eng-label{display:block;font-weight:800}
+    }
   </style>
 </head>
 <body>
@@ -142,6 +164,7 @@
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
         <a href="#engine-selection">架構與引擎選型</a>
+        <a href="#database-engine-comparison">五種資料庫比較</a>
         <a href="#sql-dialects">SQL 與方言對照</a>
         <a href="#cross-engine-lab">跨引擎實驗</a>
         <a href="#migration-playbook">上線與回復</a>
@@ -150,6 +173,7 @@
         <a href="#transaction">交易</a>
         <a href="#transaction-walkthrough">交易流程詳解</a>
         <a href="#repository">Repository</a>
+        <a href="#common-errors">常見錯誤</a>
         <a href="#testing">測試</a>
         <a href="#delivery">交付</a>
         <a href="#sample">範例專案</a>
@@ -202,6 +226,26 @@
           <tr><th scope="row">TimescaleDB</th><td>高密度工控遙測、時間視窗彙總與保留</td><td>確認 PG／擴充相容版本、chunk、晚到資料與保留策略；不因此另建第二套 OLTP。</td><td><code>psycopg</code> · <code>%s</code></td></tr>
         </tbody></table></div>
       </section>
+      <section class="section-block" id="database-engine-comparison" aria-labelledby="db-platform-title">
+        <div class="section-head"><div><span class="eyebrow">Workload · Platform · Evidence</span><h2 id="db-platform-title">五種資料庫：用途、功能、速度與部署平台</h2><p>同一引擎可以在點查詢很快、在批次寫入或長時窗聚合卻不同。下表比較工作負載與瓶頸，不把設計特性當成跑分，也不把 TimescaleDB 視為獨立於 PostgreSQL 的 SQL 引擎。</p></div></div>
+        <div class="db-engine-details" role="region" aria-label="五種資料庫深入對照">
+          <table role="table"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">引擎與用途</th><th role="columnheader" scope="col">功能</th><th role="columnheader" scope="col">效能與速度</th><th role="columnheader" scope="col">平台與維運</th></tr></thead><tbody role="rowgroup">
+           <tr role="row"><th role="rowheader" scope="row">SQLite<br><small>邊緣單機、CLI、斷線緩衝</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>嵌入式 SQL、交易與索引；WAL 可讓讀取與寫入重疊，同一資料庫仍只有一個寫入者。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>同程序無伺服器網路往返；高併發寫入先測鎖等待、批次大小、checkpoint 與儲存同步延遲。用 <code>EXPLAIN QUERY PLAN</code> 看掃描與索引。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>應用程式本機，如 Linux、Windows、macOS；WAL 一般要求同一主機，不以共享網路磁碟把它變成多主機資料庫。備份用一致性備份 API。<a href="https://www.sqlite.org/wal.html">SQLite 官方</a></td></tr>
+           <tr role="row"><th role="rowheader" scope="row">MySQL 8.4 / InnoDB<br><small>交易型 Web、設備設定</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>MVCC、列鎖、主索引組織資料；支援外鍵、交易和複寫方案。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>點查詢看索引與 buffer pool；並行寫入看鎖、redo 刷盤與二級索引成本。批寫和單筆提交分開測；用 <code>EXPLAIN ANALYZE</code> 驗證測試查詢。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>伺服器和應用分離；可見 Linux、Windows 等部署，按 MySQL 8.4 發行包與官方支援矩陣核實。核對排序規則、DDL 鎖與備份。<a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-introduction.html">MySQL 官方</a></td></tr>
+           <tr role="row"><th role="rowheader" scope="row">Microsoft SQL Server<br><small>T-SQL、企業報表與身分整合</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>Query Store、執行計畫、列式索引等；可用性群組與線上維運功能要查版本及 edition。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>以實際計畫、邏輯讀取、等待與 Query Store 看長尾；報表別只測一條查詢，要加交易混載。確認日誌、tempdb 與記憶體配置。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>Windows 與受支援 Linux；不假設元件等同，例如 Linux 上的引擎不代表 SSRS 可直接在同一 Linux 執行。分別核對 ODBC 版本、TLS 與驗證方式。<a href="https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-overview?view=sql-server-ver17">Microsoft 官方</a></td></tr>
+           <tr role="row"><th role="rowheader" scope="row">PostgreSQL<br><small>關聯交易、複雜查詢及混合資料</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>MVCC、擴充架構、多種索引、JSONB 與原生分割；約束、型別與交易仍是核心。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>同時量讀寫並看 <code>EXPLAIN (ANALYZE, BUFFERS)</code>、連線競爭、長交易、vacuum、WAL 和 IO。測試寫入計畫時要注意 ANALYZE 會執行陳述式。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>多平台，如 Linux、Windows、macOS；託管服務須另查 major 版、允許的擴充及備份條件。<a href="https://www.postgresql.org/docs/current/supported-platforms.html">PostgreSQL 官方</a></td></tr>
+           <tr role="row"><th role="rowheader" scope="row">TimescaleDB<br><small>高密度遙測、長時間窗報表</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>PostgreSQL 擴充；依版本可用 hypertable、連續彙總、保留及列式儲存等能力。原生 PostgreSQL 交易表仍能共存。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>用實際 chunk 大小、標籤基數與查詢時間窗測；分開測原始彙總與已預算好的連續彙總，並記錄新鮮度、重算、晚到或補灌成本。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>依 PostgreSQL major、擴充相容矩陣與部署方式選用；自管、容器或託管選項不代表所有 作業系統／CPU 都有同樣套件。先查安裝支援及升級程序。<a href="https://docs.tigerdata.com/use-timescale/latest/hypertables/">Timescale 官方</a></td></tr>
+          </tbody></table>
+        </div>
+        <h3>要量哪種「快」？三條測試線，不混成單一分數</h3>
+        <ol>
+          <li><strong>交易延遲：</strong>記錄從 Python 發出到收到結果的 p50／p95／p99、成功數、逾時、重試及鎖等待；連線取得時間與 SQL 執行時間可分開觀測。</li>
+          <li><strong>寫入吞吐：</strong>固定資料大小、索引數、批次、併發與提交頻率。用「已確認提交的列數 ÷ 經過秒數」算 rows/s，失敗數分列。並註明磁碟與同步持久性，不能拿關閉持久性的數字比正式配置。</li>
+          <li><strong>報表和保留：</strong>固定資料筆數、時間窗、晚到比例、聚合粒度、資料新鮮度；分別量原始查詢與預聚合。另記錄磁碟量、背景作業和還原演練所需時間。</li>
+        </ol>
+        <p class="db-caption">合成算式：30 秒內成功提交 18,000 列，吞吐為 600 rows/s，不能因此得出 p95。實測應固定初始資料、硬體、暖機與快取狀態，重複測試並保留版本。SQLite 嵌入式與網路型引擎的端到端測試可分兩組：「各自實際部署」和「盡量相同併發與耐久配置」。</p>
+        <p>工控選型：若需要斷網繼續緩衝，邊緣可選 SQLite；中心庫先依既有團隊、HA 和交易需求選。只有在時窗查詢、保留或大量補灌確實成為瓶頸，且回放測試優於現有方案時，再加入時序擴充。</p>
+      </section>
       <section class="section-block" id="modeling" data-group="modeling"><div class="section-head"><div><span class="eyebrow">Modeling</span><h2>先定義資料契約，再寫查詢</h2><p>資料庫不是儲存細節，而是專案契約的一部分。schema、constraint、index 與資料生命週期都要能被 review。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="migration" data-group="migration"><div class="section-head"><div><span class="eyebrow">Migration</span><h2>把 schema 演進做成可回放流程</h2><p>正式專案不能靠手動改資料表。每次欄位、索引與約束都要有版本、驗收與 rollback 思路。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="transaction" data-group="transaction"><div class="section-head"><div><span class="eyebrow">Transaction</span><h2>交易邊界要比函式邊界更清楚</h2><p>commit、rollback、retry、idempotency 與 lock 行為決定資料是否可靠。</p></div></div><div class="cards"></div></section>
@@ -226,6 +270,38 @@
         <div class="reading-card"><h3>原子性，不等於萬用復原</h3><p>這個交易只涵蓋同一個 SQLite 資料庫中的 SQL 寫入。寄信、HTTP 呼叫、設備控制或寫入另一個資料庫，不會跟著 rollback。要處理外部副作用，可用 transactional outbox 先在同一交易寫入待發送事件，另由工作程序發送並以冪等鍵防重。</p><p>BEGIN IMMEDIATE 適合本範例的短寫入交易；不是所有查詢都應搶寫入鎖。SQLite 同時只允許一個寫入交易，WAL 也不會變成多寫入者。不要在交易中等待人員輸入或慢速網路；正式系統仍要測量競爭、錯誤與重試上限。</p></div>
       </section>
       <section class="section-block" id="repository" data-group="repository"><div class="section-head"><div><span class="eyebrow">Repository</span><h2>讓業務邏輯不依賴 SQL 細節</h2><p>Repository 與 Unit of Work 讓 service 能被測試，也讓資料庫實作可以演進。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="common-errors" aria-labelledby="common-errors-title">
+        <div class="section-head"><div><span class="eyebrow">Defensive SQLite / DB-API Lab</span><h2 id="common-errors-title">常見 Python 資料庫錯誤：從症狀找到修正方式</h2><p>先判斷是程式、資料、連線還是交易狀態，不要把所有例外都轉成重試。以下以合成電表事件示範；跨引擎行為須在各目標驅動程式與實際版本上再驗證。</p></div></div>
+        <div class="db-error-grid">
+          <article><h3>01｜參數用字串插值，或使用錯的佔位符</h3><p><b>症狀：</b>名稱含特殊字元就失敗，或資料型別在傳送前被轉成文字。<b>正確：</b>SQL 與值分開，交由驅動程式綁定；單一值要傳 <code>(meter_id,)</code>。表名、欄名與排序規則不是值；使用固定白名單對應，或使用驅動程式提供的識別字 API，例如 Psycopg 的 <code>sql.Identifier</code>。</p></article>
+          <article><h3>02｜把交易上下文當成關閉連線</h3><p><b>症狀：</b>SQLite <code>with conn</code> 結束後仍占資源。<b>正確：</b><code>with conn</code> 處理交易而不關閉連線，生命週期另用 <code>contextlib.closing</code> 或 <code>try/finally</code>。不同驅動的上下文並不完全相同；租用池連線也應在 <code>finally</code> 歸還。</p></article>
+          <article><h3>03｜捕捉例外後忘了回滾</h3><p><b>症狀：</b>前三筆入庫、第四筆壞掉，資料半套。<b>正確：</b>先定義整批是否原子，錯誤離開交易邊界並回滾；若使用交易上下文管理器，不要在內部吞掉需要回滾的例外。明確選用原生交易或驅動管理模式，不混用。</p></article>
+          <article><h3>04｜不知道 COMMIT 有沒有成功就重送</h3><p><b>症狀：</b>送出 commit 後連線中斷，沒收到回應，重試卻出現兩筆。<b>正確：</b>以唯一事件 ID 加資料庫約束，從能確認最新寫入的查詢路徑核對結果。相同 ID 不同資料視為衝突；若仍不確定，記為待對帳。不要僅因逾時就重送付款等不可逆副作用。</p></article>
+          <article><h3>05｜每筆都查一次：N+1</h3><p><b>症狀：</b>列 200 台電表，一個列表外再查 200 次。<b>正確：</b>用集合查詢、分批載入，或 <code>JOIN</code>／<code>GROUP BY</code> 在資料庫彙總。用測試量查詢次數與結果，不單看執行時間。大量結果分頁或串流，不把所有資料同時載入。</p></article>
+          <article><h3>06｜長交易、鎖等待與無界重試</h3><p><b>症狀：</b>交易開著等外部 HTTP，其他工作拿不到鎖。<b>正確：</b>鎖內只做必要資料庫操作，分開設定連線、鎖等待或陳述式逾時（依驅動與引擎）。可重試錯誤要在回滾後才於外層重跑完整交易，設有限次數與退避。SQLite 即使使用 WAL，仍同時間只有一個寫入者。</p></article>
+          <article><h3>07｜每個工作都建池，或多人共用同一連線</h3><p><b>症狀：</b>尖峰耗盡連線，交易互相干擾。<b>正確：</b>每個程序管理池生命週期，請求借出、短期使用、完成便歸還；總連線預算乘上程序數。查驅動 <code>threadsafety</code>，不要假設連線或 cursor 可同時使用。SQLite 的 <code>check_same_thread=False</code> 不會自動序列化應用的寫入。</p></article>
+          <article><h3>08｜把時間與金額當成任意字串或浮點數</h3><p><b>症狀：</b>跨日或 DST 對帳差一小時，總額尾數不一致。<b>正確：</b>輸入驗證時區、統一 UTC；報表依需求轉回地方時間。SQLite 沒有專屬時間儲存類別，本例統一 UTC ISO 字串；伺服器型 DB 依型別與連線政策處理。金額或表讀值使用最小整數單位或適當的定點型別，不用二進位浮點假裝精確。</p></article>
+          <article><h3>09｜變更索引之前沒看查詢計畫</h3><p><b>症狀：</b>資料量增加後才大量掃描，或每加一個索引就拖慢寫入。<b>正確：</b>先擷取代表性查詢、篩選與排序，再對照執行計畫和資料分布。SQLite 用 <code>EXPLAIN QUERY PLAN</code>。會執行陳述式的計畫功能先在測試環境用唯讀查詢驗證，勿直接套在正式寫入。</p></article>
+          <article><h3>10｜批次太大，或在部署時一次做完遷移</h3><p><b>症狀：</b>大量寫入鎖住前台，或欄位切換使舊服務失效。<b>正確：</b>以可復原批次、事先定義提交邊界，並走新增 → 回填 → 驗收 → 切流 → 移除；回填用進度與一致性核對。<code>executemany</code> 不等於所有驅動會發單一請求；遷移是否可交易須依 DDL 與引擎驗證。</p></article>
+        </div>
+        <h3>同一個查值動作，各驅動語法不同</h3>
+        <div class="db-error-table" role="region" tabindex="0" aria-label="驅動程式與參數對照"><table>
+          <thead><tr><th scope="col">資料庫／驅動</th><th scope="col">常見佔位符</th><th scope="col">部署前先查</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">SQLite／<code>sqlite3</code></th><td><code>?</code> 或 <code>:name</code></td><td>每條連線的外鍵設定、寫入競爭與交易模式；SQLite 不會因欄位宣告為整數就普遍拒絕其他儲存類別。</td></tr>
+            <tr><th scope="row">MySQL／Connector/Python</th><td><code>%s</code> 或 <code>%(name)s</code></td><td>實際 storage engine 與 autocommit；部分 DDL 會隱含提交，不假設能用 rollback 還原。</td></tr>
+            <tr><th scope="row">PostgreSQL／Psycopg 3</th><td><code>%s</code> 或 <code>%(name)s</code></td><td>參數不先用 Python 格式化；交易內錯誤後通常需先回滾。避免讓連線閒置於交易內。</td></tr>
+            <tr><th scope="row">SQL Server／<code>pyodbc</code></th><td><code>?</code>（ODBC）</td><td>驗證連線加密、逾時、交易隔離與實際引數型別；不同 SQL Server Python 驅動不一定用同語法。</td></tr>
+            <tr><th scope="row">TimescaleDB／Psycopg 3</th><td>沿用 PostgreSQL 驅動</td><td>Hypertable 的唯一索引必須包含所有分割欄位；不能直接移植只對事件 ID 建唯一索引的 SQLite 範例。</td></tr>
+          </tbody>
+        </table></div>
+        <h3>可執行驗收：沒有實體資料庫也能測</h3>
+        <p><a href="python_database_common_errors_lab.py" download>下載 SQLite 離線實驗</a>（Python 3.10+，全程記憶體、合成資料，不建立正式資料庫檔案）。</p>
+        <pre><code>python python_database_common_errors_lab.py
+python python_database_common_errors_lab.py --test</code></pre>
+        <p>應見 <code>first_inserted: 2</code>、<code>retry_inserted: 0</code>、<code>M-01: 150 Wh</code> 與 <code>M-02: 0 Wh</code>。測試另外覆蓋外鍵違反時全批回滾、同 ID 不同資料、拒絕無時區時間或未知排序，以及結束後確實關閉連線。本例逐筆比較內容以驗證冪等，並非吞吐量基準。</p>
+        <p>原始文件：<a href="https://peps.python.org/pep-0249/">Python DB-API</a> · <a href="https://docs.python.org/3/library/sqlite3.html">sqlite3</a> · <a href="https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-execute.html">MySQL Connector/Python</a> · <a href="https://www.psycopg.org/psycopg3/docs/basic/params.html">Psycopg</a> · <a href="https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/statement-parameters">SQL Server ODBC</a> · <a href="https://docs.timescale.com/use-timescale/latest/hypertables/hypertables-and-unique-indexes/">TimescaleDB 唯一索引</a>。</p>
+      </section>
       <section class="section-block" id="testing" data-group="testing"><div class="section-head"><div><span class="eyebrow">Testing</span><h2>資料庫測試要隔離、可重跑、可診斷</h2><p>測試不是只跑 happy path，要覆蓋 constraint、rollback、concurrency 與 query regression。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>交付時要保留資料庫證據</h2><p>release note 應包含 migration、seed、backup、restore drill、query plan 與 rollback 限制。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>SQLite Unit of Work 範例專案</h2><p>`範例程式碼/database_unit_of_work/` 示範如何用標準庫 sqlite3 建立 schema、repository、transaction boundary 與 unittest。 <a href="範例程式碼/database_unit_of_work/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/database_unit_of_work
