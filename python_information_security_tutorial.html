@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Python 資訊安全｜從安全預設到工控閘道</title>
+<style>
+:root{color-scheme:light;--ink:#172033;--muted:#495e77;--blue:#144b8c;--line:#cdd9e7;--paper:#f2f6fb}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.7 system-ui,"Noto Sans TC",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:focus-visible,input:focus-visible{outline:3px solid #2778ca;outline-offset:3px}.wrap{max-width:78rem;margin:auto;padding:clamp(1rem,4vw,3rem);display:grid;grid-template-columns:minmax(12rem,16rem) minmax(0,1fr);gap:clamp(1rem,4vw,3rem)}nav{position:sticky;top:1rem;align-self:start;padding:1rem;background:#fff;border:1px solid var(--line);border-radius:10px}nav ul{padding-inline-start:1.2rem}nav li{margin:.4rem 0}.hero{padding:clamp(1.2rem,4vw,2.5rem);background:#173c66;border-radius:12px;color:white}.hero h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.14;margin:.35rem 0 .7rem}.hero p{max-width:52ch;margin:.25rem 0}.tag{font-size:.88rem;font-weight:700;letter-spacing:.06em;color:#cceaff}main{min-width:0}section{background:white;border:1px solid var(--line);padding:clamp(1rem,3vw,1.9rem);margin-top:1rem;border-radius:10px;scroll-margin-top:1rem}h2{margin:0 0 .55rem;line-height:1.25;color:#153c66}h3{margin-bottom:.25rem}p{margin-top:.45rem}.note{padding:.75rem 1rem;border-left:4px solid #2778ca;background:#edf5ff}.table-scroll,pre{overflow:auto}table{width:100%;min-width:31rem;border-collapse:collapse;text-align:left}th,td{padding:.65rem;border-bottom:1px solid var(--line);vertical-align:top}th{background:#e9f1fa}pre{padding:1rem;background:#14253c;color:#edf6ff;border-radius:8px;font-size:.9rem}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre code{overflow-wrap:normal}.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));padding:0;gap:.6rem;list-style-position:inside}.steps li{background:#edf5ff;padding:.6rem;border-radius:6px}.check{display:flex;gap:.6rem;align-items:baseline;margin:.5rem 0}.check input{width:1rem;height:1rem;flex-shrink:0}.refs{overflow-wrap:anywhere}@media(max-width:760px){.wrap{display:block}nav{position:static;margin-bottom:1rem}nav ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.25rem .8rem}}
+</style></head>
+<body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#boundaries">信任邊界</a></li><li><a href="#defaults">Python 安全預設</a></li><li><a href="#lab">離線驗證範例</a></li><li><a href="#ot">工控閘道</a></li><li><a href="#checklist">上線檢核</a></li><li><a href="#code-protection">程式碼防拷</a></li><li><a href="#references">原始資料</a></li></ul></nav>
+<main id="main"><header class="hero"><span class="tag">PYTHON ENGINEERING · SECURITY</span><h1>Python 資訊安全</h1><p>從輸入驗證、資料存取及 TLS，到工控閘道的信任邊界與上線證據。</p></header>
+<section id="boundaries"><h2>01｜先畫信任邊界</h2><ol class="steps"><li>設備或外部資料</li><li>驗證、限量及標記</li><li>最小權限閘道</li><li>授權服務與稽核</li></ol><p>將設備回傳、訊息、CSV 與上游 API 都視為不可直接信任的輸入。身份驗證回答「它是誰」，授權回答「能做什麼」，完整性檢核回答「內容能否被接受」。不能用其中一項替代另外兩項。</p></section>
+<section id="defaults"><h2>02｜Python 安全預設</h2><div class="table-scroll" tabindex="0" role="region" aria-label="安全預設比較表"><table><thead><tr><th scope="col">範圍</th><th scope="col">安全做法</th><th scope="col">驗證證據</th></tr></thead><tbody>
+<tr><td>輸入與資料庫</td><td>先限制位元組數，再驗證欄位、型別、允許清單與工程上下限。SQL 值用 DB-API 參數；表名等識別字用固定對照，不拼接外部文字。</td><td>錯誤資料被拒絕；資料列數與預期相同。</td></tr>
+<tr><td>傳輸</td><td>使用 <code>ssl.create_default_context()</code>，保留憑證鏈與主機名驗證；需要內部 CA 時，安裝受信任 CA 並驗證目標名稱。設定連線／讀取逾時。</td><td>合法端點可用；錯誤身份、逾期憑證或斷線時不降級成不驗證。</td></tr>
+<tr><td>憑證與權限</td><td>秘密由受控服務或平台注入，不寫入版本庫、範例、錯誤訊息。服務帳號只開所需權限；監看預設唯讀。</td><td>一般監看身份不能寫入；具備輪替及撤銷流程。</td></tr>
+<tr><td>依賴與日誌</td><td>核准來源並鎖定直接及間接相依，依環境維護雜湊。記錄可追查的事件碼、時間、結果；不寫入 token、密碼或完整原始資料。</td><td>建置可重現；拒絕事件可追溯且無秘密。</td></tr>
+<tr><td>程序與序列化</td><td>不對不可信資料反序列化 pickle；用具有明確格式及大小上限的資料。呼叫外部程式使用固定執行檔與引數陣列，維持 <code>shell=False</code>。</td><td>以無效格式和異常長度測拒絕分支，記錄逾時行為。</td></tr>
+</tbody></table></div></section>
+<section id="lab"><h2>03｜離線範例：驗證溫度事件後入庫</h2><p>以下是完整標準庫程式。僅使用合成資料和記憶體 SQLite，不連接設備、不修改現場設定。允許的點名與量測範圍僅供教學，實務應由點表及驗收規格決定。</p>
+<pre><code id="lab-code">import json
+import sqlite3
+
+ALLOWED_POINTS = frozenset({"AHU1_SUPPLY", "AHU2_SUPPLY"})
+
+
+def ingest(db, raw: bytes) -&gt; bool:
+    if len(raw) &gt; 512:
+        return False
+    try:
+        event = json.loads(raw)
+    except (ValueError, RecursionError):
+        return False
+    if not isinstance(event, dict) or set(event) != {"point", "milli_c"}:
+        return False
+    point, value = event["point"], event["milli_c"]
+    if not isinstance(point, str) or point not in ALLOWED_POINTS:
+        return False
+    if type(value) is not int or not -40_000 &lt;= value &lt;= 100_000:
+        return False
+    db.execute("INSERT INTO measurements VALUES (?, ?)", (point, value))
+    return True
+
+
+def main():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE measurements (point TEXT, milli_c INTEGER)")
+        samples = [
+            b'{"point":"AHU1_SUPPLY","milli_c":18750}',
+            b'{"point":"UNKNOWN","milli_c":23000}',
+            b'{"point":"AHU1_SUPPLY","milli_c":true}',
+            b'{"point":"AHU2_SUPPLY","milli_c":999999}',
+            b'x' * 513,
+        ]
+        with db:
+            outcomes = [ingest(db, raw) for raw in samples]
+        rows = db.execute("SELECT COUNT(*) FROM measurements").fetchone()[0]
+        assert outcomes == [True, False, False, False, False] and rows == 1
+        print(f"接收 {rows} 筆；拒絕 {outcomes.count(False)} 筆")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()</code></pre><p>預期結果：<code>接收 1 筆；拒絕 4 筆</code>。此例未包含身分驗證、重送去重及資料持久化；完整服務須定義時間戳、資料來源、品質與持續保留政策。</p></section>
+<section id="ot"><h2>04｜工控閘道：先保住本地控制</h2><p class="note">OT 可用性關心控制服務能否持續，功能安全關心危險發生時系統能否達到安全狀態，資安關心能否抵禦未授權操作；三者互相影響，但不能以資安措施代替獨立的安全聯鎖。</p><ol>
+<li><strong>分區與資料流：</strong>設備網、採集閘道、監控平台分區，只允許核准來源、目的、方向與服務。讓 UI 讀取閘道快照，不直接控制現場設備；一般監看不開放寫入。</li>
+<li><strong>區分協定能力：</strong>Modbus RTU、常見未加密 Modbus TCP 與 BACnet/IP 不假設有身分驗證；BACnet/SC、OPC UA 安全設定或 MQTT over TLS 仍需核對端點、信任及授權。加密不等於允許寫入。</li>
+<li><strong>防止跨界連鎖：</strong>以有界佇列、逾時與重試上限隔離上位機異常；每個實體序列匯流排由單一輪詢者有序管理。保留時間戳與品質；陳舊／失聯與正常 OFF 不能共用一個值。</li>
+<li><strong>故障驗收：</strong>在離線測試台確認斷線、重連及憑證異常，不用在生產設備試驗。觀察本機控制持續性、首筆有效通訊、快照資料年齡、失敗數及記憶體；更新前確認備份及回復。</li>
+</ol></section>
+<section id="checklist"><h2>05｜上線檢核</h2><p>勾選僅用於本次頁面，不會上傳。未完成的項目應有負責人、補驗計畫與核准紀錄。</p>
+<label class="check"><input type="checkbox">點表、單位、有效範圍及資料品質已確認。</label>
+<label class="check"><input type="checkbox">最低權限、憑證鏈與主機名稱驗證已測。</label>
+<label class="check"><input type="checkbox">原始秘密、憑證私鑰與個資不會進入日誌。</label>
+<label class="check"><input type="checkbox">離線故障測試維持控制，服務重連不把失聯標成正常。</label>
+<label class="check"><input type="checkbox">監測、修補與回復手順已審核並保存證據。</label>
+</section>
+<section id="code-protection"><h2>06｜程式碼防拷：保密、授權與完整性分開做</h2>
+<p class="note"><strong>交付到客戶控制的設備上，就不能保證程式無法被複製。</strong>停用右鍵或文字選取不會建立保護，反而影響教材閱讀與無障礙。先決定是要保護商業邏輯、限制帳號使用，還是確認交付物未遭竄改。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="程式碼保護威脅模型"><table><thead><tr><th scope="col">要降低的風險</th><th scope="col">可驗收的設計</th><th scope="col">無法保證什麼</th></tr></thead><tbody>
+<tr><td>客戶取得核心商業邏輯</td><td>把核心規則留在受控服務；客戶端只拿必要的結果。由服務逐次檢查帳號授權、範圍和到期。</td><td>API 無法避免合法輸出被轉載；需要離線運轉時，不能依賴雲端才能進入安全狀態。</td></tr>
+<tr><td>安裝檔遭換置，或授權檔遭改寫</td><td>簽署發布清單或授權資料；驗證端用可信的公鑰驗證，確認版本、授權範圍及期限。簽署私鑰不放在用戶端，也不隨安裝檔發送。</td><td>簽章驗證來源與內容，不提供保密；加密保護處理前的內容，但不能阻止持有解密能力的端點讀取明文，也不能代替操作授權。</td></tr>
+<tr><td>客戶端散布檔案</td><td>明定授權條款、發放紀錄與可撤銷的帳號權限。可在經適當告知的交付物加上不含個資的發行編號，並保存對應紀錄。</td><td>發行標記是追溯輔助，不會阻止拷貝，也不能單靠它認定是誰散布。</td></tr>
+<tr><td>把打包誤當成保密</td><td><code>.pyc</code> 是位元組碼；打包器解決交付與安裝，原生擴充模組可改變散布形式。以部署與相容需求選工具，不把封裝當權限邊界。</td><td>以上都無法保證不被複製、分析或修改。不要把資料庫密碼、長期 API 憑證或驗證私鑰嵌入程式。</td></tr>
+</tbody></table></div>
+<h3>完整性小實驗：比對可信清單中的 SHA-256</h3>
+<pre><code id="integrity-code">from hashlib import sha256
+from hmac import compare_digest
+
+# 這是教學用預期資料。正式部署應從獨立信任來源
+# 取得預期摘要，例如先驗證已簽署的發布清單。
+expected = sha256(b"gateway-release-v1").hexdigest()
+
+def matches_release(package: bytes) -&gt; bool:
+    return compare_digest(sha256(package).hexdigest(), expected)
+
+assert matches_release(b"gateway-release-v1")
+assert not matches_release(b"gateway-release-v2")
+print("完整性案例通過")</code></pre>
+<p>單一摘要只能比對內容：若安裝檔與摘要一起來自不可信來源，不能據此認定發布者身分。數位簽章須從建立信任、密鑰輪替與撤銷一併規劃，避免自行實作密碼演算法。</p>
+<h3>交付前自檢</h3><ul><li>列出可以留在服務端的規則、不可隨客戶端交付的秘密，以及離線時必須保留的行為。</li><li>測試未授權帳號、過期授權、被修改的發布檔，以及簽署主體不符時是否被拒絕。</li><li>工控設備的安全保護與基本控制不可由授權到期中斷；核對本地行為、警示、更新與回復流程。</li></ul>
+</section>
+<section id="references"><h2>原始資料</h2><ul class="refs"><li><a href="https://docs.python.org/3/library/ssl.html#ssl.create_default_context">Python：TLS 預設驗證環境</a></li><li><a href="https://docs.python.org/3/library/sqlite3.html#how-to-use-placeholders-to-bind-values-in-sql-queries">Python：SQL 參數繫結</a></li><li><a href="https://docs.python.org/3/library/pickle.html">Python：pickle 信任限制</a></li><li><a href="https://docs.python.org/3/library/subprocess.html#security-considerations">Python：子程序安全考量</a></li><li><a href="https://pip.pypa.io/en/stable/topics/secure-installs/">PyPA：pip 安全安裝</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev. 3：OT 安全</a></li><li><a href="https://docs.python.org/3/library/py_compile.html">Python：位元組碼編譯</a></li><li><a href="https://docs.python.org/3/library/hashlib.html">Python：雜湊摘要</a></li><li><a href="https://csrc.nist.gov/pubs/fips/186-5/final">NIST FIPS 186-5：數位簽章標準</a></li></ul></section></main></div></body></html>

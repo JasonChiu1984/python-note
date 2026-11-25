@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Packaging 與 Release Engineering 教學 - Metadata、Artifact、Checksum 與 Gate v2.4.0</title>
+  <title>Python Packaging 與 Release Engineering 教學 - 可驗證的 wheel、sdist 與交付證據</title>
   <style>
     :root {
       --ink: #172033;
@@ -73,6 +73,32 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+  
+    .release-panel{min-width:0;padding:clamp(.75rem,2vw,1.2rem);border:1px solid var(--line);background:#fff;border-radius:9px;overflow-wrap:anywhere}
+    .release-panel h2,.release-panel h3{margin:.5rem 0}
+    .release-panel p,.release-panel ul,.release-panel dl,.release-panel pre{margin:.7rem 0}
+    .release-panel dt{font-weight:800;color:#142d45;margin-top:.75rem}
+    .release-panel dd{margin:.25rem 0 .5rem 1rem;color:#44546b}
+    .release-panel .notice{padding:.7rem;background:#fef5df;border-inline-start:4px solid #b7791f}
+    .release-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:.65rem;counter-reset:phase;list-style:none;padding:0;margin:.65rem 0}
+    .release-flow li{counter-increment:phase;min-width:0;padding:.65rem;border:2px solid #2f6fbb;border-radius:8px;background:#edf4ff;overflow-wrap:anywhere}
+    .release-flow li::before{content:counter(phase, decimal-leading-zero);display:block;color:#285284;font-weight:750}
+    .release-panel{container-type:inline-size}
+    .release-flow{grid-template-columns:minmax(0,1fr);gap:1.65rem}
+    .release-flow li{position:relative}
+    .release-flow li:not(:last-child)::after{content:"";position:absolute;inline-size:.55rem;block-size:.55rem;border-inline-end:2px solid #285284;border-block-end:2px solid #285284;inset-inline-start:calc(50% - .28rem);inset-block-end:-1.18rem;transform:rotate(45deg)}
+    .hero .release-flow li:last-child{border-style:dashed;background:#fbf6e8}
+    @container (min-width: 58rem){
+      #pipeline .release-flow{grid-template-columns:repeat(5,minmax(0,1fr))}
+      #pipeline .release-flow li:not(:last-child)::after{inset-inline-start:auto;inset-inline-end:-1.18rem;inset-block-end:calc(50% - .28rem);transform:rotate(-45deg)}
+    }
+    .release-flow li strong,.release-flow li span{display:block}
+    .release-flow li span{font-size:.9rem;color:#33465c}
+    .source-file,.legacy{margin:.75rem 0;border:1px solid var(--line);background:#fff;border-radius:8px;padding:.65rem;min-width:0}
+    .legacy .cards{margin-top:.65rem}
+    .search:focus-visible, summary:focus-visible, pre:focus-visible{outline:3px solid #2f6fbb;outline-offset:2px}
+    @media(max-width:980px){.hero,.layout,.tool-panel,.cards,.steps{grid-template-columns:minmax(0,1fr)}}
+    @media(max-width:440px){.lesson-top{grid-template-columns:minmax(0,1fr)}.tag{white-space:normal}.lesson-card{overflow-wrap:anywhere}}
   </style>
 </head>
 <body>
@@ -92,48 +118,163 @@
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
     </aside>
     <main>
-      <section class="hero" id="top">
-        <div>
-          <span class="eyebrow">Python Packaging / Release Engineering</span>
-          <h1>把 Python 專案交付成可驗證的 release artifact</h1>
-          <p>這條路線把 package 發布從指令記憶拉到 production release engineering：metadata contract、src layout、entry point、semantic version、changelog gate、source archive、checksum、manifest、CI gate、smoke、rollback 與外部發布權限分界。範例專案只使用標準庫，示範可重跑的 release gate。</p>
-          <div class="status-strip"><span>v2.4.0</span><span>28 張互動卡</span><span>standard library sample</span><span>metadata + archive + checksum + manifest</span></div>
-          <div class="hero-actions"><a class="button primary" href="#metadata">開始發布工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
-        </div>
-        <div class="surface">
-          <svg viewBox="0 0 760 430" role="img" aria-label="Python packaging release gate 閉環">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#b7791f"></path></marker></defs>
-            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="64" y="96" width="144" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="136" y="139">Metadata</text>
-              <path d="M218 132h42" stroke="#b7791f" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="276" y="96" width="144" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="348" y="139">Tests</text>
-              <path d="M430 132h42" stroke="#b7791f" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="488" y="96" width="144" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="560" y="139">Artifact</text>
-              <path d="M560 178v45" stroke="#b7791f" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="470" y="240" width="180" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="560" y="283">Checksum</text>
-              <path d="M460 276H304" stroke="#b7791f" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="112" y="240" width="184" height="72" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect><text x="204" y="283">Manifest</text>
-              <path d="M204 230V182" stroke="#b7791f" stroke-width="4" marker-end="url(#arrow)"></path>
-            </g>
-            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">release 不是檔案名稱，而是可重跑的證據鏈</text>
-          </svg>
-        </div>
-      </section>
-      <div class="tool-panel">
-        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：pyproject、version、entry point、archive、checksum、manifest、SBOM、rollback、publish">
-        <div class="quick-links"><a href="#metadata">Metadata</a><a href="#artifact">Artifact</a><a href="#evidence">Evidence</a><a href="#pipeline">Pipeline</a></div>
-      </div>
-      <section class="section-block" id="metadata" data-group="metadata"><div class="section-head"><div><span class="eyebrow">Metadata</span><h2>先把 package 身分變成契約</h2><p>發布工程的第一步不是 build，而是確認名稱、版本、Python 版本與入口點都有明確來源。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="layout" data-group="layout"><div class="section-head"><div><span class="eyebrow">Layout</span><h2>src layout 讓 import 邊界更可靠</h2><p>包裝結構會影響測試可信度、import 行為與使用者安裝後的錯誤面。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="artifact" data-group="artifact"><div class="section-head"><div><span class="eyebrow">Artifact</span><h2>artifact 要能重建、可比對、可追蹤</h2><p>sdist、wheel、executable 的用途不同，但都需要 checksum 與 manifest 支撐交付。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="evidence" data-group="evidence"><div class="section-head"><div><span class="eyebrow">Evidence</span><h2>release note 要連到測試與風險證據</h2><p>發布紀錄應回答改了什麼、怎麼驗、失敗如何回退。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="pipeline" data-group="pipeline"><div class="section-head"><div><span class="eyebrow">Pipeline</span><h2>CI gate 決定哪些 artifact 可以被推送</h2><p>測試、metadata、build、smoke 與簽核要有清楚順序。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>發布後仍要能診斷、回復與稽核</h2><p>外部 PyPI/GitHub Release 權限、token、promotion 與 rollback 都要有邊界。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Packaging Release Engineering 範例專案</h2><p>`範例程式碼/packaging_release_engineering/` 示範 metadata validation、deterministic archive、checksum 與 manifest。 <a href="範例程式碼/packaging_release_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/packaging_release_engineering
-python3 -m py_compile src/packaging_release_engineering/*.py scripts/run_release_smoke.py
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_release_smoke.py</code></pre><div class="cards"></div></section>
+<section class="hero" id="top"><div><span class="eyebrow">Packaging Release Engineering｜本機實驗</span><h1>把 Python 專案交付成可驗證的 release artifact</h1><p>不要交付「在開發機跑過的原始碼」。交付可安裝的成品，以及能回答「它來自哪個版本、如何驗證、出問題如何回退」的紀錄。以下用一個有 CLI 與套件資料檔的最小專案，走完從原始碼到乾淨環境的流程。</p><div class="hero-actions"><a class="button primary" href="#sample">開始本機實驗</a><a class="button" href="#pipeline">看流程圖</a><a class="button" href="index.html">回教材入口</a></div></div><div class="surface release-panel"><h2>架構圖：建置、驗收、發布三道邊界</h2><p>實驗止於驗收；不需帳號，不會上傳。</p><ol class="release-flow"><li><strong>建置區</strong><span>受控原始碼 + pyproject.toml → sdist → wheel</span></li><li><strong>驗收區</strong><span>下載同一份候選成品 → 核對摘要 → 新 venv 安裝 → 跑 CLI</span></li><li><strong>發布區</strong><span>只接收已驗證的同一位元組；正式流程另行授權</span></li></ol><p class="notice"><strong>旁路證據：</strong>保留成品 SHA-256、原始碼 commit、建置工具版本、測試紀錄與核准／工作流程 ID。需要可信來源時再驗證簽署的 provenance，不拿一般 JSON 假冒簽章。</p></div></section>
+<div class="tool-panel"><input class="search" id="lessonSearch" type="search" aria-label="搜尋原有複習卡" placeholder="搜尋原有複習卡（例如 checksum、manifest）"><div class="quick-links"><a href="#sample">可執行範例</a><a href="#evidence">驗證證據</a></div></div>
+<section class="section-block" id="metadata" data-group="metadata"><div class="section-head"><div><span class="eyebrow">01 / 契約</span><h2>先定義套件名稱與安裝入口</h2><p>發行名稱用於安裝與中繼資料，import 名稱是 Python 模組識別字，不能假設同名。</p></div></div><div class="release-panel"><ul><li><code>release-note-lab</code> 是發行名稱；匯入使用 <code>release_note_lab</code>。檔名可能將連字號正規化成底線。</li><li><code>[build-system]</code> 設定建置後端與依賴；<code>[project]</code> 描述成品版本、Python 需求與執行期依賴。兩種類型的依賴分開管理。</li><li><code>[project.scripts]</code> 讓安裝器建立 CLI。驗收時執行真正的 CLI 入口，而不是直接跑 repo 內的檔案。</li><li>這個練習是純 Python、無執行期依賴，宣告 Python ≥3.10；宣告範圍不是測試結果，正式專案依支援範圍配置 CI。</li></ul><details class="source-file"><summary>pyproject.toml（完整檔案）</summary><pre tabindex="0"><code>[build-system]
+requires = [&quot;setuptools==80.9.0&quot;]
+build-backend = &quot;setuptools.build_meta&quot;
+
+[project]
+name = &quot;release-note-lab&quot;
+version = &quot;0.1.0&quot;
+description = &quot;Local-only release engineering exercise&quot;
+readme = &quot;README.md&quot;
+requires-python = &quot;&gt;=3.10&quot;
+dependencies = []
+
+[project.scripts]
+release-note-lab = &quot;release_note_lab:main&quot;
+
+[tool.setuptools.packages.find]
+where = [&quot;src&quot;]
+
+[tool.setuptools.package-data]
+release_note_lab = [&quot;message.txt&quot;]</code></pre></details></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="layout" data-group="layout"><div class="section-head"><div><span class="eyebrow">02 / 輸入</span><h2>src layout 避免拿原始碼冒充已安裝套件</h2><p>建置前的單元測試和成品驗收都有用，但回答的是兩個不同問題。</p></div></div><div class="release-panel"><pre tabindex="0"><code>verified_release_lab/
+├── pyproject.toml
+├── README.md
+├── check_release.py
+├── src/release_note_lab/
+│   ├── __init__.py
+│   └── message.txt
+└── tests/test_message.py</code></pre><p><code>PYTHONPATH=src</code> 僅用在原始碼單測。成品驗收移到專案外工作目錄、清除來源路徑注入、只安裝 wheel，再讀取 <code>message.txt</code>。這會抓到「單測成功，但資料檔沒被打包」的問題。<code>importlib.resources</code> 依套件位置取檔，不依賴當前目錄。</p><details class="source-file"><summary>src/release_note_lab/__init__.py（完整檔案）</summary><pre tabindex="0"><code>from importlib.metadata import version
+from importlib.resources import files
+
+
+def message() -&gt; str:
+    return files(__package__).joinpath(&quot;message.txt&quot;).read_text(encoding=&quot;utf-8&quot;).strip()
+
+
+def main() -&gt; None:
+    print(f&quot;{version(&#x27;release-note-lab&#x27;)}: {message()}&quot;)</code></pre></details><details class="source-file"><summary>src/release_note_lab/message.txt（完整檔案）</summary><pre tabindex="0"><code>Release artifact verified</code></pre></details><details class="source-file"><summary>tests/test_message.py（完整檔案）</summary><pre tabindex="0"><code>import unittest
+
+from release_note_lab import message
+
+
+class MessageTest(unittest.TestCase):
+    def test_packaged_resource(self):
+        self.assertEqual(message(), &quot;Release artifact verified&quot;)</code></pre></details></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="artifact" data-group="artifact"><div class="section-head"><div><span class="eyebrow">03 / 成品</span><h2>先建 sdist，再從 sdist 建 wheel</h2><p>讓 sdist 實際輪到建置；不要只從 checkout 建 wheel，否則漏掉的來源檔會被掩蓋。</p></div></div><div class="release-panel"><dl><dt>sdist（<code>.tar.gz</code>）</dt><dd>來源發行包；安裝時通常需由工具與後端再建成 wheel。它不是 Git repo 備份，也不保證含有測試、審查紀錄或 CI 憑據。</dd><dt>wheel（<code>.whl</code>）</dt><dd>可直接安裝的套件；本例為 <code>py3-none-any</code>。有原生擴充時，應依 Python／ABI／平台標籤發布並逐個測試；不要用本例推論各環境可直接共用。</dd><dt>兩份包都需要驗證</dt><dd>PyPA <code>build</code> 的預設雙包流程會從 sdist 建 wheel；本章用它檢查來源包足以供建置，並對交付的 wheel 做完整安裝冒煙測試。</dd></dl><pre tabindex="0"><code># 檢查檔案清單，不執行其中程式
+python -m tarfile -l &quot;$DIST/release_note_lab-0.1.0.tar.gz&quot;
+python -m zipfile -l &quot;$DIST/release_note_lab-0.1.0-py3-none-any.whl&quot;</code></pre><p>預期 wheel 中含 <code>release_note_lab/message.txt</code>、<code>METADATA</code>、<code>WHEEL</code>、<code>entry_points.txt</code> 與 <code>RECORD</code>。<code>RECORD</code> 是安裝檔案清單及部分檔案摘要，不是整份 wheel 的簽章。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="evidence" data-group="evidence"><div class="section-head"><div><span class="eyebrow">04 / 證據</span><h2>完整性、來源、可重建性各自驗證</h2><p>知道檔案沒壞，不等於知道誰建置；知道誰建置，也不等於證明沒有漏洞。</p></div></div><div class="release-panel"><dl><dt>完整性：SHA-256</dt><dd>比對收到的檔案與已核准摘要；下載管道若能同時被改寫成品與摘要，裸摘要不能證明來源。範例以 UTF-8 相容 ASCII、固定檔名與換行格式產生 <code>SHA256SUMS</code>，在安裝前驗證。</dd><dt>來源：簽署的 attestation / provenance</dt><dd>按政策核對成品 digest、信任的簽署者／publisher、repo、ref 或工作流程。PyPI Publish Attestation 證明發布者與成品的聲明，不等於完整建置 provenance，也不代表已通過測試。一般 JSON 只算未簽署紀錄。</dd><dt>可重建性：用第二次建置驗證</dt><dd>鎖定 source commit、Python／OS／工具版本、相依圖、時間與 locale。<code>SOURCE_DATE_EPOCH</code> 只對會讀取它的工具生效；不同後端、歸檔格式、檔案順序與平台都可能改變位元組。重建失配先找差異，不要修改舊摘要來讓關卡通過。</dd></dl><p class="notice">最少附上：安裝包、來源包、SHA-256、建置條件、測試命令／環境／結果、已知限制、回退版本。SBOM 是依賴清單，不是漏洞不存在或已修補的證據。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="pipeline" data-group="pipeline"><div class="section-head"><div><span class="eyebrow">05 / 流程</span><h2>先驗成品，再讓同一成品過發布閘門</h2><p>每一站要有可觀察結果。以成品雜湊當作建置、驗收與發布的共同識別。</p></div></div><div class="release-panel"><ol class="release-flow"><li><strong>01 固定來源</strong><span>核對 tag 與 commit</span></li><li><strong>02 建置</strong><span>先 sdist，再 wheel</span></li><li><strong>03 驗包</strong><span>檔案清單與 SHA-256</span></li><li><strong>04 乾淨驗收</strong><span>新 venv、pip check、CLI、資源檔</span></li><li><strong>05 核准</strong><span>同一成品、證據齊全才可發布</span></li></ol><p>建置工作不持有發布憑證；驗收工作下載候選成品並重新驗證；發布工作不能重建另一份同名檔案。CI 如需透過 Trusted Publishing 授權，應限定核准的 repo／workflow／environment。練習僅留在本機，不包含上傳步驟。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">06 / 維運</span><h2>用失敗情境驗證發布設計</h2><p>保留上一版已驗證成品，並將套件回退、設定回退、資料遷移回退分開評估。</p></div></div><div class="release-panel"><ul><li>摘要錯誤：隔離候選成品、停止安裝，核對儲存與傳輸紀錄。</li><li>CLI 找不到：核對 entry point、是否裝到預期虛擬環境、實際啟動的執行檔路徑。</li><li>原始碼單測通過、wheel 讀不到資料檔：確認 <code>package-data</code> 與實際包內容，從 sdist 重建後再測。</li><li>有執行期依賴：改用經審核且完整的 wheelhouse 與雜湊鎖定，不要照抄此例的 <code>--no-deps</code>。</li><li>已發布錯版：依索引規則用新版本修正發行，必要時依政策 yank；部署端明確鎖定已驗證版本，不能假設 yank 會讓所有客戶端自動撤回。</li></ul></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">07 / 本機實作</span><h2>從 pyproject.toml 走到驗證過的安裝成品</h2><p>以下指令適用 macOS／Linux 的 POSIX shell。從 repository 根目錄進入新實驗目錄；不會發布到 PyPI 或 GitHub。首次取得建置工具需要網路或自備 wheelhouse。</p></div></div><div class="release-panel"><p><a href="範例程式碼/verified_release_lab/pyproject.toml">pyproject.toml</a> · <a href="範例程式碼/verified_release_lab/check_release.py">驗證腳本</a> · <a href="範例程式碼/packaging_release_engineering/README.md">既有進階實驗</a></p><h3>A. 建置與原始碼單測</h3><pre tabindex="0"><code>cd &#x27;範例程式碼/verified_release_lab&#x27;
+TOOLS=&quot;$(mktemp -d)&quot;
+DIST=&quot;$(mktemp -d)&quot;
+python3 -m venv &quot;$TOOLS/venv&quot;
+PY=&quot;$TOOLS/venv/bin/python&quot;
+&quot;$PY&quot; -m pip install &#x27;build==1.2.2.post1&#x27; &#x27;setuptools==80.9.0&#x27;
+PYTHONPATH=src &quot;$PY&quot; -m unittest discover -s tests -v
+export SOURCE_DATE_EPOCH=1700000000 TZ=UTC
+&quot;$PY&quot; -m build --no-isolation --outdir &quot;$DIST&quot;</code></pre>
+<p><code>--no-isolation</code> 不建立第二層建置環境；此處已有獨立、指定版本的建置環境。正式專案仍需鎖定間接依賴與環境映像；這兩個直接 pin 不構成完整的供應鏈鎖定。</p><h3>B. 寫入摘要，然後在乾淨 venv 驗證</h3><pre tabindex="0"><code># 建置工作只寫一次。驗收工作只跑 verify/smoke，不重寫摘要。
+&quot;$PY&quot; check_release.py &quot;$DIST&quot; write
+&quot;$PY&quot; check_release.py &quot;$DIST&quot; smoke
+# 預期 SHA-256 PASS / No broken requirements found.
+# 0.1.0: Release artifact verified; wheel smoke PASS (...)</code></pre>
+<h3>C. 重建比對與負向測試</h3><p>本次 Linux／CPython 3.12.14、兩次同工具環境重建：wheel 位元組相同；sdist 不同，差異從 gzip 標頭時間欄開始。這不是跨機器或跨版本的可重現承諾。</p><pre tabindex="0"><code>SECOND=&quot;$(mktemp -d)&quot;
+&quot;$PY&quot; -m build --no-isolation --outdir &quot;$SECOND&quot;
+cmp &quot;$DIST/release_note_lab-0.1.0-py3-none-any.whl&quot;     &quot;$SECOND/release_note_lab-0.1.0-py3-none-any.whl&quot;
+# 不假設 sdist 也相同；分開比較並記錄。
+cmp &quot;$DIST/release_note_lab-0.1.0.tar.gz&quot;     &quot;$SECOND/release_note_lab-0.1.0.tar.gz&quot;
+
+# 僅竄改另一份暫存副本，原始候選成品不變。
+BAD=&quot;$(mktemp -d)&quot;
+cp &quot;$DIST/&quot;* &quot;$BAD/&quot;
+printf &#x27;\nX&#x27; &gt;&gt; &quot;$BAD/release_note_lab-0.1.0-py3-none-any.whl&quot;
+if &quot;$PY&quot; check_release.py &quot;$BAD&quot; smoke; then
+    printf &#x27;%s\n&#x27; &#x27;錯誤：損壞的成品竟通過驗證&#x27; &gt;&amp;2
+else
+    printf &#x27;%s\n&#x27; &#x27;符合預期：SHA-256 不符，未進入安裝驗收&#x27;
+fi</code></pre><details class="source-file"><summary>check_release.py（完整檔案）</summary><pre tabindex="0"><code>&quot;&quot;&quot;Verify the lab&#x27;s exact package pair; then smoke-test the wheel in a clean venv.&quot;&quot;&quot;
+
+import argparse
+import hashlib
+import hmac
+import os
+from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
+import venv
+
+NAMES = (&quot;release_note_lab-0.1.0-py3-none-any.whl&quot;, &quot;release_note_lab-0.1.0.tar.gz&quot;)
+MANIFEST = &quot;SHA256SUMS&quot;
+
+
+def manifest_bytes(dist: Path) -&gt; bytes:
+    actual = {p.name for p in dist.iterdir() if p.name != MANIFEST}
+    if actual != set(NAMES):
+        raise SystemExit(f&quot;Expected only the two lab artifacts; found {sorted(actual)}&quot;)
+    lines = []
+    for name in NAMES:
+        with (dist / name).open(&quot;rb&quot;) as artifact:
+            sha = hashlib.sha256()
+            while block := artifact.read(1024 * 1024):
+                sha.update(block)
+        lines.append(f&quot;{sha.hexdigest()}  {name}\n&quot;)
+    return &quot;&quot;.join(lines).encode(&quot;ascii&quot;)
+
+
+def verify(dist: Path) -&gt; None:
+    if not hmac.compare_digest((dist / MANIFEST).read_bytes(), manifest_bytes(dist)):
+        raise SystemExit(&quot;SHA-256 mismatch: do not install or promote these files&quot;)
+
+
+def smoke(dist: Path) -&gt; None:
+    with TemporaryDirectory(prefix=&quot;release-smoke-&quot;) as temp:
+        temp = Path(temp)
+        envdir = temp / &quot;venv&quot;
+        venv.EnvBuilder(with_pip=True).create(envdir)
+        bindir = envdir / (&quot;Scripts&quot; if os.name == &quot;nt&quot; else &quot;bin&quot;)
+        py = bindir / (&quot;python.exe&quot; if os.name == &quot;nt&quot; else &quot;python&quot;)
+        exe = bindir / (&quot;release-note-lab.exe&quot; if os.name == &quot;nt&quot; else &quot;release-note-lab&quot;)
+        env = {k: v for k, v in os.environ.items() if not k.startswith((&quot;PYTHON&quot;, &quot;PIP_&quot;))}
+        subprocess.run(
+            [py, &quot;-I&quot;, &quot;-m&quot;, &quot;pip&quot;, &quot;--isolated&quot;, &quot;install&quot;, &quot;--no-index&quot;,
+             &quot;--no-deps&quot;, dist / NAMES[0]],
+            cwd=temp, env=env, check=True,
+        )
+        subprocess.run([py, &quot;-I&quot;, &quot;-m&quot;, &quot;pip&quot;, &quot;--isolated&quot;, &quot;check&quot;],
+                       cwd=temp, env=env, check=True)
+        actual = subprocess.check_output([exe], cwd=temp, env=env, text=True).strip()
+        expected = &quot;0.1.0: Release artifact verified&quot;
+        if actual != expected:
+            raise SystemExit(f&quot;CLI output mismatch: {actual!r}&quot;)
+        print(f&quot;{actual}; wheel smoke PASS ({sys.version.split()[0]})&quot;)
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(&quot;dist&quot;, type=Path)
+    parser.add_argument(&quot;mode&quot;, choices=(&quot;write&quot;, &quot;verify&quot;, &quot;smoke&quot;))
+    args = parser.parse_args()
+    dist = args.dist.resolve()
+    if args.mode == &quot;write&quot;:
+        with (dist / MANIFEST).open(&quot;xb&quot;) as target:
+            target.write(manifest_bytes(dist))
+    else:
+        verify(dist)
+        print(&quot;SHA-256 PASS&quot;)
+        if args.mode == &quot;smoke&quot;:
+            smoke(dist)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()</code></pre></details>
+<h3>規格與原廠文件</h3><ul><li><a href="https://build.pypa.io/en/stable/">PyPA build</a> · <a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">pyproject.toml</a></li><li><a href="https://packaging.python.org/en/latest/discussions/package-formats/">PyPA 套件格式</a> · <a href="https://packaging.python.org/en/latest/specifications/recording-installed-packages/">安裝檔案與 RECORD</a></li><li><a href="https://docs.python.org/3/library/venv.html">Python venv</a> · <a href="https://docs.python.org/3/library/importlib.resources.html">importlib.resources</a></li><li><a href="https://docs.pypi.org/attestations/">PyPI Attestations</a> · <a href="https://docs.pypi.org/trusted-publishers/">PyPI Trusted Publishing</a></li></ul></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>
@@ -221,6 +362,7 @@ python3 scripts/run_release_smoke.py</code></pre><div class="cards"></div></sect
     });
     document.getElementById("lessonSearch").addEventListener("input", (event) => {
       const keyword = event.target.value.trim().toLowerCase();
+      if (keyword) document.querySelectorAll("details.legacy").forEach(d => { d.open = true; });
       document.querySelectorAll(".lesson-item").forEach((item) => {
         item.classList.toggle("hidden-by-search", Boolean(keyword) && !item.dataset.search.includes(keyword));
       });

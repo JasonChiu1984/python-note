@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Data Evolution Governance 教學 - Schema、Backfill 與 Rollback v3.3.0</title>
+  <title>Python Data Evolution Governance 教學 - Schema、Backfill 與 Rollback v3.4.0</title>
   <style>
     :root {
       --ink: #172033;
@@ -71,6 +71,31 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+    .hero {grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+    .hero > *, .reading, .lab-flow li, .evo-node, .lesson-top > * { min-width:0; }
+    h1,h2,h3,p,li,a,.tag,.button { overflow-wrap:anywhere; }
+    .tag { white-space:normal; }
+    .evo-diagram,.reading {margin:0;padding:clamp(1rem,2vw,1.4rem);background:white;border:1px solid var(--line);border-radius:10px;min-width:0;}
+    .evo-diagram figcaption {font-weight:900;margin-bottom:1rem;color:var(--green);}
+    .evo-stack,.lab-flow {list-style:none;display:grid;gap:1.55rem;padding:0;margin:0;}
+    .evo-node,.lab-flow li {position:relative;border:1px solid var(--line);border-left:4px solid var(--green);border-radius:7px;padding:.7rem .9rem;background:#eef8f2;}
+    .evo-node:nth-child(even),.lab-flow li:nth-child(even) {background:#edf4fd;border-left-color:var(--blue);}
+    .evo-node:not(:last-child)::after,.lab-flow li:not(:last-child)::after {content:'↓';position:absolute;top:100%;left:50%;line-height:1.55rem;color:#236848;font-weight:900;}
+    .evo-node strong,.lab-flow strong {display:block;}
+    .evo-node p,.lab-flow p {font-size:.94rem;}
+    .read-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:start;}
+    .reading {margin-bottom:1rem;}
+    .reading h3 {margin:0 0 .5rem;}
+    .reading p+p {margin-top:.75rem;}
+    .reading ol,.reading ul {margin:.65rem 0;padding-inline-start:1.25em;}
+    .reading li+li {margin-top:.4rem;}
+    .reading pre,.reading .button {margin:.65rem 0;}
+    .reading summary {cursor:pointer;font-weight:900;}
+    .caution {border-left:5px solid var(--amber);background:#fffae9;}
+    .gate {border-left:5px solid var(--red);background:#fff5f4;}
+    .reading code:not(pre code) {background:#eef3f6;padding:.05em .2em;}
+    @media(max-width:1120px) {.hero {grid-template-columns:minmax(0,1fr);}}
+    @media(max-width:740px) {.read-grid,.lesson-top {grid-template-columns:minmax(0,1fr);} .section-head {display:block;}}
   </style>
 </head>
 <body>
@@ -88,47 +113,315 @@
         <a href="#troubleshooting">Troubleshooting</a>
         <a href="#best-practices">Best Practices</a>
       </nav>
-      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+      <div class="progress-box" id="progressSummary">完成 0 / 34</div>
     </aside>
     <main>
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Data Evolution Governance</span>
           <h1>把資料升版做成可回退的工程流程</h1>
-          <p>很多專案不是壞在 CRUD，而是壞在升版瞬間：新程式讀不到舊資料、backfill 半路中斷、rollback 後資料回不去。這條路線把 schema version、compat read/write、expand/contract、backfill checkpoint、drift preflight 與 rollback evidence 串成完整工程閉環。</p>
-          <div class="status-strip"><span>v3.3.0</span><span>32 張互動卡</span><span>standard library sample</span><span>schema / backfill / rollback</span></div>
+          <p>用一個可執行的 SQLite 實驗，把模擬溫度資料從整數 °C 升級為十分之一度。你會看見新舊版本如何共讀、批次在哪裡停又從哪裡重跑，以及何時可以切回舊程式、何時必須另做資料復原。</p>
+          <div class="status-strip"><span>v3.4.0</span><span>34 張互動卡</span><span>standard library sample</span><span>schema / backfill / rollback</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始資料演進課程</a><a class="button blue" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 780 430" role="img" aria-label="Python data evolution governance flow">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
-            <rect x="34" y="42" width="712" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="56" y="96" width="126" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="119" y="126">Schema</text><text x="119" y="151">Manifest</text>
-              <path d="M193 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="250" y="74" width="136" height="76" rx="12" fill="#ebf7f0" stroke="#2d8a69" stroke-width="4"></rect><text x="318" y="104">Compat</text><text x="318" y="129">Read / Write</text>
-              <rect x="250" y="182" width="136" height="76" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="318" y="212">Backfill</text><text x="318" y="237">Checkpoint</text>
-              <path d="M397 133h54" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="454" y="96" width="144" height="74" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="526" y="126">Preflight</text><text x="526" y="151">Drift Check</text>
-              <path d="M526 181v46" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="440" y="232" width="172" height="74" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="526" y="262">Rollback</text><text x="526" y="287">Evidence</text>
-            </g>
-            <text x="390" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">資料演進的核心不是把欄位改掉，而是讓新舊版本都能被驗證、能回退、能追溯</text>
-          </svg>
-        </div>
+        <figure class="evo-diagram surface">
+          <figcaption>從版本契約到可恢復的發布</figcaption>
+          <ol class="evo-stack">
+            <li class="evo-node"><strong>01 · 預檢</strong><p>核對原始 schema、寫入者與回退條件。</p></li>
+            <li class="evo-node"><strong>02 · 擴展與相容</strong><p>保留舊欄位，新增可為空的新欄位；部署相容寫入者。</p></li>
+            <li class="evo-node"><strong>03 · 分批回填與驗收</strong><p>資料與 checkpoint 同一筆交易；確認值一致，才能切讀。</p></li>
+            <li class="evo-node"><strong>04 · 觀察與收斂</strong><p>需要時切回舊讀；退役舊版後先驗證備份，再移除舊欄位。</p></li>
+          </ol>
+        </figure>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋 schema、backfill、checkpoint、rollback、compat">
         <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
       </div>
-      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定義資料版本契約，再做 migration</h2><p>資料演進治理的第一步不是寫 script，而是先說清楚版本、相容與回退條件。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把相容讀寫、回填與回退拆成明確層次</h2><p>compat read/write、backfill、preflight 與 rollback evidence 應各自可驗證。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬 schema 升版與回復</h2><p>用標準庫範例就能演示 schema drift、checkpoint、resume 與 rollback read。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>用 manifest 寫出升版規則與風險邊界</h2><p>沒有 manifest 的資料升版，多半只是在賭運氣。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 sample project 示範完整資料演進閉環</h2><p>範例專案示範 schema manifest、compat adapter、backfill checkpoint、drift preflight 與 rollback report。 <a href="範例程式碼/data_evolution_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋升版、續跑與回退</h2><p>資料演進不是 migration 跑完就算完成，還要證明能重跑、能停止、能回讀。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先比對資料版本與報告，再看應用程式</h2><p>大多數資料升版事故，本質上都是版本契約或回填證據不足。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓資料升版變成可交付、可回退資產</h2><p>版本發布時，schema 狀態、backfill 進度與 rollback 可行性都應被記錄。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定義資料版本契約，再做 migration</h2><p>資料演進治理的第一步不是寫 script，而是先說清楚版本、相容與回退條件。</p></div></div><article class="reading">
+  <h3>案例：把整數攝氏度移成固定精度，不破壞已存資料</h3>
+  <p><strong>V1：</strong><code>readings(id, c)</code> 記錄整數攝氏度。舊資料 22°C 是整數 22。<strong>V2：</strong>保留 c，增設可為 NULL 的 <code>deci_c</code>；回填後同一筆記錄變成 c=22、deci_c=220。<strong>V3：</strong>移除 c，只保存 <code>deci_c</code>，才開始接受 22.1°C（221）。</p>
+  <p>這是欄位表示法與資料契約的變更，不是浮點數四捨五入練習。相容期間維持舊格式可表示範圍。若 V2 就允許 221，你無法無損還原成舊版整數攝氏度；這樣即使保留舊欄位，也不代表具備可回退性。</p>
+  <p>版本命名區分三件事：schema 版本（結構）、應用版本（程式行為）與回填進度（資料準備狀態）。「schema 已是 V2」不代表所有資料都已回填，也不代表允許移除舊欄位。</p>
+</article><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把相容讀寫、回填與回退拆成明確層次</h2><p>compat read/write、backfill、preflight 與 rollback evidence 應各自可驗證。</p></div></div><div class="read-grid">
+  <figure class="evo-diagram reading"><figcaption>部署／稽核架構：判斷可不可以往前</figcaption><ol class="evo-stack">
+    <li class="evo-node"><strong>變更規格</strong><p>定義欄位映射、相容範圍、停寫窗口與承擔人。</p></li>
+    <li class="evo-node"><strong>部署協調器</strong><p>核對版本與 schema、排空舊寫入程序、控制讀取路徑。</p></li>
+    <li class="evo-node"><strong>驗收與復原證據</strong><p>保留 checkpoint、錯誤、列數、差異驗證、備份與還原耗時。</p></li>
+  </ol></figure>
+  <figure class="evo-diagram reading"><figcaption>應用／資料架構：同一筆真實資料怎麼走</figcaption><ol class="evo-stack">
+    <li class="evo-node"><strong>V2 相容寫入層</strong><p>同一 SQL 與交易寫入 c、deci_c。舊讀仍讀 c；新讀先用 deci_c，為空才轉換 c。</p></li>
+    <li class="evo-node"><strong>SQLite V2 + 回填 worker</strong><p>交易鎖內取下一批 id；只補 NULL。更新與 checkpoint 一起提交。</p></li>
+    <li class="evo-node"><strong>收斂後的 SQLite V3</strong><p>只有 deci_c，強制非空、整數與範圍；獨立備份檔不參與線上讀寫。</p></li>
+  </ol></figure>
+</div>
+<div class="reading caution"><h3>讀相容與寫相容是兩份契約</h3><p>單檔實驗故意沒有用 trigger 互補，也沒有版本路由服務。部署者必須先停掉 V1 寫入者，包括排程任務、離線同步與直接 SQL，才讓 V2 相容寫入者接手。舊讀者可繼續使用明列欄位的查詢，舊寫者不能直接回線。若舊寫必須並存，請先設計經驗證的資料庫同步機制與雙向映射，而不是假設雙欄位自動一致。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬 schema 升版與回復</h2><p>用標準庫範例就能演示 schema drift、checkpoint、resume 與 rollback read。</p></div></div><article class="reading"><h3>建立一次性實驗環境</h3><p>下載本頁對應的單檔，只需 Python 3.10+ 與 SQLite 3.24+（用於 UPSERT）。所有測試操作臨時目錄，沒有連到工作站、設備、正式網路或真正資料。請不要把本檔的測試流程直接改指正式資料庫。</p><a class="button primary" href="sqlite_data_evolution_lab.py" download>下載 SQLite 升版實驗</a><pre><code>python3 -c "import sqlite3; print(sqlite3.sqlite_version)"
+python3 sqlite_data_evolution_lab.py
+# Windows 也可以：py -3 sqlite_data_evolution_lab.py</code></pre><p>預期結果是 Ran 6 tests 和 OK。舊有的多檔專案連結仍保留在「完整範例」章節。</p></article><div class="cards"></div></section>
+      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>用 manifest 寫出升版規則與風險邊界</h2><p>沒有 manifest 的資料升版，多半只是在賭運氣。</p></div></div><article class="reading"><h3>先把會讓你按下停止的條件寫進發布單</h3><pre><code>migration: c_to_deci_c
+schema: 1 → 2 → 3
+transform: deci_c = c * 10
+phase_2: keep v1 readers; drain all v1 writers
+batch: ordered positive ids, start after last_id
+cutover_gate: no NULL, no unequal c * 10, restore drill passed
+contract_gate: old readers/writers retired, replication/replay plan approved
+stop_if: schema drift, unexplained missing rows, lock budget exceeded</code></pre><p>這是發布單範例，並非程式會讀取的 YAML。實驗使用 PRAGMA user_version 做單一資料庫的版本標籤，並核對 V1 欄位結構。正式系統要再核對 migration 檔校驗值、約束、索引、視圖、觸發器與外鍵，不要只看版本號或欄位名。</p></article><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 sample project 示範完整資料演進閉環</h2><p>範例專案示範 schema manifest、compat adapter、backfill checkpoint、drift preflight 與 rollback report。 <a href="範例程式碼/data_evolution_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><article class="reading">
+ <h3>交易流程圖：一批資料怎麼安全抵達下一階段</h3>
+ <ol class="lab-flow">
+   <li><strong>預檢 → 擴展</strong><p>在交易內確認 V1 欄位符合預期，新增可為 NULL 的新欄位、CHECK 與 migration_state，提交 V2。已有 V2 時不重複執行 DDL。</p></li>
+   <li><strong>相容部署 → 分批取數</strong><p>切換 V2 寫入後，worker 用 BEGIN IMMEDIATE，依正整數主鍵排序，從 last_id 後取下一批。</p></li>
+   <li><strong>填值 → 先驗證失敗情境</strong><p>只更新 deci_c 為 NULL 的記錄；即使 V2 已填入也不覆寫。若在寫入後、更新 checkpoint 前失敗，兩個狀態都應回到上一批已提交的位置。</p></li>
+   <li><strong>checkpoint → COMMIT → 下一批</strong><p>同一筆交易把 last_id 移到批次尾端。重開 worker 會從已提交的位置繼續；選不到列時結束，重新執行會得到 0。</p></li>
+   <li><strong>全表驗收 → 切讀 → 觀察</strong><p>驗收必須獨立掃描整表確認 NULL 與差異為零，不能把「沒有下一批」當作完整證據。過渡期若有問題，暫停收斂並切回舊讀。</p></li>
+   <li><strong>還原演練 → 收斂</strong><p>驗證快照備份可復原並確認舊讀者退役。示範交易內重建 readings 表，複製資料並核對列數、換表後才標記 V3。</p></li>
+ </ol>
+</article>
+<article class="reading"><h3>程式碼與設計決策</h3><ul>
+ <li><code>expand()</code>：DDL 與版本標籤同交易。CHECK 允許尚未回填的 NULL，但若有值，需等於 c × 10。</li>
+ <li><code>compat_write()</code>：新增或更新同時帶兩欄，包含 id 小於等於 checkpoint 的記錄；新資料不指望 worker 再補。參數綁定只用於 SQL 值。</li>
+ <li><code>backfill_batch()</code>：範例固定主鍵不重排，更新資料和指標用同一連線。若場景允許多來源倒灌舊資料，必須有同步寫入、補漏掃描或其他驗證策略。</li>
+ <li><code>contract()</code>：在同一個寫入交易再做驗收，避免驗收後和換表前發生變更。示範表沒有外部依賴；真實重建須處理索引、觸發器、視圖、foreign key 與外部應用引用，不能照抄 DROP TABLE。</li>
+ <li><code>backup_to_new_file()</code>：使用 SQLite 備份 API 另建快照並檢查 integrity_check，不以檔案複製取代正在寫入的 SQLite 備份，也不覆蓋既有檔。</li>
+ </ul><details><summary>展開完整可執行 Python（與下載檔一致）</summary><pre><code>&quot;&quot;&quot;Disposable SQLite migration lab. Run with Python 3.10+: python3 sqlite_data_evolution_lab.py&quot;&quot;&quot;
+import sqlite3
+import tempfile
+import unittest
+from contextlib import contextmanager
+from pathlib import Path
+
+V1 = &quot;CREATE TABLE readings(id INTEGER PRIMARY KEY CHECK(id &gt; 0), c INTEGER NOT NULL CHECK(typeof(c)=&#x27;integer&#x27; AND c BETWEEN -40 AND 100))&quot;
+V3 = &quot;CREATE TABLE readings_next(id INTEGER PRIMARY KEY CHECK(id &gt; 0), deci_c INTEGER NOT NULL CHECK(typeof(deci_c)=&#x27;integer&#x27; AND deci_c BETWEEN -400 AND 1000))&quot;
+
+
+@contextmanager
+def connect(path):
+    db = sqlite3.connect(path, timeout=3, isolation_level=None)
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@contextmanager
+def write_transaction(db):
+    db.execute(&#x27;BEGIN IMMEDIATE&#x27;)
+    try:
+        yield
+        db.execute(&#x27;COMMIT&#x27;)
+    except BaseException:
+        if db.in_transaction:
+            db.execute(&#x27;ROLLBACK&#x27;)
+        raise
+
+
+def version(db):
+    return db.execute(&#x27;PRAGMA user_version&#x27;).fetchone()[0]
+
+
+def initialize(db):
+    with write_transaction(db):
+        db.execute(V1)
+        db.executemany(&#x27;INSERT INTO readings(c) VALUES (?)&#x27;, [(18,), (22,), (27,)])
+        db.execute(&#x27;PRAGMA user_version = 1&#x27;)
+
+
+def expand(db):
+    with write_transaction(db):
+        if version(db) == 2:
+            return
+        if version(db) != 1 or db.execute(
+            &quot;PRAGMA table_info(readings)&quot;
+        ).fetchall() != [(0, &#x27;id&#x27;, &#x27;INTEGER&#x27;, 0, None, 1),
+                         (1, &#x27;c&#x27;, &#x27;INTEGER&#x27;, 1, None, 0)]:
+            raise RuntimeError(&#x27;unexpected schema; stop&#x27;)
+        db.execute(&quot;&quot;&quot;ALTER TABLE readings ADD COLUMN deci_c INTEGER
+            CHECK(deci_c IS NULL OR (typeof(deci_c)=&#x27;integer&#x27;
+            AND deci_c BETWEEN -400 AND 1000 AND deci_c = c * 10))&quot;&quot;&quot;)
+        db.execute(&#x27;CREATE TABLE migration_state(name TEXT PRIMARY KEY, last_id INTEGER NOT NULL)&#x27;)
+        db.execute(&quot;INSERT INTO migration_state VALUES (&#x27;c_to_deci_c&#x27;, 0)&quot;)
+        # Deployment precondition: drain all legacy writers.
+        db.execute(&#x27;PRAGMA user_version = 2&#x27;)
+
+
+def compat_write(db, row_id, c):
+    &quot;&quot;&quot;Only V2 writes are allowed by the deployment gate during the lab window.&quot;&quot;&quot;
+    with write_transaction(db):
+        if version(db) != 2:
+            raise RuntimeError(&#x27;compat write requires expand phase&#x27;)
+        db.execute(&quot;&quot;&quot;INSERT INTO readings(id,c,deci_c) VALUES (?,?,?)
+            ON CONFLICT(id) DO UPDATE SET c=excluded.c,deci_c=excluded.deci_c&quot;&quot;&quot;,
+                   (row_id, c, c * 10))
+
+
+def checkpoint(db):
+    value = db.execute(&quot;SELECT last_id FROM migration_state WHERE name = ?&quot;, (&#x27;c_to_deci_c&#x27;,)).fetchone()
+    if value is None:
+        raise RuntimeError(&#x27;checkpoint missing; stop&#x27;)
+    return value[0]
+
+
+def backfill_batch(db, size=2, *, simulate_interrupt=False):
+    if not 1 &lt;= size &lt;= 1000:
+        raise ValueError(&#x27;size must be within 1..1000&#x27;)
+    with write_transaction(db):
+        if version(db) != 2:
+            raise RuntimeError(&#x27;backfill requires expand phase&#x27;)
+        rows = db.execute(&#x27;SELECT id FROM readings WHERE id &gt; ? ORDER BY id LIMIT ?&#x27;,
+                          (checkpoint(db), size)).fetchall()
+        if not rows:
+            return 0
+        db.executemany(&#x27;UPDATE readings SET deci_c=c*10 WHERE id=? AND deci_c IS NULL&#x27;, rows)
+        if simulate_interrupt:
+            raise RuntimeError(&#x27;simulated abort before checkpoint&#x27;)
+        db.execute(&#x27;UPDATE migration_state SET last_id=? WHERE name=?&#x27;,
+                   (rows[-1][0], &#x27;c_to_deci_c&#x27;))
+        return len(rows)
+
+
+def validate(db):
+    nulls, mismatches = db.execute(&quot;&quot;&quot;SELECT COUNT(CASE WHEN deci_c IS NULL THEN 1 END),
+          COUNT(CASE WHEN deci_c != c*10 THEN 1 END) FROM readings&quot;&quot;&quot;).fetchone()
+    if nulls or mismatches:
+        raise RuntimeError(f&#x27;validation blocked: nulls={nulls}, mismatch={mismatches}&#x27;)
+
+
+def read_deci_c(db):
+    if version(db) == 1:
+        return db.execute(&#x27;SELECT id,c*10 FROM readings ORDER BY id&#x27;).fetchall()
+    if version(db) == 3:
+        return db.execute(&#x27;SELECT id,deci_c FROM readings ORDER BY id&#x27;).fetchall()
+    return db.execute(&#x27;SELECT id,COALESCE(deci_c,c*10) FROM readings ORDER BY id&#x27;).fetchall()
+
+
+def rollback_reader(db):
+    if version(db) == 3:
+        raise RuntimeError(&#x27;v1 schema no longer available after contract&#x27;)
+    return db.execute(&#x27;SELECT id,c FROM readings ORDER BY id&#x27;).fetchall()
+
+
+def contract(db):
+    with write_transaction(db):
+        if version(db) != 2:
+            raise RuntimeError(&#x27;contract requires expand phase&#x27;)
+        validate(db)
+        db.execute(V3)
+        db.execute(&#x27;INSERT INTO readings_next SELECT id,deci_c FROM readings&#x27;)
+        old_count = db.execute(&#x27;SELECT COUNT(*) FROM readings&#x27;).fetchone()[0]
+        new_count = db.execute(&#x27;SELECT COUNT(*) FROM readings_next&#x27;).fetchone()[0]
+        if old_count != new_count:
+            raise RuntimeError(&#x27;row count mismatch&#x27;)
+        db.execute(&#x27;DROP TABLE readings&#x27;)
+        db.execute(&#x27;ALTER TABLE readings_next RENAME TO readings&#x27;)
+        db.execute(&#x27;DROP TABLE migration_state&#x27;)
+        db.execute(&#x27;PRAGMA user_version = 3&#x27;)
+
+
+def backup_to_new_file(src, target):
+    &quot;&quot;&quot;Exclusive destination, never overwrite a file. Only for the lab.&quot;&quot;&quot;
+    target = Path(target)
+    with target.open(&#x27;xb&#x27;):
+        pass
+    try:
+        with connect(target) as dst:
+            src.backup(dst)
+            if dst.execute(&#x27;PRAGMA integrity_check&#x27;).fetchone() != (&#x27;ok&#x27;,):
+                raise RuntimeError(&#x27;snapshot integrity check failed&#x27;)
+    except BaseException:
+        target.unlink()
+        raise
+
+
+class Lab(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        cm = connect(self.root / &#x27;lab.db&#x27;)
+        self.db = cm.__enter__()
+        self.addCleanup(cm.__exit__, None, None, None)
+        initialize(self.db)
+
+    def test_drift_blocks_expand(self):
+        self.db.execute(&#x27;ALTER TABLE readings ADD COLUMN unexpected TEXT&#x27;)
+        with self.assertRaisesRegex(RuntimeError, &#x27;schema&#x27;):
+            expand(self.db)
+        self.assertEqual(version(self.db), 1)
+
+    def test_expand_is_idempotent_and_compatible(self):
+        expand(self.db)
+        expand(self.db)
+        self.assertEqual(rollback_reader(self.db), [(1,18), (2,22), (3,27)])
+        self.assertEqual(read_deci_c(self.db), [(1,180), (2,220), (3,270)])
+
+    def test_batch_abort_then_resume_and_rerun(self):
+        expand(self.db)
+        self.assertEqual(backfill_batch(self.db, 1), 1)
+        with self.assertRaisesRegex(RuntimeError, &#x27;simulated&#x27;):
+            backfill_batch(self.db, 1, simulate_interrupt=True)
+        self.assertEqual(checkpoint(self.db), 1)
+        self.assertEqual(self.db.execute(&#x27;SELECT deci_c FROM readings WHERE id=2&#x27;).fetchone(), (None,))
+        self.assertEqual(backfill_batch(self.db), 2)
+        self.assertEqual(backfill_batch(self.db), 0)
+        validate(self.db)
+
+    def test_compat_write_updates_behind_checkpoint(self):
+        expand(self.db)
+        backfill_batch(self.db)
+        compat_write(self.db, 1, 19)
+        self.assertEqual(read_deci_c(self.db)[0], (1,190))
+        self.assertEqual(rollback_reader(self.db)[0], (1,19))
+
+    def test_contract_gates_and_constraints(self):
+        expand(self.db)
+        with self.assertRaisesRegex(RuntimeError, &#x27;nulls&#x27;):
+            contract(self.db)
+        while backfill_batch(self.db):
+            pass
+        contract(self.db)
+        self.assertEqual(read_deci_c(self.db), [(1,180), (2,220), (3,270)])
+        with self.assertRaisesRegex(RuntimeError, &#x27;no longer&#x27;):
+            rollback_reader(self.db)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(&#x27;INSERT INTO readings(deci_c) VALUES (?)&#x27;, (None,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(&#x27;INSERT INTO readings(deci_c) VALUES (?)&#x27;, (1001,))
+
+    def test_backup_and_restore_drill(self):
+        expand(self.db)
+        while backfill_batch(self.db):
+            pass
+        snapshot = self.root / &#x27;snapshot.db&#x27;
+        backup_to_new_file(self.db, snapshot)
+        contract(self.db)
+        self.db.execute(&#x27;UPDATE readings SET deci_c=181 WHERE id=1&#x27;)
+        restored = self.root / &#x27;restore-drill.db&#x27;
+        with connect(snapshot) as source:
+            backup_to_new_file(source, restored)
+        with connect(restored) as recovery:
+            self.assertEqual(version(recovery), 2)
+            self.assertEqual(rollback_reader(recovery)[0], (1,18))
+        self.assertEqual(read_deci_c(self.db)[0], (1,181))  # No in-place overwrite.
+        with self.assertRaises(FileExistsError):
+            backup_to_new_file(self.db, restored)
+
+
+if __name__ == &#x27;__main__&#x27;:
+    unittest.main(verbosity=2)
+</code></pre></details></article><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋升版、續跑與回退</h2><p>資料演進不是 migration 跑完就算完成，還要證明能重跑、能停止、能回讀。</p></div></div><div class="read-grid">
+ <article class="reading"><h3>六項實驗證據</h3><ol><li>陌生欄位使預檢停止，不偷偷修正 schema。</li><li>可重複 expand，新舊讀路徑資料一致。</li><li>故意在 checkpoint 前中斷，驗證資料和指標都未推進，再續跑並重跑。</li><li>更新 checkpoint 之前的主鍵，兩欄仍一致。</li><li>未回填完成不得收斂，收斂後舊讀不可用且約束生效。</li><li>用備份另開復原檔、實際讀舊格式，確認來源未覆蓋；快照之後的新寫入不在備份裡。</li></ol></article>
+ <article class="reading"><h3>上線驗收還要補哪些？</h3><p>用實際資料量與備份容量估算工期，量測每批耗時、寫入延遲 P95、忙碌錯誤、尚未填值列數與 journal/WAL 成長。測試不代表已經驗證多程序壓力、跨庫事件同步、斷電或資料損毀。</p><p>發布紀錄至少保存 schema 版本、migration 檔版本、每批範圍、截止時間、來源／目的資料量、NULL 與差異數、備份時間點，以及實際演練耗時與簽核。</p></article>
+</div><div class="cards"></div></section>
+      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先比對資料版本與報告，再看應用程式</h2><p>大多數資料升版事故，本質上都是版本契約或回填證據不足。</p></div></div><article class="reading gate"><h3>三種「回退」請先分清，否則可能丟新資料</h3><ol>
+ <li><strong>交易回滾：</strong>單一未提交批次失敗時撤回這批更新與 checkpoint，之前已提交的批次不會消失。</li>
+ <li><strong>應用切回舊讀：</strong>收斂前 c 仍存在，切回舊讀後保留 V2 寫入以維持雙欄一致；不必還原快照，也不會因切讀丟資料。此流程不承諾退回完整 V1 寫入程式。</li>
+ <li><strong>資料恢復：</strong>收斂後不直接開舊程式。先停寫，評估是否能 forward fix 或在保留所有新值的前提下做逆向轉換；若不可，將備份還原到隔離檔，驗證可用，再盤點快照後的資料，經核准後才決定切換與重播。</li>
+ </ol><p>22.1°C 無法無損回到 V1，因此已出現新精度時不能用除以 10 後四捨五入冒充回復。備份只還原到某個時間點：RPO 是可承受的資料遺失範圍；RTO 是可承受的復原時間。先量測、記錄並讓負責人核准。</p></article>
+<article class="reading"><h3>先停止擴大影響，再診斷</h3><ul><li><strong>busy / locked：</strong>暫停 worker，縮小批次；查長交易和寫入稽核，再以有上限的退避重試。不可在鎖內等網路或人工確認。</li><li><strong>checkpoint 已到尾但仍有 NULL：</strong>找出相容層漏寫或資料倒灌的來源，修復後對照缺漏列；不能直接改進度來通過收斂。</li><li><strong>語意不符：</strong>核對單位、精度與有效範圍，區分原始值、已換算值及無效資料；不要默默把異常變成零。</li></ul></article><div class="cards"></div></section>
+      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓資料升版變成可交付、可回退資產</h2><p>版本發布時，schema 狀態、backfill 進度與 rollback 可行性都應被記錄。</p></div></div><article class="reading"><h3>發布前可照做的清單</h3><ol><li>確認應用與 schema 相容矩陣，盤點所有舊讀與寫入者。</li><li>將 expand、回填、切讀與 contract 分成不同發布關卡。</li><li>實測備份、資料驗收、觀察窗與異常回退。正式收斂另安排維護窗口。</li><li>工控場景優先在離線、去識別化遙測副本演練；控制命令、設備設定與現場連鎖不可用這個測試腳本操作。</li></ol><p><a href="https://www.sqlite.org/lang_altertable.html">SQLite ALTER TABLE</a> · <a href="https://www.sqlite.org/lang_transaction.html">SQLite 交易</a> · <a href="https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup">Python SQLite 備份 API</a></p></article><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
     </main>
   </div>
@@ -160,9 +453,9 @@
       ],
       example: [
         ["example-model", "Example", "RecordModel 保存 schema version 與有效欄位", "範例資料用 telemetry record 展示從 `level` 過渡到 `severity`。", "TelemetryRecord(schema_version=1)", "domain version is explicit."],
-        ["example-compat-read", "Example", "compat reader 先把 v1 正規化", "舊版 `level` 讀進來時先轉成新版 `severity`，讓上層只看一種欄位。", "severity = payload.get('severity', payload['level'])", "old data fits new contract."],
+        ["example-compat-read", "Example", "compat reader 先把 v1 正規化", "舊版 `level` 讀進來時先轉成新版 `severity`，讓上層只看一種欄位。", "severity = payload['severity'] if 'severity' in payload else payload['level']", "old data fits new contract."],
         ["example-migrate", "Example", "migration plan 做欄位 expand", "升版流程先保留 `level`，新增 `severity` 與 `device_group`。", "apply_expand(record)", "new fields are introduced safely."],
-        ["example-backfill", "Example", "backfill 任務批次轉換資料", "每處理一筆就更新 checkpoint，並累計 upgraded / skipped / drifted。", "run_backfill(records, checkpoint)", "progress is visible."],
+        ["example-backfill", "Example", "backfill 任務批次轉換資料", "用批次提交處理結果與 checkpoint，並累計 upgraded / skipped / drifted；寫入與進度不能分開提交。", "run_backfill(records, checkpoint)", "progress is visible."],
         ["example-preflight", "Example", "preflight 先檢查 drift", "上線前先掃資料是否缺 id、timestamp、device_id 或 schema_version。", "preflight(records)", "bad input is discovered early."],
         ["example-rollback", "Example", "rollback read 驗證舊版仍可讀", "在 contract 階段前，要先證明舊版 reader 能吃升版後資料或 backup。", "legacy_read(expanded_record)", "rollback stays realistic."]
       ],
@@ -215,6 +508,7 @@
         offset += lessons.length;
       });
       updateProgress();
+      applyLessonSearch();
     }
     document.addEventListener("click", (event) => {
       const button = event.target.closest("[data-complete]");
@@ -225,12 +519,13 @@
       saveCompleted(done);
       renderAll();
     });
-    document.getElementById("lessonSearch").addEventListener("input", (event) => {
-      const query = event.target.value.trim().toLowerCase();
+    function applyLessonSearch() {
+      const query = document.getElementById("lessonSearch").value.trim().toLowerCase();
       document.querySelectorAll(".lesson-item").forEach((item) => {
         item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query));
       });
-    });
+    }
+    document.getElementById("lessonSearch").addEventListener("input", applyLessonSearch);
     renderAll();
   </script>
 </body>

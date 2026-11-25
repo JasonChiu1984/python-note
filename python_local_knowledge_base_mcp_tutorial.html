@@ -1,237 +1,114 @@
-<!doctype html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Local Knowledge Base MCP 教學 - export、index 與 search/read v4.2.40</title>
-  <style>
-    :root {
-      --ink: #172033;
-      --muted: #5d6b7d;
-      --line: #d8e2ec;
-      --paper: #f6f8fb;
-      --panel: #ffffff;
-      --blue: #2f6fbb;
-      --green: #2d8a69;
-      --teal: #0f8794;
-      --amber: #b7791f;
-      --shadow: 0 18px 42px rgba(23, 32, 51, 0.08);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e8f4f6 0, var(--paper) 34rem); line-height: 1.72; }
-    code, pre { font-family: var(--mono); }
-    .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
-    aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
-    .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
-    .logo { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 8px; background: #e1f6f8; border: 2px solid var(--teal); color: var(--teal); font-weight: 950; }
-    nav { display: grid; gap: 0.42rem; margin-top: 1rem; }
-    nav a { padding: 0.58rem 0.62rem; border-radius: 7px; color: var(--muted); font-weight: 850; text-decoration: none; }
-    nav a:hover { background: #edf2f7; color: var(--ink); }
-    main { min-width: 0; }
-    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.95fr); gap: clamp(1rem, 4vw, 3rem); align-items: center; padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 5vw, 4.8rem) 2rem; }
-    .eyebrow { display: inline-flex; min-height: 2rem; padding: 0.32rem 0.64rem; border: 1px solid rgba(15,135,148,0.28); border-radius: 7px; background: rgba(255,255,255,0.74); color: var(--teal); font-weight: 950; font-size: 0.9rem; }
-    h1 { max-width: 15ch; margin: 1rem 0 0.8rem; font-size: clamp(2.05rem, 4.8vw, 4.1rem); line-height: 1.06; }
-    p { color: var(--muted); margin: 0; }
-    .status-strip, .hero-actions, .quick-links, .pager { display: flex; flex-wrap: wrap; gap: 0.65rem; }
-    .status-strip { margin-top: 1rem; }
-    .status-strip span, .progress-box { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.25rem 0.58rem; border-radius: 6px; background: #e1f6f8; color: var(--teal); font-weight: 900; }
-    .hero-actions { margin-top: 1.2rem; }
-    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.55rem; padding: 0.52rem 0.82rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
-    .button.primary { background: var(--teal); color: white; border-color: #0a7280; }
-    .button.blue { background: var(--blue); color: white; border-color: #245b99; }
-    .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
-    .surface svg { width: 100%; height: auto; display: block; }
-    .section-block { padding: 2rem clamp(1rem, 5vw, 4.8rem); scroll-margin-top: 1rem; }
-    .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
-    .section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: 1.1; }
-    .section-head p { margin-top: 0.45rem; max-width: 66rem; }
-    .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
-    .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
-    .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--teal); text-decoration: none; font-weight: 900; }
-    .cards { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-    .lesson-card { min-width: 0; display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
-    .lesson-top { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
-    .tag { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.6rem; background: #e1f6f8; color: var(--teal); font-weight: 950; font-size: 0.76rem; white-space: nowrap; }
-    .lesson-card h3 { margin: 0.2rem 0 0; font-size: 1.25rem; }
-    pre { max-width: 100%; margin: 0; padding: 0.9rem; background: #101827; color: #e9f2ff; border-radius: 8px; overflow: auto; line-height: 1.55; font-size: 0.88rem; }
-    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
-    .step { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: #f8fbfe; }
-    .step strong { display: block; margin-bottom: 0.25rem; }
-    .step span { color: var(--muted); font-size: 0.92rem; }
-    .pager { padding: 0 clamp(1rem, 5vw, 4.8rem) 3rem; }
-    @media (max-width: 980px) {
-      .layout { grid-template-columns: 1fr; }
-      aside { position: static; height: auto; }
-      .hero, .tool-panel, .section-head { grid-template-columns: 1fr; }
-      .cards, .steps { grid-template-columns: 1fr; }
-      h1 { max-width: 15ch; }
-    }
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside>
-      <a class="brand" href="#top"><span class="logo">KB</span><span><strong>Knowledge Base MCP</strong><br><small>export、search、read</small></span></a>
-      <nav aria-label="章節導覽">
-        <a href="index.html">回教材入口</a>
-        <a href="#overview">Overview</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#setup">Setup</a>
-        <a href="#configuration">Configuration</a>
-        <a href="#example">Example</a>
-        <a href="#verification">Verification</a>
-        <a href="#troubleshooting">Troubleshooting</a>
-        <a href="#best-practices">Best Practices</a>
-      </nav>
-      <div class="progress-box" id="progressSummary">完成 0 / 24</div>
-    </aside>
-    <main>
-      <section class="hero" id="top">
-        <div>
-          <span class="eyebrow">Python Local Knowledge Base MCP</span>
-          <h1>把對話與工程知識做成可搜尋、可讀取、可交付的本地知識庫</h1>
-          <p>很多團隊把重要討論留在聊天視窗，最後變成不可搜尋、不可驗證、不可交接的隱性知識。這條路線把 conversation export、標準化 JSON / Markdown、stdio MCP server、search / read 工具與驗證流程整理成可直接落地的 Python 工程能力。</p>
-          <div class="status-strip"><span>v4.2.40</span><span>24 張互動卡</span><span>JSON + Markdown</span><span>stdio MCP + evidence</span></div>
-          <div class="hero-actions"><a class="button primary" href="#overview">開始知識庫工程課程</a><a class="button blue" href="#example">看專案範例</a><a class="button" href="index.html">回教材入口</a></div>
-        </div>
-        <div class="surface">
-          <svg viewBox="0 0 780 420" role="img" aria-label="Python knowledge base and MCP server flow">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#0f8794"></path></marker></defs>
-            <rect x="34" y="42" width="712" height="324" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="48" y="108" width="128" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="112" y="138">Conversation</text><text x="112" y="162">Export</text>
-              <path d="M188 145h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="236" y="108" width="140" height="74" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="306" y="138">Normalized</text><text x="306" y="162">JSON / MD</text>
-              <path d="M388 145h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="436" y="108" width="140" height="74" rx="12" fill="#e1f6f8" stroke="#0f8794" stroke-width="4"></rect><text x="506" y="138">Index</text><text x="506" y="162">entries + metadata</text>
-              <path d="M588 145h44" stroke="#0f8794" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="636" y="108" width="98" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="685" y="138">MCP</text><text x="685" y="162">search/read</text>
-            </g>
-            <rect x="146" y="234" width="186" height="66" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect>
-            <text x="239" y="262" text-anchor="middle" font-weight="900">Client Tools</text>
-            <text x="239" y="286" text-anchor="middle" font-size="13" fill="#5d6b7d">Codex / Claude / Cursor</text>
-            <rect x="438" y="234" width="214" height="66" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
-            <text x="545" y="262" text-anchor="middle" font-weight="900">Verification Evidence</text>
-            <text x="545" y="286" text-anchor="middle" font-size="13" fill="#5d6b7d">py_compile / unittest / protocol smoke</text>
-            <path d="M685 184v36h-34" stroke="#0f8794" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
-            <path d="M506 184v36h-174" stroke="#0f8794" stroke-width="4" fill="none" marker-end="url(#arrow)"></path>
-            <text x="390" y="338" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">重點不是把聊天存檔，而是把知識轉成可搜尋、可讀取、可被工具消費的工程資產</text>
-          </svg>
-        </div>
-      </section>
-      <div class="tool-panel">
-        <input class="search" id="lessonSearch" type="search" placeholder="搜尋 export、index、MCP、search、read、protocol、evidence">
-        <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
-      </div>
-      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定資料契約，再談 AI 工具整合</h2><p>知識庫若沒有穩定格式，搜尋品質、交接與工具串接都會漂移。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>export、index、server 要明確分層</h2><p>匯出、索引與服務責任分離，後續才能擴充工具而不互相污染。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>零相依也能做出可用的本地知識庫</h2><p>先用標準庫跑通最小閉環，再決定是否導入資料庫、向量索引或遠端服務。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>title、summary、tags 與 id 要能穩定檢索</h2><p>搜尋品質往往不是演算法問題，而是前面 metadata 沒有治理。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 conversation export 到 MCP search/read 一次走完</h2><p>以下路徑指向<a href="https://github.com/JasonChiu1984/python-note/tree/39259c533d73e5f34f95fbdee0cde94f7817d377">原專案的歷史範例</a>。該版 smoke 與 server 使用自訂 Content-Length 分幀，只能相互測試。與標準 MCP 用戶端整合時，請依<a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/transports">stdio 規格</a>改用逐行 JSON-RPC。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗格式、查詢與協定互通</h2><p>只驗資料生成不夠，還要驗 MCP client 真能調用 <code>search</code> / <code>read</code>。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>搜尋不準時先看 metadata 與 index</h2><p>大多數問題出在匯出輸入不穩、索引沒更新或工具協定封包不完整。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把知識庫當正式交付物，而不是私人筆記</h2><p>只要牽涉專案決策、審查與交接，就應有可重播、可驗收的輸出格式。</p></div></div><div class="cards"></div></section>
-      <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
-  </div>
-  <script>
-    const lessonGroups = {
-      overview: [
-        ["overview-goal", "Overview", "對話匯出不是備份，而是知識治理", "目標不是把聊天存成文字，而是把可用知識抽成穩定資料格式。", "conversation -> json + markdown", "knowledge remains queryable."],
-        ["overview-contract", "Overview", "先定 entry contract", "id、title、summary、tags、messages 要先固定，後面工具才不會漂移。", "{\"id\": \"2026-...\"}", "entry schema stays stable."],
-        ["overview-scope", "Overview", "search/read 先做小而完整", "先把全文搜尋與單筆讀取做對，再決定要不要擴成向量檢索或寫入 API。", "search + read", "minimal closed loop works."]
-      ],
-      architecture: [
-        ["architecture-export", "Architecture", "匯出腳本只負責正規化", "export 層應專注解析輸入、產出 entry 與更新索引。", "scripts/export_conversation.py", "normalization stays isolated."],
-        ["architecture-index", "Architecture", "index 專責 metadata 與排序", "不要每次查詢都盲掃所有檔名推論資訊，先維護好 `index.json`。", "{\"entries\": [...]} ", "listing stays deterministic."],
-        ["architecture-server", "Architecture", "MCP server 只暴露工具介面", "server 應聚焦協定解析與工具分派，不要把匯出邏輯塞進服務層。", "tools/list + tools/call", "service boundary is clear."]
-      ],
-      setup: [
-        ["setup-layout", "Setup", "目錄結構先固定", "至少要有 `knowledge_base/`、`entries/`、`index.json`、`scripts/` 與 `mcp_server/`。", "knowledge_base/entries", "paths are predictable."],
-        ["setup-json-md", "Setup", "同時輸出 JSON 與 Markdown", "JSON 供工具讀取，Markdown 供人類閱讀與全文搜尋。", "entry.json + entry.md", "human and machine views align."],
-        ["setup-stdio", "Setup", "本地工具先走 stdio", "stdio MCP server 在受限環境最容易部署，也最容易驗證。", "python3 mcp_server/knowledge_base_server.py", "local server can start."]
-      ],
-      configuration: [
-        ["config-id", "Configuration", "entry id 要可重現又可辨識", "時間戳加 slug 是簡單且穩定的本地鍵。", "2026-05-17-172535-python-notes", "id collisions stay rare."],
-        ["config-tags", "Configuration", "tags 要幫搜尋，而不是裝飾", "tag 請聚焦 repo、主題、決策類型，不要塞太多無辨識度字詞。", "[\"codex\", \"architecture\"]", "search relevance improves."],
-        ["config-limit", "Configuration", "search limit 要有限制", "小型本地工具也要有明確上限，避免一次輸出過大。", "\"limit\": 10", "tool output stays bounded."]
-      ],
-      example: [
-        ["example-export", "Example", "匯出腳本會產 entry 與 index", "輸入 `.json` 或 `.md` 後，同步寫出 JSON、Markdown 與 `index.json`。", "python3 scripts/export_conversation.py --input demo.json", "entry files are created."],
-        ["example-search", "Example", "search 會同時掃 title、summary、tags、messages", "這個實作先用全文計數做輕量排序，已足夠支撐本地筆記查詢。", "{\"name\": \"search\"}", "matching entries return."],
-        ["example-read", "Example", "read 用 id 取全文", "工具層查到 id 後，應能穩定取回單一條目的完整內容。", "{\"name\": \"read\"}", "single entry payload returns."]
-      ],
-      verification: [
-        ["verify-compile", "Verification", "先跑 py_compile", "先將原始碼編譯成位元組碼以找出語法錯誤。接著在目標環境匯入模組，檢查缺少的依賴與初始化錯誤。", "python3 -m py_compile scripts/export_conversation.py mcp_server/knowledge_base_server.py", "syntax gate passes."],
-        ["verify-unit", "Verification", "單元測試驗 export 與 search/read", "至少要驗 index 更新、markdown 渲染與查詢結果。", "python3 -m unittest discover -s tests -v", "core behavior is covered."],
-        ["verify-protocol", "Verification", "smoke 驗 MCP 協定往返", "要真的送 `initialize`、`tools/list`、`tools/call`，不能只看函式層。", "python3 scripts/run_knowledge_base_mcp_smoke.py", "protocol smoke passes."]
-      ],
-      troubleshooting: [
-        ["trouble-empty-search", "Troubleshooting", "search 查不到先看 index", "若 entry 檔存在但查不到，多半是 `index.json` 沒同步更新。", "index entries missing", "root cause narrows quickly."],
-        ["trouble-bad-format", "Troubleshooting", "Markdown 匯入失敗先看標題格式", "如果沒有 `### n. role`，解析器會退回整份 document 模式。", "### 1. user", "parse mode becomes explicit."],
-        ["trouble-mcp", "Troubleshooting", "MCP 用戶端無回應時，先檢查訊息邊界", "標準 MCP stdio 以 UTF-8 傳送 JSON-RPC，每行一則訊息。寫完換行後 flush，診斷訊息寫入 stderr。", "print(json.dumps(message, ensure_ascii=False), flush=True)", "protocol framing is corrected."]
-      ],
-      bestPractices: [
-        ["best-immutability", "Best", "原始 entry 盡量不可變", "已匯出的歷史紀錄應追加，不要隨意覆寫，避免交付證據失真。", "append-only mindset", "audit value stays high."],
-        ["best-separation", "Best", "工具介面與資料格式分開治理", "就算之後換成向量索引或資料庫，也不該破壞 entry contract。", "stable schema boundary", "future migration stays small."],
-        ["best-handoff", "Best", "把知識庫納入審查與交接流程", "審查報告、更新紀錄、架構決策都應可以被 export 後再被工具搜尋。", "review note -> knowledge entry", "team memory becomes reusable."]
-      ]
-    };
-    const completedKey = "python-local-knowledge-base-mcp-completed";
-    const allLessons = Object.values(lessonGroups).flat();
-    function escapeHtml(value) {
-      return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
-    }
-    function loadCompleted() {
-      try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
-    }
-    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
-    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
-    function renderLesson(lesson, index) {
-      const [id, tag, title, summary, code, output] = lesson;
-      const done = loadCompleted().has(id);
-      return `<article class="lesson-card lesson-item" data-lesson-id="${escapeHtml(id)}" data-search="${escapeHtml(lesson.join(" ").toLowerCase())}">
-        <div class="lesson-top"><div><span class="tag">${escapeHtml(tag)}</span><h3>${index + 1}. ${escapeHtml(title)}</h3></div><span class="tag">${done ? "已完成" : "待練習"}</span></div>
-        <p>${escapeHtml(summary)}</p>
-        <pre><code>${escapeHtml(code)}</code></pre>
-        <p><strong>預期輸出：</strong>${escapeHtml(output)}</p>
-        <div class="steps"><div class="step"><strong>先定格式</strong><span>先把 entry schema、id 與 tags 規則定清楚。</span></div><div class="step"><strong>再通工具</strong><span>把 export、index 與 MCP search/read 串成閉環。</span></div><div class="step"><strong>留下證據</strong><span>把 smoke、測試與輸出寫進更新紀錄。</span></div></div>
-        <button class="button primary" type="button" data-complete="${escapeHtml(id)}">${done ? "取消完成" : "標記完成"}</button>
-      </article>`;
-    }
-    function renderAll() {
-      let offset = 0;
-      Object.entries(lessonGroups).forEach(([group, lessons]) => {
-        const root = document.querySelector(`[data-group="${group}"] .cards`);
-        if (root) root.innerHTML = lessons.map((lesson, index) => renderLesson(lesson, offset + index)).join("");
-        offset += lessons.length;
-      });
-      document.querySelectorAll("[data-complete]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const done = loadCompleted();
-          const id = button.getAttribute("data-complete");
-          if (!id) return;
-          if (done.has(id)) done.delete(id); else done.add(id);
-          saveCompleted(done);
-          renderAll();
-          updateProgress();
-          applySearch();
-        });
-      });
-    }
-    function applySearch() {
-      const query = document.getElementById("lessonSearch").value.trim().toLowerCase();
-      document.querySelectorAll(".lesson-item").forEach((item) => {
-        const matched = !query || item.dataset.search.includes(query);
-        item.style.display = matched ? "" : "none";
-      });
-    }
-    document.getElementById("lessonSearch").addEventListener("input", applySearch);
-    renderAll();
-    updateProgress();
-  </script>
-</body>
-</html>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Python MCP Server 工程教程｜架構、協定、程式與驗證</title>
+<style>
+:root{color-scheme:light;--text:#172033;--muted:#45576b;--blue:#1f5f99;--teal:#0b766d;--pale:#eaf6f5;--line:#cddde6;font:16px/1.65 system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:#f3f7fa;color:var(--text)}a{color:var(--blue);overflow-wrap:anywhere}a:focus-visible,.scroll:focus-visible{outline:3px solid #a55501;outline-offset:3px}.layout{display:grid;grid-template-columns:16rem minmax(0,1fr);min-height:100vh}aside{padding:1.2rem;background:white;border-right:1px solid var(--line);align-self:start;position:sticky;top:0;max-height:100dvh;overflow:auto}nav{display:grid;gap:.45rem;margin-top:1rem}nav a{border-radius:.35rem;padding:.24rem .52rem;text-decoration:none;background:#f0f6f9}main{width:min(100%,72rem);min-width:0;padding:clamp(.8rem,3vw,3rem);margin-inline:auto}header,section{overflow-wrap:anywhere;background:white;border:1px solid var(--line);border-radius:.85rem;padding:clamp(.9rem,3vw,2rem);margin-bottom:1rem;scroll-margin-top:1rem}header{background:linear-gradient(125deg,#e5f6f3,white)}h1,h2,h3{line-height:1.22;margin:.45em 0}h1{font-size:clamp(1.75rem,5vw,3.2rem);max-width:23ch}h2{font-size:clamp(1.4rem,4vw,2.3rem)}h3{font-size:1.14rem;margin-top:1.2rem}p,li,td{color:var(--muted)}.num{font-weight:800;font-size:.82rem;letter-spacing:.11em;color:var(--teal)}.buttons{display:flex;gap:.5rem;flex-wrap:wrap;margin:.85rem 0}.button{background:#edf5fb;border:1px solid #b5cedf;padding:.4rem .65rem;border-radius:.5rem;font-weight:650;text-decoration:none}.diagram{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:1.15rem;padding:0;list-style:none}.diagram li{min-width:0;position:relative;padding:.7rem;border:1px solid #95bbb8;border-radius:.65rem;background:var(--pale)}.diagram li b,.diagram li span{display:block}.diagram li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .2rem);color:var(--teal);font-size:1rem;top:calc(50% - .75rem)}.note{padding:.7rem;background:#edf5fb;border-left:.22rem solid #3f85ae}.scroll{max-width:100%;overflow-x:auto}.scroll table{width:100%;border-collapse:collapse;text-align:left}.scroll th,.scroll td{padding:.6rem;border:1px solid var(--line);vertical-align:top}.scroll thead th{background:#e8f1f8}.scroll tbody th{background:#f7fafc}pre{max-width:100%;overflow:auto;padding:1rem;color:#e6f1f8;background:#122238;border-radius:.6rem;line-height:1.5;font: .86rem/1.55 ui-monospace,monospace}code{font-family:ui-monospace,monospace}@media(max-width:800px){.layout{grid-template-columns:minmax(0,1fr)}aside{position:static;max-height:none}nav{display:flex;flex-wrap:wrap}.diagram{grid-template-columns:minmax(0,1fr);gap:1.4rem}.diagram li:not(:last-child)::after{content:"↓";left:50%;top:100%;transform:translateX(-50%)}.scroll table{min-width:35rem}}
+@media(min-width:801px) and (max-width:1090px){.diagram{grid-template-columns:1fr;gap:1.4rem}.diagram li:not(:last-child)::after{content:"↓";left:50%;top:100%;transform:translateX(-50%)}}
+@media(min-width:1091px){.diagram{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:minmax(0,1fr)}}
+</style></head><body><div class="layout"><aside><a href="index.html">← 回 Python 教材入口</a><nav aria-label="MCP 教程章節"><a href="#overview">01 Server 的角色與責任</a><a href="#architecture">02 架構圖與協定流程</a><a href="#setup">03 安裝、版本與啟動</a><a href="#configuration">04 傳輸與部署設計</a><a href="#example">05 完整 Python Server 範例</a><a href="#verification">06 驗證、故障測試與觀測</a><a href="#servers">07 常見 MCP Server 與使用方式</a><a href="#troubleshooting">08 排查與上線前檢查</a><a href="#best-practices">09 權限、信任邊界與資料治理</a></nav></aside><main><header id="top"><div class="num">PYTHON ENGINEERING / MODEL CONTEXT PROTOCOL</div><h1>MCP Server：從協定到可執行服務</h1><p>認識 Host、Client、Server 三層角色，從初始化、能力協商與 JSON-RPC 走到有權限邊界的工具服務。附可實跑的 Python SDK 教程與驗收客戶端。</p><div class="buttons"><a class="button" href="#architecture">看架構與流程</a><a class="button" href="#example">開啟 Python 範例</a><a class="button" href="#servers">比較常見伺服器</a></div></header><section id="overview"><div class="num">01 / MCP SERVER</div><h2>Server 的角色與責任</h2><p>MCP 是 Host 將外部能力接入模型工作流程的標準介面，不是模型、資料庫或遠端 shell。Host 管理 UI、模型、安全決策與同意；每條 Client 連線協商能力並交換 JSON-RPC；Server 封裝外部能力並在執行前驗證授權。模型提議呼叫不等於執行權限。</p><div class="scroll" tabindex="0" role="region" aria-label="角色比較表"><table><thead><tr><th scope="col">角色</th><th scope="col">負責</th><th scope="col">不該負責</th></tr></thead><tbody><tr><th scope="row">Host</th><td>模型、對話、同意、權限選擇、隔離 Server 的可見資料</td><td>不可把任意 Server 回傳文字當可信指令</td></tr><tr><th scope="row">Client</th><td>連線、initialize、能力探索、請求對應 ID 與逾時</td><td>不可把成功回覆等同使用者已批准</td></tr><tr><th scope="row">Server</th><td>Schema、授權、執行、結果與審計；連接已核准的資料來源</td><td>不可讀取授權外資料或因參數看似合法就跳過政策檢查</td></tr></tbody></table></div></section><section id="architecture"><div class="num">02 / MCP SERVER</div><h2>架構圖與協定流程</h2><p>讀路徑限定在 MCP Server 授權及驗證層之後；索引不直接交給模型或工具。寫入與高影響工具另行建模，在 Server 執行前驗證權限與業務條件。</p><h3>資料與責任架構</h3><ol class="diagram"><li><b>MCP Host</b><span>應用介面與核准</span></li><li><b>MCP Client</b><span>連線與請求協商</span></li><li><b>MCP Server</b><span>驗證身分、Schema 與資源範圍</span></li><li><b>資料來源</b><span>授權後讀取合成資料或指定索引</span></li></ol><p class="note">資料準備路徑可另做 Conversation Export → Normalized JSON / Markdown → Index；Client Tools 只經 MCP Server 讀資料，驗證證據另存，不等同直接授權讀索引。</p><h3>請求生命週期</h3><ol class="diagram"><li><b>① initialize</b><span>Client 提議 protocolVersion、能力與 clientInfo</span></li><li><b>② negotiate</b><span>Server 回傳支援的版本、能力與 serverInfo。不支援回傳版本則 Client 應中止</span></li><li><b>③ initialized</b><span>Client 送 notifications/initialized，無 id、無回覆</span></li><li><b>④ discovery / call</b><span>按能力使用 tools/list、resources/list、prompts/list 或呼叫／讀取</span></li><li><b>⑤ close / recover</b><span>斷線或關閉後視傳輸重建會話；不重試不安全的副作用</span></li></ol><div class="scroll" tabindex="0" role="region" aria-label="介面比較表"><table><thead><tr><th scope="col">介面</th><th scope="col">用途</th><th scope="col">方法／結果</th></tr></thead><tbody><tr><th scope="row">Tools</th><td>受允許的動作，模型可提議，Host/Server 必須控權</td><td>tools/list、tools/call；JSON Schema 驗證 inputSchema，必要時以 outputSchema 定義 structuredContent</td></tr><tr><th scope="row">Resources</th><td>提供已授權、可定位的資料；URI 不是存取憑證</td><td>resources/list、resources/read；可以另提供 resource template</td></tr><tr><th scope="row">Prompts</th><td>使用者可選擇的提示模板，不代表閘道授權</td><td>prompts/list、prompts/get；不要把不可信插值當規則</td></tr></tbody></table></div><pre><code>Client → initialize (id=1) → Server
+Server → result (id=1，版本與能力) → Client
+Client → notifications/initialized（無 id）→ Server
+Client → tools/list (id=2) → Server
+Client → tools/call (id=3，已驗證的參數) → Server</code></pre></section><section id="setup"><div class="num">03 / MCP SERVER</div><h2>安裝、版本與啟動</h2><p>以下範例採 Python 3.12、官方 MCP Python SDK 1.29.0。SDK 套件版號與 MCP 協定日期版本獨立，測試輸出用實際初始化結果驗證。用獨立虛擬環境從可信來源安裝；正式環境另外維護 lockfile、雜湊及更新流程。</p><div class="buttons"><a class="button" download href="mcp-server-learning-kit/requirements.txt">requirements.txt</a><a class="button" download href="mcp-server-learning-kit/server.py">server.py</a><a class="button" download href="mcp-server-learning-kit/verify_client.py">verify_client.py</a></div><pre><code>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python verify_client.py
+# 視窗 A：本機 HTTP 示範
+python server.py --transport streamable-http
+# 視窗 B：同一虛擬環境
+python verify_client.py --http</code></pre><p>請在三個檔案同一目錄執行。Windows PowerShell 可用 <code>.venv\Scripts\Activate.ps1</code> 啟用環境；若公司政策禁止執行啟用腳本，直接呼叫 <code>.venv\Scripts\python.exe</code>。</p></section><section id="configuration"><div class="num">04 / MCP SERVER</div><h2>傳輸與部署設計</h2><p>以 stdio 跑本地單使用者工具，只有需要獨立服務或跨機器時才評估 Streamable HTTP。不能直接把本機示範升格為公開服務。</p><div class="scroll" tabindex="0" role="region" aria-label="傳輸比較表"><table><thead><tr><th scope="col">傳輸</th><th scope="col">如何運作</th><th scope="col">上線做法</th></tr></thead><tbody><tr><th scope="row">stdio</th><td>Client 啟動 Server 子程序；stdin/stdout 採逐行 JSON-RPC 訊息，不能把日誌印到 stdout</td><td>用 stderr 記錄；使用絕對命令路徑、受控工作目錄和最小權限 OS 使用者，不沿用自訂 Content-Length 分幀</td></tr><tr><th scope="row">Streamable HTTP</th><td>單一 MCP 端點收 POST；可用 GET 建立 SSE 串流或回 405。本例用 /mcp、本機 loopback、JSON response</td><td>驗證 Origin（有提供時）並限制綁定；跨機器採 HTTPS、認證、授權、限流與資源限額，會話 ID 不可當認證</td></tr></tbody></table></div><ul><li>若 Server 發出 <code>Mcp-Session-Id</code>，Client 後續依規格帶上；會話失效時重新 initialize，而不是盲目重送寫入。</li><li>HTTP 後續請求帶協商的 <code>MCP-Protocol-Version</code>；不要將舊 HTTP+SSE 與 Streamable HTTP 當成同一傳輸。</li><li>stdio 依本機執行環境提供授權邊界；HTTP 需要時依 MCP Authorization 驗證令牌及其 audience、scope，不接受代轉給其他資源的原令牌。</li></ul></section><section id="example"><div class="num">05 / MCP SERVER</div><h2>完整 Python Server 範例</h2><p>使用固定合成資料，不讀檔、不連外、不寫設備。此服務不接受任意路徑、網址或指令；參數採長度與範圍驗證。實際程式可以直接下載。</p><div class="buttons"><a class="button" download href="mcp-server-learning-kit/requirements.txt">requirements.txt</a><a class="button" download href="mcp-server-learning-kit/server.py">server.py</a><a class="button" download href="mcp-server-learning-kit/verify_client.py">verify_client.py</a></div><h3>server.py</h3><pre><code>&quot;&quot;&quot;唯讀 MCP 示範：固定合成資料，不讀檔、不連外、不寫入。&quot;&quot;&quot;
+import argparse
+from typing import Annotated
+
+from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
+from pydantic import Field
+
+mcp = FastMCP(&quot;Synthetic engineering notes&quot;, host=&quot;127.0.0.1&quot;, json_response=True)
+NOTES = (
+    {&quot;id&quot;: &quot;pump&quot;, &quot;title&quot;: &quot;Pump&quot;, &quot;summary&quot;: &quot;模擬泵浦壓差&quot;},
+    {&quot;id&quot;: &quot;temperature&quot;, &quot;title&quot;: &quot;Temperature&quot;, &quot;summary&quot;: &quot;模擬送風溫度&quot;},
+)
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def search_notes(
+    query: Annotated[str, Field(min_length=1, max_length=32)],
+    limit: Annotated[int, Field(ge=1, le=2)] = 2,
+) -&gt; list[dict[str, str]]:
+    &quot;&quot;&quot;依固定的假資料查詢；空白查詢不接受。&quot;&quot;&quot;
+    needle = query.strip().casefold()
+    if not needle:
+        raise ValueError(&quot;查詢不能只有空白&quot;)
+    return [
+        dict(note) for note in NOTES
+        if needle in (note[&quot;title&quot;] + &quot; &quot; + note[&quot;summary&quot;]).casefold()
+    ][:limit]
+
+
+@mcp.resource(&quot;demo://notes/about&quot;)
+def dataset_info() -&gt; str:
+    &quot;&quot;&quot;說明資料來源。&quot;&quot;&quot;
+    return &quot;只提供固定合成資料，不代表真實設備狀態。&quot;
+
+
+@mcp.prompt()
+def summarize_notes(topic: str) -&gt; str:
+    &quot;&quot;&quot;回傳範本文字；不會自動查詢工具。&quot;&quot;&quot;
+    return &quot;請依已確認資料整理主題：&quot; + topic[:100]
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--transport&quot;, choices=(&quot;stdio&quot;, &quot;streamable-http&quot;), default=&quot;stdio&quot;)
+    mcp.run(transport=parser.parse_args().transport)
+</code></pre></section><section id="verification"><div class="num">06 / MCP SERVER</div><h2>驗證、故障測試與觀測</h2><p>本次以 Python 3.12.14 與 MCP SDK 1.29.0 實跑 stdio 及 loopback Streamable HTTP，兩者皆協商 2025-11-25；測試涵蓋工具 Schema、有效查詢、拒絕越界及空白、資源讀取、提示模板。未測生產身分驗證、高可用或廠商伺服器。</p><h3>verify_client.py</h3><pre><code>&quot;&quot;&quot;經實際 MCP client 初始化、探索及呼叫的 smoke test。&quot;&quot;&quot;
+import argparse
+import asyncio
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import httpx
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamable_http_client
+
+
+@asynccontextmanager
+async def streams(http: bool):
+    if http:
+        async with httpx.AsyncClient(trust_env=False) as client:
+            async with streamable_http_client(&quot;http://127.0.0.1:8000/mcp&quot;, http_client=client) as (r, w, _):
+                yield r, w
+    else:
+        server = Path(__file__).with_name(&quot;server.py&quot;)
+        async with stdio_client(StdioServerParameters(command=sys.executable, args=[str(server)])) as pair:
+            yield pair
+
+
+async def main(http: bool):
+    async with streams(http) as (read, write):
+        async with ClientSession(read, write) as session:
+            started = await session.initialize()
+            assert await session.list_tools()
+            tools = {tool.name: tool for tool in (await session.list_tools()).tools}
+            assert &quot;query&quot; in tools[&quot;search_notes&quot;].inputSchema[&quot;properties&quot;]
+            hit = await session.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot;Pump&quot;, &quot;limit&quot;: 1})
+            assert not hit.isError and &quot;pump&quot; in repr(hit.structuredContent)
+            invalid = await session.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot;Pump&quot;, &quot;limit&quot;: 0})
+            assert invalid.isError
+            blank = await session.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot; &quot;})
+            assert blank.isError
+            resources = (await session.list_resources()).resources
+            info = await session.read_resource(resources[0].uri)
+            assert &quot;合成資料&quot; in info.contents[0].text
+            assert &quot;summarize_notes&quot; in {p.name for p in (await session.list_prompts()).prompts}
+            prompt = await session.get_prompt(&quot;summarize_notes&quot;, {&quot;topic&quot;: &quot;pump&quot;})
+            assert &quot;pump&quot; in prompt.messages[0].content.text
+            print(&quot;PASS&quot;, started.protocolVersion, &quot;HTTP&quot; if http else &quot;STDIO&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--http&quot;, action=&quot;store_true&quot;)
+    asyncio.run(main(parser.parse_args().http))
+</code></pre><ul><li>記錄協定版本、Server 版本、耗時、工具名稱、成功／失敗分類及追蹤 ID；不記錄 token、完整提示或可能含個資的正文。</li><li>分階段驗收：合法／非法參數、缺少權限、Server 關閉重連、逾時及資料來源不可用。</li><li>準備獨立測試記錄，包含最小權限帳號的預期拒絕及審計產出；本範例沒有寫入工具。</li></ul></section><section id="servers"><div class="num">07 / MCP SERVER</div><h2>常見 MCP Server 與使用方式</h2><p>先按目的選 Server，再確認工具清單、存取範圍、維護狀態及允許的讀寫行為。官方參考實作並非已經過你的正式環境安全審查。</p><div class="scroll" tabindex="0" role="region" aria-label="Server比較表"><table><thead><tr><th scope="col">Server</th><th scope="col">適合用途 / 讀寫界線</th><th scope="col">開始前確認</th></tr></thead><tbody><tr><th scope="row"><a href="https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem">Filesystem</a></th><td>官方參考：列目錄、讀寫與移動檔案，並非唯讀</td><td>本地 stdio；僅允許必要目錄，檢查實際有效的操作範圍，以 OS 唯讀掛載做硬限制</td></tr><tr><th scope="row"><a href="https://github.com/modelcontextprotocol/servers/tree/main/src/fetch">Fetch</a></th><td>官方參考：擷取網頁；會對外送出資料／請求</td><td>只評估已核准公開來源；不可讓任意網址或內部目標出現在可用工具中，需要出站政策</td></tr><tr><th scope="row"><a href="https://github.com/github/github-mcp-server">GitHub</a></th><td>GitHub 官方：瀏覽程式碼、議題與 PR；部分工具會開 PR 或修改內容</td><td>官方支援本機或遠端；選必要 toolsets、唯讀模式與最小 repository scope，並實測拒絕寫入</td></tr><tr><th scope="row"><a href="https://github.com/microsoft/playwright-mcp">Playwright</a></th><td>Microsoft：瀏覽器檢視、表單操作及導覽；互動有可能改變網站狀態</td><td>使用隔離測試 profile；不要把正式登入狀態、付款和任意頁面權限交給廣泛工具</td></tr><tr><th scope="row"><a href="https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres">PostgreSQL（已封存）</a></th><td>舊官方參考提供唯讀查詢；已封存，不作新案部署建議</td><td>實務選受維護產品、唯讀資料庫角色、受限 view、行數及逾時上限；資料庫有讀取權不表示可傳出資料</td></tr></tbody></table></div></section><section id="troubleshooting"><div class="num">08 / MCP SERVER</div><h2>排查與上線前檢查</h2><p>先區分傳輸／協定錯誤和工具執行錯誤，不要用同一個重試策略處理所有失敗。</p><div class="scroll" tabindex="0" role="region" aria-label="現象比較表"><table><thead><tr><th scope="col">現象</th><th scope="col">優先檢查</th></tr></thead><tbody><tr><th scope="row">stdio initialize 逾時</th><td>命令、路徑、權限、stdout 有沒有日誌破壞逐行 JSON-RPC</td></tr><tr><th scope="row">HTTP 初始化失敗</th><td>端點、Origin、Content-Type / Accept、版本協商、認證與授權</td></tr><tr><th scope="row">工具看不到</th><td>initialize capabilities、tools/list、最小權限及部署 toolset</td></tr><tr><th scope="row">正常請求卻工具失敗</th><td>分辨 JSON-RPC 協定錯誤與 tools/call 結果 isError；先讀驗證結果與受控日誌</td></tr><tr><th scope="row">斷線後資料重複</th><td>讀取與寫入分開重試，副作用操作避免盲重試；重新初始化不保證原會話完整</td></tr></tbody></table></div></section><section id="best-practices"><div class="num">09 / MCP SERVER</div><h2>權限、信任邊界與資料治理</h2><p>MCP 宣告的唯讀 hint 是提示，不是安全控制。透過程式行為、檔案權限和最小授權讓唯讀可驗證；有副作用的動作另設核准、審計、冪等與復原。</p><ul><li>所有工具帶 allowlist，不接受任意 shell / SQL 或完整檔案系統。輸入與回傳大小均設限制，錯誤訊息不外洩實作與秘密。</li><li>Server 回傳的頁面、文件及提示模板是資料，不是新的權限、政策或使用者核准。</li><li>外部服務憑證由密鑰管理與最小權限帳號提供；分離租戶及服務身分。</li><li>正式監控應包含請求率、錯誤率、延遲、工具逾時、拒絕原因及敏感欄位遮罩；可依實際策略輪替憑證與停用工具。</li></ul><h3>官方來源</h3><p><a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">架構與生命週期</a> · <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/transports">傳輸</a> · <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">HTTP 授權</a> · <a href="https://modelcontextprotocol.io/specification/2025-11-25/server/tools">工具</a> · <a href="https://modelcontextprotocol.io/specification/2025-11-25/server/resources">資源</a> · <a href="https://modelcontextprotocol.io/specification/2025-11-25/server/prompts">提示模板</a> · <a href="https://github.com/modelcontextprotocol/python-sdk">官方 Python SDK</a> · <a href="https://pypi.org/project/mcp/1.29.0/">固定 SDK 版本</a></p></section><p><a href="#top">回頁首</a> · <a href="index.html">回教材入口</a></p></main></div></body></html>

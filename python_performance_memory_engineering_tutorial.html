@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Performance and Memory Engineering 教學 - Profiling、Benchmark 與 Tracemalloc v3.0.0</title>
+  <title>Python Performance and Memory Engineering 教學 - Profiling、Benchmark 與 Tracemalloc v3.1.0</title>
   <style>
     :root {
       --ink: #172033;
@@ -96,7 +96,7 @@
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Performance and Memory Engineering</span>
-          <h1>把效能問題變成可驗收證據</h1>
+          <h1>把效能問題變成可驗收證據</h1><p><a href="#performance-evidence">開始實測教程：流程、架構與量測圖</a></p>
           <p>這條路線把 benchmark、CPU profiling、memory snapshot 與 regression budget 整理成 production workflow。先定義 workload 與 baseline，再用 <code>cProfile</code> 找 hotspot，用 <code>tracemalloc</code> 看 allocation peak，最後把效能預算與報告放進 release gate。</p>
           <div class="status-strip"><span>v3.0.0</span><span>32 張互動卡</span><span>standard library sample</span><span>profiling / memory gate</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始效能工程課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
@@ -124,7 +124,127 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：benchmark、cProfile、tracemalloc、latency、memory、budget、regression">
         <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
       </div>
-      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>效能問題先變成可回答的工程問題</h2><p>不要先猜優化點；先定義 workload、baseline 與成功標準。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="performance-evidence"><div class="section-head"><div><span class="eyebrow">Engineering lab</span><h2>把效能問題變成可驗收證據</h2><p>以點表查詢為例：比較逐筆掃描與建立索引。速度改善必須建立在相同輸出與清楚的成本邊界上。</p></div></div>
+<style>
+#performance-evidence .ev{background:#fff;border:1px solid #d0deec;border-radius:10px;padding:1rem;margin:.8rem 0;min-width:0}
+.ev-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:.5rem;padding:0;list-style-position:inside}.ev-flow li{background:#edf5ff;color:#173d68;border:1px solid #c5d8ee;border-radius:6px;padding:.65rem}.ev-scroll{overflow:auto}.ev-scroll pre{white-space:pre;min-width:max-content}.ev-row{display:grid;grid-template-columns:minmax(6rem,10rem) 1fr;gap:.5rem;align-items:center;margin:.55rem 0}.ev-track{height:1.05rem;background:#e7eff8;border-radius:4px;overflow:hidden}.ev-fill{height:100%;background:#2364a2}.ev-row[data-kind=p95] .ev-fill{background:#336d55}.ev-label{font-size:.9rem;font-variant-numeric:tabular-nums}.ev code{overflow-wrap:anywhere}
+</style>
+<div class="ev"><h3>流程圖｜從問題到交付</h3><ol class="ev-flow"><li>定義工作量與指標</li><li>凍結輸入和正確輸出</li><li>相同條件交錯量測</li><li>分開剖析時間與記憶體</li><li>重測、審核與回退</li></ol><p>可驗收的問題應像「固定 3,000 筆點表、200 次查詢，完整返回含缺失值的有序結果；比較整批耗時 p95 與配置峰值」。正式目標應依服務需求訂定，不以本頁實驗數字直接當成通用門檻。</p></div>
+<div class="ev"><h3>架構圖｜同輸入、同輸出契約、三條量測路徑</h3><div class="ev-scroll" tabindex="0" aria-label="架構圖"><pre>固定資料與查詢 ─┬─ A：逐筆掃描 ───┐
+                 └─ B：建索引＋查詢 ┤
+                                    ▼
+                 完整、同順序結果（缺失＝None）比對
+                 ┌──────────────────┼────────────────┐
+                 ▼                  ▼                ▼
+           計時：p50／p95     cProfile：呼叫路徑   tracemalloc：配置峰值</pre></div><p>資料生成、正確性斷言與列印不計入延遲；B 每次重建索引，建表成本計入。若上線改成常駐索引，需另測重建、更新一致性與常駐記憶體。範例點名唯一；有重複資料時，逐筆掃描取第一筆、dict 取最後一筆，不能不定義契約就替換。</p></div>
+<div class="ev"><h3>實測圖｜單批查詢延遲</h3><p>雲端測試環境：CPython 3.12.14／Linux 6.18.57／x86_64，系統回報 9 邏輯 CPU；本程式單執行緒，未固定 CPU。每組 60 次，預熱 4 回合、A/B 與 B/A 交替；計時用 <code>perf_counter_ns()</code>。條長從 0 起算，以兩組最大 p95 為共同比例。</p>
+<div class="ev-row" data-kind="p50"><span class="ev-label">A 掃描 p50<br>5.504 ms</span><div class="ev-track" aria-hidden="true"><div class="ev-fill" style="width:67.761%"></div></div></div>
+<div class="ev-row" data-kind="p95"><span class="ev-label">A 掃描 p95<br>8.123 ms</span><div class="ev-track" aria-hidden="true"><div class="ev-fill" style="width:100.000%"></div></div></div>
+<div class="ev-row" data-kind="p50"><span class="ev-label">B 索引 p50<br>0.086 ms</span><div class="ev-track" aria-hidden="true"><div class="ev-fill" style="width:1.055%"></div></div></div>
+<div class="ev-row" data-kind="p95"><span class="ev-label">B 索引 p95<br>0.140 ms</span><div class="ev-track" aria-hidden="true"><div class="ev-fill" style="width:1.729%"></div></div></div>
+<p>p50 用中位數，p95 用 nearest-rank。此圖是單次程序測試的批次延遲，不是每筆查詢尾延遲或信賴區間。計時器解析度不等於量測誤差；CPU 配額、背景負載、暖機、資料分布均會影響。數值不外推 Mac、Raspberry Pi 或現場硬體。</p>
+<p><a href="performance_evidence_samples.json">查看本次原始量測 JSON</a> · <a href="performance_evidence_benchmark.py" download>下載可執行 Python 程式</a></p></div>
+<div class="ev"><h3>程式與執行方式</h3><div class="ev-scroll" tabindex="0"><pre><code>python performance_evidence_benchmark.py --samples 60
+python performance_evidence_benchmark.py --mode profile --variant baseline
+python performance_evidence_benchmark.py --mode profile --variant indexed
+python performance_evidence_benchmark.py --mode memory</code></pre></div>
+<details><summary>展開完整 Python 原始碼</summary><div class="ev-scroll" tabindex="0"><pre><code id="ev-code">&quot;&quot;&quot;Deterministic Python benchmark; no network, packages or real device data.&quot;&quot;&quot;
+import argparse
+import cProfile
+import json
+import math
+import os
+import platform
+import pstats
+import random
+import statistics
+import time
+import tracemalloc
+
+
+def fixture():
+    rows = tuple((i, (19*i + 11) % 100_000) for i in range(3000))
+    rng = random.Random(420)
+    keys = tuple(rng.randrange(3300) for _ in range(200))
+    return rows, keys
+
+
+def baseline(rows, keys):
+    return tuple(next((value for point, value in rows if point == key), None)
+                 for key in keys)
+
+
+def indexed(rows, keys):
+    index = dict(rows)
+    return tuple(index.get(key) for key in keys)
+
+
+def nearest_rank(values, q):
+    return sorted(values)[math.ceil(len(values) * q) - 1]
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument(&quot;--samples&quot;, type=int, default=60)
+    p.add_argument(&quot;--mode&quot;, choices=[&quot;timing&quot;, &quot;profile&quot;, &quot;memory&quot;], default=&quot;timing&quot;)
+    p.add_argument(&quot;--variant&quot;, choices=[&quot;baseline&quot;, &quot;indexed&quot;], default=&quot;baseline&quot;)
+    args = p.parse_args()
+    data = fixture()
+    expected = baseline(*data)
+    assert indexed(*data) == expected
+    if args.mode == &quot;profile&quot;:
+        fn = baseline if args.variant == &quot;baseline&quot; else indexed
+        with cProfile.Profile() as prof:
+            for _ in range(60):
+                fn(*data)
+        pstats.Stats(prof).sort_stats(&quot;cumulative&quot;).print_stats(12)
+        return
+    if args.mode == &quot;memory&quot;:
+        for fn in (baseline, indexed):
+            tracemalloc.start()
+            try:
+                result = fn(*data)
+                current, peak = tracemalloc.get_traced_memory()
+            finally:
+                tracemalloc.stop()
+            assert result == expected
+            print(json.dumps({&quot;variant&quot;: fn.__name__, &quot;retained_bytes&quot;: current,
+                              &quot;traced_peak_bytes&quot;: peak}))
+        return
+    if args.samples &lt; 40:
+        p.error(&quot;--samples must be at least 40&quot;)
+    timings = {fn.__name__: [] for fn in (baseline, indexed)}
+    for _ in range(4):
+        baseline(*data)
+        indexed(*data)
+    for i in range(args.samples):
+        for fn in ((baseline, indexed) if i % 2 == 0 else (indexed, baseline)):
+            start = time.perf_counter_ns()
+            result = fn(*data)
+            elapsed = time.perf_counter_ns() - start
+            assert result == expected
+            timings[fn.__name__].append(elapsed)
+    print(json.dumps({
+        &quot;python&quot;: platform.python_version(), &quot;implementation&quot;: platform.python_implementation(),
+        &quot;os&quot;: platform.system(), &quot;kernel&quot;: platform.release(), &quot;arch&quot;: platform.machine(),
+        &quot;logical_cpus_reported&quot;: os.cpu_count(), &quot;samples_per_variant&quot;: args.samples,
+        &quot;clock_resolution_ns&quot;: time.get_clock_info(&quot;perf_counter&quot;).resolution * 1e9,
+        &quot;row_count&quot;: len(data[0]), &quot;query_count&quot;: len(data[1]),
+        &quot;missing_count&quot;: expected.count(None),
+        &quot;results&quot;: {name: {&quot;median_ns&quot;: statistics.median(t),
+                           &quot;p95_ns&quot;: nearest_rank(t, .95), &quot;samples_ns&quot;: t}
+                    for name, t in timings.items()},
+    }, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></div></details>
+<p><strong>cProfile：</strong>比較累計時間、呼叫次數與熱點，診斷執行不與純計時混在一起。<strong>tracemalloc：</strong>記錄被追蹤的 Python 配置及峰值，不是程序 RSS，也不代表原生配置、共享記憶體或容器上限；實例中固定資料在開始追蹤前已建立。單獨的配置測試量得 A 峰值 3,368 B、B 峰值 221,376 B，故 B 有明確的暫態配置成本；長跑還需量測 RSS、佇列及留存數，勿只看單次峰值。</p></div>
+<div class="ev"><h3>驗收與遷移</h3><ol><li>以有值、缺值、重複鍵與資料更新測正確性。程式斷言只檢查結果，不檢查時間。</li><li>固定硬體與執行環境，記錄版本、樣本、原始資料、負載與 CPU／記憶體限制。用多次獨立程序重測，並擴展至併發與高水位情況。</li><li>先寫明 p95、峰值 RSS 與資料新鮮度預算，再按需求審查；若改善延遲但超出記憶體或影響採集週期，保留基線與回退。</li></ol><p>原始文件：<a href="https://docs.python.org/3/library/time.html#time.perf_counter_ns">Python 計時</a> · <a href="https://docs.python.org/3/library/profile.html">cProfile</a> · <a href="https://docs.python.org/3/library/tracemalloc.html">tracemalloc</a>。</p></div>
+</section>
+
+<section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>效能問題先變成可回答的工程問題</h2><p>不要先猜優化點；先定義 workload、baseline 與成功標準。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把測量、剖析、預算與證據分層</h2><p>效能工程不是單次測速，而是可重複的交付流程。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用標準庫建立最小可驗收範例</h2><p><code>time</code>、<code>cProfile</code>、<code>pstats</code>、<code>tracemalloc</code>、<code>unittest</code> 足以建立基礎 gate。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>效能參數要能進 release note</h2><p>資料量、iterations、threshold、profile top N 與 memory budget 都要可追蹤。</p></div></div><div class="cards"></div></section>

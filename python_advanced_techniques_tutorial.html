@@ -1,0 +1,112 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 神乎其技｜五種進階技巧</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f5f7fb;color:#182238;font:1rem/1.7 system-ui,sans-serif}header{background:#132039;color:#f2f6ff;padding:clamp(1rem,5vw,3rem)}header a{color:#a9dafa}main{width:min(100%,70rem);margin:auto;padding:clamp(.8rem,3vw,2rem)}h1,h2,h3{line-height:1.22}h1{font-size:clamp(2rem,6vw,4.4rem);margin:.3em 0}p{margin:.65rem 0}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}nav a,.badge{background:#e8f2ff;border:1px solid #c4d9ee;border-radius:.5rem;padding:.28rem .58rem;color:#184c77;text-decoration:none}section{background:white;border:1px solid #d5dfed;border-radius:.8rem;padding:clamp(.8rem,3vw,1.6rem);margin:1rem 0;min-width:0;overflow-wrap:anywhere}section h2{margin:.35rem 0}.flow{list-style:none;margin:1rem 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}.flow li{padding:.6rem;background:#ecf5ff;border:1px solid #c4d9ee;border-radius:.4rem;position:relative}.flow li>span{display:block;min-width:0;overflow-wrap:anywhere}.flow li:not(:last-child)::after{content:'→';position:absolute;inset-inline-end:-.8rem;inset-block-start:50%;translate:0 -50%;color:#2f6fbb;font-weight:700}.pit{background:#fff5dd;border-inline-start:.3rem solid #ae650e;padding:.6rem .8rem}pre{overflow:auto;background:#132039;color:#eff6ff;padding:.85rem;border-radius:.5rem;line-height:1.5;font-size:.87rem}button{border:1px solid #9ab9d8;border-radius:.4rem;padding:.45rem .68rem;background:#ecf5ff;color:#14395e;font:inherit;cursor:pointer}a:focus-visible,button:focus-visible{outline:.2rem solid #f07b28;outline-offset:.18rem}.status{margin-left:.5rem}.decision{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.6rem;list-style:none;padding:0}.decision li{background:#edf5fb;padding:.55rem .7rem;border-radius:.4rem}@media(max-width:640px){.flow{grid-template-columns:1fr;gap:1.12rem}.flow li:not(:last-child)::after{content:'↓';inset-inline-end:auto;inset-inline-start:50%;inset-block-start:100%;translate:-50% 0;line-height:1.1rem}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}</style></head><body><header><a href="index.html#advanced">回 Python 教材入口</a><p>PYTHON ENGINEERING · 進階篇</p><h1>Python 神乎其技</h1><p>從可讀的語法走到可驗證的資料處理。五個獨立範例均只用標準函式庫，支援 Python 3.11 及以上。</p><nav aria-label="本頁導覽"><a href="#lazy">惰性資料流</a><a href="#context">用上下文保證收尾</a><a href="#snapshot">不可變資料快照</a><a href="#match">結構式分派</a><a href="#async">結構化非同步</a></nav></header><main id="techniques">
+<section><h2>一眼選對工具</h2><ul class="decision"><li>大資料、不必全部保留 → 惰性迭代</li><li>開關檔案、資源一定要釋放 → 上下文管理器</li><li>資料需要穩定快照 → frozen dataclass</li><li>依訊息形狀分派 → 結構式比對</li><li>同批 I/O 需要一致的生命週期 → TaskGroup</li></ul><p>這是原創工程教材，不是同名書籍的逐章摘要。操作方式：複製程式、另存為 UTF-8 的 <code>example.py</code>，執行 <code>python3 example.py</code>。</p></section>
+<section id="lazy"><span class="badge">技巧 01</span><h2>惰性資料流</h2><p><code>itertools.islice + 產生器</code></p><p>先決定「需要幾筆」再取值，避免為了少量結果把整份輸入載入記憶體。適合日誌、感測快照或大型 CSV 的第一階段篩選。</p>
+<ol class="flow" aria-label="資料與控制流程"><li><span>逐筆讀取</span></li><li><span>篩選</span></li><li><span>變換</span></li><li><span>只拿前 N 筆</span></li></ol><p class="pit"><strong>避坑：</strong>產生器只能走一次，不能當快照共享；若不用切片或限時，無限來源可能永遠跑不完。</p>
+<button type="button" data-copy="lazy-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="lazy-code">from itertools import islice
+
+def high_readings(readings, threshold=28.0):
+    for point, value in readings:
+        if value &gt;= threshold:
+            yield point, round(value, 1)
+
+def sensor_stream():
+    yield &quot;T01&quot;, 26.2
+    yield &quot;T02&quot;, 29.4
+    yield &quot;T03&quot;, 31.5
+    raise AssertionError(&quot;已取足兩筆，不應繼續讀取&quot;)
+
+first_two = list(islice(high_readings(sensor_stream()), 2))
+assert first_two == [(&quot;T02&quot;, 29.4), (&quot;T03&quot;, 31.5)]
+print(first_two)
+</code></pre><p><strong>預期輸出：</strong> <code>[(&#x27;T02&#x27;, 29.4), (&#x27;T03&#x27;, 31.5)]</code></p></section><section id="context"><span class="badge">技巧 02</span><h2>用上下文保證收尾</h2><p><code>contextmanager</code></p><p>把建立與釋放資源放在同一個抽象層。呼叫方保留業務動作，程序正常或丟出例外都會走到清理步驟。</p>
+<ol class="flow" aria-label="資料與控制流程"><li><span>進入</span></li><li><span>取得資源</span></li><li><span>執行工作</span></li><li><span>finally 一定收尾</span></li></ol><p class="pit"><strong>避坑：</strong>不要在 finally 吞掉原始例外；清理本身也可能失敗。真實故障時應保留原始錯誤並紀錄清理狀況。</p>
+<button type="button" data-copy="context-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="context-code">from contextlib import contextmanager
+from io import StringIO
+
+@contextmanager
+def managed_buffer():
+    stream = StringIO()
+    try:
+        yield stream
+    finally:
+        stream.close()
+
+try:
+    with managed_buffer() as buffer:
+        buffer.write(&quot;sample&quot;)
+        raise ValueError(&quot;simulate failure&quot;)
+except ValueError as exc:
+    assert str(exc) == &quot;simulate failure&quot;
+    assert buffer.closed
+else:
+    raise AssertionError(&quot;原始例外不應被吞掉&quot;)
+
+print(&quot;例外後確認資源已釋放&quot;)
+</code></pre><p><strong>預期輸出：</strong> <code>例外後確認資源已釋放</code></p></section><section id="snapshot"><span class="badge">技巧 03</span><h2>不可變資料快照</h2><p><code>dataclass(frozen=True, slots=True)</code></p><p>用命名欄位賦予資料契約；不就地修改現有快照，需要更新時產出新物件。slots 省掉常見的每實例屬性字典，但資源收益要用實際物件量測。</p>
+<ol class="flow" aria-label="資料與控制流程"><li><span>來源資料</span></li><li><span>建立快照</span></li><li><span>刊登新值</span></li><li><span>讀取端使用同一筆快照</span></li></ol><p class="pit"><strong>避坑：</strong>frozen 只管欄位重新賦值。內含 list 或 dict 仍可能被修改；以 tuple 和其他不可變成員組成快照。這不代表更新共享參照的複合邏輯自動安全。</p>
+<button type="button" data-copy="snapshot-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="snapshot-code">from dataclasses import dataclass, replace
+
+@dataclass(frozen=True, slots=True)
+class Snapshot:
+    sensor: str
+    samples: tuple[float, ...]
+
+original = Snapshot(&quot;T01&quot;, (26.2, 26.5))
+updated = replace(original, samples=original.samples + (27.0,))
+assert original.samples == (26.2, 26.5)
+assert updated.samples[-1] == 27.0
+assert not hasattr(updated, &quot;__dict__&quot;)
+print(updated)
+</code></pre><p><strong>預期輸出：</strong> <code>Snapshot(sensor=&#x27;T01&#x27;, samples=(26.2, 26.5, 27.0))</code></p></section><section id="match"><span class="badge">技巧 04</span><h2>結構式分派</h2><p><code>match / case</code></p><p>比起一串索引與 if，直接寫出可讀的訊息形狀，用 guard 補充業務條件。適合固定命令格式或分版本處理事件。</p>
+<ol class="flow" aria-label="資料與控制流程"><li><span>訊息</span></li><li><span>對照結構</span></li><li><span>驗證細節</span></li><li><span>執行或拒絕</span></li></ol><p class="pit"><strong>避坑：</strong>映射模式預設允許額外鍵；未知欄位必須明確決定接受或拒絕。bool 是 int 的子類別，若協定只允許整數，要特別排除。</p>
+<button type="button" data-copy="match-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="match-code">def dispatch(message):
+    match message:
+        case {&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: int(sec), **extra} \
+                if type(sec) is int and 1 &lt;= sec &lt;= 300 and not extra:
+            return (&quot;poll&quot;, sec)
+        case {&quot;op&quot;: &quot;stop&quot;, **extra} if not extra:
+            return (&quot;stop&quot;, None)
+        case _:
+            return (&quot;invalid&quot;, None)
+
+assert dispatch({&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: 5}) == (&quot;poll&quot;, 5)
+assert dispatch({&quot;op&quot;: &quot;stop&quot;}) == (&quot;stop&quot;, None)
+for bad in (True, 0, 301, &quot;5&quot;):
+    assert dispatch({&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: bad})[0] == &quot;invalid&quot;
+assert dispatch({&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: 5, &quot;unused&quot;: 1})[0] == &quot;invalid&quot;
+print(&quot;有效命令與錯誤命令皆已驗證&quot;)
+</code></pre><p><strong>預期輸出：</strong> <code>有效命令與錯誤命令皆已驗證</code></p></section><section id="async"><span class="badge">技巧 05</span><h2>結構化非同步</h2><p><code>asyncio.TaskGroup + timeout</code></p><p>同一批任務跟隨同一個生命週期；一項 I/O 失敗會取消其他仍執行的同組任務。下面用 Event 確保示範的同組工作已啟動，不以猜測的排程時間測取消。</p>
+<ol class="flow" aria-label="資料與控制流程"><li><span>啟動同批 I/O</span></li><li><span>等待結果</span></li><li><span>任務失敗即取消同組</span></li><li><span>交接</span></li></ol><p class="pit"><strong>避坑：</strong>asyncio 是協作式 I/O 並發，不等於 CPU 多核平行；避免在事件迴圈直接做重度純 Python 運算。逾時會提出取消，不是程序硬殺，且不代表外部系統已回滾。</p>
+<button type="button" data-copy="async-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="async-code">import asyncio
+
+async def main():
+    ready = asyncio.Event()
+    cleaned = asyncio.Event()
+
+    async def sibling():
+        ready.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaned.set()
+
+    async def failing_read():
+        await ready.wait()
+        raise OSError(&quot;模擬通訊失敗&quot;)
+
+    async with asyncio.timeout(2):
+        try:
+            async with asyncio.TaskGroup() as group:
+                group.create_task(sibling())
+                group.create_task(failing_read())
+        except* OSError as group_error:
+            assert str(group_error.exceptions[0]) == &quot;模擬通訊失敗&quot;
+            assert cleaned.is_set()
+        else:
+            raise AssertionError(&quot;預期讀取失敗&quot;)
+    print(&quot;同組取消與資源收尾已驗證&quot;)
+
+asyncio.run(main())
+</code></pre><p><strong>預期輸出：</strong> <code>同組取消與資源收尾已驗證</code></p></section>
+<section><h2>延伸閱讀</h2><ul><li><a href="https://docs.python.org/3/library/itertools.html#itertools.islice">Python 文件：itertools.islice</a></li><li><a href="https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager">Python 文件：contextmanager</a></li><li><a href="https://docs.python.org/3/library/dataclasses.html">Python 文件：dataclasses</a></li><li><a href="https://peps.python.org/pep-0634/">PEP 634：結構式比對規格</a></li><li><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">Python 文件：TaskGroup</a></li></ul><a href="index.html#advanced">回 Python 教材入口</a></section></main>
+<script>document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const code=document.getElementById(button.dataset.copy);const status=button.nextElementSibling;try{await navigator.clipboard.writeText(code.textContent);status.textContent='已複製';}catch{const range=document.createRange();range.selectNodeContents(code);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);status.textContent='剪貼簿不可用，已選取程式碼，請手動複製。';}}));</script></body></html>

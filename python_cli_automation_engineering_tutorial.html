@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python CLI 自動化工程教學 - subcommand、dry-run 與 report v4.2.40</title>
+  <title>CLI 工程內部教程｜架構、流程、程式碼與驗收</title>
   <style>
     :root {
       --ink: #172033;
@@ -42,7 +42,31 @@
     .button.primary { background: #d16b28; color: white; border-color: #ab531a; }
     .button.blue { background: var(--blue); color: white; border-color: #245b99; }
     .surface { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.86); box-shadow: var(--shadow); overflow: hidden; }
-    .surface svg { width: 100%; height: auto; display: block; }
+    .hero { grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); }
+    .cli-diagram { min-inline-size: 0; margin: 0; padding: clamp(.85rem,2.2vw,1.6rem); overflow-wrap: anywhere; }
+    .cli-diagram h2 { font-size: clamp(1.2rem,2.1vw,2rem); line-height: 1.25; margin: .55rem 0 1rem; }
+    .cli-flow { display: grid; gap: 1.17rem; list-style: none; padding: 0; margin: 0; }
+    .cli-flow li { position: relative; display: grid; grid-template-columns: minmax(0,1fr); gap: .15rem; min-inline-size: 0; padding: .6rem .85rem; border: 1px solid #c7dbf2; border-inline-start: .24rem solid var(--blue); border-radius: .45rem; background:#e7f0fb; }
+    .cli-flow li:nth-child(2) { background:#fff0e2; border-color:#d16b28; }
+    .cli-flow li:nth-child(3) { background:#e6f5ef; border-color:#2d8a69; }
+    .cli-flow li:nth-child(4) { background:#edf2f7; border-color:#43566f; }
+    .cli-flow li:not(:last-child)::after { content: '↓'; position:absolute; inset-inline-start:50%; translate:-50%; inset-block-start:100%; color:#9a4d18; font-size:.95rem; font-weight:900; line-height:1.15rem; }
+    .cli-flow strong { font-size:clamp(1rem,1.4vw,1.2rem); }
+    .cli-flow span,.cli-metrics span { font-size:.94rem; }
+    .cli-metrics { display:grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap:.6rem; margin-top:.8rem; }
+    .cli-metrics p { display:grid; padding:.55rem .75rem; border:1px solid var(--line); border-radius:.45rem; }
+    .cli-metrics strong { color:var(--ink); }
+    .cli-article { margin-bottom:1rem; padding:clamp(.8rem,2vw,1.45rem); overflow-wrap:anywhere; }
+    .cli-article h3 { line-height:1.25; margin:.4rem 0 .7rem; }
+    .cli-article p + p { margin-top:.6rem; }
+    .cli-architecture { list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap:.75rem; margin:.9rem 0; padding:0; }
+    .cli-architecture li { min-inline-size:0; padding:.75rem; border:1px solid var(--line); border-radius:.45rem; background:#f8fbfe; }
+    .cli-architecture strong,.cli-architecture span { display:block; }
+    .cli-example pre { margin:.6rem 0; }
+    .cli-example summary { cursor:pointer; color:var(--blue); font-weight:850; }
+    .cli-example ol { padding-inline-start:1.25rem; }
+    .cli-example code { overflow-wrap:anywhere; }
+    main { min-width:0; }
     .tool-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 1rem clamp(1rem, 5vw, 4.8rem); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.78); }
     .search { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 0.78rem 0.9rem; font: inherit; font-weight: 800; color: var(--ink); }
     .quick-links a { padding: 0.48rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; background: white; color: #9a4d18; text-decoration: none; font-weight: 900; }
@@ -90,44 +114,104 @@
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python CLI Automation Engineering</span>
-          <h1>把一次性腳本做成可驗收、可重跑、可交接的 CLI 工程</h1>
+          <h1>CLI 工程內部教程</h1>
           <p>很多團隊把自動化都寫成臨時腳本，最後缺參數契約、缺 dry-run、缺錯誤碼、缺更新證據。這條路線把 subcommand、operator summary、JSON report、exit code 與驗證流程整理成可直接落地的 Python 工程能力。</p>
           <div class="status-strip"><span>v4.2.40</span><span>24 張互動卡</span><span>plan / apply / report</span><span>dry-run + evidence</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始 CLI 工程課程</a><a class="button blue" href="#example">看專案範例</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 780 420" role="img" aria-label="Python CLI automation flow">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#d16b28"></path></marker></defs>
-            <rect x="34" y="42" width="712" height="324" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="52" y="112" width="116" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="110" y="141">plan</text><text x="110" y="165">preflight</text>
-              <path d="M178 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="226" y="112" width="128" height="72" rx="12" fill="#fff0e2" stroke="#d16b28" stroke-width="4"></rect><text x="290" y="141">apply</text><text x="290" y="165">dry-run / execute</text>
-              <path d="M364 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="412" y="112" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="478" y="141">report</text><text x="478" y="165">JSON evidence</text>
-              <path d="M554 148h44" stroke="#d16b28" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="602" y="112" width="122" height="72" rx="12" fill="#edf2f7" stroke="#43566f" stroke-width="4"></rect><text x="663" y="141">handoff</text><text x="663" y="165">operator summary</text>
-            </g>
-            <rect x="116" y="238" width="206" height="66" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
-            <text x="219" y="266" text-anchor="middle" font-weight="900">Exit Code Contract</text>
-            <text x="219" y="290" text-anchor="middle" font-size="13" fill="#5d6b7d">0 success / 2 partial / 3 validation</text>
-            <rect x="430" y="238" width="226" height="66" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
-            <text x="543" y="266" text-anchor="middle" font-weight="900">Verification Evidence</text>
-            <text x="543" y="290" text-anchor="middle" font-size="13" fill="#5d6b7d">py_compile / unittest / smoke / JSON report</text>
-            <text x="390" y="338" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">重點不是把腳本包成命令，而是讓命令具備契約、安全界線與可交付證據</text>
-          </svg>
-        </div>
+        <figure class="cli-diagram surface" aria-labelledby="flow-title">
+          <figcaption id="flow-title"><span class="eyebrow">FLOW / 01</span><h2>一次 CLI 執行的完整流程</h2></figcaption>
+          <ol class="cli-flow">
+            <li><strong>01　plan</strong><span>讀取清單 → 驗證參數 → 輸出計畫</span></li>
+            <li><strong>02　apply</strong><span>預設預演；加上 <code>--execute</code> 才寫入</span></li>
+            <li><strong>03　report</strong><span>檢查輸出並產生 JSON 證據</span></li>
+            <li><strong>04　handoff</strong><span>以狀態、退出碼及結果檔完成交接</span></li>
+          </ol>
+          <div class="cli-metrics"><p><strong>退出碼</strong><span>0 成功／2 執行失敗或未完成／3 輸入驗證失敗</span></p><p><strong>驗證證據</strong><span>py_compile、行為測試、JSON 完整性</span></p></div>
+        </figure>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋 subcommand、dry-run、exit code、report、handoff">
         <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
       </div>
-      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定命令契約，再談自動化</h2><p>如果參數、輸出與錯誤碼不穩，CLI 只是另一種不可維護腳本。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>plan、apply、report 要明確分層</h2><p>預檢、實作與證據輸出分離，才不會把風險與結果混在一起。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>先定命令契約，再談自動化</h2><p>如果參數、輸出與錯誤碼不穩，CLI 只是另一種不可維護腳本。</p></div></div><article class="surface cli-article"><h3>先約定操作者能信任什麼</h3><p>CLI 不只是把腳本包一層參數。每個命令必須說清楚讀取哪些輸入、何時修改檔案、哪些情況可重跑，以及如何用退出碼與報表做交接。</p><p>本頁以「清單 → 預檢 → 建立結果檔 → 查驗」為例。預演不寫檔，實作需明確授權；正式環境還需另外設計並行工作鎖、回滾、通知與持久化證據。</p></article><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>plan、apply、report 要明確分層</h2><p>預檢、實作與證據輸出分離，才不會把風險與結果混在一起。</p></div></div><article class="surface cli-article"><h3>架構圖：入口、規則、操作與證據分層</h3>
+<ol class="cli-architecture" aria-label="由命令入口至證據層的四層架構"><li><strong>01　命令入口</strong><span>argparse 解析命令和選項，將結果交給命令處理器。</span></li><li><strong>02　驗證與規則</strong><span>檢查清單欄位、內容長度和預期輸出，不寫入檔案。</span></li><li><strong>03　執行介面</strong><span>只有明確要求時才建立結果；以獨占方式拒絕覆蓋。</span></li><li><strong>04　證據介面</strong><span>透過 JSON 與退出碼交接，獨立比對現有結果。</span></li></ol><p>依賴方向：操作者／CI → 命令入口 → 應用規則 → 檔案介面。stdout 只輸出機器可讀 JSON；執行環境之外的告警與通知由呼叫端決定。</p></article><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>標準庫也能做出可交付 CLI</h2><p>先用 <code>argparse</code>、<code>json</code>、<code>pathlib</code> 跑通最小閉環，再視需求升級框架。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>dry-run、輸出路徑與 exit code 都要有政策</h2><p>CLI 一旦進 CI 或交給值班同仁使用，就不能依賴口頭約定。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 plan 到 apply 再到 report 一次走完</h2><p>範例專案用變更集 manifest 模擬真實自動化工作，展示預檢、安全執行與證據輸出。 <a href="範例程式碼/cli_automation_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗 CLI 行為、輸出格式與成功訊號</h2><p>不只要命令可執行，還要能穩定被測試、被 release note 引用。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>從 plan 到 apply 再到 report 一次走完</h2><p>範例專案用變更集 manifest 模擬真實自動化工作，展示預檢、安全執行與證據輸出。 <a href="範例程式碼/cli_automation_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><article class="surface cli-article cli-example"><h3>可直接執行：預設不寫檔，只用 Python 標準函式庫</h3><p>使用全新的練習資料夾。依序建立清單、檢查語法、執行計畫與預演，再寫出結果並驗證；不需要安裝第三方套件。</p><pre><code>mkdir cli-lab
+cd cli-lab
+# 將下方 Python 程式另存為 cli_internal.py
+printf &#x27;%s\n&#x27; &#x27;{&quot;message&quot;:&quot;設備清單驗證完成&quot;}&#x27; &gt; manifest.json
+python3 -m py_compile cli_internal.py
+python3 cli_internal.py plan manifest.json result.txt
+python3 cli_internal.py apply manifest.json result.txt
+test ! -e result.txt
+python3 cli_internal.py apply manifest.json result.txt --execute
+python3 cli_internal.py report manifest.json result.txt
+</code></pre><details><summary>展開完整程式碼：cli_internal.py</summary><pre><code>import argparse
+import json
+import sys
+from pathlib import Path
+
+def load_manifest(path):
+    # 至多讀 4 KiB，避免直接解析不受限的大檔。
+    with path.open(&quot;rb&quot;) as stream:
+        raw = stream.read(4097)
+    if len(raw) &gt; 4096:
+        raise ValueError(&quot;manifest 不可超過 4 KiB&quot;)
+    data = json.loads(raw.decode(&quot;utf-8&quot;))
+    if not isinstance(data, dict) or set(data) != {&quot;message&quot;}:
+        raise ValueError(&quot;manifest 必須只包含 message&quot;)
+    message = data[&quot;message&quot;]
+    if not isinstance(message, str) or not message.strip() or len(message) &gt; 200:
+        raise ValueError(&quot;message 必須為 1–200 字元的非空白文字&quot;)
+    return message + &quot;\n&quot;
+
+def emit(command, status, code, **details):
+    print(json.dumps(
+        {&quot;command&quot;: command, &quot;status&quot;: status, &quot;exit_code&quot;: code, **details},
+        ensure_ascii=False,
+    ))
+    return code
+
+def main():
+    parser = argparse.ArgumentParser(description=&quot;可預演的 CLI 教學範例&quot;)
+    commands = parser.add_subparsers(dest=&quot;command&quot;, required=True)
+    for command in (&quot;plan&quot;, &quot;apply&quot;, &quot;report&quot;):
+        sub = commands.add_parser(command)
+        sub.add_argument(&quot;manifest&quot;, type=Path)
+        sub.add_argument(&quot;output&quot;, type=Path)
+        if command == &quot;apply&quot;:
+            sub.add_argument(&quot;--execute&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    try:
+        expected = load_manifest(args.manifest).encode(&quot;utf-8&quot;)
+    except (OSError, ValueError) as exc:
+        return emit(args.command, &quot;validation_error&quot;, 3, error=str(exc))
+
+    try:
+        if args.command == &quot;plan&quot;:
+            return emit(&quot;plan&quot;, &quot;planned&quot;, 0, target=str(args.output))
+        if args.command == &quot;apply&quot;:
+            if not args.execute:
+                return emit(&quot;apply&quot;, &quot;dry_run&quot;, 0, target=str(args.output))
+            # xb 保證不覆蓋現有同名檔；非交易式提交。
+            with args.output.open(&quot;xb&quot;) as stream:
+                stream.write(expected)
+            return emit(&quot;apply&quot;, &quot;written&quot;, 0, target=str(args.output))
+
+        with args.output.open(&quot;rb&quot;) as stream:
+            matches = stream.read(len(expected) + 1) == expected
+        return emit(&quot;report&quot;, &quot;verified&quot; if matches else &quot;mismatch&quot;,
+                    0 if matches else 2, target=str(args.output))
+    except OSError as exc:
+        return emit(args.command, &quot;operation_error&quot;, 2, error=str(exc))
+
+if __name__ == &quot;__main__&quot;:
+    sys.exit(main())
+</code></pre></details><ol><li><code>load_manifest()</code> 驗證清單，拒絕不符合格式或大小的輸入。</li><li><code>plan</code> 與未帶 <code>--execute</code> 的 <code>apply</code> 不寫檔。</li><li><code>apply --execute</code> 以 <code>xb</code> 拒絕覆蓋。寫入途中失敗可能留有部份結果；正式工具需選用交易式或原子發佈策略。</li><li><code>report</code> 比對位元組，不執行修復。退出碼 2 表示操作失敗或不符；在參數解析階段，argparse 本身也使用 2。</li></ol></article><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗 CLI 行為、輸出格式與成功訊號</h2><p>不只要命令可執行，還要能穩定被測試、被 release note 引用。</p></div></div><article class="surface cli-article cli-example"><h3>驗收表：不要只測成功路徑</h3><ol><li>合法清單的 <code>plan</code> 回傳 <code>planned</code>，預演回傳 <code>dry_run</code>，兩者退出碼均為 0，且結果檔不存在。</li><li>首次正式寫入回傳 <code>written</code>；原樣驗證為 <code>verified</code>；重複正式寫入須回傳 2 且不改原檔。</li><li>將清單改成 <code>{}</code>，預期退出碼 3；故意改結果檔，預期 <code>mismatch</code> 與退出碼 2。</li><li>在 CI 應分別檢查退出碼、stdout JSON、結果檔是否存在，以及失敗時是否維持原檔。</li></ol></article><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>命令出問題先看契約與 report</h2><p>CLI 問題大多來自參數漂移、dry-run 缺位、錯誤碼不穩或輸出不可解析。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把 CLI 當正式交付物，而不是工具人的祕密腳本</h2><p>只要命令會進排程、進 CI、交給其他工程師或現場人員，就應有正式工程品質。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
