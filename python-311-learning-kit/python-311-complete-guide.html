@@ -1,0 +1,44 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 3.11 完整學習教材</title><link rel="alternate" hreflang="en" href="python-311-complete-guide.en.html"><style>*{box-sizing:border-box}body{margin:0;color:#162f46;background:#edf3f9;font:1rem/1.65 system-ui,sans-serif}main{max-width:74rem;margin:auto;padding:clamp(.8rem,3vw,2rem)}header,section,footer{margin-bottom:1rem;padding:clamp(.85rem,2vw,1.5rem);border:1px solid #b9d0e4;border-radius:.8rem;background:white;overflow-wrap:anywhere}header{background:#eaf5ff}h1{font-size:clamp(1.7rem,5vw,3rem);line-height:1.2}h2{line-height:1.3}nav{display:flex;gap:.55rem;flex-wrap:wrap}a{color:#174d83;text-underline-offset:.16em}a:focus-visible{outline:3px solid #153d6b;outline-offset:2px}nav>a,.pill{border:1px solid #a7c3db;border-radius:.45rem;background:#f6fbff;padding:.35rem .7rem}pre{margin:.6rem 0;max-width:100%;overflow:auto;padding:.85rem;border-radius:.45rem;background:#132a42;color:#eff7ff;font-size:.88rem}code{font-family:ui-monospace,monospace}pre:focus-visible{outline:3px solid #517fa8}.date{font-weight:700}.aside{border-left:4px solid #4586b8;padding-left:.8rem}</style></head><body><main>
+<header><nav><a href="../index.html#version-311">版本教材入口</a><a href="python-311-complete-guide.en.html" hreflang="en" lang="en">English</a><a href="python-311-lab.py" download>下載離線 Python 實作</a></nav><h1>Python 3.11 完整學習教材</h1><p>以可重跑範例練習例外群組、結構化並行、TOML、錯誤追蹤、型別提示與部署驗收。</p><p class="date">最後更新：<time datetime="2026-11-25">2026-11-25</time></p><p class="aside">正式版於 2022-10-24 發布。截至本文更新日，CPython 3.11 屬僅安全修正階段，官方後續為原始碼發行，預計持續至 2027 年 10 月；作業系統套件的維護狀態請另外確認。 <a href="https://peps.python.org/pep-0664/">PEP 664</a></p><nav><a href="#errors">例外群組與 except*</a><a href="#async">結構化並行與時間預算</a><a href="#config">用 tomllib 載入設定</a><a href="#trace">錯誤位置與附註</a><a href="#typing">型別：Self 與 TypedDict</a><a href="#runtime">效能與升級驗收</a></nav></header>
+<section id="errors"><h2>例外群組與 except*</h2><p>一批平行作業可能同時產生多種錯誤。ExceptionGroup 保留錯誤結構；except* 把相符的子群分派給對應處理器，未處理的部分仍向外傳播。同一個 try 不可混用 except 與 except*。不要為了顯示成功而吞掉全部子錯誤。</p><pre tabindex="0"><code>try:
+    raise ExceptionGroup(&quot;batch&quot;, [ValueError(&quot;bad input&quot;), OSError(&quot;offline&quot;)])
+except* ValueError as group:
+    print(&quot;input:&quot;, len(group.exceptions))
+except* OSError as group:
+    print(&quot;io:&quot;, len(group.exceptions))</code></pre><p><a href="https://peps.python.org/pep-0654/">PEP 654</a></p></section><section id="async"><h2>結構化並行與時間預算</h2><p>TaskGroup 把子任務的生命週期限制在 async with；一個子任務非取消失敗時，通常取消其他仍在執行的任務，等待收尾，再回報錯誤。asyncio.timeout() 把它自己的取消轉成 TimeoutError，請在區塊外捕捉。執行清理時保留取消語意，不要默默吞掉 CancelledError。</p><pre tabindex="0"><code>import asyncio
+
+async def job(name):
+    await asyncio.sleep(0)
+    return name
+
+async def main():
+    async with asyncio.timeout(1):
+        async with asyncio.TaskGroup() as tasks:
+            a = tasks.create_task(job(&quot;A&quot;))
+            b = tasks.create_task(job(&quot;B&quot;))
+        print(a.result(), b.result())
+
+asyncio.run(main())</code></pre><p><a href="https://docs.python.org/3.11/library/asyncio-task.html">asyncio</a></p></section><section id="config"><h2>用 tomllib 載入設定</h2><p>tomllib 只負責解析，不會驗證業務欄位，也不支援寫入。讀檔用二進位 rb 給 load()；已有字串則用 loads()。布林值在 Python 可被視為整數子類，若組態不接受 true，請做明確的型別驗證。</p><pre tabindex="0"><code>import tomllib
+
+data = tomllib.loads(&quot;workers = 4&quot;)
+workers = data.get(&quot;workers&quot;)
+if type(workers) is not int or not 1 &lt;= workers &lt;= 32:
+    raise ValueError(&quot;workers must be 1..32&quot;)
+print(workers)
+# File input: with open(&quot;config.toml&quot;, &quot;rb&quot;) as f: data = tomllib.load(f)</code></pre><p><a href="https://docs.python.org/3.11/library/tomllib.html">tomllib</a></p></section><section id="trace"><h2>錯誤位置與附註</h2><p>3.11 的 traceback 可指出一行中的失敗子運算式。用 add_note() 補操作情境，別把憑證或完整請求放入例外。若不希望儲存精細範圍資訊，可評估 -X no_debug_ranges；它不會消除例外。</p><pre tabindex="0"><code>try:
+    {&quot;worker&quot;: None}[&quot;worker&quot;][&quot;name&quot;]
+except TypeError as exc:
+    exc.add_note(&quot;Validate the worker record at the input boundary.&quot;)
+    raise</code></pre><p><a href="https://peps.python.org/pep-0657/">PEP 657</a></p></section><section id="typing"><h2>型別：Self 與 TypedDict</h2><p>Self 適合鏈式方法回傳目前類別型別；Required、NotRequired 可逐欄控制 TypedDict 鍵是否必有。這些型別提示不會替你在執行期驗證外部資料。更進一步可讀 PEP 646 的 TypeVarTuple。</p><pre tabindex="0"><code>from typing import NotRequired, Self, TypedDict
+
+class Config(TypedDict):
+    workers: int
+    label: NotRequired[str]
+
+class Queue:
+    def add(self, item: str) -&gt; Self:
+        print(item)
+        return self</code></pre><p><a href="https://docs.python.org/3.11/library/typing.html">typing</a></p></section><section id="runtime"><h2>效能與升級驗收</h2><p>CPython 的自適應直譯器會專門化部分位元組碼。官方 What’s New 報告標準基準平均約 1.25 倍；不是每個程式的保證。用真實資料測暖機後延遲、吞吐與記憶體。新增 3.11 專用的 except* 會讓 3.10 無法解析該檔，不能只用 if sys.version_info 包住。用獨立檔案或提高最低版本；要發行時另外驗證原生擴充 wheel、CI 與實際部署平台。</p><pre tabindex="0"><code>python3.11 -m venv .venv
+python3.11 python-311-lab.py
+python3.11 -m compileall -q python-311-lab.py</code></pre><p><a href="https://peps.python.org/pep-0659/">PEP 659</a></p></section>
+<footer><p>實作僅用標準函式庫。請不要加 -O，才能保留六項檢查。</p><p><a href="https://docs.python.org/3.11/whatsnew/3.11.html">What’s New In Python 3.11</a> · <a href="https://peps.python.org/pep-0678/">PEP 678</a> · <a href="https://peps.python.org/pep-0673/">PEP 673</a> · <a href="https://peps.python.org/pep-0655/">PEP 655</a></p></footer></main></body></html>
