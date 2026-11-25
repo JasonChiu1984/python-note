@@ -1,0 +1,51 @@
+<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 爬蟲教程｜授權擷取與本機實驗</title><style>
+:root{color-scheme:dark;--bg:#0a1322;--box:#111f32;--line:#344961;--txt:#f0f6fc;--muted:#bdcce1;--blue:#92d8ff;--accent:#99e5c0}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:1rem/1.65 system-ui,sans-serif;overflow-wrap:anywhere}header,main,footer{max-width:72rem;margin:auto;padding:1rem clamp(.8rem,4vw,2rem)}header{padding-top:2rem}h1{font-size:clamp(1.75rem,4vw,3rem);line-height:1.25}h2{line-height:1.3;color:var(--blue)}a{color:var(--blue)}nav,.actions{display:flex;flex-wrap:wrap;gap:.75rem}section{background:var(--box);border:1px solid var(--line);border-radius:1rem;margin:1rem 0;padding:clamp(.7rem,2vw,1.6rem)}.muted,caption{color:var(--muted)}.callout{border-inline-start:3px solid var(--accent);padding:.4rem .8rem;background:#172d3d}.flow,.architecture{display:grid;gap:.6rem;padding:0;list-style:none;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}.flow li,.architecture li{min-width:0;background:#182d42;border:1px solid var(--line);border-radius:.7rem;padding:.7rem}.flow strong,.architecture strong{color:var(--accent);display:block}table{border-collapse:collapse;width:100%;table-layout:fixed}td,th{border-bottom:1px solid var(--line);padding:.45rem .28rem;text-align:left;vertical-align:top}caption{text-align:left;margin-bottom:.5rem}figure{margin:1rem 0}meter{width:100%;height:1.2rem;accent-color:var(--accent)}.bar{display:grid;grid-template-columns:minmax(5rem,1fr) minmax(2.5rem,3fr) minmax(4.3rem,1fr);align-items:center;gap:.35rem;margin:.32rem 0}.bar span:last-child{text-align:right}.codebox{width:100%;max-width:100%;overflow:auto;white-space:pre;border:1px solid var(--line);border-radius:.55rem;padding:.8rem;background:#081321}code,kbd,pre{font-family:ui-monospace,SFMono-Regular,monospace}button{font:inherit;padding:.25rem .6rem;background:#244961;color:var(--txt);border:1px solid #60819d;border-radius:.4rem}a:focus-visible,button:focus-visible,pre:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style></head><body id="top">
+<header><nav><a href="index.html">Python 教材首頁</a></nav><h1>Python 爬蟲教程：從授權擷取到結構化資料</h1>
+<p>同一個本機 HVAC 測試站，走一次 HTML 目錄與 JSON API，觀察去重、節流和 429 重試。</p>
+<nav aria-label="本頁目錄"><a href="#choice">來源選擇</a><a href="#flow">流程圖</a><a href="#architecture">架構圖</a><a href="#robots">robots.txt</a><a href="#metrics">實驗圖表</a><a href="#lab">程式實作</a></nav></header>
+<main>
+<section id="choice"><h2>01｜先決定是否需要爬蟲</h2><p>爬蟲會發現候選 URL、依範圍挑選後擷取；資料解析則將回應轉成欄位。一支程式可以只做其一。先確認站點管理者或資料授權允許自動存取、使用和保存；公開可見不等於可任意收集。只取必要欄位，不擷取個資，不繞過登入、付費牆或驗證。</p>
+<table><caption>資料來源與工程取捨</caption><thead><tr><th scope="col">方式</th><th scope="col">適用條件</th><th scope="col">應注意</th></tr></thead><tbody>
+<tr><th scope="row">正式資料匯出</th><td>能定期取得合法授權的 CSV 或 JSON。</td><td>確認發布週期、欄位版本和授權。</td></tr>
+<tr><th scope="row">正式 API</th><td>有文件、穩定 ID 與結構化欄位。</td><td>依配額與分頁規格；不要猜測未公開端點。</td></tr>
+<tr><th scope="row">授權 HTML</th><td>沒有受支援 API，且站方允許自動擷取範圍。</td><td>版面或欄位可能改變，須做測試與異常停機。</td></tr></tbody></table></section>
+<section id="flow"><h2>02｜擷取流程圖</h2>
+<ol class="flow"><li><strong>1｜讀規則 →</strong>先確認授權邊界，再讀來源的 robots.txt；失敗就停止這堂實驗。</li><li><strong>2｜取目錄 →</strong>HTML 模式查 5 個連結候選，只接受指定本機頁面。API 模式直接查固定 JSON。</li><li><strong>3｜過濾與擷取 →</strong>排除重複、禁止、外部路徑；每個實際 GET 都耗用請求預算。</li><li><strong>4｜解析與輸出</strong>驗證內容類型與大小，依 HTML 屬性或 JSON 結構抽欄位，以 ID 去重後出 JSON。</li></ol></section>
+<section id="architecture"><h2>03｜元件架構圖與失敗選擇</h2><ul class="architecture"><li><strong>本機測試站 →</strong>合成溫度、HTML 目錄、資料頁、固定 JSON、robots.txt。只綁 127.0.0.1 的臨時埠。</li><li><strong>擷取控制器 →</strong>固定白名單，單工；請求間隔至少 150 ms、socket timeout 2 秒、單次最多 16 KiB、整次最多 8 次請求。</li><li><strong>HTML／JSON 解析 →</strong>HTMLParser 不執行 JavaScript；JSON 使用 json.loads；內容類型不符即停止。</li><li><strong>結果與驗證</strong>摘要保留丟棄原因、可重跑測試；實際部署另需總截止時間、欄位契約、保存期限與變更告警。</li></ul>
+<p>收到 429，只在第一次按 <code>Retry-After</code>（秒數或 HTTP 日期）再試一次；無效時用教學預設 1 秒，等待預算 2 秒，若超過預算就停止，<strong>不把伺服器要求的等待截短再提早重試</strong>。其他非 200、轉址、非預期 MIME 都中止。2 秒是 socket I/O timeout，不等於端到端截止時間；程式不會跟隨任何轉址。</p></section>
+<section id="robots"><h2>04｜robots.txt 不是授權或存取控制</h2><p>RFC 9309 定義以來源的根路徑 <code>/robots.txt</code> 提供規則。先比對爬蟲產品代碼的群組（無相符群組時才看 <code>*</code>），再按路徑最具體的規則，等長衝突建議優先 Allow。2xx 時遵循可解析規則；4xx 代表規則不可用，規範允許但不強制可抓取，並不表示站方同意；5xx 或網路無法連到來源時原則上先視為全面禁止。RFC 另有轉址和快取規則。本機實驗更嚴格：任何 robots 載入失敗都停止，不跟轉址；<code>RobotFileParser</code> 僅示範簡單規則，不宣稱完整符合 RFC 9309。</p>
+<p>主動擷取前，規則可用、授權範圍與站方的流量限制缺一不可。無授權、疑似個資、站方要求停止或遇到封鎖時，應停機或改採授權匯出。</p></section>
+<section id="metrics"><h2>05｜本機實測計數</h2><figure><figcaption>同一測試站兩個模式的 HTTP 請求數（含 robots 和重試，不表示兩端輸出涵蓋相同資料）</figcaption>
+<div class="bar"><span>HTML</span><meter aria-label="HTML 5 次請求" min="0" max="8" value="5"></meter><span>5 次</span></div>
+<div class="bar"><span>JSON API</span><meter aria-label="API 2 次請求" min="0" max="8" value="2"></meter><span>2 次</span></div></figure>
+<p>HTML 目錄的 5 個候選中，排除重複、robots 禁止與外部各 1 個，留下兩個資料頁。第一筆 25.5°C，第二筆 24.8°C；第二頁先收到一次模擬 429。總 HTTP = robots（1）＋目錄（1）＋兩資料頁（2）＋重試（1）。API 只回傳 AHU-A，因此本例不能將 5 比 2 當作兩種技術的效能結論。</p></section>
+<section id="lab"><h2>06｜Python 3.10+ 標準函式庫實作</h2><p><a id="download" href="python_web_crawling_lab.py" download>下載完整實作與單元測試</a></p>
+<button type="button" data-copy="commands">複製執行指令</button> <span id="copy-status" role="status"></span>
+<pre id="commands" class="codebox" tabindex="0"><code>python3 python_web_crawling_lab.py html
+python3 python_web_crawling_lab.py api
+python3 python_web_crawling_lab.py self-test</code></pre>
+<p>下列為教學程式的守門概念：候選連結不是可直接請求的網址。先驗證範圍，再查規則，最後才排入有限的 GET。</p>
+<pre class="codebox" tabindex="0"><code>for path in index.links:
+    if path not in allowed_paths:
+        continue
+    if path in visited or not robots.can_fetch(agent, path):
+        continue
+    visited.add(path)
+    body = client.get(path, "text/html")
+    for row in parse_html(body).rows:
+        rows.setdefault(row["id"], row)</code></pre>
+<p>本教材沒有可輸入的外部 URL、深度擴張、登入或反封鎖功能。要處理站方授權的正式資料，另行設計分頁上限、版本化欄位、結果對帳、重複或格式異常告警，不把資料中的文字或網址當成指令。</p>
+<ul><li><a href="https://www.rfc-editor.org/rfc/rfc9309.html">RFC 9309：Robots Exclusion Protocol</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after">RFC 9110：Retry-After</a></li><li><a href="https://docs.python.org/3/library/html.parser.html">Python 官方：html.parser</a></li><li><a href="https://docs.python.org/3/library/urllib.robotparser.html">Python 官方：urllib.robotparser</a></li></ul></section>
+</main><footer><a href="#top">回頁首</a></footer><script>
+document.querySelector('[data-copy]').addEventListener('click', async (evt)=>{
+  const block=document.getElementById(evt.currentTarget.dataset.copy);
+  const status=document.getElementById('copy-status');
+  try { await navigator.clipboard.writeText(block.innerText);status.textContent='已複製'; }
+  catch {
+    const r=document.createRange();r.selectNodeContents(block);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+    status.textContent='已選取，請手動複製';
+  }
+});
+</script></body></html>

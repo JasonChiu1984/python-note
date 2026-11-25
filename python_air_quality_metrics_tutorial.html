@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>空氣品質指標工程教程｜CO₂、PM2.5、資料品質與官方 AQI</title>
+<style>
+:root{font:100%/1.65 system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#142f3b;background:#eef4f5;--line:#bfd2d9;--green:#135246;--teal:#def5ee;--blue:#e6f2fc;--warn:#fff2d5;--ink:#142f3b}
+*{box-sizing:border-box}body{margin:0}main{max-width:77rem;margin:auto;padding:clamp(.8rem,3.7vw,2.8rem)}a{color:#075b75}h1,h2,h3,p{margin:.2em 0 .65em}h1{line-height:1.1;font-size:clamp(2rem,6vw,4rem)}h2{line-height:1.2;font-size:clamp(1.4rem,4vw,2.3rem)}h1,h2,h3,p,li,td,th,strong,small,label,summary,a{overflow-wrap:anywhere}
+header{border-radius:1.05rem;padding:clamp(.85rem,4vw,2.5rem);border:1px solid #9cc4bc;background:linear-gradient(125deg,var(--teal),var(--blue))}
+.eyebrow,.subhead{font-weight:850;color:var(--green)}header p{max-width:48rem}nav,.actions{display:flex;flex-wrap:wrap;gap:.5rem .85rem;align-items:center}
+section{margin:2.3rem 0;scroll-margin-top:1rem}figure{margin:0}figcaption{font-weight:850;margin-bottom:.65rem}
+.card{background:white;border:1px solid var(--line);border-radius:.8rem;padding:clamp(.8rem,2.5vw,1.3rem);min-width:0;margin-bottom:.8rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.grid>.card{margin:0}
+.chain{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.4rem}
+.chain li{position:relative;background:var(--blue);border:1px solid var(--line);border-left:4px solid #3180a2;padding:.6rem;border-radius:.58rem;min-width:0}.chain li:nth-child(2n){background:var(--teal);border-left-color:#20836b}
+.chain strong,.chain small{display:block}.chain li:not(:last-child)::after{content:"";position:absolute;left:calc(100% + .4rem);top:calc(50% - .22rem);width:.44rem;height:.44rem;border-right:2px solid var(--green);border-top:2px solid var(--green);transform:rotate(45deg)}
+.callout{background:var(--warn);border-left:4px solid #a26b1b;padding:.7rem .85rem;margin:.6rem 0 0;border-radius:.4rem}
+.table-scroll{overflow:auto;border:1px solid var(--line);border-radius:.55rem;max-width:100%}table{border-collapse:collapse;width:100%;min-width:40rem}th,td{padding:.5rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#e6f1f5}
+pre{overflow:auto;max-width:100%;font-size:.86rem;background:#142d3c;color:#e7f5ff;padding:.85rem;border-radius:.6rem;line-height:1.5}code{font-family:ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}pre code{overflow-wrap:normal}
+select,button,.button{max-width:100%;font:inherit;border-radius:.45rem;padding:.35rem .6rem;border:1px solid var(--line);color:var(--green);background:#fff}button,.button{font-weight:750;cursor:pointer}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem;margin:.75rem 0}.metrics>*{padding:.55rem;border:1px solid var(--line);border-radius:.45rem;overflow-wrap:anywhere}.metrics strong,.metrics small{display:block}
+.bars{display:grid;gap:.45rem;list-style:none;margin:.5rem 0;padding:0}.bars li{display:grid;grid-template-columns:4.1rem minmax(0,1fr) minmax(4rem,9rem);gap:.4rem;align-items:center;min-width:0}.bars b{font-variant-numeric:tabular-nums}.track{height:.65rem;background:#e3edf1;border-radius:1rem;overflow:hidden}.track span{display:block;height:100%;background:#257b69}.bars li.invalid .track{background:repeating-linear-gradient(45deg,#f7f9fa,#f7f9fa 4px,#d4e1e4 4px,#d4e1e4 8px)}.value{color:#345361}.formula{padding:.65rem;background:#eaf4f1;border-radius:.4rem}
+@media(max-width:760px){.grid,.chain{grid-template-columns:minmax(0,1fr)}.chain li:not(:last-child)::after{left:calc(50% - .22rem);top:calc(100% + .4rem);transform:rotate(135deg)}}
+@media(max-width:450px){.metrics{grid-template-columns:minmax(0,1fr)}.bars li{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.track{grid-column:1/-1;grid-row:2}}
+</style>
+</head>
+<body><main>
+<header id="top">
+<p class="eyebrow">PYTHON × HVAC · 空氣品質資料工程</p>
+<h1>空氣品質指標：先確認量到什麼，再算平均</h1>
+<p>室內儀表板用 CO₂、PM、溫濕度與資料品質理解現場；臺灣室外 AQI 另外顯示環境部發布值。這堂課用合成資料練習時間窗、缺值、過期與資料涵蓋率，不把單筆讀值換成 AQI。</p>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#indicators">指標與單位</a><a href="#architecture">監測架構</a><a href="#workflow">處理流程</a><a href="#lab">互動圖表</a><a href="#code">Python 程式</a><a href="#aqi">室外 AQI</a><a href="#operations">驗收</a></nav>
+</header>
+<section id="indicators"><h2>1. 室內要看哪些指標？</h2>
+<div class="card"><div class="table-scroll" tabindex="0" aria-label="室內監測指標比較，可左右捲動"><table>
+<thead><tr><th scope="col">指標與單位</th><th scope="col">能幫你判斷什麼</th><th scope="col">容易判斷錯的情況</th></tr></thead><tbody>
+<tr><th scope="row">CO₂ · ppm</th><td>在以人員排放為主時，配合占用、室外背景及時間趨勢，作為通風線索。</td><td>冷凍機房或低占用資料中心的低 CO₂ 不代表空氣中沒有粒子、氣體或其他污染。通風量不能只從單點濃度反推。</td></tr>
+<tr><th scope="row">PM2.5／PM10 · μg/m³</th><td>描述不同粒徑分級的顆粒質量濃度。看室內外同期趨勢、過濾器和局部來源。</td><td>PM2.5 屬 PM10 涵蓋範圍，不應相加成「總顆粒」。低成本光學量測受粒徑、顆粒性質、濕度與儀器間差異影響。</td></tr>
+<tr><th scope="row">溫度 · °C；相對濕度 · %RH</th><td>監測熱環境、解讀 PM 與結露情境。</td><td>這兩項是環境條件，不是污染物，也不代入官方 AQI。比較不同位置的 RH 時要看各點溫度。</td></tr>
+<tr><th scope="row">壓差 · Pa</th><td>輔助推斷氣流方向與門、濾網或房間邊界的狀態。</td><td>先寫清楚 P(高壓端) − P(低壓端) 的符號與兩端位置。壓差不等於風量；門開、風機轉速和測點位置都會影響讀值。</td></tr>
+<tr><th scope="row">外氣風門命令／回饋 · %</th><td>解釋外氣與室內讀值變化的設備狀態，與風量、風機、時間戳一起看。</td><td>風門開度不是外氣流量。命令不等於實際開度，更不能只因某個指標升降就自動調整。</td></tr>
+</tbody></table></div></div>
+<div class="grid">
+<article class="card"><h3>感測位置與校驗</h3><p>按用途選點：占用區點位用於了解典型人員活動，避開直接對著出風口、局部污染源或人員呼氣；室外比較點另設並標記防護與距離；回風點應標成混合訊號，不能冒充單一區域。查閱設備安裝要求與校正紀錄。同時記錄通訊位址、更新週期及單位轉換，例如工程值已換算就不能再乘一次比例。</p></article>
+<article class="card"><h3>CO₂ 與 PM 要交叉判讀</h3><p>若室內 CO₂ 隨占用上升、室內 PM 尚穩定，先查占用、室外背景、通風量與感測位置。若室內 PM 與官方室外測站同時上升，也只是線索：先看站距、風向、時間延遲、外氣濾網與室內活動。不要從兩條同步曲線直接推論因果。</p></article>
+</div></section>
+<section id="architecture"><h2>2. 監測架構圖：室內與室外並排，保留來源</h2>
+<figure class="card"><figcaption>室內遙測路徑</figcaption><ol class="chain">
+<li><strong>空間與設備</strong><small>室內／外氣點位、CO₂、PM、溫濕度、壓差、風門與占用。</small></li>
+<li><strong>閘道與驗證</strong><small>讀取工程值；保留測點、量測時間、收到時間、單位、原始品質與校正版本。</small></li>
+<li><strong>時間序列倉儲</strong><small>保存原值與品質旗標；按指標與點位分桶、去重、彙整及保留缺值。</small></li>
+<li><strong>儀表板與事件單</strong><small>顯示平均、涵蓋率、最新有效樣本、期間資訊及人工核對場景。</small></li></ol>
+<p class="callout"><strong>平行來源：</strong>環境部官方測站 AQI 由獨立唯讀連線匯入，保留測站、發布時間、狀態與指標污染物。兩路只在畫面按時間背景對照，不混算，也不直接連到控制輸出。</p></figure>
+</section>
+<section id="workflow"><h2>3. 計算流程圖：先處理缺失與品質</h2>
+<figure class="card"><figcaption>從資料槽到可判讀數字</figcaption><ol class="chain">
+<li><strong>01 對齊</strong><small>統一 UTC、點位與量測單位；設採樣格與半開區間 [起點, 終點)。</small></li>
+<li><strong>02 標註品質</strong><small>分辨 no report、空值、過期、故障及有效；無效值不補成零。</small></li>
+<li><strong>03 算平均與涵蓋率</strong><small>固定欄位與等寬格計算；不規則資料另加有效時長和最大間隔約束。</small></li>
+<li><strong>04 顯示或停算</strong><small>涵蓋率低應顯示不足；並列品質、時間窗與最後有效樣本。</small></li></ol></figure>
+<div class="card"><h3>等間距與不規則資料，要分開算</h3><p>本課示例是一格五分鐘，每格由一筆樣本代表，窗口共六格。有效平均 = 有效槽值總和 ÷ 有效槽數；涵蓋率 = 有效槽數 ÷ 六個預期槽。涵蓋率是本課的<strong>格點代理</strong>，不是從原始資料證明氣體在整格時間維持不變。</p><p class="formula">不規則事件：若已規定「每筆維持到下一筆」，可用 Σ(有效值 × 有效秒數) ÷ Σ(有效秒數)。每段裁進觀察窗、限制最大持有時間、遇故障或斷線截斷，超出的時間標為未知；涵蓋率另算有效秒數 ÷ 全窗秒數。</p><p>同一槽多筆需定義選樣或先做槽內平均；重送去重、亂序到達與時鐘飄移要保留記錄。最新畫面過期判斷可用「現在 − 最新有效量測時間」，與本課 CSV 的 stale 品質旗標是兩件事：舊資料重送成功不能變成新量測。</p></div>
+</section>
+<section id="lab"><h2>4. 互動圖表：同一窗口，不同欄位有不同涵蓋率</h2>
+<div class="card">
+<p>合成資料，UTC 10:00 至 10:30（右端不含）。10:10 沒上報，10:15 有值但已標記為 stale，10:25 只有 PM2.5 缺值。</p>
+<div class="actions"><label for="metric">選擇欄位</label><select id="metric"><option value="co2">CO₂（ppm）</option><option value="pm">PM2.5（μg/m³）</option><option value="temp">溫度（°C）</option><option value="rh">相對濕度（%RH）</option></select>
+<label for="gate">教學最低涵蓋率</label><select id="gate"><option value="0.5">50%</option><option value="0.6" selected>60%</option><option value="0.8">80%</option></select></div>
+<p>這個選單是工程資料品質門檻，<strong>不是污染濃度門檻，也不是健康或控制建議</strong>。</p>
+<div class="metrics" aria-live="polite">
+<div><small>通過門檻的有效平均</small><strong id="mean">—</strong></div>
+<div><small>有效格／預期格</small><strong id="coverage">—</strong></div>
+<div><small>最近有效時間（UTC）</small><strong id="latest">—</strong></div></div>
+<figure><figcaption id="plot-caption">固定時間格點圖</figcaption><ol class="bars" id="bars"></ol></figure>
+<p>虛線底紋表示不納入彙總的格；理由和數字直接寫在旁邊。切換欄位時刻度不同，不能跨欄比較長度。選 60% 時，CO₂ 為 4/6 可顯示平均，PM2.5 為 3/6，平均標示資料不足。</p>
+<noscript><p>未啟用 JavaScript。可下載下方的 Python 與 CSV 完成同一計算；有效 CO₂ 平均 837.5 ppm（4/6），PM2.5 有效樣本平均 14.3 μg/m³（3/6），但 60% 門檻下不得報為可用平均。</p></noscript>
+</div></section>
+<section id="code"><h2>5. Python 程式：把資料和分母一起保存</h2>
+<div class="card">
+<p>把 Python 與 CSV 放在同一個資料夾。資料只有一個虛構區域，欄位為 <code>timestamp,co2_ppm,pm25_ug_m3,temp_c,rh_pct,quality</code>。原始時戳是 UTC，畫面切本地時區時請明確標示。實際系統另加 <code>zone_id</code>、<code>sensor_id</code>、受信任的單位映射及 <code>received_at</code>。</p>
+<div class="actions"><a class="button" href="python_air_quality_metrics_lab.py" download>下載 Python 實驗</a><a class="button" href="python_air_quality_metrics_sample.csv" download>下載合成 CSV</a></div>
+<pre><code>python3 python_air_quality_metrics_lab.py --help
+python3 python_air_quality_metrics_lab.py
+python3 python_air_quality_metrics_lab.py --self-test</code></pre>
+<p>下方是可直接執行的最小核心。它示範一個合成區域，不另處理 CSV 格式；完整程式負責把時間與欄位讀入後再做檢查。</p>
+<pre><code>from math import isfinite
+from statistics import mean
+
+def summarize_slots(slots, minimum_coverage=0.6):
+    # slots 事先按點位、時間窗和固定採樣間隔對齊。
+    ok = [value for value, quality in slots
+          if quality == "ok" and value is not None and isfinite(value)]
+    ratio = len(ok) / len(slots) if slots else 0.0
+    metric = mean(ok) if ok and ratio &gt;= minimum_coverage else None
+    return metric, len(ok), len(slots)
+
+co2 = [(650, "ok"), (800, "ok"), (None, "missing"),
+       (1200, "stale"), (1000, "ok"), (900, "ok")]
+pm25 = [(6, "ok"), (12, "ok"), (None, "missing"),
+        (30, "stale"), (25, "ok"), (None, "ok")]
+
+assert summarize_slots(co2) == (837.5, 4, 6)
+assert summarize_slots(pm25) == (None, 3, 6)
+assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
+<p>記錄輸出不能只有平均值：應帶參數版本、時間窗、預期格數、有效格數、最近有效時間、單位及採樣方法。若平均值不足，輸出 null 和明確原因，不用 0 代替。對不同指標的有效範圍要各自設定；開發時先用合成資料測漏格、重複、負值、NaN、次序錯亂及時間邊界。</p>
+</div></section>
+<section id="aqi"><h2>6. 臺灣官方 AQI：外部觀測資料，不是室內自製分數</h2>
+<div class="grid">
+<article class="card"><h3>官方指標怎麼來？</h3><p>環境部依測站的 O₃、PM2.5、PM10、CO、SO₂、NO₂ 等污染物濃度及各自時間基準換算副指標，取規則下最大的副指標。日值與即時發布值的統計時間和有效筆數規則不同，不能互換。</p><p>官方依據自 2025-01-01（民國 114 年 1 月 1 日）調整相關濃度門檻，本頁不抄寫門檻，也不產生官方 AQI。要解讀分類和時間規則，請查 <a href="https://airtw.moenv.gov.tw/cht/Information/Standard/AirQualityIndicatorNew.aspx">環境部現行 AQI 說明</a>。</p></article>
+<article class="card"><h3>怎麼放進儀表板？</h3><p>從 <a href="https://data.moenv.gov.tw/dataset/detail/aqx_p_432">官方空氣品質指標資料集（AQX_P_432）</a> 讀取已發布的 AQI、測站、指標污染物、狀態及發布時間；日值另用 <a href="https://data.moenv.gov.tw/dataset/detail/aqx_p_434">官方日 AQI（AQX_P_434）</a>。保留原始資料時間與抓取時間，避免快取舊值卻仍標成即時。</p><p>站點需標「室外官方測站」；站在幾公里外也未必代表建物進氣口。找不到與時間對齊的官方資料就顯示未取得、過期或不適用。官方 AQI 不接受 CO₂、溫度、RH 或單筆室內 PM 作替代輸入。</p></article>
+</div></section>
+<section id="operations"><h2>7. 上線驗收：先組證據，再判斷設備狀態</h2>
+<div class="card"><ol>
+<li><strong>量測驗收：</strong>核對點位、位置、單位、比例、校驗紀錄與更新間隔；確認壓差接管及符號、風門命令與實際回饋分開。</li>
+<li><strong>資料驗收：</strong>模擬不回報、空值、舊時間重送、品質故障與 UTC 窗口邊界；確認涵蓋率降低，告警帶資料年齡而不是把故障算成平均。</li>
+<li><strong>判讀驗收：</strong>把 CO₂、PM、溫濕度、占用、風量、壓差、外氣與設備維護資料沿同軸比較；保留各自單位，不把多個欄位合成不明分數。</li>
+<li><strong>變更邊界：</strong>此頁只做觀測、教學與人工核對。若需修改外氣控制，另評估通風要求、消防排煙、濕度與防結露、壓差、濾網及設備限制；經現場核准與獨立測試後再部署。</li>
+</ol><p>官方延伸：<a href="https://iaq.moenv.gov.tw/indoorair/improvement_air.aspx">環境部：室內通風與空調</a> · <a href="https://airtw.moenv.gov.tw/cht/default.aspx">環境部空氣品質監測網</a>。本頁為資料工程教材，不是法規符合性判定或健康建議。</p></div>
+</section>
+<p>延伸教材：<a href="python_chiller_efficiency_tutorial.html">冰水主機效率</a>（設備效率與空品分開查證） · <a href="python_datacenter_efficiency_tutorial.html">資料中心能源效率</a>（耗能指標與用能邊界）。</p>
+<p><a href="index.html">回 Python 教材路線</a> · <a href="#top">回頁首</a></p>
+</main>
+<script>
+"use strict";
+const samples = [
+ ["10:00", "ok", 650, 6, 24, 48],
+ ["10:05", "ok", 800, 12, 24.5, 49],
+ ["10:10", "missing", null, null, null, null],
+ ["10:15", "stale", 1200, 30, 25, 52],
+ ["10:20", "ok", 1000, 25, 25, 55],
+ ["10:25", "ok", 900, null, 24.8, 52],
+];
+const columns = {co2:[2,"CO₂","ppm",1250],pm:[3,"PM2.5","μg/m³",40],temp:[4,"溫度","°C",45],rh:[5,"相對濕度","%RH",100]};
+const byId = id => document.getElementById(id);
+function node(tag,text){
+ const el = document.createElement(tag);
+ if(text !== undefined) el.textContent = text;
+ return el;
+}
+function update(){
+ const [col,label,unit,max] = columns[byId("metric").value];
+ const minimum = Number(byId("gate").value);
+ const points = samples.map(row => {
+   const [time, quality] = row, value=row[col];
+   return {time,value,valid:quality==="ok" && Number.isFinite(value),
+     note:quality==="stale"?"過期":quality==="missing"?"未上報":value===null?"欄位缺值":""};
+ });
+ const valid = points.filter(x => x.valid);
+ const ratio = valid.length/points.length;
+ const avg = valid.length ? valid.reduce((total,x)=>total+x.value,0)/valid.length : null;
+ byId("mean").textContent = avg===null || ratio < minimum ? "資料不足" : avg.toFixed(1)+" "+unit;
+ byId("coverage").textContent = valid.length+" / "+points.length+"（"+(ratio*100).toFixed(1)+"%）";
+ byId("latest").textContent = valid.at(-1)?.time ?? "無有效點";
+ byId("plot-caption").textContent = label+"格點圖 · 0–"+max+" "+unit;
+ byId("bars").replaceChildren(...points.map(x=>{
+   const li=node("li"), track=node("div"), fill=node("span"), detail=node("span");
+   track.className="track"; track.setAttribute("aria-hidden","true"); detail.className="value";
+   if(x.valid){
+     fill.style.width=(Math.min(1, Math.max(0, x.value/max))*100)+"%";
+     track.append(fill);
+     detail.textContent=x.value+" "+unit;
+   } else {
+     li.className="invalid";
+     detail.textContent=x.note+(x.value===null?"":" · 原值 "+x.value);
+   }
+   li.append(node("b",x.time),track,detail); return li;
+ }));
+}
+byId("metric").addEventListener("change",update);
+byId("gate").addEventListener("change",update);
+update();
+</script></body></html>

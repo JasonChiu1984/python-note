@@ -1,0 +1,169 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工業通訊塞車診斷｜Python 工業通訊筆記</title>
+<style>
+:root{--ink:#173047;--muted:#476378;--dark:#112e45;--accent:#005e72;--paper:#eef5f8;--line:#b8cdd9;--light:#e7f3f8;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper)}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{background:var(--dark);color:white;padding:clamp(1.15rem,4vw,3rem)}header a{color:#a9eafa}header>div,main,footer{max-width:74rem;margin:auto}h1{font-size:clamp(2rem,7vw,4rem);margin:.4rem 0 .7rem;line-height:1.1}h2{font-size:clamp(1.32rem,4vw,1.9rem);margin:.25rem 0 .65rem;line-height:1.3}main,footer{padding:clamp(.7rem,3vw,1.7rem)}a{color:var(--accent);text-underline-offset:.2em}nav{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem}.button,nav a{display:inline-block;background:var(--light);border:1px solid var(--line);border-radius:.5rem;padding:.27rem .62rem}section{background:white;border:1px solid var(--line);border-radius:.8rem;padding:clamp(.75rem,2.5vw,1.55rem);margin-bottom:1rem}.kicker,figcaption{font-weight:800;color:var(--accent)}header .kicker{color:#98dcf0}figure{margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:#f2f9fc}.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.25rem;counter-reset:step}.flow li{counter-increment:step;position:relative;border:1px solid #8eb2c4;background:white;border-radius:.5rem;padding:.6rem;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:var(--accent)}.flow li:not(:last-child)::after{content:"→";position:absolute;top:39%;left:calc(100% + .18rem);font-weight:bold;color:var(--accent)}.table-wrap{overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:.5rem;margin:.7rem 0}table{border-collapse:collapse;width:100%;min-width:41rem;text-align:left}th,td{padding:.6rem;vertical-align:top;border-bottom:1px solid #cedee7}thead th{background:var(--light)}tbody tr:nth-child(even){background:#f3f8fb}.warn{padding:.6rem .8rem;border-left:.3rem solid #aa6411;background:#fff2db}.bar-row{display:grid;grid-template-columns:minmax(5.5rem,9rem) minmax(0,1fr) 4.5rem;gap:.5rem;align-items:center;margin:.5rem 0}.track{height:1.1rem;border-radius:.25rem;background:#e1eaf1}.bar{height:100%;background:#08758c;border-radius:.25rem}.text-mono,code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{max-width:100%;overflow:auto;padding:.75rem;border-radius:.5rem;background:#152f46;color:#e9f9ff}pre code{overflow-wrap:normal}summary{cursor:pointer;font-weight:750}details{margin:.6rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.55rem}:focus-visible{outline:2px solid #0084a1;outline-offset:3px}@media(max-width:800px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:100%;left:50%}}
+</style></head><body id="top">
+<header><div><p class="kicker">INDUSTRIAL NETWORK / PYTHON FIELD GUIDE</p><h1>工業通訊塞車：先找到排隊的位置</h1><p>以機房 PLC、管理型交換器、RS‑485 閘道與監控採集為例。位元率、延遲與點位新鮮度是三種不同訊號。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業協定比較</a> · <a href="python_industrial_ethernet_speed_tutorial.html">100M／1GbE 速度計算</a></p></div></header>
+<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
+<section id="architecture"><p class="kicker">01 / ARCHITECTURE</p><h2>一路上的每個節點，都有自己的速度和佇列</h2>
+<figure><figcaption>圖一｜讀取請求的方向；資料在回應路徑返回</figcaption><ol class="flow">
+<li><strong>採集應用</strong><br>定時器 → 工作提交 → 有界排隊；若排程重入，前一輪未完便可能再排一次。</li>
+<li><strong>TCP Client</strong><br>連線／連線池、待處理上限、逾時與重試；API 等待不等於線速。</li>
+<li><strong>交換網路</strong><br>入口/出口埠、VLAN、trunk 與 uplink；多入口流量可能匯入單出口。</li>
+<li><strong>PLC 或串列閘道</strong><br>以太網端可有多個 TCP Client；單一 Modbus RTU 埠仍須序列處理。</li>
+<li><strong>設備／實體點位</strong><br>PLC scan、資料區更新、RS‑485 收發與站回覆時間，決定資料何時真正更新。</li></ol>
+<p>另一路：PLC 對上游做 OPC UA 訂閱時，底層刷新、伺服器取樣與 Subscription 發布仍是三個節奏。現場控制與保護留在 PLC/DDC；上位機慢不應改變控制迴路。</p></figure>
+<p><strong>先分三件事：</strong>線速是每秒傳送位元數（例如 100 Mb/s 與 1 Gb/s）；吞吐量是實際每秒完成的交易／位元；延遲是單筆等多久。每次 20 位元組的輪詢仍可能等 300 ms 的從站逾時。高峰時同一出口的微突發可能塞滿緩衝，即使一分鐘平均利用率不高。</p></section>
+
+<section id="causes"><p class="kicker">02 / CAUSE MATRIX</p><h2>症狀與佐證：不要看到 timeout 就換交換器</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="通訊塞車原因與佐證"><table><thead><tr><th>瓶頸位置</th><th>常見原因</th><th>先核對的被動證據</th><th>改善後要驗證</th></tr></thead><tbody>
+<tr><th scope="row">來源、PLC scan／採集</th><td>輪詢間隔比設備更新還快、同一點被多系統查、CPU 通訊任務忙或排程重入</td><td>scan 負載、來源時間／序號、應用 enqueue→send 等待、同點讀取頻率</td><td>調整採樣與採集節奏；合併相鄰且允許的讀取範圍，別跨不支援或不同更新週期位址。</td></tr>
+<tr><th scope="row">交換器出口</th><td>多埠突發匯入窄 uplink、線路降到 100M、同一 QoS 佇列爭用</td><td>雙端協商速度/雙工、各方向 bytes、出口佇列或 discard 增量；看時間相關，不只總累計</td><td>對照備援／故障切換後可用容量；調整聚合、分流或容量時不破壞既有控制優先權。</td></tr>
+<tr><th scope="row">交換器實體層</th><td>線材、端子或光模組問題、雙工不符，亦可能有環路</td><td>兩端介面 error、FCS/CRC、flap；分開記錄 discard；風暴時看每 VLAN 廣播／多播和拓撲事件</td><td>在核可維護窗口找原因；不是每個丟棄都表示線材壞，也不是每個 FCS 都是塞車。</td></tr>
+<tr><th scope="row">VLAN 與噪音</th><td>大型廣播域、異常廣播／多播、未知單播泛洪或環路；trunk 仍共同占容量</td><td>依 VLAN／時窗看正常基線與封包種類計數、上行負荷、環路事件</td><td>按網段治理流量；VLAN 不增加實體頻寬，不會自動阻止同 VLAN 的廣播。變更須保留必要發現流量。</td></tr>
+<tr><th scope="row">TCP Client 與 Server</th><td>連線池排隊、反覆建連線、接收窗收縮、套接字資源、重傳、應用過早重試</td><td>連線/請求耗時、已存在的 TCP retransmission／接收窗指標、服務端 pending/CPU；區分傳輸重傳與應用重送</td><td>限制同時請求與期限，退避加抖動；重試不是提高容量，寫指令逾時尤其不可無條件重送。</td></tr>
+<tr><th scope="row">Modbus TCP→RTU 單埠</th><td>單從站慢或無回覆造成隊首阻塞；跨 TCP Client 也共用同一個 bus；短應用逾時未必取消已發送的 RTU 交易</td><td>每站成功率／回覆時間、gateway queue、RTU timeout/CRC 及其他站的尾延遲</td><td>按站隔離錯誤、限制重試、對連續故障設冷卻期（仍需健康檢查）；經驗證後按服務水位分 port/bus。</td></tr>
+</tbody></table></div>
+<p>單鏈路全雙工應分開看雙方向利用率，兩方向比率直接加總可能誤導。設備若支援 QoS，需同時看 uplink、佇列、同 VLAN／跨 VLAN 流量與交換晶片指標，不能只看全埠平均。</p></section>
+
+<section id="workflow"><p class="kicker">03 / TRIAGE</p><h2>用同一事件時間窗，逐層排除</h2>
+<figure><figcaption>圖二｜先不改現場，保留基準再決定是否要維護窗口</figcaption><ol class="flow">
+<li><strong>定義事件</strong><br>哪幾個點位、哪個 VLAN／站、何時開始；分定值、陳舊、漏點與忙碌。</li>
+<li><strong>對齊時窗</strong><br>應用與設備用 UTC 且知時鐘偏差；同程序量時間差用 monotonic。</li>
+<li><strong>收被動證據</strong><br>核可唯讀畫面中的埠數、埠速、錯誤、佇列與既有應用紀錄。</li>
+<li><strong>定位哪一段</strong><br>等待發送、送出至回覆、回覆至儲存分開；依症狀跨設備交叉比對。</li>
+<li><strong>一項一項驗</strong><br>預先訂驗收條件、備份設定、核可窗口改一項；同範圍、負載與時段回比。</li></ol></figure>
+<p class="warn"><strong>本教材不做主動壓測或接觸設備。</strong>不登入真實 PLC／交換器、不抓包、不傳測試流量；採集與查閱只能用環境批准的既有唯讀資料。既有服務監控負荷也需納入計算。</p></section>
+
+<section id="passive"><p class="kicker">04 / PASSIVE EVIDENCE</p><h2>用差值與分段時間，比 CPU 體感更可靠</h2>
+<ul>
+<li><strong>埠速／差值：</strong>同埠同方向記錄前後 <code>ifHCInOctets</code>／<code>ifHCOutOctets</code>、間隔、協商速度；<code>bps = Δoctets × 8 ÷ elapsed_seconds</code>，比例再除以單方向線速。對累計器重置與回捲檢查 <code>ifCounterDiscontinuityTime</code>、設備 uptime 或採集世代；若無確定資料，不用負差硬展成巨量。以 SNMP 指標認定整體精確線速使用率也要考慮廠牌對 frame overhead 的計數口徑。</li>
+<li><strong>錯誤 ≠ 丟棄：</strong><code>ifInErrors/ifOutErrors</code> 是錯誤類；<code>ifInDiscards/ifOutDiscards</code> 可包含無錯但被丟棄的封包，並非直接證明出口佇列滿。用網管提供的 per-queue drop 或 FCS/CRC 加強判讀。</li>
+<li><strong>應用分段：</strong>記 <code>t_enqueue</code>、<code>t_dispatch</code>、<code>t_reply</code>、<code>t_commit</code>，同一主機用單調時鐘求差；跨主機只用已同步時間分析，否則用帶相關 ID 的本機各段耗時。<code>reply-dispatch</code> 包含對端和路徑等候，不是純網路延遲。來源點位時間另存作 freshness，定值點應有心跳或品質判斷。</li>
+<li><strong>尾延遲：</strong>p95/p99 要附樣本數、時窗、篩選條件和算法。下方用 nearest-rank（排序後取第 ceil(p×n) 筆），樣本少時 p99 接近最大值、容易受單筆影響；成功樣本的 p99 不包含逾時，另報丟棄／失敗率，不能將二者用一條線替代。</li></ul>
+<p>規範：<a href="https://www.rfc-editor.org/rfc/rfc2863.html">IETF RFC 2863：介面計數器</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293.html">IETF RFC 9293：TCP／接收窗</a> · <a href="https://www.rfc-editor.org/rfc/rfc6298.html">IETF RFC 6298：重傳定時</a> · <a href="https://www.modbus.org/file/secure/modbusoverserial.pdf">Modbus.org Serial Line V1.02：單筆交易</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2">OPC Foundation：Sampling Interval</a>。</p></section>
+
+<section id="simulation"><p class="kicker">05 / OFFLINE SIMULATION</p><h2>一個慢站，就能拖長其他 19 站的 p95</h2>
+<p>模型每 500 ms 有一輪 20 站、輪內每 5 ms 提交一筆；一個 FIFO 單埠、最多 24 筆未完成（含執行中），正常站服務費時 20 ms，故障站服務占住 300 ms 一次，第三種情境原地再等一次 300 ms。樣本在相同虛擬時刻提交，共 12 輪、240 筆；模擬最後允許已接受項完成，不是固定觀察時間的吞吐量實測。</p>
+<figure><figcaption>圖三｜成功請求的 p95 延遲（共同零起點，0–2,500 ms）</figcaption><div aria-hidden="true"><div class="bar-row"><span>全部健康</span><div class="track"><div class="bar" style="width:11.6%"></div></div><strong>290 ms</strong></div><div class="bar-row"><span>一站慢、無重試</span><div class="track"><div class="bar" style="width:37%"></div></div><strong>925 ms</strong></div><div class="bar-row"><span>一站慢、重試一次</span><div class="track"><div class="bar" style="width:99.6%"></div></div><strong>2,490 ms</strong></div></div><div class="table-wrap" role="region" aria-label="合成實驗明細" tabindex="0"><table><thead><tr><th>情境</th><th>提交</th><th>成功 n</th><th>逾時</th><th>拒絕</th><th>p95 ms</th><th>p99 ms</th></tr></thead><tbody><tr><th scope="row">全部健康</th><td>240</td><td>240</td><td>0</td><td>0</td><td>290</td><td>305</td></tr><tr><th scope="row">一站慢、無重試</th><td>240</td><td>147</td><td>12</td><td>81</td><td>925</td><td>965</td></tr><tr><th scope="row">一站慢、重試一次</th><td>240</td><td>85</td><td>11</td><td>144</td><td>2,490</td><td>2,790</td></tr></tbody></table></div></figure>
+<p>離線估算可先看服務預算：全健康一輪 <code>20 × 20 = 400 ms</code> 空間有限；一站慢 <code>19 × 20 + 300 = 680 ms</code> 已超過 500 ms。當限流使少部分 poll 進不了佇列，p95 仍只代表成功樣本；一定要並列 rejected 和 timeout。</p>
+<p><a class="button" href="python_industrial_network_congestion_lab.py" download>下載 Python 排隊實驗</a></p>
+<pre><code>python3 python_industrial_network_congestion_lab.py
+python3 python_industrial_network_congestion_lab.py --self-test</code></pre>
+<details><summary>展開完整離線程式</summary><pre><code>&quot;&quot;&quot;Offline discrete-event lab. No network, device, background timing or I/O.&quot;&quot;&quot;
+import argparse
+from collections import deque
+from dataclasses import dataclass
+import json
+import math
+import unittest
+
+
+@dataclass(frozen=True)
+class Poll:
+    arrival_ms: int
+    station: int
+
+
+def nearest_rank(values, fraction):
+    &quot;&quot;&quot;Return the nearest-rank percentile (no interpolation).&quot;&quot;&quot;
+    if not values or not 0 &lt; fraction &lt;= 1:
+        raise ValueError(&quot;need samples and a quantile in (0, 1]&quot;)
+    ordered = sorted(values)
+    return ordered[math.ceil(fraction * len(ordered)) - 1]
+
+
+def simulate(slow=False, retry=0, limit=24, rounds=12):
+    &quot;&quot;&quot;One FIFO RTU port; limit includes the in-flight request.&quot;&quot;&quot;
+    if retry not in (0, 1) or limit &lt; 1 or rounds &lt; 1:
+        raise ValueError(&quot;invalid offline scenario&quot;)
+    outstanding_finishes = deque()
+    next_free = 0
+    traces = []
+    dropped = 0
+    for cycle in range(rounds):
+        for station in range(1, 21):
+            # Identical offered timestamps in every scenario. Integer ms is model time.
+            poll = Poll(cycle * 500 + (station - 1) * 5, station)
+            while outstanding_finishes and outstanding_finishes[0] &lt;= poll.arrival_ms:
+                outstanding_finishes.popleft()
+            if len(outstanding_finishes) &gt;= limit:
+                dropped += 1
+                continue
+            start = max(next_free, poll.arrival_ms)
+            timed_out = slow and poll.station == 1
+            service = 300 * (1 + retry) if timed_out else 20
+            finish = start + service
+            next_free = finish
+            outstanding_finishes.append(finish)
+            traces.append({
+                &quot;station&quot;: poll.station,
+                &quot;arrive_ms&quot;: poll.arrival_ms,
+                &quot;queue_ms&quot;: start - poll.arrival_ms,
+                &quot;service_ms&quot;: service,
+                &quot;delay_ms&quot;: finish - poll.arrival_ms,
+                &quot;timeout&quot;: timed_out,
+            })
+    successful = [row for row in traces if not row[&quot;timeout&quot;]]
+    latency = [row[&quot;delay_ms&quot;] for row in successful]
+    return {
+        &quot;offered&quot;: 20 * rounds,
+        &quot;completed_ok&quot;: len(successful),
+        &quot;timeout&quot;: sum(row[&quot;timeout&quot;] for row in traces),
+        &quot;queue_rejected&quot;: dropped,
+        &quot;p95_success_ms&quot;: nearest_rank(latency, .95) if latency else None,
+        &quot;p99_success_ms&quot;: nearest_rank(latency, .99) if latency else None,
+        &quot;max_healthy_queue_ms&quot;: max((x[&quot;queue_ms&quot;] for x in successful), default=None),
+    }
+
+
+class LabTests(unittest.TestCase):
+    def test_nearest_rank(self):
+        self.assertEqual(nearest_rank([30, 10, 20], .95), 30)
+        self.assertEqual(nearest_rank([30, 10, 20], .50), 20)
+        with self.assertRaises(ValueError):
+            nearest_rank([], .99)
+
+    def test_station_failure_hurts_other_stations(self):
+        baseline = simulate()
+        slow = simulate(slow=True)
+        self.assertEqual(baseline[&quot;completed_ok&quot;], 240)
+        self.assertEqual(baseline[&quot;queue_rejected&quot;], 0)
+        self.assertEqual(baseline[&quot;timeout&quot;], 0)
+        self.assertGreater(slow[&quot;p95_success_ms&quot;], baseline[&quot;p95_success_ms&quot;])
+        self.assertGreater(slow[&quot;timeout&quot;], 0)
+
+    def test_more_service_cost(self):
+        self.assertGreater(simulate(slow=True, retry=1)[&quot;max_healthy_queue_ms&quot;],
+                           simulate(slow=True)[&quot;max_healthy_queue_ms&quot;])
+
+    def test_balanced_accounting(self):
+        for slow, retry in [(False, 0), (True, 0), (True, 1)]:
+            x = simulate(slow=slow, retry=retry)
+            self.assertEqual(x[&quot;offered&quot;], x[&quot;completed_ok&quot;] + x[&quot;timeout&quot;] + x[&quot;queue_rejected&quot;])
+
+    def test_bound(self):
+        self.assertGreater(simulate(slow=True, limit=1)[&quot;queue_rejected&quot;], 0)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--self-test&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    if args.self_test:
+        unittest.main(argv=[&quot;lab&quot;], verbosity=2)
+    else:
+        print(json.dumps({
+            &quot;healthy&quot;: simulate(),
+            &quot;slow_station&quot;: simulate(slow=True),
+            &quot;slow_station_retry&quot;: simulate(slow=True, retry=1),
+        }, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details>
+<p>不用套件和網路、沒有真設備 I/O；已驗證事件會計、分位數、容量上限與重試代價，共五項測試。數字是合成教學，不是特定廠牌閘道、RTU 工廠或生產 SLA。</p></section>
+
+<section id="acceptance"><p class="kicker">06 / BEFORE &amp; AFTER</p><h2>改善驗收：不要拿丟更多資料換好看的延遲</h2>
+<p>在同點位、同採集窗口與設備負荷下，比較成功率、timeout、跳過／拒絕、重試、應用佇列水位、p95、p99 和最舊資料年齡。採樣降頻必須確認告警時效；清掉壞站、縮短逾時與限併發都要保留故障／陳舊標記，不能拿上一筆值冒充即時。最後再確認備援路徑及現場控制連鎖未被上位機策略改變。</p></section>
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>

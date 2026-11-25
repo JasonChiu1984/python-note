@@ -1,0 +1,109 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工業乙太網路速度計算｜100M 與 1GbE</title><style>
+:root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;background:#eaf2fa;color:#172c43;line-height:1.65}*{box-sizing:border-box}body{margin:0}main{width:min(100%,73rem);margin:auto;padding:clamp(.8rem,3vw,2rem);min-width:0}header,.panel{min-width:0;overflow-wrap:anywhere;border:1px solid #c3d5e9;border-radius:15px;margin:0 0 .95rem;padding:clamp(.85rem,3vw,1.5rem);background:#fff}header{background:#122b47;color:#f2f7ff;border-color:#122b47}header p{color:#d9e8fe;max-width:74ch}.tag{font-weight:850;letter-spacing:.06em;color:#a9e9e1}h1,h2,h3{line-height:1.2;margin:.45rem 0 .65rem}h1{font-size:clamp(1.9rem,5vw,3.65rem)}h2{font-size:clamp(1.45rem,4vw,2.2rem)}h3{font-size:1.13rem}p{margin:.55rem 0 .8rem}a{color:#16598a;text-underline-offset:.16em}header a{color:#cbecfa}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #387ca6;outline-offset:2px}nav{display:flex;flex-wrap:wrap;gap:.4rem}nav a{padding:.3rem .54rem;border:1px solid #7198b6;border-radius:.45rem}.notice{border-inline-start:4px solid #2e7d86;background:#e7f6f6;padding:.55rem .75rem}.flowfigure{margin:.8rem 0}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.7rem;list-style:none;padding:0;margin:.7rem 0;counter-reset:step}.flow li{padding:.67rem;border:1px solid #9bb6d3;border-inline-start:4px solid #356c9e;border-radius:.65rem;background:#edf5ff;counter-increment:step;min-width:0}.flow li::before{content:counter(step,decimal-leading-zero);font-weight:850;color:#22677a;font-size:.8rem}.flow strong,.flow span{display:block}.flow span{font-size:.92rem;color:#334e6a}.pathbranch{padding:.58rem;border:1px dashed #7c9caa;border-radius:7px;color:#23465a}.segstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:.32rem;margin:.7rem 0}.segstrip span{padding:.48rem;border:1px solid #9ab3cf;background:#e4f0fd;border-radius:.42rem;font-weight:700;text-align:center}.segstrip span:nth-child(2){background:#d1efea}.segstrip span:last-child{background:#fff1d2}.scroll{max-width:100%;overflow:auto;border:1px solid #c6d7e6;border-radius:7px;margin:.75rem 0}table{border-collapse:collapse;width:100%;min-width:39rem}caption{padding:.42rem .6rem;text-align:left;font-weight:800}th,td{text-align:left;vertical-align:top;padding:.56rem;border-bottom:1px solid #d6e2f2}thead{background:#ebf4fe}th{white-space:nowrap}.chart{margin:.75rem 0;border:1px solid #c6d7e6;border-radius:8px;padding:.72rem}.bars{list-style:none;padding:0;margin:.4rem 0}.bars li{display:grid;grid-template-columns:minmax(5.4rem,1.1fr) minmax(0,3fr) 4.7rem;gap:.35rem;align-items:center;padding:.23rem 0}.bars .track{background:#e5eefb;border-radius:4px}.track span{display:block;width:var(--v);min-height:.8rem;background:#2a6d9e;border-radius:4px}.bars .gig .track span{background:#138172}.value{text-align:right;font-variant-numeric:tabular-nums}.formula{padding:.55rem .7rem;background:#eef5fd;border-radius:6px;font-weight:750}pre{padding:.75rem;overflow:auto;background:#122b47;color:#f4f9ff;border-radius:7px;font-size:.875rem;line-height:1.48;max-width:100%}details{margin:.65rem 0;padding:.6rem;border:1px solid #c6d7e6;border-radius:7px}summary{font-weight:750;cursor:pointer}.panel{scroll-margin-top:.65rem}footer{padding:.2rem 0 2rem}
+</style></head><body><main><header id="top"><div class="tag">INDUSTRIAL ETHERNET · PYTHON ENGINEERING</div><h1>工業乙太網路：100M 與 1GbE 速度計算</h1><p>比較埠速率、單個 frame 的傳送時間、有效吞吐與 PLC 回應時間。本文將「1000g」理解為常見的 1000 Mb/s（1 Gb/s、1GbE），不是 1000 Gb/s。所有數值為離線算式，不是現場量測。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="python_industrial_protocol_comparison_tutorial.html#protocol-speed-compare">十個工業協定速度比較</a><a href="#architecture">架構</a><a href="#framing">幀與算式</a><a href="#chart">圖表</a><a href="#workflow">排查流程</a><a href="#lab">Python 實驗</a></nav></header><section class="panel" id="architecture"><h2>架構圖｜快的上游埠不會改變慢的下游埠</h2><figure class="flowfigure"><figcaption>示意：讀取一筆 TCP 工業資料。回覆沿假設相同路徑返回；實際網路需核對拓樸。</figcaption><ol class="flow"><li><strong>Python／SCADA</strong><span>送出應用請求，等待回覆；計時包括程式與系統排程。</span></li><li><strong>上游：1GbE</strong><span>主機到交換器；速率依實際協商，不依端口產品名稱。</span></li><li><strong>工業交換器</strong><span>例用 store-and-forward，收完整 frame 再依出口送出；有交換及排隊成本。</span></li><li><strong>下游：100M</strong><span>交換器到 PLC；上游即使是 1GbE，這一段仍為 100 Mb/s。</span></li><li><strong>PLC／DDC</strong><span>驅動與應用讀取、資料掃描、回覆；這段沒有「1GbE = 十倍快」保證。</span></li></ol></figure>
+<p class="pathbranch"><strong>若端點是 TCP→RS-485 閘道：</strong>另加閘道內部排隊、序列請求與回覆傳送、幀間隔、下游裝置處理、逾時與重試。TCP 接通不等於已拿到新鮮點值。</p>
+<p>100BASE‑TX（例）是 100 Mb/s，1000BASE‑T（例）是 1,000 Mb/s。這裡是十進位 nominal MAC bit rate，100 Mb/s ÷ 8＝12.5 MB/s，1 Gb/s ÷ 8＝125 MB/s，尚未扣任何開銷。模型是點對點、全雙工、單方向；不把雙向相加當成單方向速度，也不另扣 PHY 實體編碼倍率。</p></section><section class="panel" id="framing"><h2>先分清楚四個數：MAC 長度、序列化時間、佔用時間、有效吞吐</h2>
+<p>未加 VLAN 標籤的標準 Ethernet II frame：14 bytes MAC 標頭（6＋6＋2）、46 至 1500 bytes data/padding、4 bytes FCS。從目的 MAC 到 FCS 共 <strong>64–1518 bytes</strong>。標準 1500-byte Ethernet data 並非應用 payload；加一層 802.1Q 標籤時，最大標準 frame 常為 1522 bytes，且須區分介面實際設定、抓取器是否保留標籤／FCS、以及是否有 jumbo frame。</p>
+<figure class="flowfigure"><figcaption>持續接續傳送時的時間預算（圖塊非長度比例）</figcaption><div class="segstrip"><span>前導 7 ＋ SFD 1 bytes</span><span>MAC frame：64–1518 bytes（含 FCS）</span><span>IFG：96 bit-times＝12 byte-times</span></div></figure>
+<p class="formula">從前導到 FCS 傳完：t<sub>serialize</sub>（µs）＝ 8 × (MAC bytes ＋ 8) ÷ R（Mb/s）</p>
+<p class="formula">連續同向發送的週期預算：t<sub>cycle</sub>（µs）＝ 8 × (MAC bytes ＋ 8 ＋ 12) ÷ R（Mb/s）</p>
+<p>IFG 是 frame 之間的空檔，<strong>不是 12 個資料 bytes，也不算在 64/1518 bytes 內</strong>。本章使用標準的 96-bit-time 估算，不把 PHY 端實作、某些接收端可見的間隔變化或前面封包的排隊當定值。孤立單個 frame 的傳畢時間不把後面的 IFG 加進去；多筆連續 frame 的吞吐預算才使用含 IFG 的週期。</p><div class="scroll" role="region" tabindex="0" aria-label="同向單段理想值（µs；以腳本算式核對）"><table><caption>同向單段理想值（µs；以腳本算式核對）</caption><thead><tr><th scope="col">MAC frame</th><th scope="col">100M 傳畢</th><th scope="col">1GbE 傳畢</th><th scope="col">100M 週期</th><th scope="col">1GbE 週期</th></tr></thead><tbody><tr><th scope="row">64 bytes</th><td>5.76</td><td>0.576</td><td>6.72</td><td>0.672</td></tr><tr><th scope="row">1518 bytes</th><td>122.08</td><td>12.208</td><td>123.04</td><td>12.304</td></tr></tbody></table></div><p>最小 64 bytes frame 每個佔 672 bit-times，理想每秒約 148,810（100M）或 1,488,095（1GbE）frames；這不是 PLC 每秒可讀的點數。</p></section><section class="panel" id="chart"><h2>圖表｜快十倍的是這段位元傳送，不是整筆交易</h2><figure class="chart"><figcaption><strong>單段連續發送週期：共用 0–125 µs 尺度</strong>，橫條不代表應用回應時間。</figcaption><ul class="bars"><li class="fast"><strong>64 B｜100M</strong><span class="track" aria-hidden="true"><span style="--v:5.37600%"></span></span><span class="value">6.72 µs</span></li><li class="gig"><strong>64 B｜1G</strong><span class="track" aria-hidden="true"><span style="--v:0.53760%"></span></span><span class="value">0.672 µs</span></li><li class="fast"><strong>1518 B｜100M</strong><span class="track" aria-hidden="true"><span style="--v:98.43200%"></span></span><span class="value">123.04 µs</span></li><li class="gig"><strong>1518 B｜1G</strong><span class="track" aria-hidden="true"><span style="--v:9.84320%"></span></span><span class="value">12.304 µs</span></li></ul></figure>
+<p class="formula">理想有效吞吐（Mb/s）＝ 埠速率 × 有效應用 bytes ÷ (MAC frame bytes + 20)</p>
+<p>以下固定 IP MTU 1500、IPv4 無選項、TCP 無選項。每個 frame 都滿載時，TCP data 是 1500 − 20 − 20＝1460 B；UDP data 是 1500 − 20 − 8＝1472 B。未扣應用協定、加密封裝、小封包、ACK 策略、TCP 流量／壅塞控制和重傳，故只能當作單方向分子／分母的理想上限，不能拿去承諾傳輸速度。</p><div class="scroll" role="region" tabindex="0" aria-label="滿載 IPv4 應用資料的單向上限"><table><caption>滿載 IPv4 應用資料的單向上限</caption><thead><tr><th scope="col">傳輸層</th><th scope="col">每幀有效資料</th><th scope="col">100M</th><th scope="col">1GbE</th></tr></thead><tbody><tr><th scope="row">TCP</th><td>1460 B</td><td>94.93 Mb/s</td><td>949.28 Mb/s</td></tr><tr><th scope="row">UDP</th><td>1472 B</td><td>95.71 Mb/s</td><td>957.09 Mb/s</td></tr></tbody></table></div><p><strong>合成往返時間：</strong>請求 MAC frame 100 B、回覆 120 B；兩段 store-and-forward，PLC／主機合計 2,400 µs，另假設交換處理 6 µs、傳播 4 µs、排隊 50 µs（均為整筆往返總和）。各段獨立串列化，無額外 ACK／重試，交換延遲參數不重複包含序列化。混速時序列化合計 <strong>20.768 µs</strong>，總計 <strong>2.480768 ms</strong>；兩段皆 1GbE 時為 <strong>2.463776 ms</strong>，只差 16.992 µs。真實排隊/處理也會隨負載變，不可從此例推斷現場保證或最壞值。</p></section><section class="panel" id="workflow"><h2>流程圖｜要決定升速前，先辨認瓶頸</h2><figure class="flowfigure"><figcaption>從現有允許的唯讀量測與應用日誌做驗收，不用線上灌流量。</figcaption><ol class="flow"><li><strong>釐清目標</strong><span>週期更新、平均值還是 P95/P99？需要分辨延遲、抖動與遺失。</span></li><li><strong>列鏈路與邊界</strong><span>記錄上、下行實際媒體、速率、雙工、交換器與閘道。</span></li><li><strong>重建時間預算</strong><span>同向線速先算 MAC＋preamble＋IFG；RTT 分段加端點、排隊、逾時。</span></li><li><strong>對照合法量測</strong><span>使用已授權的應用/設備診斷紀錄；比較同負載、點數、PLC 週期。</span></li><li><strong>定位後再驗收</strong><span>回報點值品質、更新新鮮度、百分位、掉線與重連；不只看埠速率。</span></li></ol></figure>
+<p>例如 11 個比較項目中的 Modbus TCP 是請求／回覆，Modbus RTU 是序列輪詢，不能拿同一個 PHY 數字排行應用延遲；PROFINET、EtherCAT 或 EtherNet/IP 等應另外核對實際設備週期、同步、拓樸與設計。若觀測的是感測點到監控畫面的延遲，PLC 掃描期、輪詢週期、資料更新策略、驅動排程與畫面更新都可能決定結果。</p>
+<p class="notice">本章不做現場負載生成、即時擷取或設定變更。驗收使用授權測試紀錄；跨設備比較以相同資料量、品質、工作負載與時間基準，並將重試／故障樣本單獨標記。</p></section><section class="panel" id="lab"><h2>Python 實作｜只輸入幀大小與假設時間</h2><p><a href="python_industrial_ethernet_speed_lab.py">下載 Python 實驗與內建測試</a>。Python 3.10 以上，只用標準函式庫；在已下載檔案的目錄執行。</p><pre tabindex="0"><code>python3 python_industrial_ethernet_speed_lab.py
+python3 python_industrial_ethernet_speed_lab.py --test</code></pre><p>練習一：把同一幀從 100M 改為 1GbE，驗證傳送時間比例。練習二：把合成的 PLC 處理時間減半，再比較只換網路與先排查設備等待的差異。練習三：手算 1500-byte IP datagram 的有效 TCP bytes，說明為何它不是 1,500 bytes。</p><details><summary>展開完整程式碼與測試</summary><pre tabindex="0"><code>&quot;&quot;&quot;Offline bandwidth and application-response arithmetic; never opens a socket.&quot;&quot;&quot;
+
+import argparse
+import json
+import math
+import unittest
+
+
+def bits_time_us(octets: int, rate_mbps: float) -&gt; float:
+    if octets &lt; 0 or not math.isfinite(rate_mbps) or rate_mbps &lt;= 0:
+        raise ValueError(&quot;位元組數不可為負，速率須為正的有限值&quot;)
+    return 8 * octets / rate_mbps
+
+
+def frame_model(frame_bytes: int, rate_mbps: float, useful_bytes: int = 0) -&gt; dict:
+    &quot;&quot;&quot;Untagged Ethernet II, standard frame size; MAC frame includes FCS.&quot;&quot;&quot;
+    if not 64 &lt;= frame_bytes &lt;= 1518:
+        raise ValueError(&quot;本模型僅接受 64–1518 bytes 的未加標籤 MAC frame&quot;)
+    if not 0 &lt;= useful_bytes &lt;= frame_bytes - 18:
+        raise ValueError(&quot;有效資料不能超過 MAC data/padding 區域&quot;)
+    occupied_bytes = frame_bytes + 8 + 12
+    return {
+        &quot;frame_bytes&quot;: frame_bytes,
+        &quot;rate_mbps&quot;: rate_mbps,
+        &quot;serialize_us&quot;: bits_time_us(frame_bytes + 8, rate_mbps),
+        &quot;busy_cycle_us&quot;: bits_time_us(occupied_bytes, rate_mbps),
+        &quot;frames_per_second&quot;: rate_mbps * 1_000_000 / (8 * occupied_bytes),
+        &quot;one_way_goodput_ceiling_mbps&quot;: rate_mbps * useful_bytes / occupied_bytes,
+    }
+
+
+def rtt_model(rates: tuple[float, ...], request: int, response: int,
+              endpoint_us: float, switching_us: float,
+              propagation_us: float, queue_us: float) -&gt; dict:
+    &quot;&quot;&quot;Serial store-and-forward path; non-serialization inputs are round totals.&quot;&quot;&quot;
+    if not rates or any(not math.isfinite(x) or x &lt; 0 for x in
+                        (endpoint_us, switching_us, propagation_us, queue_us)):
+        raise ValueError(&quot;至少一段鏈路，各項延遲須為非負有限值&quot;)
+    tx_us = sum(frame_model(n, rate)[&quot;serialize_us&quot;]
+                for rate in rates for n in (request, response))
+    totals = dict(serialization_us=tx_us, endpoint_us=endpoint_us,
+                  switching_us=switching_us, propagation_us=propagation_us,
+                  queue_us=queue_us)
+    return {**totals, &quot;application_response_us&quot;: sum(totals.values())}
+
+
+def example() -&gt; dict:
+    return {
+        &quot;min_frame&quot;: [frame_model(64, r) for r in (100, 1000)],
+        &quot;full_ipv4_tcp_data&quot;: [frame_model(1518, r, 1460) for r in (100, 1000)],
+        &quot;full_ipv4_udp_data&quot;: [frame_model(1518, r, 1472) for r in (100, 1000)],
+        &quot;mixed_link_rtt&quot;: rtt_model((1000, 100), 100, 120, 2400, 6, 4, 50),
+        &quot;all_gigabit_rtt&quot;: rtt_model((1000, 1000), 100, 120, 2400, 6, 4, 50),
+    }
+
+
+class BudgetTest(unittest.TestCase):
+    def test_minimum_and_full_frames(self):
+        for n, r, expect in ((64, 100, 6.72), (64, 1000, 0.672),
+                             (1518, 100, 123.04), (1518, 1000, 12.304)):
+            with self.subTest(frame=n, rate=r):
+                self.assertAlmostEqual(frame_model(n, r)[&quot;busy_cycle_us&quot;], expect)
+
+    def test_payload_and_gap_accounting(self):
+        v = frame_model(1518, 1000, 1460)
+        self.assertAlmostEqual(v[&quot;serialize_us&quot;], 12.208)
+        self.assertAlmostEqual(v[&quot;one_way_goodput_ceiling_mbps&quot;], 1000 * 1460 / 1538)
+        self.assertAlmostEqual(frame_model(64, 100)[&quot;frames_per_second&quot;], 100_000_000 / 672)
+
+    def test_mixed_rate_rtt(self):
+        e = example()
+        self.assertAlmostEqual(e[&quot;mixed_link_rtt&quot;][&quot;serialization_us&quot;], 20.768)
+        self.assertAlmostEqual(e[&quot;mixed_link_rtt&quot;][&quot;application_response_us&quot;], 2480.768)
+        self.assertAlmostEqual(e[&quot;all_gigabit_rtt&quot;][&quot;application_response_us&quot;], 2463.776)
+
+    def test_validation(self):
+        for args in ((63, 100), (1519, 100), (64, 0), (64, float(&quot;nan&quot;)), (64, 100, 47)):
+            with self.assertRaises(ValueError):
+                frame_model(*args)
+        with self.assertRaises(ValueError):
+            rtt_model((), 100, 120, 0, 0, 0, 0)
+
+
+def main() -&gt; None:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(&quot;--test&quot;, action=&quot;store_true&quot;)
+    args = p.parse_args()
+    if args.test:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        print(json.dumps(example(), ensure_ascii=False, indent=2, allow_nan=False))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()</code></pre></details><h3>原始規格與實務文件</h3><ul><li><a href="https://standards.ieee.org/ieee/802.3/12400/">IEEE 802.3 Ethernet</a> · <a href="https://www.ieee802.org/3/cg/public/Nov2018/xu_3cg_01b_1118.pdf">IEEE 802.3 工作小組：frame/preamble/IPG 示意</a> · <a href="https://www.juniper.net/documentation/us/en/software/junos/interfaces-security-devices/topics/topic-map/security-interface-configuring-ethernet-interfaces.html">Juniper：frame 長度</a></li><li><a href="https://www.cisco.com/c/en/us/support/docs/switches/catalyst-9600-series-switches/217413-understand-why-fcs-errors-input-errors.html">Cisco：FCS、IFG 與實體介面注意事項</a> · <a href="https://www.modbus.org/file/secure/messagingimplementationguide.pdf">Modbus Organization：TCP/IP 實作指南</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc791">IPv4 RFC 791</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">TCP RFC 9293</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">UDP RFC 768</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業通訊比較教材</a></footer></main></body></html>

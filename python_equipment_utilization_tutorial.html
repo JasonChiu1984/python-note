@@ -1,0 +1,130 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>設備稼動率｜從運轉回授到可驗收指標</title>
+<style>
+:root{--ink:#152b43;--muted:#48607b;--blue:#20558b;--line:#cfdeec;--run:#217351;--stop:#526b88;--unknown:#a76616}*{box-sizing:border-box}body{margin:0;background:#f3f7fb;color:var(--ink);font:1rem/1.7 system-ui,sans-serif}main{max-width:68rem;margin:auto;padding:clamp(1rem,4vw,2.6rem)}a{color:var(--blue);text-underline-offset:3px}a:focus-visible,summary:focus-visible{outline:3px solid #2b77b4;outline-offset:3px}header{background:#143b66;color:white;border-radius:12px;padding:clamp(1.2rem,5vw,2.5rem);margin-top:1rem}header small{letter-spacing:.08em;color:#d2e8fb}h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.14;margin:.45rem 0}header p{max-width:57ch;margin-bottom:0}nav{display:flex;gap:.75rem;flex-wrap:wrap;margin:1rem 0}section{background:white;border:1px solid var(--line);border-radius:10px;padding:clamp(1rem,3vw,1.65rem);margin-top:1rem}h2{color:#173f69;line-height:1.22;margin:0 0 .55rem}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.55rem;padding:0;list-style-position:inside}.flow li{background:#ebf4fd;padding:.65rem;border:1px solid var(--line);border-radius:6px}.flow em{display:block;color:var(--muted);font-size:.9rem;font-style:normal}.scroll{overflow:auto}table{width:100%;min-width:31rem;border-collapse:collapse}th,td{padding:.6rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#e9f2fa}.note{background:#edf6ff;border-left:4px solid #2871ac;padding:.65rem .9rem}pre{padding:.9rem;background:#14263b;color:#eef6ff;border-radius:8px;font-size:.86rem;overflow:auto}summary{cursor:pointer}.bars{margin:.7rem 0}.fig-label{margin:.2rem 0 .1rem;font-weight:750}.bar{display:flex;height:1rem;border-radius:5px;overflow:hidden;background:#e7edf4}.run{background:var(--run)}.stop{background:var(--stop)}.unknown{background:repeating-linear-gradient(45deg,#a76616 0,#a76616 4px,#e9af63 4px,#e9af63 8px)}.scope{background:#1d6196}.legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem;font-size:.91rem;color:var(--muted)}.legend b{display:inline-block;width:.8rem;height:.8rem;border-radius:2px}.metrics td{white-space:nowrap}
+</style></head><body><main><a href="index.html">← 回 Python 教材入口</a><header><small>工控資料分析 · EQUIPMENT UTILIZATION</small><h1>設備稼動率怎麼算？</h1><p>先選定分母，再把運轉、停止與資料未知拆開，最後才比較設備或班別。以合成冰機運轉回授與重疊排程做完整練習。</p></header><nav aria-label="章節導覽"><a href="#definitions">指標口徑</a><a href="#events">時間切片</a><a href="#example">算例與圖表</a><a href="#lab">Python 實作</a></nav>
+<section id="definitions"><h2>01｜指標口徑不能混用</h2><div class="scroll" tabindex="0" role="region" aria-label="指標口徑對照"><table><thead><tr><th>指標</th><th>定義</th><th>不要混成</th></tr></thead><tbody>
+<tr><td>日曆運轉占比</td><td>整個觀測窗的運轉分鐘 ÷ 觀測窗分鐘。</td><td>不代表設備都需要開機；備援或負載不足時停機可以正常。</td></tr>
+<tr><td>排程內運轉占比</td><td>回授運轉與排程交集的分鐘 ÷ 排程聯集分鐘。</td><td>不要用整天運轉分鐘除排程分鐘；排程外運轉另列。</td></tr>
+<tr><td>服務可用率</td><td>依事先約定的應服務時段、就緒條件及可服務時間計算；以心跳、測試或故障紀錄佐證。</td><td>可用的備機不必正在運轉。BMS 連線正常也不能證明有能力供冷。</td></tr>
+<tr><td>製造 OEE</td><td>常用模型為可用率 × 效率 × 良率。效率需理想節拍與實際產出；良率需合格品和總產量。</td><td>不能把冰機運轉回授當作製造產量，也不應憑空填入兩項為 100%。</td></tr>
+<tr><td>部分負載比（PLR）</td><td>明示能力基準後，以同時段實際冷量 ÷ 基準冷量。</td><td>PLR 是負載程度，不是時間占比；能力若會隨條件變化，也要標註基準。</td></tr></tbody></table></div><p class="note">本課把「稼動率」拆成日曆及排程兩個口徑。兩者都以實際運轉回授判斷，而非啟動命令。命令 ON、回授 OFF 是待診斷狀態，不能算運轉；命令不變且回授失聯也不能算停機。</p></section>
+<section id="events"><h2>02｜時間切片：回授失效即改列未知</h2><ol class="flow"><li>統一時間基準<em>UTC 事件、明示廠區時區與班表</em></li><li>整理變更事件<em>重複同值去重、同戳異值交給來源裁決</em></li><li>切成半開區間<em>狀態、時效及排程邊界都可切片</em></li><li>分三類加總<em>運轉／停止／未知，排程先取聯集</em></li></ol><p>以 <code>[start,end)</code> 計算，左閉右開使接續的報表不重複計入邊界事件。先找左端點前最後一次回授；仍在有效期限內才承接。範例的每次回授有效 15 分鐘，過期、壞品質或沒有回授都記為未知。正式系統應由來源更新機制決定 TTL：若系統只上報狀態變更，需另有心跳或品質來源以續證新鮮度。</p><p>覆蓋率＝（運轉＋停止）÷ 目標時窗。只在已知資料中的運轉占比＝運轉÷已知時間，不能代替全時窗。全時窗運轉占比的下／上界＝運轉÷總時間，與（運轉＋未知）÷總時間；不是統計信賴區間。無排程、分母為零時回傳無資料。</p></section>
+<section id="example"><h2>03｜合成算例：未知 10 分鐘不能當成停機</h2><p>觀測 [0,60)；排程 [5,25) 與 [20,50) 取聯集是 [5,50)。窗前 −5 分鐘已啟動，10 分鐘續證運轉，20 分鐘停止，35 分鐘過期，37 分鐘報品質不良，45 分鐘恢復運轉。60 分鐘停止事件放到下一窗，不影響本窗。</p><figure class="bars" aria-label="觀測排程與回授時序">
+<figcaption>一小時時間軸；各條共用 0 至 60 分鐘刻度。</figcaption>
+<p class="fig-label">觀測回授：0–20 運轉、20–35 停止、35–45 未知、45–60 運轉</p><div class="bar" aria-hidden="true"><span class="run" style="width:33.3333%"></span><span class="stop" style="width:25%"></span><span class="unknown" style="width:16.6667%"></span><span class="run" style="width:25%"></span></div>
+<p class="fig-label">聯集排程：5–50 分鐘</p><div class="bar" aria-hidden="true"><span class="scope" style="margin-left:8.3333%;width:75%"></span></div><p class="legend"><span><b class="run"></b> 運轉</span><span><b class="stop"></b> 停止</span><span><b class="unknown"></b> 未知</span><span><b class="scope"></b> 排程</span></p></figure>
+<div class="scroll" tabindex="0" role="region" aria-label="稼動率算例"><table class="metrics"><thead><tr><th>範圍</th><th>運轉／停止／未知</th><th>覆蓋率</th><th>已知運轉占比</th><th>全窗可能範圍</th></tr></thead><tbody><tr><td>日曆 60 分鐘</td><td>35／15／10 分</td><td>83.3%</td><td>70.0%</td><td>58.3–75.0%</td></tr><tr><td>排程 45 分鐘</td><td>20／15／10 分</td><td>77.8%</td><td>57.1%</td><td>44.4–66.7%</td></tr></tbody></table></div><p>跨設備總覽應視場景決定是加總設備分鐘，還是只算「至少一台可服務」的系統時間聯集；兩者分母不同。</p></section>
+<section id="lab"><h2>04｜Python 獨立實作</h2><p><a href="python_equipment_utilization_lab.py" download>下載完整 Python</a>。只用標準庫，輸出時間片、分鐘數與精確分數。三組測試涵蓋排程重疊、窗前狀態與右端點、失效、重複衝突、無排程。</p><pre><code>python python_equipment_utilization_lab.py
+python python_equipment_utilization_lab.py --test</code></pre><details><summary>展開 Python 原始碼</summary><pre><code>&quot;&quot;&quot;合成運轉回授範例。時間以同一時間基準的整數分鐘表示，不連設備。&quot;&quot;&quot;
+from dataclasses import dataclass
+from fractions import Fraction
+import json
+import unittest
+from bisect import bisect_right
+
+
+@dataclass(frozen=True)
+class Event:
+    minute: int
+    running: bool | None
+
+
+def merge_schedule(spans, start, end):
+    &quot;&quot;&quot;先裁切再取聯集，避免重疊排程重複計時。&quot;&quot;&quot;
+    selected = []
+    for left, right in spans:
+        if left &gt;= right:
+            raise ValueError(&quot;排程區間須有正長度&quot;)
+        lo, hi = max(left, start), min(right, end)
+        if lo &lt; hi:
+            selected.append((lo, hi))
+    out = []
+    for lo, hi in sorted(selected):
+        if out and lo &lt;= out[-1][1]:
+            out[-1] = (out[-1][0], max(hi, out[-1][1]))
+        else:
+            out.append((lo, hi))
+    return out
+
+
+def utilization(events, schedule, start, end, ttl):
+    &quot;&quot;&quot;回授適用 [event, event+ttl)；None 是立即失效，不是停機。&quot;&quot;&quot;
+    if not start &lt; end or ttl &lt;= 0:
+        raise ValueError(&quot;須有正長度觀測窗與正數時效&quot;)
+    samples = {}
+    for event in events:
+        if event.minute &gt;= end:
+            continue  # 位於右端點的事件屬於下一窗
+        if event.minute in samples and samples[event.minute] is not event.running:
+            raise ValueError(&quot;同時戳回授衝突，須先由來源裁決&quot;)
+        samples[event.minute] = event.running
+    times = sorted(samples)
+    spans = merge_schedule(schedule, start, end)
+    cuts = {start, end}
+    cuts.update(t for lo, hi in spans for t in (lo, hi))
+    cuts.update(t for event_t in times for t in (event_t, event_t + ttl)
+                if start &lt; t &lt; end)
+    timeslices = sorted(cuts)
+    sums = {scope: {&quot;run&quot;: 0, &quot;stop&quot;: 0, &quot;unknown&quot;: 0}
+            for scope in (&quot;calendar&quot;, &quot;schedule&quot;)}
+    trace = []
+    for left, right in zip(timeslices, timeslices[1:]):
+        idx = bisect_right(times, left) - 1
+        state = (samples[times[idx]]
+                 if idx &gt;= 0 and left &lt; times[idx] + ttl else None)
+        status = &quot;run&quot; if state is True else &quot;stop&quot; if state is False else &quot;unknown&quot;
+        planned = any(lo &lt;= left &lt; hi for lo, hi in spans)
+        sums[&quot;calendar&quot;][status] += right - left
+        if planned:
+            sums[&quot;schedule&quot;][status] += right - left
+        trace.append({&quot;start&quot;: left, &quot;end&quot;: right, &quot;status&quot;: status, &quot;planned&quot;: planned})
+    return sums, trace
+
+
+def fractions(time):
+    run, stop, unknown = (time[key] for key in (&quot;run&quot;, &quot;stop&quot;, &quot;unknown&quot;))
+    total, known = run + stop + unknown, run + stop
+    return {
+        &quot;coverage&quot;: Fraction(known, total) if total else None,
+        &quot;known_only&quot;: Fraction(run, known) if known else None,
+        &quot;lower&quot;: Fraction(run, total) if total else None,
+        &quot;upper&quot;: Fraction(run + unknown, total) if total else None,
+    }
+
+
+FIXTURE = (
+    Event(-5, True), Event(10, True), Event(10, True), Event(20, False),
+    Event(37, None), Event(45, True), Event(60, False)
+)
+SCHEDULE = [(5, 25), (20, 50)]
+
+
+class LabTests(unittest.TestCase):
+    def test_aggregate_and_half_open(self):
+        sums, trace = utilization(FIXTURE, SCHEDULE, 0, 60, 15)
+        self.assertEqual(sums[&quot;calendar&quot;], {&quot;run&quot;: 35, &quot;stop&quot;: 15, &quot;unknown&quot;: 10})
+        self.assertEqual(sums[&quot;schedule&quot;], {&quot;run&quot;: 20, &quot;stop&quot;: 15, &quot;unknown&quot;: 10})
+        self.assertEqual(fractions(sums[&quot;schedule&quot;])[&quot;upper&quot;], Fraction(2, 3))
+        self.assertEqual(trace[-1][&quot;status&quot;], &quot;run&quot;)
+
+    def test_stale_and_quality_edge(self):
+        sums, trace = utilization([Event(-10, True), Event(2, True), Event(3, None),
+                                   Event(5, False)], [], 0, 10, 3)
+        self.assertEqual(sums[&quot;calendar&quot;], {&quot;run&quot;: 1, &quot;stop&quot;: 3, &quot;unknown&quot;: 6})
+        self.assertIsNone(fractions(sums[&quot;schedule&quot;])[&quot;coverage&quot;])
+
+    def test_conflicting_duplicates(self):
+        with self.assertRaises(ValueError):
+            utilization([Event(1, True), Event(1, False)], [], 0, 4, 3)
+
+
+if __name__ == &quot;__main__&quot;:
+    import sys
+    if &quot;--test&quot; in sys.argv:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        counts, trace = utilization(FIXTURE, SCHEDULE, 0, 60, 15)
+        result = {scope: dict(minutes=value, fractions=fractions(value))
+                  for scope, value in counts.items()}
+        print(json.dumps(dict(result=result, trace=trace), default=str,
+                         ensure_ascii=False, indent=2))</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section></main></body></html>

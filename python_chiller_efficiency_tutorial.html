@@ -1,0 +1,178 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>冰機與冰水廠能效指標｜Python 工程教學</title><style>
+:root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.67;background:#eaf2f7;color:#132d46}*{box-sizing:border-box}body{margin:0}main{max-width:74rem;margin:auto;padding:clamp(.8rem,3vw,2rem);min-width:0}header,.panel{border:1px solid #becfdc;background:#fff;border-radius:15px;padding:clamp(.85rem,3vw,1.55rem);margin:0 0 1rem;min-width:0;overflow-wrap:anywhere}header{background:#12324a;color:#edfaff;border-color:#12324a}header p{color:#d6e9f0;max-width:72ch}h1,h2,h3{margin:.45rem 0 .7rem;line-height:1.2}h1{font-size:clamp(1.9rem,5.7vw,3.8rem)}h2{font-size:clamp(1.42rem,4vw,2.12rem)}h3{font-size:1.18rem}a{color:#14578e;text-underline-offset:.17em}header a{color:#cbecff}nav{display:flex;flex-wrap:wrap;gap:.4rem}nav a{border:1px solid #74a6ba;border-radius:7px;padding:.25rem .55rem}p{margin:.5rem 0 .8rem}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #267b9f;outline-offset:2px}.tag{font-weight:750;letter-spacing:.07em;color:#afe7eb}.notice{border-inline-start:4px solid #277c83;padding:.6rem .75rem;background:#e9f6f7}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.85rem 0;counter-reset:stage}.flow li{display:grid;align-content:start;gap:.22rem;background:#eaf5ff;border:1px solid #8faccc;border-inline-start:4px solid #2a6389;border-radius:8px;padding:.65rem;min-width:0;counter-increment:stage}.flow li::before{content:counter(stage,decimal-leading-zero);color:#22687b;font-weight:750;font-size:.8rem}.flow li span{color:#35506c;font-size:.92rem}.boundary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem}.box{border:2px solid #58999a;padding:.72rem;border-radius:9px;min-width:0;background:#eaf7f4}.box:nth-child(2){border-color:#7c9fc9;background:#ecf3fd}.box strong{display:block}.diagram-caption{caption-side:top}.twrap{overflow:auto;max-width:100%;border:1px solid #c4d3e4;border-radius:8px;margin:.85rem 0}table{border-collapse:collapse;min-width:44rem;width:100%}caption{padding:.4rem .65rem;text-align:left;font-weight:750}th,td{padding:.55rem;text-align:left;vertical-align:top;border-block-end:1px solid #d8e3ef}thead{background:#e9f1fa}th{white-space:nowrap}pre{padding:.8rem;background:#102840;color:#f1f8ff;border-radius:8px;overflow:auto;max-width:100%;font-size:.88rem;line-height:1.5}.chart{margin:.8rem 0;border:1px solid #c5d6e7;border-radius:8px;padding:.65rem}.bars{list-style:none;margin:.7rem 0;padding:0}.bars li{padding:.45rem 0;border-block-end:1px solid #dce7f0}.barline{display:grid;grid-template-columns:minmax(4rem,.85fr) minmax(0,3fr) 3.2rem;align-items:center;gap:.25rem}.bartrack{background:#e6eef6;min-width:0;border-radius:4px}.bartrack span{display:block;width:var(--v);min-height:.78rem;border-radius:4px;background:#286c97}.plant .bartrack span{background:#0e786e}.value{font-variant-numeric:tabular-nums;text-align:right}.panel{scroll-margin-top:1rem}.metric{font-weight:800}.note{color:#405773}footer{padding:.25rem 0 2rem}details{margin:.6rem 0}summary{font-weight:750;cursor:pointer}
+</style></head><body><main><header id="top"><div class="tag">HVAC ENERGY ENGINEERING · Python 教程</div><h1>冰機與冰水廠能效指標</h1><p>用蒸發器水側量出冷量，用電表量出輸入電力。先畫清楚邊界，再算 COP、kW/RT 與期間能效；用同一組合成資料做手算、圖表與 Python 核對。</p><nav aria-label="章節"><a href="index.html">教材首頁</a><a href="python_datacenter_efficiency_tutorial.html">資料中心能源管理</a><a href="#boundary">架構與邊界</a><a href="#formula">公式與單位</a><a href="#workflow">量測流程</a><a href="#chart">比較圖表</a><a href="#lab">Python 實作</a><a href="#diagnosis">誤差與診斷</a></nav></header><section class="panel" id="boundary"><h2>架構圖｜同一個冷量，兩種用電邊界</h2><figure style="margin:0"><figcaption>下圖為教材用的水冷系統。冰水迴路把負載熱量帶回蒸發器；排熱側另有冷凝水與冷卻塔，不把兩個迴路的溫差互換。</figcaption><ol class="flow"><li><strong>負載側（AHU／CDU）</strong><span>吸收空側或二次迴路的熱量；冰水回水升溫。</span></li><li><strong>蒸發器水側</strong><span>以邊界內成對的供回水溫與實際流量計算冷量。</span></li><li><strong>冰機用電</strong><span>用專用電表讀實功率；確認附屬元件是否已含。</span></li><li><strong>排熱側</strong><span>水冷用冷凝水泵／塔；氣冷多由機組內風扇排熱。</span></li></ol><div class="boundary"><div class="box"><strong>冰機 COP</strong>分子：該機蒸發器產生的有效冷量。分母：同一台冰機於同時段的機組電功率。</div><div class="box"><strong>冰水廠 COP</strong>分子：冰水廠邊界實際供冷。分母：同邊界各冰機、冰水泵、冷凝水泵、冷卻塔與列入的其他設備功率。</div></div></figure>
+<p>本案例假設單機、無蓄冰、同一熱邊界、沒有混水差或管路差，兩指標採相同冷量，只改變電錶範圍。實場有一次／二次側、旁通、自由冷卻或蓄冰時，應明寫量測截面與供冷、蓄放冷模式；系統供冷量未必等於各冰機蒸發器同時加總。氣冷式機組若整機進線已含冷凝風扇，就不可再算一次；外置泵仍依 plant 邊界納入。冰機效率不能代替全機房 PUE 或空調總能耗。</p></section><section class="panel" id="formula"><h2>公式｜冷量不是電功率</h2><p class="metric">ΔT = T<sub>回水</sub> − T<sub>供水</sub>〔K〕</p><p class="metric">Q̇<sub>冷量</sub>〔kW<sub>th</sub>〕= ρ〔kg/m³〕 × (流量〔m³/h〕÷3600) × c<sub>p</sub>〔kJ/(kg·K)〕 × ΔT〔K〕</p><p>每秒千焦就是 kW。溫差數值換算：例如 12 − 7 = 5°C 的差值，等於 5 K。冷卻模式下採回減供；不把負值取絕對值修正，先核對量測方向、配管和運轉模式。純水密度與比熱可作教學近似；實案用流體商或校驗資料依水溫、乙二醇／丙二醇種類、濃度選 ρ 和 c<sub>p</sub>；跨度較大可改以質量流量乘入口到出口之比焓差。</p>
+<p><strong>COP</strong> = kW<sub>th</sub> ÷ kW<sub>elec</sub>，同邊界比較時越大代表等量冷量用電越少。<strong>kW/RT</strong> = kW<sub>elec</sub> ÷ (kW<sub>th</sub> ÷ 3.516853)，越小越省電。1 RT＝12,000 Btu<sub>IT</sub>/h ≈ 3.516853 kW<sub>th</sub>，不是 1 kWh。當兩指標同邊界、同時段、分母有效時，kW/RT＝3.516853÷COP。</p>
+<p class="notice"><strong>A 時段手算：</strong>180 ÷ 3600＝0.05 m³/s；ΔT＝5 K；Q̇＝1,046.50 kW<sub>th</sub>（297.57 RT）。冰機 200 kW<sub>elec</sub> → COP 5.23、0.672 kW/RT；加 35 kW 輔機後全廠 235 kW<sub>elec</sub> → COP 4.45、0.790 kW/RT。</p></section><section class="panel" id="workflow"><h2>流程圖｜同步、篩選、計算、回查</h2><ol class="flow"><li><strong>固定資料契約</strong><span>點位、時區、樣本時間窗、熱邊界、電錶包含項。</span></li><li><strong>對時與品質</strong><span>溫度、流量和用電時間一致；排除斷線、過期或未校驗點。</span></li><li><strong>算單段結果</strong><span>確認運轉模式，算 ΔT、冷量、COP、kW/RT；零分母回未可計。</span></li><li><strong>累加熱量與電量</strong><span>同一組有效時段加總，另報資料覆蓋率與排除理由。</span></li><li><strong>負載分箱與回查</strong><span>用分箱和外氣／進冷凝器水溫匹配；看趨勢，不直接推控制設定。</span></li></ol>
+<p>每一段以時段平均功率乘時數。期間冰機 COP＝Σ(kW<sub>th</sub>×h) ÷ Σ(冰機 kW<sub>elec</sub>×h)，全廠分母則換成同期間全廠 kWh；不取瞬時 COP 的算術平均。A/B/C 共 90 分鐘，952.32 kWh<sub>th</sub> ÷ 208.75 kWh<sub>elec</sub>＝冰機 COP 4.562；同樣冷量 ÷ 251.25 kWh<sub>elec</sub>＝全廠 COP 3.790。期間 kW/RT 用電能除以冷量 RT·h，等同 3.516853 ÷ 期間 COP。</p>
+<p>功率快照與電錶累積 kWh 容易混用；kWh 計量可取同時段讀值差，但跨電錶重置或溢位需另處理。對整廠週期評估，一般保留有效供冷期間與政策納入的待機／啟停用電，清楚說明缺資料和停機時段規則；不因效率變難看就刪除合法電量。</p></section><section class="panel" id="chart"><h2>圖表｜同一冷量的冰機與全廠能效比較</h2><figure class="chart"><figcaption><strong>各時段 kW/RT 對照</strong>：共同零點，尺度 0 到 1.20 kW/RT；在相同服務條件下越低越省電。</figcaption><ul class="bars"><li><strong>A 時段｜15 分鐘｜297.6 RT</strong><div class="barline device"><span>冰機</span><span class="bartrack" aria-hidden="true"><span style="--v:56.0098%"></span></span><span class="value">0.672</span></div><div class="barline plant"><span>全廠</span><span class="bartrack" aria-hidden="true"><span style="--v:65.8115%"></span></span><span class="value">0.790</span></div></li><li><strong>B 時段｜30 分鐘｜214.2 RT</strong><div class="barline device"><span>冰機</span><span class="bartrack" aria-hidden="true"><span style="--v:62.2331%"></span></span><span class="value">0.747</span></div><div class="barline plant"><span>全廠</span><span class="bartrack" aria-hidden="true"><span style="--v:73.9018%"></span></span><span class="value">0.887</span></div></li><li><strong>C 時段｜45 分鐘｜119.0 RT</strong><div class="barline device"><span>冰機</span><span class="bartrack" aria-hidden="true"><span style="--v:73.5128%"></span></span><span class="value">0.882</span></div><div class="barline plant"><span>全廠</span><span class="bartrack" aria-hidden="true"><span style="--v:91.0159%"></span></span><span class="value">1.092</span></div></li></ul></figure><div class="twrap" role="region" tabindex="0" aria-label="A/B/C 的同步合成資料（窄畫面可橫向捲動）"><table><caption>A/B/C 的同步合成資料（窄畫面可橫向捲動）</caption><thead><tr><th scope="col">時段</th><th scope="col">期間</th><th scope="col">流量 m³/h</th><th scope="col">供水/回水 °C</th><th scope="col">冰機＋輔機 kW</th><th scope="col">冷量 kWₜₕ</th><th scope="col">冷量 RT</th><th scope="col">冰機 COP</th><th scope="col">全廠 COP</th></tr></thead><tbody><tr><th scope="row">A</th><td>15 分</td><td>180</td><td>7／12</td><td>200＋35</td><td>1,046.50</td><td>297.57</td><td>5.232</td><td>4.453</td></tr><tr><th scope="row">B</th><td>30 分</td><td>144</td><td>7.5／12</td><td>160＋30</td><td>753.48</td><td>214.25</td><td>4.709</td><td>3.966</td></tr><tr><th scope="row">C</th><td>45 分</td><td>90</td><td>7／11</td><td>105＋25</td><td>418.60</td><td>119.03</td><td>3.987</td><td>3.220</td></tr></tbody></table></div>
+<p>三段是假造資料，並非設備曲線或節能保證。假設此機於比較條件下的參考容量為 1,200 kW<sub>th</sub>，三段約為 87%、63%、35%；可分入 &gt;75%、50–75%、25–50% 三組。容量基準、分箱邊界與最低樣本量先固定；每箱用累積熱量/電量，另列冷卻水進水溫（氣冷可選外氣乾球）、冰水供水溫、機組台數、流量與有效時數。三筆不足以判定部分負載效率優劣，跨天不匹配環境條件也不能直接比較。</p>
+<p><strong>AHRI IPLV／NPLV 不等於現場 COP：</strong>IPLV 是設備在指定標準條件下的綜合部分負載評級；NPLV 是依規範所定非標準條件計算的評級。比較型錄時核對 AHRI 版本、版本所用單位、適用設備類別與評級邊界；不可把評級的負載點或加權直接代入現場時段，也不能用來代表含泵塔的全廠能效。</p></section><section class="panel" id="lab"><h2>Python 實作｜從 CSV 重現指標</h2><p><a href="python_chiller_efficiency_lab.py">下載完整 lab</a> · <a href="python_chiller_efficiency_samples.csv">同步合成樣本 CSV</a>。將兩檔放在同一目錄，使用 Python 3.10 以上；只用標準函式庫，不連 BMS、不寫設備。欄位明列單位：duration_min、flow_m3_h、supply_c、return_c、rho_kg_m3、cp_kj_kg_k、chiller_kw、aux_kw。</p><pre tabindex="0"><code>python3 python_chiller_efficiency_lab.py
+python3 python_chiller_efficiency_lab.py --csv python_chiller_efficiency_samples.csv
+python3 python_chiller_efficiency_lab.py --test</code></pre>
+<p>預期摘要：<code>cooling_kwh=952.315</code>、<code>chiller_kwh=208.75</code>、<code>plant_kwh=251.25</code>，冰機與全廠 COP 約 4.5620／3.7903，整段 kW/RT 約 0.7709／0.9279。內建資料另示範獨立全廠總表 253.00 kWh，和分錶加總差 +1.75 kWh（總表的 0.692%），這不是校驗通過門檻；先核對錶邊界及時間窗。若自行讀 CSV，不虛構獨立總表值。</p>
+<details><summary>展開完整 Python 程式碼</summary><pre tabindex="0"><code>&quot;&quot;&quot;標準庫合成冰機能效練習；未連接設備，不做 IPLV/NPLV 評級。&quot;&quot;&quot;
+from dataclasses import dataclass, fields
+import argparse
+import csv
+import json
+import math
+from pathlib import Path
+import unittest
+
+KW_PER_RT = 12000 * 1055.05585262 / 3600 / 1000  # IT Btu/h to kW
+
+
+@dataclass(frozen=True)
+class Interval:
+    duration_min: float
+    flow_m3_h: float
+    supply_c: float
+    return_c: float
+    rho_kg_m3: float
+    cp_kj_kg_k: float
+    chiller_kw: float
+    aux_kw: float
+
+    @property
+    def cooling_kw(self):
+        return (self.flow_m3_h / 3600 * self.rho_kg_m3 * self.cp_kj_kg_k
+                * (self.return_c - self.supply_c))
+
+    def validate(self):
+        if not all(math.isfinite(getattr(self, f.name)) for f in fields(self)):
+            raise ValueError(&quot;不接受非有限值&quot;)
+        if min(self.duration_min, self.rho_kg_m3, self.cp_kj_kg_k) &lt;= 0:
+            raise ValueError(&quot;時間、密度與比熱必須大於零&quot;)
+        if min(self.flow_m3_h, self.chiller_kw, self.aux_kw) &lt; 0:
+            raise ValueError(&quot;流量和用電量測不可為負&quot;)
+        if self.return_c &lt; self.supply_c:
+            raise ValueError(&quot;回水低於供水；先核對感測器位置、模式與同時性&quot;)
+        if self.cooling_kw &gt; 0 and self.chiller_kw == 0:
+            raise ValueError(&quot;此單機邊界不接受正冷量而冰機用電為零；核對邊界及時間窗&quot;)
+
+
+SYNTHETIC = (
+    Interval(15, 180, 7.0, 12, 1000, 4.186, 200, 35),
+    Interval(30, 144, 7.5, 12, 1000, 4.186, 160, 30),
+    Interval(45, 90, 7.0, 11, 1000, 4.186, 105, 25),
+)
+
+
+def kpis(cooling, electric):
+    if cooling &lt;= 0 or electric &lt;= 0:
+        return {&quot;cop&quot;: None, &quot;kw_per_rt&quot;: None}
+    return {&quot;cop&quot;: cooling / electric, &quot;kw_per_rt&quot;: KW_PER_RT * electric / cooling}
+
+
+def matched_summary(rows):
+    cool_kwh = chiller_kwh = aux_kwh = 0.0
+    detail = []
+    for row in rows:
+        row.validate()
+        cooling = row.cooling_kw
+        plant_kw = row.chiller_kw + row.aux_kw
+        h = row.duration_min / 60
+        cool_kwh += cooling * h
+        chiller_kwh += row.chiller_kw * h
+        aux_kwh += row.aux_kw * h
+        detail.append({
+            &quot;cooling_kw&quot;: cooling, &quot;cooling_rt&quot;: cooling / KW_PER_RT,
+            &quot;chiller&quot;: kpis(cooling, row.chiller_kw),
+            &quot;plant&quot;: kpis(cooling, plant_kw)
+        })
+    if not detail:
+        raise ValueError(&quot;至少一筆有效的同步時段資料&quot;)
+    return {
+        &quot;intervals&quot;: detail, &quot;cooling_kwh&quot;: cool_kwh,
+        &quot;chiller_kwh&quot;: chiller_kwh, &quot;aux_kwh&quot;: aux_kwh,
+        &quot;plant_kwh&quot;: chiller_kwh + aux_kwh,
+        &quot;chiller&quot;: kpis(cool_kwh, chiller_kwh),
+        &quot;plant&quot;: kpis(cool_kwh, chiller_kwh + aux_kwh),
+    }
+
+
+def electric_residual(chiller_kwh, aux_kwh, independently_metered_plant_kwh):
+    &quot;&quot;&quot;總表減去同一時間窗的分表合計；僅診斷，不自動調整讀值。&quot;&quot;&quot;
+    if any(not math.isfinite(v) or v &lt; 0 for v in
+           (chiller_kwh, aux_kwh, independently_metered_plant_kwh)):
+        raise ValueError(&quot;殘差檢查輸入必須是非負有限電能&quot;)
+    diff = independently_metered_plant_kwh - chiller_kwh - aux_kwh
+    return {&quot;kwh&quot;: diff,
+            &quot;pct_of_total_meter&quot;: 100 * diff / independently_metered_plant_kwh
+                                if independently_metered_plant_kwh else None}
+
+
+def read_csv(path):
+    schema = tuple(f.name for f in fields(Interval))
+    with open(path, encoding=&quot;utf-8-sig&quot;, newline=&quot;&quot;) as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames is None or set(reader.fieldnames) != set(schema) or len(reader.fieldnames) != len(schema):
+            raise ValueError(&quot;CSV 欄位不符&quot;)
+        for i, row in enumerate(reader, 2):
+            try:
+                if None in row:
+                    raise ValueError(&quot;欄位過多&quot;)
+                value = Interval(*(float(row[name]) for name in schema))
+                value.validate()
+            except (ValueError, TypeError) as err:
+                raise ValueError(f&quot;第 {i} 列不完整或無效&quot;) from err
+            yield value
+
+
+class LabTests(unittest.TestCase):
+    def test_baseline(self):
+        s = matched_summary(SYNTHETIC)
+        self.assertAlmostEqual(s[&quot;intervals&quot;][0][&quot;cooling_kw&quot;], 1046.5)
+        self.assertAlmostEqual(s[&quot;cooling_kwh&quot;], 952.315)
+        self.assertAlmostEqual(s[&quot;plant_kwh&quot;], 251.25)
+        self.assertAlmostEqual(electric_residual(s[&quot;chiller_kwh&quot;], s[&quot;aux_kwh&quot;], 253)[&quot;kwh&quot;], 1.75)
+
+    def test_sign_and_zero(self):
+        from dataclasses import replace
+        first = SYNTHETIC[0]
+        for bad in (replace(first, return_c=6),
+                    replace(first, chiller_kw=0),
+                    replace(first, flow_m3_h=math.nan)):
+            with self.assertRaises(ValueError):
+                matched_summary((bad,))
+        zero = matched_summary((replace(first, flow_m3_h=0),))
+        self.assertIsNone(zero[&quot;chiller&quot;][&quot;cop&quot;])
+        self.assertGreater(zero[&quot;plant_kwh&quot;], 0)
+
+    def test_missing_data(self):
+        from tempfile import TemporaryDirectory
+        with self.assertRaises(ValueError):
+            matched_summary(())
+        with TemporaryDirectory() as d:
+            path = Path(d, &quot;missing.csv&quot;)
+            path.write_text(&quot;duration_min\n15\n&quot;)
+            with self.assertRaises(ValueError):
+                list(read_csv(path))
+            path.write_text(&quot;,&quot;.join(f.name for f in fields(Interval))
+                            + &quot;\n15,180,7,,1000,4.186,200,35\n&quot;)
+            with self.assertRaises(ValueError):
+                list(read_csv(path))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--csv&quot;, type=Path, help=&quot;可選的同步合成資料 CSV&quot;)
+    parser.add_argument(&quot;--test&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    if args.test:
+        unittest.main(argv=[&quot;lab&quot;])
+        return
+    s = matched_summary(read_csv(args.csv) if args.csv else SYNTHETIC)
+    if not args.csv:
+        s[&quot;synthetic_total_meter_residual&quot;] = electric_residual(
+            s[&quot;chiller_kwh&quot;], s[&quot;aux_kwh&quot;], 253
+        )
+    print(json.dumps(s, ensure_ascii=False, indent=2, allow_nan=False))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()</code></pre></details>
+<p>練習：把 A、B、C 的 COP 做簡單平均再比較期間值，說明為什麼不同。另以只讀副本變更供回水順序，觀察驗證程式如何拒絕不適用的冷卻模式記錄。</p></section><section class="panel" id="diagnosis"><h2>診斷｜先排除量測誤差，再談低 ΔT</h2><ol><li><strong>對時、點位與倍率：</strong>核對時區、窗口和趨勢時間戳、供回水感測器安裝位置、流量方向／流量計量程，以及電錶 CT/PT 倍率；用三相實功率或有效電能，別拿 kVA 代 kW。</li><li><strong>配對感測器校驗：</strong>若兩支各有 ±0.10°C 最大誤差，僅 ΔT 的保守誤差上界可達 ±0.20 K。真實 5 K 時達 4%；1 K 時達 20%。這不是統計信賴區間，也未含流量或物性誤差。使用不確定度分析時要交代感測器相關性與同步條件。</li><li><strong>查低 ΔT 根因，不從 COP 單指標下結論：</strong>以同一負載對照流量、回水溫、末端閥位、旁通／混水、二次與一次流量差，並核對盤管和壓差。若可信低 ΔT，等冷量下通常意味更大流量，可能增加泵耗或提前耗盡可用流量；不能只用低 ΔT 推論某台冰機退化。</li><li><strong>拒絕錯位資料：</strong>有流量、冷量正值但機組電力顯示零時，先查時間錯位、計量缺漏、自由冷卻或蓄冰是否另有供冷；本單機示例視為不合其邊界。零冷量／零電力的單段效率顯示不可計，並按約定保留待機電能。</li></ol>
+<p class="notice">本章是離線觀測與資料驗證，不是自動改變供水溫、泵速、閥位或保護值的操作指令。改善冷量或泵塔效率前，另行確認原廠操作範圍、最小流量、負載裕度、現場維護與控制核准。</p>
+<h3>規格與參考文件</h3><ul><li><a href="https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8">NIST SP 811：冷凍噸換算</a></li><li><a href="https://www.ahrinet.org/search-standards/ahri-550590-i-p-and-551591-si-performance-rating-water-chilling-and-heat-pump-water-heating-packages">AHRI 550/590 與 551/591：冰機評級</a> · <a href="https://www.ahrinet.org/certification/ahri-certification-programs/water-cooled-water-chilling-and-heat-pump-water-heating-packages-using-vapor-compression-cycle-wccl">AHRI 水冷冰機認證</a></li><li><a href="https://handbook.ashrae.org/Handbooks/S16/SI/s16_ch03/s16_ch03_si.aspx">ASHRAE Handbook：中央冷卻與供熱系統</a> · <a href="https://www.ashrae.org/file%20library/technical%20resources/standards%20and%20guidelines/standards%20errata/standards-errata/standards/184-2016erratasheet-10-2-2017-.pdf">ASHRAE 184 勘誤：冰機量測項目</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_datacenter_efficiency_tutorial.html">回資料中心能源管理</a></footer></main></body></html>

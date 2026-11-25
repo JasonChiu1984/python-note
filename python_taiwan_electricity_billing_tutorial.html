@@ -1,0 +1,81 @@
+<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台灣電費計算｜住宅累進與機房時間電價</title>
+<style>
+:root{color-scheme:dark;--bg:#0a1322;--box:#111f32;--line:#344961;--txt:#f0f6fc;--muted:#bdcce1;--blue:#92d8ff;--accent:#99e5c0}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:1rem/1.65 system-ui,sans-serif;overflow-wrap:anywhere}header,main,footer{max-width:72rem;margin:auto;padding:1rem clamp(.8rem,4vw,2rem)}header{padding-top:2rem}h1{font-size:clamp(1.75rem,4vw,3rem);line-height:1.25}h2{line-height:1.3;color:var(--blue)}a{color:var(--blue)}nav,.actions{display:flex;flex-wrap:wrap;gap:.75rem}section{background:var(--box);border:1px solid var(--line);border-radius:1rem;margin:1rem 0;padding:clamp(.7rem,2vw,1.6rem)}.muted,caption{color:var(--muted)}.callout{border-inline-start:3px solid var(--accent);padding:.4rem .8rem;background:#172d3d}.flow,.architecture{display:grid;gap:.6rem;padding:0;list-style:none;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}.flow li,.architecture li{min-width:0;background:#182d42;border:1px solid var(--line);border-radius:.7rem;padding:.7rem}.flow strong,.architecture strong{color:var(--accent);display:block}table{border-collapse:collapse;width:100%;table-layout:fixed}td,th{border-bottom:1px solid var(--line);padding:.45rem .28rem;text-align:left;vertical-align:top}caption{text-align:left;margin-bottom:.5rem}figure{margin:1rem 0}meter{width:100%;height:1.2rem;accent-color:var(--accent)}.bar{display:grid;grid-template-columns:minmax(5rem,1fr) minmax(2.5rem,3fr) minmax(4.3rem,1fr);align-items:center;gap:.35rem;margin:.32rem 0}.bar span:last-child{text-align:right}.codebox{width:100%;max-width:100%;overflow:auto;white-space:pre;border:1px solid var(--line);border-radius:.55rem;padding:.8rem;background:#081321}code,kbd,pre{font-family:ui-monospace,SFMono-Regular,monospace}button{font:inherit;padding:.25rem .6rem;background:#244961;color:var(--txt);border:1px solid #60819d;border-radius:.4rem}a:focus-visible,button:focus-visible,pre:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style></head><body id="top">
+<header><nav aria-label="教材入口"><a href="index.html">Python 教材首頁</a><a href="python_datacenter_efficiency_tutorial.html">機房能效指標</a></nav>
+<h1>台灣電費計算</h1><p>用 Python 算住宅分段小計，拆開機房的流動電費與基本電費。先確認合約和抄表期間，再選公式。</p>
+<nav aria-label="本頁目錄"><a href="#flow">計算流程</a><a href="#residential">住宅累進</a><a href="#tou">商用／機房時間電價</a><a href="#architecture">資料架構</a><a href="#lab">Python 實作</a><a href="#sources">官方來源</a></nav></header>
+<main>
+<section id="flow"><h2>01｜從電表到帳單的流程圖</h2>
+<ol class="flow"><li><strong>1｜辨識用電身分</strong>電號、供電電壓、用電類別、方案與契約。</li><li><strong>2｜鎖定有效版本</strong>用計費起訖、費率生效日、夏月與台電離峰日曆切分。</li><li><strong>3｜整理計量</strong>住宅按級距；時間電價按時段分桶，另算最大需量。</li><li><strong>4｜產出可核對明細</strong>分列流動、基本與調整項，逐項對台電帳單。</li></ol>
+<p><strong>kWh（度）是累計用電量；kW（瓩）是功率或需量。</strong>一段 15 分鐘用了 50 kWh，區間平均功率為 50 ÷ 0.25 = 200 kW。不能把瞬時尖峰、全月平均或所有區間 kW 加總當成計費最大需量；須依電表和合約的需量口徑。</p></section>
+
+<section id="residential"><h2>02｜住宅一般表燈：非時間電價採分段累進</h2>
+<p>台電表列費率自 2025-10-01（民國 114 年）起實施；台電 2026-09-21 說明 2026-10-01 起維持當時費率。本教材於 <time datetime="2026-11-25">2026-11-25</time> 查核，不預判後續費率。以下只適用<strong>住宅表燈非時間電價</strong>，不是小商店營業用、高壓用電或全國平均電價。</p>
+<table><caption>每月累進級距｜單價新臺幣元／kWh</caption><thead><tr><th scope="col">每月用電級距（度）</th><th scope="col">夏月（6–9 月）</th><th scope="col">非夏月</th></tr></thead><tbody>
+<tr><th scope="row">0–120</th><td>1.78</td><td>1.78</td></tr><tr><th scope="row">121–330</th><td>2.55</td><td>2.26</td></tr><tr><th scope="row">331–500</th><td>3.80</td><td>3.13</td></tr><tr><th scope="row">501–700</th><td>5.14</td><td>4.24</td></tr><tr><th scope="row">701–1,000</th><td>6.44</td><td>5.27</td></tr><tr><th scope="row">超過 1,000</th><td>8.86</td><td>7.03</td></tr></tbody></table>
+<p>每段用電量 = max(0, min(總度數, 該段上限) − 該段下限)。最後一段沒有上限。以 <strong>2026 年 11 月非夏月單月級距</strong>、假設用電 400 度為例：120 × 1.78 ＋ 210 × 2.26 ＋ 70 × 3.13 = <strong>907.30 元</strong>。不是 400 × 3.13 元，也未模擬實際帳單進位。</p>
+<figure><figcaption>400 度的各段電費貢獻（元；比較同一金額軸）</figcaption>
+<div class="bar"><span>前 120 度</span><meter aria-label="第一段 213.60 元" min="0" max="500" value="213.60"></meter><span>213.60</span></div>
+<div class="bar"><span>次 210 度</span><meter aria-label="第二段 474.60 元" min="0" max="500" value="474.60"></meter><span>474.60</span></div>
+<div class="bar"><span>末 70 度</span><meter aria-label="第三段 219.10 元" min="0" max="500" value="219.10"></meter><span>219.10</span></div></figure>
+<p class="callout"><strong>抄表週期不是曆月。</strong>一般住宅多為隔月抄表，同季且按雙月級距時，累進上限加倍，例如 120 → 240、330 → 660。跨夏月／非夏月、費率生效日或停復用須按台電分攤計費規則處理；這支程式不自行分配跨季用電。低用量的底度費、折抵、稅額／進位及當期其他調整，請以電費單與台電試算為準，本例只計流動電費。</p></section>
+
+<section id="tou"><h2>03｜商用、機房：把時段電量和契約需量分開</h2>
+<p>「機房」不是單一供電類別。先看供電與合約：可能是租戶分攤、一般低壓、低壓時間電價，或高壓／特高壓時間電價。二段式、三段式、特殊方案與契約種類，計費時段和基本項目不相同。住宅／一般小商店夏月和高壓以上時間電價夏月不同；台電簡表中，高壓以上夏月為 5/16 到 10/15。各年度離峰日須核對台電日曆，不可直接把全部國定假日、補班日或週六一律當離峰。</p>
+<table><caption>示範機房單月：以下單價、度數與契約均為合成，並非台電方案</caption><thead><tr><th scope="col">時段</th><th scope="col">kWh</th><th scope="col">元／度</th><th scope="col">小計元</th></tr></thead><tbody>
+<tr><th scope="row">尖峰</th><td>10,000</td><td>6.00</td><td>60,000</td></tr><tr><th scope="row">半尖峰</th><td>18,000</td><td>4.00</td><td>72,000</td></tr><tr><th scope="row">離峰</th><td>32,000</td><td>2.50</td><td>80,000</td></tr></tbody></table>
+<p><strong>流動電費</strong>＝Σ（時段 kWh × 單價）＝212,000 元。<strong>基本電費</strong>的簡化算例：單一契約 180 kW × 150 元／kW・月＝27,000 元。合計小計 <strong>239,000 元</strong>。若最大需量 200 kW，工具只標記 20 kW 差額，並未計入超約費；實際超約計算會按契約類型、時段最大需量與台電條款判定，不能套用單一差額乘數。</p>
+<p>若將 1,000 kWh 從尖峰挪到離峰，示範中的流動電費少 3,500 元；若最大需量沒有改變，則未必降低基本費或超約項目。反之，錯開冷凍機同時啟動，可能主要改變最大需量，而不是度數。</p></section>
+
+<section id="architecture"><h2>04｜電費資料架構圖</h2>
+<ul class="architecture"><li><strong>電表與契約 →</strong>台電總表／AMI 對帳；BMS 分表做診斷。保存台電電號對應、用戶類別及倍率。</li><li><strong>擷取與品質檢核 →</strong>統一 Asia/Taipei、半開區間、確認時間戳是起點或終點，抓漏點／重覆／重置。缺值不可直接寫成 0。</li><li><strong>版本化計價引擎 →</strong>保留方案、費率生效起迄、季別/時段日曆、離峰日/例外、合約容量及調整規則。</li><li><strong>明細與對帳</strong>輸出分段／分桶、最大需量時刻與明細；逐項對台電帳單，保留原資料與版本可重算。</li></ul>
+<p><a href="python_taiwan_electricity_billing.drawio" download>下載可編輯 draw.io（流程與架構各一頁）</a></p><p>機房帳單通常對電號與總表進行計價。PUE=(機房用電÷IT用電)，可用來解釋能效，<strong>不能代替總表時段度數或契約最大需量</strong>。若現場只有累積表讀值，做差值前要確認電表倍率是否已套用；兩筆資料跨時段界線且換算不明時，標記待驗，不直接指定到其中一個時段。</p></section>
+
+<section id="lab"><h2>05｜用 Python 重現明細</h2><p>Python 3.10 以上，無第三方套件。金額用 <code>Decimal</code>；JSON 使用字串保留十進位表示。住宅 CLI 不從日期自動判季，需由使用者指定正確季別及級距；時間電價模式接收已分桶資料與假設單價，不含真實日曆分類或自動出帳。</p>
+<p class="actions"><a id="download" href="python_taiwan_electricity_billing_lab.py" download>下載完整 Python 程式（含測試）</a></p>
+<button type="button" data-copy="commands">複製執行指令</button> <span id="copy-status" role="status"></span>
+<pre id="commands" class="codebox" tabindex="0"><code>python3 python_taiwan_electricity_billing_lab.py residential --kwh 400 --season other --months 1
+python3 python_taiwan_electricity_billing_lab.py tou-demo
+python3 python_taiwan_electricity_billing_lab.py tou-demo --peak 9000 6 --shoulder 18000 4 --off-peak 33000 2.50
+python3 python_taiwan_electricity_billing_lab.py self-test</code></pre>
+<h3>核心程式碼：住宅按級距拆分，時間電價按時段加總</h3>
+<pre class="codebox" tabindex="0"><code>from decimal import Decimal as D
+
+total = D("400")
+limits = (120, 330, 500, 700, 1000, None)
+rates = ("1.78", "2.26", "3.13", "4.24", "5.27", "7.03")
+cost = previous = D(0)
+for limit, price in zip(limits, rates):
+    upper = total if limit is None else min(total, D(limit))
+    cost += (upper - previous) * D(price)
+    if upper == total:
+        break
+    previous = upper
+assert cost == D("907.30")
+
+buckets = [("10000", "6"), ("18000", "4"), ("32000", "2.50")]
+energy = sum(D(kwh) * D(rate) for kwh, rate in buckets)
+basic = D("180") * D("150")
+assert energy + basic == D("239000.00")</code></pre></section>
+
+<section id="sources"><h2>06｜核對來源</h2><ul>
+<li><a href="https://www.taipower.com.tw/media/dhuhrppu/%E7%B0%A1%E8%A6%81%E9%9B%BB%E5%83%B9%E8%A1%A8.pdf?mediaDL=true">台電調整後各類用戶電價表（2025-10-01 起）</a>：第三節住宅費率與第五節高壓／特高壓表。</li>
+<li><a href="https://mnscdn.moea.gov.tw/Mns/populace/news/News.aspx?kind=1&amp;menu_id=40&amp;news_id=124024">台電 2026-09-21 說明（經濟部刊載）</a>：2026-10-01 起維持當時費率。</li>
+<li><a href="https://hc2.taipower.com.tw/2289/2363/2388/2389/10732/normalPost">台電電價小常識</a>：夏月、抄表與帳務說明。</li>
+<li><a href="https://hc2.taipower.com.tw/media/5c5d3mrv/%E5%8F%B0%E9%9B%BB114%E5%8F%8A115%E5%B9%B4%E6%99%82%E9%96%93%E9%9B%BB%E5%83%B9%E6%97%A5%E6%9B%86%E8%A1%A8.pdf?mediaDL=true">台電 2025／2026 時間電價日曆</a>：實務請按帳期改查相應年度。</li>
+<li><a href="https://service.taipower.com.tw/ebpps2/electricityFeeTrial">台電電費試算</a>：依受理範圍試算，正式金額以台電帳單為準。</li></ul></section>
+</main><footer><a href="#top">回頁首</a></footer>
+<script>
+document.querySelector('[data-copy]').addEventListener('click', async (evt)=>{
+  const block=document.getElementById(evt.currentTarget.dataset.copy);
+  const status=document.getElementById('copy-status');
+  try { await navigator.clipboard.writeText(block.innerText);status.textContent='已複製'; }
+  catch {
+    const r=document.createRange();r.selectNodeContents(block);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+    status.textContent='已選取，請手動複製';
+  }
+});
+</script></body></html>

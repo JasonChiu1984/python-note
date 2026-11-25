@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流量計計算｜Python 工業量測實作</title>
+<meta name="description" content="從滿管內徑、脈衝 K-factor、4–20 mA 與差壓求體積流量，做有效區間積分與雙表差異排查。">
+<style>
+:root{color-scheme:light;--paper:#f3f7fb;--panel:#fff;--ink:#19273b;--muted:#4a5c70;--line:#d6e2ee;--blue:#14528d;--teal:#09776d;--mint:#e9f5f1;--sky:#eaf2fb;--amber:#77551f;--warm:#fff6e6;--mono:ui-monospace,Menlo,Consolas,monospace;font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);line-height:1.69}a{color:var(--blue);text-underline-offset:.22em}button,input,select{font:inherit}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid #a96b23;outline-offset:3px}h1,h2,h3,p,figure{margin:0}h1,h2,h3{line-height:1.23;overflow-wrap:anywhere}p,p code,li,td,th,small{overflow-wrap:anywhere}p{margin:.6rem 0;color:var(--muted)}h1{font-size:clamp(2rem,5vw,3.8rem);letter-spacing:-.03em}h2{font-size:clamp(1.45rem,3.1vw,2.05rem)}h3{font-size:1.08rem}code,pre{font-family:var(--mono)}:not(pre)>code{background:var(--sky);padding:.08em .27em;border-radius:4px}.shell{max-width:78rem;width:100%;margin:auto;padding:clamp(.75rem,3vw,2rem)}.top,.nav,.row{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.top{justify-content:space-between;margin:.2rem 0 .95rem}.top b{color:var(--teal)}.nav{margin:.85rem 0 1.25rem}.nav a,.btn{font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:.5rem .78rem;min-height:44px;border:1px solid var(--line);border-radius:7px;text-decoration:none;background:#fff;color:var(--ink);overflow-wrap:anywhere}.nav a{font-size:.9rem}.btn.primary{background:var(--teal);border-color:var(--teal);color:white}button.btn{cursor:pointer}.hero,.panel{border:1px solid var(--line);border-radius:12px;padding:clamp(.9rem,3.2vw,2.1rem);min-width:0}.hero{background:linear-gradient(126deg,#e9f6f2,#eaf2fb)}.hero p{max-width:68ch}.panel{background:var(--panel);margin:1rem 0;scroll-margin-top:1rem}.kicker{color:var(--teal);text-transform:uppercase;font-size:.78rem;letter-spacing:.11em;font-weight:900;margin:0 0 .4rem}.note,.formula{margin:.8rem 0;padding:.75rem .93rem;border-left:3px solid #b88432;background:var(--warm);color:#5d431e;overflow-wrap:anywhere}.formula{background:var(--mint);color:#194e49;border-color:var(--teal);font-weight:800}.two,.three,.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin:.9rem 0}.three,.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.metrics strong{display:block;color:var(--teal);font-size:1.35rem}.metrics small,.node small,.caption{color:var(--muted)}.box,.node{min-width:0;background:#f9fbfe;border:1px solid var(--line);border-radius:8px;padding:.8rem;overflow-wrap:anywhere}.node{border:2px solid #8fb6d8;text-align:center;display:grid;align-content:center;gap:.18rem;line-height:1.42}.node strong{line-height:1.32}.node.teal{border-color:#67aa9f;background:var(--mint)}.node.amber{border-color:#d4a363;background:var(--warm)}.node small{display:block;font-size:.89rem}.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.45rem;padding:0;margin:.9rem 0;list-style:none}.flow>.node{position:relative}.flow>.node:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .12rem);width:1.1rem;top:50%;transform:translateY(-50%);font-weight:900;color:var(--teal);pointer-events:none}.caption{font-size:.91rem;margin:.4rem 0}.scroll{width:100%;max-width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin:.8rem 0}.scroll table{border-collapse:collapse;width:100%;min-width:28rem}.scroll th,.scroll td{padding:.6rem .72rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);font-size:.93rem}.scroll th{background:var(--sky)}.scroll tr:last-child td{border-bottom:0}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:.8rem 0}.form-grid label,.mode-label{display:grid;gap:.3rem;font-weight:750;font-size:.93rem;min-width:0}.form-grid input,.mode-label select{width:100%;padding:.56rem .67rem;border:1px solid #9bafbf;border-radius:6px;min-width:0;background:#fff;color:var(--ink);min-height:44px}.mode-label{max-width:25rem}.output{margin:.75rem 0 .2rem;padding:.75rem .9rem;background:var(--mint);border-radius:7px;color:#194e49;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}.output[data-error=true]{background:var(--warm);color:var(--amber)}[hidden]{display:none!important}.bars{margin:1rem 0 .6rem;display:grid;gap:.65rem}.bar-row{display:grid;grid-template-columns:minmax(7rem,10rem) minmax(0,1fr) minmax(4rem,auto);gap:.55rem;align-items:center;min-width:0}.bar-row>span{font-size:.9rem;overflow-wrap:anywhere}.bar-track{background:#edf2f8;height:.85rem;border-radius:8px;min-width:0}.bar{display:block;width:var(--w);height:100%;background:#316a9e;border-radius:8px}.bar.alt{background:#0b7b70}.bar.warn{background:#ac6d22}.ticks{display:flex;gap:.25rem;justify-content:space-between;font-size:.75rem;color:var(--muted)}.series{display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:.2rem;margin:.85rem 0 .35rem}.segment{min-width:0;padding:.55rem .25rem;background:var(--mint);border:1px solid #91c1b0;border-radius:6px;text-align:center;font-weight:850;font-size:.84rem;overflow-wrap:anywhere}.segment.off{color:var(--amber);background:var(--warm);border-color:#d8ae73}.segment small{display:block;font-size:.79rem;font-weight:500}pre{background:#152337;color:#edf4fc;padding:.9rem;border-radius:8px;max-width:100%;overflow-x:auto;line-height:1.55;font-size:.88rem;margin:.8rem 0;white-space:pre}.checks{padding-inline-start:1.35rem;color:var(--muted)}.checks li{margin:.48rem 0}.foot{font-size:.88rem}.skip{position:absolute;left:1rem;top:-9rem;padding:.65rem;background:white;z-index:2}.skip:focus{top:1rem}
+@media(max-width:700px){.flow{grid-template-columns:minmax(0,1fr);gap:1.35rem}.flow>.node:not(:last-child)::after{content:"↓";left:50%;top:100%;transform:translateX(-50%);text-align:center}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:460px){.two,.form-grid{grid-template-columns:minmax(0,1fr)}.metrics{grid-template-columns:minmax(0,1fr)}.metrics strong{font-size:1.12rem}.bar-row{grid-template-columns:minmax(5.6rem,7.5rem) minmax(0,1fr) minmax(3.25rem,auto);gap:.34rem}.series{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到主要內容</a>
+<div class="shell">
+<header class="top"><a href="index.html">← 回 Python 視覺教材</a><b>工控量測 · 離線教材</b></header>
+<main id="main">
+<section class="hero">
+<p class="kicker">Flow measurement / Python lab</p>
+<h1>流量計計算：從訊號到瞬時流量與累積量</h1>
+<p>同一個 8 mA，可能代表 25 m³/h，也可能代表 50 m³/h。先確認輸入是已換算的流量、原始差壓、脈衝還是截面平均流速，再決定公式。寫入歷史庫前，保留時間、單位與品質。</p>
+<div class="metrics">
+<div class="box"><strong>內徑 250 mm</strong><small>1.2 m/s → 212.06 m³/h</small></div>
+<div class="box"><strong>8 mA</strong><small>線性流量 25；原始 ΔP 50 m³/h</small></div>
+<div class="box"><strong>相差 +40%</strong><small>100 和 140 m³/h，分母為 A</small></div>
+</div>
+<div class="row"><a class="btn primary" href="#calculator">試算合成資料</a><a class="btn" href="python_flowmeter_calculation_lab.py" download>下載 Python 範例＋測試</a></div>
+</section>
+<nav class="nav" aria-label="章節索引"><a href="#architecture">量測架構</a><a href="#geometry">滿管與換算</a><a href="#signals">訊號與圖表</a><a href="#calculator">互動試算</a><a href="#total">時間積分</a><a href="#compare">40% 差異</a><a href="#python">Python 實作</a><a href="#references">來源</a></nav>
+<section class="panel" id="architecture">
+<p class="kicker">01 / architecture</p><h2>量測架構：原始訊號與數據契約分層</h2>
+<figure aria-label="從管路到歷史紀錄的量測架構">
+<ol class="flow">
+<li class="node"><strong>管路與感測器</strong><small>滿管、流向、實際內徑、安裝位置</small></li>
+<li class="node"><strong>變送器／計數器</strong><small>mA、ΔP、脈衝或已換算流量</small></li>
+<li class="node teal"><strong>PLC／DDC 資料接收</strong><small>記錄量程、模式、時間、方向及品質</small></li>
+<li class="node amber"><strong>Python／歷史資料庫</strong><small>統一單位、積分、覆蓋率、雙表診斷</small></li>
+</ol>
+<figcaption class="caption">保留 raw_value、raw_unit、source_mode、range、timestamp、quality 與 config_version；換算後另存 normalized_flow。開始積分前，兩端都必須是有效樣本。</figcaption>
+</figure>
+<p class="note">本頁僅用合成數據，不會連線、寫入控制器或改動流量計；不能代替專案的設計、現場校正與驗收。</p>
+</section>
+<section class="panel" id="geometry">
+<p class="kicker">02 / dimensions</p><h2>已知管內流速：用真實內徑求截面積</h2>
+<div class="formula">D（m）＝內徑（mm）÷ 1000；A＝πD² ÷ 4；Q＝v̄ × A</div>
+<p><strong>適用前提：</strong>圓管滿水、已知該截面的平均軸向速度 v̄。如果只量到單點速度、量到的是外徑，或管路沒有充滿，不能直接套用。DN／NPS 是公稱值，應查同規格、壁厚和襯裡扣除後的實際內徑。若現場型錄只提供公稱尺寸，不填推估值當實測。</p>
+<p>合成例：內徑 250 mm、截面平均流速 1.2 m/s → A＝0.049087 m² → Q＝0.058905 m³/s＝212.0575 m³/h＝3534.29 L/min。直徑進入平方項，同速下誤把內徑填大 10%，Q 會高估 21%。</p>
+<div class="scroll" tabindex="0" role="region" aria-label="流量單位換算表，可橫向捲動"><table>
+<thead><tr><th scope="col">來源數值</th><th scope="col">轉換為</th><th scope="col">數值乘數</th><th scope="col">例</th></tr></thead>
+<tbody><tr><td>m³/s</td><td>m³/h</td><td>× 3600</td><td>0.02 → 72</td></tr>
+<tr><td>m³/h</td><td>L/min</td><td>× 1000 ÷ 60</td><td>72 → 1200</td></tr>
+<tr><td>L/min</td><td>m³/h</td><td>× 0.06</td><td>1200 → 72</td></tr>
+<tr><td>L/min</td><td>m³/s</td><td>÷ 60,000</td><td>1200 → 0.02</td></tr></tbody></table></div>
+<p>m³ 是體積、m³/h 是體積流率；要算噸／小時還需液體密度（kg/m³）。不同溫度與乙二醇比例下，不能固定用 1 m³＝1 公噸。</p>
+</section>
+<section class="panel" id="signals">
+<p class="kicker">03 / signal decision</p><h2>先辨識輸出，再選公式</h2>
+<figure aria-label="原始訊號的品質與換算流程"><ol class="flow">
+<li class="node"><strong>讀取量測資料</strong><small>原值、時間、方向、品質</small></li>
+<li class="node"><strong>驗證契約</strong><small>量程、單位、計數窗、源模式</small></li>
+<li class="node teal"><strong>只做匹配的換算</strong><small>面積／K-factor／線性／平方根</small></li>
+<li class="node amber"><strong>存結果與品質</strong><small>壞值不取代為零，不積分</small></li>
+</ol></figure>
+<div class="two">
+<div class="box"><h3>脈衝 K-factor</h3><p>若廠商定義 K 為 pulse/L，計數窗 Δt 秒讀到 ΔN 個脈衝，則 V＝ΔN/K（L），Q＝60ΔN/(KΔt)（L/min）。K＝200 pulse/L、30 s 累增 1500 pulses → 7.5 L、15 L/min。</p><p>這是合成 K，不是任一型號的設定值。若型錄給的是 L/pulse 就用乘法；若為 pulse/m³，先輸出 m³ 再換算。核對原始感測脈衝或變送器重設的每脈衝體積、計數沿、倍率與回捲。未確認回捲或重設時，把負增量標成無效。</p></div>
+<div class="box"><h3>已線性化流量 vs. 原始差壓</h3><p>若 4–20 mA 已線性代表 Q：令 f＝(I−4)/16，Q＝Q<sub>min</sub>＋f(Q<sub>max</sub>−Q<sub>min</sub>)。原始差壓 ΔP 近似與 Q² 成正比；固定密度、零起點與已知差壓設計量程的教材條件，Q＝Q<sub>FS</sub>√(ΔP/ΔP<sub>FS</sub>)。</p><p>若 mA 線性代表 0–100 kPa ΔP，先用 f × 100 求 ΔP，再在一處開平方根。若變送器已設平方根、或數位暫存器提供工程流量，PLC／Python 不再開根。完整工程模型還需孔板或一次元件、密度、流態、量程與廠商算法。</p></div>
+</div>
+<figure aria-label="相同 8 mA 在三種解讀下的流量，比例尺零到 100 立方公尺每小時">
+<h3>圖表｜同一個 8 mA，0–100 m³/h 的三種解讀</h3>
+<div class="bars">
+<div class="bar-row"><span>已線性流量</span><div class="bar-track"><i class="bar" style="--w:25%"></i></div><span>25.0</span></div>
+<div class="bar-row"><span>原始 ΔP</span><div class="bar-track"><i class="bar alt" style="--w:50%"></i></div><span>50.0</span></div>
+<div class="bar-row"><span>原始 ΔP 開根兩次</span><div class="bar-track"><i class="bar warn" style="--w:70.71%"></i></div><span>70.7</span></div>
+</div>
+<figcaption class="caption">第三列是錯誤示範：對原始 ΔP 的 25% 開第一次根得 50%，再錯誤開一次根得 70.71%。若 8 mA 本身就代表流量，錯開一次會把 25 誤算成 50。</figcaption>
+</figure>
+<p class="note">本範例嚴格標記 &lt;4 mA 為 under_range、&gt;20 mA 為 over_range，不鉗成 0 或 100%。真機的超量程、飽和和警報電流區間依型號與設定（含 NAMUR 選項）。原始負 ΔP 不用 abs()；先確認方向、取壓管、零偏、量程和變送器品質。低流量切除有自己的旗標，不等同量測到零；真機可能另有切入切出回差。</p>
+</section>
+<section class="panel" id="calculator">
+<p class="kicker">04 / supervised simulation</p><h2>在瀏覽器用合成數值試算</h2>
+<p>所有計算只在此頁本機執行。預設配置對應上面的案例，切換模式不會修改真機。</p>
+<form id="calc">
+<label class="mode-label" for="mode">選擇來源<select id="mode">
+<option value="geometry">滿管平均流速</option><option value="pulse">脈衝計數（pulse/L）</option>
+<option value="linear">4–20 mA 已線性流量</option><option value="dp">4–20 mA 線性差壓</option>
+</select></label>
+<div class="form-grid" data-panel="geometry">
+<label for="diameter">實際內徑（mm）<input id="diameter" type="number" value="250" step="any" min="0.0001" max="100000"></label>
+<label for="velocity">截面平均速度（m/s，單向）<input id="velocity" type="number" value="1.2" step="any" min="0" max="10000"></label>
+</div>
+<div class="form-grid" data-panel="pulse" hidden>
+<label for="count">脈衝增量（pulse）<input id="count" type="number" value="1500" step="1" min="0" max="1000000000"></label>
+<label for="seconds">計數時間（s）<input id="seconds" type="number" value="30" step="any" min="0.0001" max="1000000"></label>
+<label for="k">K-factor（pulse/L）<input id="k" type="number" value="200" step="any" min="0.0001" max="1000000000"></label>
+</div>
+<div class="form-grid" data-panel="signal" hidden>
+<label for="ma">量測訊號（mA）<input id="ma" type="number" value="8" step="any" min="-100" max="300"></label>
+<label for="fs">流量上量程（m³/h；下量程 0）<input id="fs" type="number" value="100" step="any" min="0.0001" max="1000000000"></label>
+</div>
+<div class="form-grid" data-panel="dp" hidden>
+<label for="dpfs">差壓上量程（kPa；下量程 0）<input id="dpfs" type="number" value="100" step="any" min="0.0001" max="1000000000"></label>
+<label for="cutoff">低流量切除 ΔP（kPa）<input id="cutoff" type="number" value="0" step="any" min="0" max="1000000000"></label>
+</div>
+<button class="btn primary" type="submit">計算</button> <button class="btn" id="defaults" type="button">還原預設值</button>
+<p class="output" id="result" role="status" aria-live="polite">預設滿管案例：0.058905 m³/s · 212.0575 m³/h · 3534.29 L/min。</p>
+</form>
+<noscript><p>未啟用 JavaScript，仍可參考上述靜態算例或下載 Python 腳本。</p></noscript>
+</section>
+<section class="panel" id="total">
+<p class="kicker">05 / totalization</p><h2>從瞬時流量累積有效區間體積</h2>
+<div class="formula">梯形近似：V<sub>i</sub>＝(Q<sub>i</sub>＋Q<sub>i+1</sub>)/2 × Δt<sub>s</sub>/3600 （Q：m³/h；V：m³）</div>
+<p>梯形法適合把兩點之間流量視為線性；若來源明定前一筆值在整段內保持不變，才改用左矩形。若資料是累積脈衝或設備已算好的總量，改用確認回捲／重設後的相鄰差值，不要把總量再次積分。</p>
+<figure aria-label="合成時間序列的有效和略過區間">
+<div class="series">
+<div class="segment">0–60 s<small>有效 · 1.500 m³</small></div>
+<div class="segment">60–120 s<small>有效 · 1.667 m³</small></div>
+<div class="segment off">120–180 s<small>過期值，不積分</small></div>
+<div class="segment off">180–300 s<small>過期及過長間隔，不積分</small></div>
+</div>
+<figcaption class="caption">合成樣本：0s/60、60s/120、120s/80、180s/stale、300s/90（流量皆 m³/h）；最大間隔 60 s。有效 120/300 s＝40%，3.167 m³ 只代表前兩段，不是完整 5 分鐘的總量。未授權插值時，不補缺、不沿用 stale，也不在漏點時跨兩筆有效資料積分。</figcaption>
+</figure>
+<p>現場將時間存成帶時區的事件時間，確認來源時鐘、重新連線/重送、重複與亂序策略；本程式用同基準秒數並拒絕不遞增的樣本。允許正反向時應分開說明淨值、正向與反向總量；腳本雙向選項只給帶正負號的淨值。</p>
+</section>
+<section class="panel" id="compare">
+<p class="kicker">06 / difference investigation</p><h2>兩支表相差 40%：先定義分母，再找證據</h2>
+<figure aria-label="合成 A 表 100，B 表 140，顯示值尺度零至 150 m³/h">
+<div class="bars">
+<div class="bar-row"><span>A 表</span><div class="bar-track"><i class="bar" style="--w:66.6667%"></i></div><span>100</span></div>
+<div class="bar-row"><span>B 表</span><div class="bar-track"><i class="bar alt" style="--w:93.3333%"></i></div><span>140</span></div>
+</div>
+<figcaption class="caption">單位 m³/h。差值 B−A＝40；以 A 為分母是 +40%；改以雙表均值 120 為分母是 33.33%（對稱差異）。A 只是比較基準，不代表真值；若 A＝0，百分比無定義。</figcaption>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="流量計差異排查表，可橫向捲動"><table>
+<thead><tr><th>先查什麼</th><th>辨識線索</th><th>要保存的證據</th></tr></thead>
+<tbody><tr><td>同一標的</td><td>同時刻、同方向、同流路、同統計窗；中間無旁通、補水、分流、儲存量變化。</td><td>P&amp;ID、設備及支路點位、同步趨勢、泵閥狀態</td></tr>
+<tr><td>換算設定</td><td>量程 0–100 和 0–140 同接 20 mA 恰可造出 40%；也可能是 K-factor、直徑、單位、反向或差壓平方根位置。</td><td>兩台表設定匯出、原始 mA／脈衝／暫存器、量程與倍率版本</td></tr>
+<tr><td>實體安裝</td><td>依型號核對滿管、流向、氣泡、沉積、管徑與襯裡、直管段與流態。超音波表依手冊核對聲路與耦合；電磁表核對導電度與接地。</td><td>安裝照片、型號與手冊、材質壁厚、介質溫度及濃度</td></tr>
+<tr><td>有參考才談誤差</td><td>無可追溯基準只知道彼此差異；多工況比對並評估重複性與不確定度，不能先判定哪支表正確。</td><td>校正證書、量測範圍、基準不確定度、重複性與原始記錄</td></tr></tbody>
+</table></div>
+<p>相同流速與滿管模型若要單靠直徑造成 +40%，B 的設定內徑約為 A 的 √1.4＝1.1832 倍。這和量程配置都是排查用假說，不是對任何現場流量計的診斷，也不是直接更改設定的理由。</p>
+</section>
+<section class="panel" id="python">
+<p class="kicker">07 / reproducible Python</p><h2>本機執行與邊界測試</h2>
+<p>將 Python 檔下載到本機，用 Python 3.11 以上執行。這是離線標準函式庫程式，不需安裝 pip 套件，不連接現場網路。</p>
+<pre tabindex="0" aria-label="執行命令"><code>python3 python_flowmeter_calculation_lab.py
+python3 python_flowmeter_calculation_lab.py --self-test
+# Windows 也可用 py -3 取代 python3</code></pre>
+<p>在同資料夾建立另一個 Python 檔，便可匯入同一批函式。此例會驗證同一 mA 的兩種設定，以及理論截面積結果。</p>
+<pre tabindex="0" aria-label="使用量測函式範例"><code>from math import isclose
+from python_flowmeter_calculation_lab import (
+    convert_flow, decode_ma, pipe_flow, pulse_window,
+)
+
+q = pipe_flow(250, 1.2)  # m³/s, 250 mm 實際內徑
+assert isclose(convert_flow(q, "m³/s", "m³/h"), 212.057504, abs_tol=1e-6)
+assert pulse_window(1500, 30, 200) == (7.5, 15.0)
+
+linear = decode_ma(8, mode="linear_flow", max_flow_m3_h=100)
+raw_dp = decode_ma(8, mode="raw_dp", max_flow_m3_h=100, fs_dp_kpa=100)
+assert (linear.value_m3_h, raw_dp.value_m3_h) == (25, 50)
+assert decode_ma(21, mode="linear_flow", max_flow_m3_h=100).quality == "over_range"</code></pre>
+<ul class="checks"><li>測試涵蓋零值、零或負直徑、負流速方向、非有限數字、錯誤單位、無效 K-factor、低流量切除與訊號超量程。</li><li>積分測試涵蓋過期間隔、超出 gap、時間重複與亂序；雙表測試涵蓋 +40%、對稱差異及分母為零。</li></ul>
+<a class="btn primary" href="python_flowmeter_calculation_lab.py" download>下載完整程式與測試</a>
+</section>
+<section class="panel foot" id="references">
+<p class="kicker">08 / primary sources</p><h2>官方資料與量測依據</h2>
+<ul class="checks">
+<li><a href="https://www.usbr.gov/tsc/techreferences/mands/wmm/chap11_02.html">USBR《Water Measurement Manual》：滿管平均軸向速度與截面積</a>。</li>
+<li><a href="https://www.nist.gov/pml/special-publication-330/sp-330-section-4">NIST SP 330：公升、分鐘與小時的 SI 換算</a>。</li>
+<li><a href="https://www.burkert.com/en/Media/plm/MAN/MA/ma8030-manualht-eu-en.pdf?id=MAN0000000000000001000320017END">Bürkert 8030 HT / SE30 HT 操作手冊：特定脈衝輸出 f＝K × Q、K 單位 pulse/L</a>；手冊也列有不同輸出版本，不能套到所有設備。</li>
+<li><a href="https://www.emerson.com/en/measurement-instrumentation/catalog/pressure-measurement/4051s-manual">Emerson Rosemount 4051S 官方手冊 §2.5：差壓平方根萃取、低流量切除</a>；§2.6 有型號的飽和與警報電流。</li>
+<li><a href="https://www.nist.gov/pml/sensor-science/fluid-metrology/fluid-metrology-calibration-services-liquid-flow">NIST 液體流量校正服務：可追溯的比較標準、重複性與不確定度</a>。</li>
+</ul>
+<p>官方資料查核：2026-11-25。頁面所有例值與圖表皆為合成，不宣稱完成任何現場量測、校正或驗收。</p>
+</section>
+</main>
+</div>
+<script>
+(() => {
+  "use strict";
+  const form = document.getElementById("calc");
+  const mode = document.getElementById("mode");
+  const result = document.getElementById("result");
+  const defaults = document.getElementById("defaults");
+  const panels = [...form.querySelectorAll("[data-panel]")];
+  const fmt = (x, digits=4) => new Intl.NumberFormat("zh-TW", {
+    maximumFractionDigits:digits,
+  }).format(x);
+  const reading = (field) => {
+    const el = document.getElementById(field);
+    const v = el.valueAsNumber;
+    if (!Number.isFinite(v) || !el.checkValidity()) {
+      throw new Error(el.labels[0].textContent.trim()+"：請填入指定範圍的有限數值。");
+    }
+    return v;
+  };
+  const out = (str, error=false) => {
+    result.textContent = str;
+    result.dataset.error = String(error);
+  };
+  const units = (v) => fmt(v / 3600, 8)+" m³/s · "+fmt(v)+" m³/h · "+fmt(v * 1000 / 60)+" L/min";
+  function visibility() {
+    panels.forEach(p => {
+      const name = p.dataset.panel;
+      const visible = (name === mode.value || (name === "signal" && ["linear","dp"].includes(mode.value)));
+      p.hidden = !visible;
+      p.querySelectorAll("input").forEach(e => { e.disabled = !visible; e.required = visible; });
+    });
+  }
+  function calculate() {
+    try {
+      if (mode.value === "geometry") {
+        const d = reading("diameter") / 1000;
+        const a = Math.PI * (d / 2) ** 2;
+        const q = a * reading("velocity") * 3600;
+        out("截面積 "+fmt(a,6)+" m²；流量 "+units(q));
+      } else if (mode.value === "pulse") {
+        const v = reading("count") / reading("k");
+        out("此窗 "+fmt(v)+" L；平均 "+units(v / reading("seconds") * 3.6));
+      } else {
+        const i = reading("ma"), fs = reading("fs");
+        if (i < 4 || i > 20) {
+          out((i < 4 ? "under_range" : "over_range")+"：超出正常 4–20 mA 教學量程，不產生可用流量。",true);
+          return;
+        }
+        const frac = (i - 4) / 16;
+        if (mode.value === "linear") {
+          out("linear_flow：不開平方根；流量 "+units(frac * fs));
+        } else {
+          const maximum = reading("dpfs"), cutoff = reading("cutoff");
+          if (cutoff >= maximum) throw new Error("低流量切除必須低於差壓上量程。");
+          const dp = frac * maximum;
+          if (dp < cutoff) {
+            out("low_flow_cutoff：ΔP "+fmt(dp)+" kPa，顯示 0，但不視為經量測的有效零值。",true);
+          } else {
+            out("raw_dp：ΔP "+fmt(dp)+" kPa，開根一次；流量 "+units(Math.sqrt(dp / maximum) * fs));
+          }
+        }
+      }
+    } catch(e) { out(e.message,true); }
+  }
+  form.noValidate = true;
+  form.addEventListener("submit", e => { e.preventDefault(); calculate(); });
+  mode.addEventListener("change", () => { visibility(); calculate(); });
+  defaults.addEventListener("click", () => { form.reset(); visibility(); calculate(); });
+  visibility();
+  calculate();
+})();
+</script>
+</body>
+</html>
