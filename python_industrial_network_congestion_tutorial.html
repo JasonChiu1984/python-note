@@ -1,9 +1,31 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工業通訊塞車診斷｜Python 工業通訊筆記</title>
 <style>
 :root{--ink:#173047;--muted:#476378;--dark:#112e45;--accent:#005e72;--paper:#eef5f8;--line:#b8cdd9;--light:#e7f3f8;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper)}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{background:var(--dark);color:white;padding:clamp(1.15rem,4vw,3rem)}header a{color:#a9eafa}header>div,main,footer{max-width:74rem;margin:auto}h1{font-size:clamp(2rem,7vw,4rem);margin:.4rem 0 .7rem;line-height:1.1}h2{font-size:clamp(1.32rem,4vw,1.9rem);margin:.25rem 0 .65rem;line-height:1.3}main,footer{padding:clamp(.7rem,3vw,1.7rem)}a{color:var(--accent);text-underline-offset:.2em}nav{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem}.button,nav a{display:inline-block;background:var(--light);border:1px solid var(--line);border-radius:.5rem;padding:.27rem .62rem}section{background:white;border:1px solid var(--line);border-radius:.8rem;padding:clamp(.75rem,2.5vw,1.55rem);margin-bottom:1rem}.kicker,figcaption{font-weight:800;color:var(--accent)}header .kicker{color:#98dcf0}figure{margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:#f2f9fc}.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.25rem;counter-reset:step}.flow li{counter-increment:step;position:relative;border:1px solid #8eb2c4;background:white;border-radius:.5rem;padding:.6rem;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:var(--accent)}.flow li:not(:last-child)::after{content:"→";position:absolute;top:39%;left:calc(100% + .18rem);font-weight:bold;color:var(--accent)}.table-wrap{overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:.5rem;margin:.7rem 0}table{border-collapse:collapse;width:100%;min-width:41rem;text-align:left}th,td{padding:.6rem;vertical-align:top;border-bottom:1px solid #cedee7}thead th{background:var(--light)}tbody tr:nth-child(even){background:#f3f8fb}.warn{padding:.6rem .8rem;border-left:.3rem solid #aa6411;background:#fff2db}.bar-row{display:grid;grid-template-columns:minmax(5.5rem,9rem) minmax(0,1fr) 4.5rem;gap:.5rem;align-items:center;margin:.5rem 0}.track{height:1.1rem;border-radius:.25rem;background:#e1eaf1}.bar{height:100%;background:#08758c;border-radius:.25rem}.text-mono,code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{max-width:100%;overflow:auto;padding:.75rem;border-radius:.5rem;background:#152f46;color:#e9f9ff}pre code{overflow-wrap:normal}summary{cursor:pointer;font-weight:750}details{margin:.6rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.55rem}:focus-visible{outline:2px solid #0084a1;outline-offset:3px}@media(max-width:800px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:100%;left:50%}}
-</style><style>.congestion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0}.congestion-grid article,.congestion-chain li{min-width:0;overflow-wrap:anywhere;border:1px solid #b8cdd9;border-radius:.62rem;background:#edf7fa;padding:.7rem .85rem}.congestion-grid h3{margin:.1rem 0}.congestion-grid p{margin:.35rem 0}.congestion-chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.38rem;list-style:none;padding:0}.congestion-chain li{position:relative}.congestion-chain b,.congestion-chain small{display:block}.congestion-chain li:not(:last-child)::after{content:'→';position:absolute;right:-1.15rem;top:calc(50% - .65em);font-weight:700;color:#005e72}@media(max-width:48rem){.congestion-chain{grid-template-columns:1fr}.congestion-chain li:not(:last-child)::after{content:'↓';right:calc(50% - .3em);top:auto;bottom:-1.4rem}}@media(max-width:38rem){.congestion-grid{grid-template-columns:1fr}}</style></head><body id="top">
+</style><style>.congestion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0}.congestion-grid article,.congestion-chain li{min-width:0;overflow-wrap:anywhere;border:1px solid #b8cdd9;border-radius:.62rem;background:#edf7fa;padding:.7rem .85rem}.congestion-grid h3{margin:.1rem 0}.congestion-grid p{margin:.35rem 0}.congestion-chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.38rem;list-style:none;padding:0}.congestion-chain li{position:relative}.congestion-chain b,.congestion-chain small{display:block}.congestion-chain li:not(:last-child)::after{content:'→';position:absolute;right:-1.15rem;top:calc(50% - .65em);font-weight:700;color:#005e72}@media(max-width:48rem){.congestion-chain{grid-template-columns:1fr}.congestion-chain li:not(:last-child)::after{content:'↓';right:calc(50% - .3em);top:auto;bottom:-1.4rem}}@media(max-width:38rem){.congestion-grid{grid-template-columns:1fr}}</style><style>
+#scenario-selector .scenario-control{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem .78rem;margin:.8rem 0}
+#scenario-selector [hidden]{display:none!important}
+#scenario-selector .scenario-control label{font-weight:720}
+#scenario-selector select{min-width:0;max-width:100%;width:min(24rem,100%);min-height:2.65rem;font:inherit;border:1px solid #97b6c9;border-radius:.45rem;padding:.35rem .5rem;color:#173047;background:white}
+#scenario-selector select:focus-visible,#scenario-selector a:focus-visible{outline:3px solid #005e72;outline-offset:3px}
+#scenario-selector .scenario-card{background:#edf7fa;border:1px solid #b8cdd9;border-radius:.6rem;padding:.7rem .85rem;margin:.6rem 0 1rem;scroll-margin-top:1rem;overflow-wrap:anywhere}
+#scenario-selector .scenario-card h3{margin:.1rem 0 .5rem}
+#scenario-selector .scenario-card dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.32rem .8rem;margin:0}
+#scenario-selector .scenario-card dt{font-weight:720}
+#scenario-selector .scenario-card dd{margin:0;min-width:0}
+#scenario-selector .scenario-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;margin:0}
+@media(max-width:38rem){#scenario-selector .scenario-card dl{grid-template-columns:1fr;gap:.15rem}#scenario-selector .scenario-card dd{margin-bottom:.48rem}}
+</style></head><body id="top">
 <header><div><p class="kicker">INDUSTRIAL NETWORK / PYTHON FIELD GUIDE</p><h1>工業通訊塞車：先找到排隊的位置</h1><p>以機房 PLC、管理型交換器、RS‑485 閘道與監控採集為例。位元率、延遲與點位新鮮度是三種不同訊號。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業協定比較</a> · <a href="python_industrial_ethernet_speed_tutorial.html">100M／1GbE 速度計算</a></p></div></header>
-<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#depth">深度原因與雙圖</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
+<main><nav aria-label="章節"><a href="#scenario-selector">情境與解決方案</a><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#depth">深度原因與雙圖</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
+<section id="scenario-selector" aria-labelledby="scenario-selector-title">
+<p class="kicker">FIELD TRIAGE / SCENARIO SELECTOR</p><h2 id="scenario-selector-title">選一個塞車情境，找到先查與解決方案</h2>
+<p>先從最接近的症狀選，不把一個指標當成確診。這些是既有唯讀觀測的判讀建議；任何工控設定變更先與責任人確認範圍、核准維護窗及回退。</p>
+<div class="scenario-control" id="scenario-control" hidden><label for="scenario-choose">選擇情境</label><select id="scenario-choose" aria-controls="scenario-results"><option value="dead-rtu">單一 RS‑485 從站沒回覆</option><option value="egress-burst">交換器出口有微突發</option><option value="group-traffic">同 VLAN 廣播／多播突然變多</option><option value="serialized-gateway">多個用戶塞進同一個序列閘道</option><option value="broker-db">MQTT 或資料庫接收後積壓</option><option value="phy-errors">CRC／介面錯誤開始增加</option></select><a id="scenario-link" href="#scenario-dead-rtu">目前情境連結</a></div>
+<p id="scenario-status" class="scenario-status" role="status" aria-live="polite"></p>
+<noscript><p>未啟用 JavaScript：下方保留所有情境，可直接依標題往下閱讀。</p></noscript>
+<div id="scenario-results"><article class="scenario-card" id="scenario-dead-rtu" data-scenario="dead-rtu" aria-labelledby="scenario-title-dead-rtu"><h3 id="scenario-title-dead-rtu">單一 RS‑485 從站沒回覆</h3><dl><dt>症狀</dt><dd>某站逾時，其他正常站也在同一個掃描週期同步變慢。</dd><dt>先查與確認</dt><dd>按站對照成功率、回覆時間、重試及閘道 queue；確認慢站逾時出現後，該 RTU 埠的其他站才開始等待。CRC 同時升高則要另外查實體層。</dd><dt>安全處置</dt><dd>先在既有上位採集器做每站 deadline 與有限退避，讓故障站降低查詢優先度；保留健康檢查，顯示「逾時／舊值」，不要填 0 或用上一筆冒充即時。現場控制與告警關鍵讀取不自行變更。</dd><dt>驗收與回退</dt><dd>同輪詢量比較健康站 p95／p99、故障站辨識及資料年齡；若超出告警時限或恢復偵測變差，還原先前輪詢策略。</dd></dl></article><article class="scenario-card" id="scenario-egress-burst" data-scenario="egress-burst" aria-labelledby="scenario-title-egress-burst"><h3 id="scenario-title-egress-burst">交換器出口有微突發</h3><dl><dt>症狀</dt><dd>短暫丟棄，但分鐘平均使用率不高；多輸入同時寫往同一接收端或上行埠。</dd><dt>先查與確認</dt><dd>優先查該 egress 的 queue high-watermark 與 drop、雙向 port bps 和各來源的發送時刻。缺乏短時間視窗的 queue 資料時，只能記錄疑似微突發。</dd><dt>安全處置</dt><dd>先以既有監控設定錯開大批採集時刻或控制批次大小；容量、QoS 或路徑變更需在核准維護窗先驗證現有控制優先順序。</dd><dt>驗收與回退</dt><dd>同工作量與同出口比較 drop、p99、成功率；若控制佇列失去優先服務或備援容量不足，回復發送節奏或原設定。</dd></dl></article><article class="scenario-card" id="scenario-group-traffic" data-scenario="group-traffic" aria-labelledby="scenario-title-group-traffic"><h3 id="scenario-title-group-traffic">同 VLAN 廣播／多播突然變多</h3><dl><dt>症狀</dt><dd>同 VLAN 多台設備同時延遲或丟訊框；trunk 或設備 CPU 壓力與廣播／多播一起升高。</dd><dt>先查與確認</dt><dd>取既有每 VLAN 與每埠的廣播、多播、未知單播計數，對齊 STP 拓撲變化、MAC 移動、設備上線時間。單獨一項 MAC 移動不等於已找到環路。</dd><dt>安全處置</dt><dd>先確認是否有合法設備發現、備援切換或新增訂閱。由網路責任人於維護窗處理已確認的環路，再依模型評估 storm control 或適合的 snooping；不可盲目關閉廣播／多播。</dd><dt>驗收與回退</dt><dd>比較分 VLAN 計數、丟棄與控制延遲，複驗發現功能及備援切換；失去正常發現或備援時還原受影響設定。</dd></dl></article><article class="scenario-card" id="scenario-serialized-gateway" data-scenario="serialized-gateway" aria-labelledby="scenario-title-serialized-gateway"><h3 id="scenario-title-serialized-gateway">多個用戶塞進同一個序列閘道</h3><dl><dt>症狀</dt><dd>連線都成功，但加開第二套採集後，等候和逾時比單一採集明顯增加。</dd><dt>先查與確認</dt><dd>核對閘道各埠 in-flight 與待送深度、上下游入／出時間、各從站服務時間；確認多 TCP 用戶是否共用同一 Modbus RTU bus，並排除個別慢站。</dd><dt>安全處置</dt><dd>先去除重複輪詢，由採集端限速、限制同一 bus 的未完成請求，合併經現場確認可安全連讀的區段。應用逾時未必終止已送出的交易；不要直接重送寫入。</dd><dt>驗收與回退</dt><dd>比較相同點位新鮮度、佇列水位和成功率；若任何必要點變舊或誤報失聯，全程保留原採集策略以便回退。</dd></dl></article><article class="scenario-card" id="scenario-broker-db" data-scenario="broker-db" aria-labelledby="scenario-title-broker-db"><h3 id="scenario-title-broker-db">MQTT 或資料庫接收後積壓</h3><dl><dt>症狀</dt><dd>網路往返仍正常，但訊息等待或監控資料年齡變長，接收未必已持久化。</dd><dt>先查與確認</dt><dd>用既有訊息 ID 對齊 broker forward、應用接收、等待 worker 與 DB commit；分別確認訂閱端待送、未確認、連線池等待及鎖等待。</dd><dt>安全處置</dt><dd>限制 consumer 的並行和佇列上限，並公開積壓告警；先隔離慢報表或長交易，配合耐久性驗證再調整批次。勿以 QoS 或提前確認來隱藏未持久化風險。</dd><dt>驗收與回退</dt><dd>同輸入速率比 commit p95／p99、最舊訊息、未確認與丟棄數，測斷線後資料可追溯；若可靠性退化還原批次／並行設定。</dd></dl></article><article class="scenario-card" id="scenario-phy-errors" data-scenario="phy-errors" aria-labelledby="scenario-title-phy-errors"><h3 id="scenario-title-phy-errors">CRC／介面錯誤開始增加</h3><dl><dt>症狀</dt><dd>偶發失聯或速度掉檔，錯誤率增加後才出現重傳，不是單純出口排隊。</dd><dt>先查與確認</dt><dd>核對兩端協商速率、雙工、FCS/CRC 與 link flap 的同窗差值；不要把未報錯的 discard 當成壞線，也不要用歷史累計斷案。</dd><dt>安全處置</dt><dd>由責任人於核准時窗逐項驗證線材、端子、光模組或協商問題並記錄變更，先保存原狀與允許的備援路徑。</dd><dt>驗收與回退</dt><dd>比較相同流量下的雙端錯誤、重傳和連線穩定性；若出現掉檔、告警失真或備援失敗，復原上一項變更。</dd></dl></article></div>
+<p><a href="#depth">查看八類深度原因及雙圖</a> · <a href="#simulation">查看離線模擬</a> · <a href="#acceptance">查看改善驗收</a></p>
+</section>
 <section id="architecture"><p class="kicker">01 / ARCHITECTURE</p><h2>一路上的每個節點，都有自己的速度和佇列</h2>
 <figure><figcaption>圖一｜讀取請求的方向；資料在回應路徑返回</figcaption><ol class="flow">
 <li><strong>採集應用</strong><br>定時器 → 工作提交 → 有界排隊；若排程重入，前一輪未完便可能再排一次。</li>
@@ -198,4 +220,39 @@ if __name__ == &quot;__main__&quot;:
 
 <section id="acceptance"><p class="kicker">06 / BEFORE &amp; AFTER</p><h2>改善驗收：不要拿丟更多資料換好看的延遲</h2>
 <p>在同點位、同採集窗口與設備負荷下，比較成功率、timeout、跳過／拒絕、重試、應用佇列水位、p95、p99 和最舊資料年齡。採樣降頻必須確認告警時效；清掉壞站、縮短逾時與限併發都要保留故障／陳舊標記，不能拿上一筆值冒充即時。最後再確認備援路徑及現場控制連鎖未被上位機策略改變。</p></section>
-</main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer><script>
+(() => {
+  "use strict";
+  const box = document.getElementById("scenario-selector");
+  const input = box.querySelector("select");
+  const share = box.querySelector("#scenario-link");
+  const status = box.querySelector("#scenario-status");
+  const cards = [...box.querySelectorAll("[data-scenario]")];
+  if (!input || !share || !status || !cards.length) return;
+  function fromHash(){
+    return cards.find(card => "#" + card.id === window.location.hash);
+  }
+  function show(card){
+    cards.forEach(item => { item.hidden = item !== card; });
+    input.value = card.dataset.scenario;
+    share.href = "#" + card.id;
+    status.textContent = "目前情境：" + card.querySelector("h3").textContent;
+  }
+  input.addEventListener("change", () => {
+    const card = cards.find(item => item.dataset.scenario === input.value);
+    if (!card) return;
+    show(card);
+    try { window.history.replaceState(null, "", "#" + card.id); } catch (_) { /* file/embedded restrictions: anchor remains available */ }
+  });
+  window.addEventListener("hashchange", () => {
+    const card = fromHash();
+    if (card) {
+      const wasHidden = card.hidden;
+      show(card);
+      if (wasHidden) card.scrollIntoView({ block: "start" });
+    }
+  });
+  show(fromHash() || cards[0]);
+  box.querySelector("#scenario-control").hidden = false;
+})();
+</script></body></html>

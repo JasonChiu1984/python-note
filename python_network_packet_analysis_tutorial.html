@@ -11,7 +11,17 @@
  .pcap-boxes {grid-template-columns:minmax(0,1fr);gap:1.3rem}
  .pcap-boxes li:not(:last-child)::after {content:"↓";top:auto;right:calc(50% - .3em);bottom:-1.35rem}
 }
-</style></head><body><main><header id="top"><div class="eyebrow">PYTHON NETWORK ENGINEERING · 離線實驗</div><h1>Python 網路封包解析</h1><p>從一筆 Ethernet II 位元組紀錄，沿著 IPv4 標頭找到 TCP／UDP 區段。用標準函式庫拆欄位、驗證長度並輸出 JSON。本章只讀兩筆內建合成樣本，不需網路、管理權限或外部套件。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="#architecture">分層架構</a><a href="#workflow">解析流程</a><a href="#framing">長度圖表</a><a href="#apis">常見 API</a><a href="#lab">實驗與程式</a><a href="#validation">驗收與限制</a><a href="#offline-pcap">離線 PCAP</a></nav></header><section class="panel" id="architecture"><div class="eyebrow">01 / 資料分層</div><h2>架構圖：從框架到應用資料</h2><ol class="flow"><li><strong>L2｜Ethernet II</strong><span>前 14 bytes：目的 MAC、來源 MAC、EtherType。0x0800 代表 IPv4。</span></li><li><strong>L3｜IPv4</strong><span>依 IHL 決定標頭後的起點；Total Length 限定 IPv4 終點。Protocol 6＝TCP，17＝UDP。</span></li><li><strong>L4｜傳輸層</strong><span>TCP：Data Offset 決定標頭末端；UDP：固定 8 bytes 標頭，Length 含標頭。</span></li><li><strong>應用資料｜單筆示例</strong><span>只輸出 payload 範圍的十六進位。不假設目的埠等於應用協定，也不解讀加密內容。</span></li></ol>
+
+#research-study{min-width:0;overflow-wrap:anywhere}
+#research-study .pr-scroll{width:100%;overflow:auto;margin:1rem 0}
+#research-study .pr-scroll table{min-width:33rem}
+#research-study .pr-scroll:focus-visible{outline:2px solid #1f6986;outline-offset:2px}
+#research-study .pr-chart{margin:1rem 0;background:#f0f7fb;border:1px solid #cadde9;border-radius:.6rem;padding:.65rem .8rem}
+#research-study .pr-chart figcaption{font-weight:750;color:#214b69}
+#research-study .pr-chart ul{list-style:none;padding:0;margin:.5rem 0}
+#research-study .pr-chart li{display:grid;grid-template-columns:minmax(6rem,9.5rem) minmax(1rem,30rem) 2rem;gap:.5rem;align-items:center;margin:.4rem 0}
+#research-study .pr-chart i{display:block;height:.68rem;border-radius:.4rem;background:linear-gradient(90deg,#286b89 var(--bar),#d4e7f1 var(--bar))}
+</style></head><body><main><header id="top"><div class="eyebrow">PYTHON NETWORK ENGINEERING · 離線實驗</div><h1>Python 網路封包解析</h1><p>從一筆 Ethernet II 位元組紀錄，沿著 IPv4 標頭找到 TCP／UDP 區段。用標準函式庫拆欄位、驗證長度並輸出 JSON。本章只讀兩筆內建合成樣本，不需網路、管理權限或外部套件。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="#architecture">分層架構</a><a href="#workflow">解析流程</a><a href="#framing">長度圖表</a><a href="#apis">常見 API</a><a href="#lab">實驗與程式</a><a href="#validation">驗收與限制</a><a href="#offline-pcap">離線 PCAP</a><a href="#research-study">研究型實作</a></nav></header><section class="panel" id="architecture"><div class="eyebrow">01 / 資料分層</div><h2>架構圖：從框架到應用資料</h2><ol class="flow"><li><strong>L2｜Ethernet II</strong><span>前 14 bytes：目的 MAC、來源 MAC、EtherType。0x0800 代表 IPv4。</span></li><li><strong>L3｜IPv4</strong><span>依 IHL 決定標頭後的起點；Total Length 限定 IPv4 終點。Protocol 6＝TCP，17＝UDP。</span></li><li><strong>L4｜傳輸層</strong><span>TCP：Data Offset 決定標頭末端；UDP：固定 8 bytes 標頭，Length 含標頭。</span></li><li><strong>應用資料｜單筆示例</strong><span>只輸出 payload 範圍的十六進位。不假設目的埠等於應用協定，也不解讀加密內容。</span></li></ol>
 <p class="notice"><strong>先辨識來源鏈路型別。</strong>本練習直接餵 Ethernet II 位元組；一般 PCAP／PCAPNG 還有外層容器、鏈路型別、時間戳、捕獲長度與原始長度。不能把整個捕獲檔直接當一個 frame，也不能假設所有紀錄都是 Ethernet。</p>
 <p>「frame」、「IPv4 datagram」、「TCP segment／UDP datagram」不是同一個位元組範圍。TCP 是位元組串流，單筆 payload 不代表一則完整應用訊息；需要多筆重組、順序／重傳處理與應用層 framing。UDP 保留 datagram 邊界，但不提供 TCP 式的可靠送達。</p></section><section class="panel" id="workflow"><div class="eyebrow">02 / 解析器資料流</div><h2>流程圖：先驗邊界，再讀欄位</h2><ol class="flow"><li><strong>讀固定標頭</strong><span>最少 14 bytes 才能讀 EtherType；只接受未標記的 IPv4。</span></li><li><strong>建立 IPv4 視窗</strong><span>確認版本、IHL×4、Total Length；擷取不足拒絕；忽略 IPv4 邊界外資料。</span></li><li><strong>分片／協定分流</strong><span>MF=1 或 fragment offset 非 0 拒絕；DF 單獨出現不代表是分片。</span></li><li><strong>建立 L4 視窗</strong><span>UDP 驗至少 8 且 Length 等於 IPv4 payload；TCP 驗至少 20、Data Offset 不越界。</span></li><li><strong>輸出結果</strong><span>成功輸出 JSON；格式、支援範圍或長度有誤時回 ParseError。</span></li></ol>
 <p>每次處理 offset 都先檢查 <code>start + length ≤ len(view)</code>。Python slice 越界會悄悄縮短，所以不能只用切片當成驗證。<code>struct.unpack_from()</code> 也應讀已確認足夠的範圍。</p></section><section class="panel" id="framing"><div class="eyebrow">03 / 位元組對照</div><h2>同一張圖，分清楚捕獲長度與封包長度</h2><figure style="margin:.5rem 0"><figcaption><strong>兩筆內建樣本：每條依自身總長度正規化</strong>（不是同一絕對尺度）</figcaption><div class="chart-row"><strong>UDP：60 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:20">20</span><span class="l4" style="--n:8">8</span><span class="data" style="--n:4"></span><span class="pad" style="--n:14">14</span></div></div><div class="chart-row"><strong>TCP：65 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:24">24</span><span class="l4" style="--n:24">24</span><span class="data" style="--n:3"></span></div></div><ul class="chart-key"><li class="eth">Ethernet 標頭</li><li class="ip">IPv4 標頭</li><li class="l4">傳輸層標頭</li><li class="data">應用資料</li><li class="pad">外層 padding</li></ul></figure><div class="local-scroll" role="region" tabindex="0" aria-label="兩筆樣本位移與長度（可橫移）"><table><thead><tr><th scope="col">範圍（起點含、終點不含）</th><th scope="col">UDP</th><th scope="col">TCP</th></tr></thead><tbody><tr><th scope="row">Ethernet 標頭</th><td>[0, 14)</td><td>[0, 14)</td></tr><tr><th scope="row">IPv4 標頭</th><td>[14, 34)；IHL=5</td><td>[14, 38)；IHL=6</td></tr><tr><th scope="row">IPv4 datagram</th><td>[14, 46)；Total Length=32</td><td>[14, 65)；Total Length=51</td></tr><tr><th scope="row">傳輸層標頭</th><td>[34, 42)；固定 8 bytes</td><td>[38, 62)；Data Offset=6，即 24 bytes</td></tr><tr><th scope="row">Payload</th><td>[42, 46)；4c414221（LAB!）</td><td>[62, 65)；4c4142（LAB）</td></tr><tr><th scope="row">外層尾端</th><td>[46, 60)；14 bytes padding</td><td>空</td></tr></tbody></table></div><p>例：UDP 的 Length=12 → 8 bytes 標頭 + 4 bytes 資料。TCP 沒有同義的 UDP Length 欄位；正常的非分片 IPv4 datagram 中，此例 TCP payload = 51 − 24 − 24 = 3 bytes。外層尾端不會被當作 payload；一般來源可能另含 FCS 或無 padding，本程式不嘗試辨識尾端種類。</p></section><section class="panel" id="apis"><div class="eyebrow">04 / 常見工具</div><h2>API 怎麼選：欄位拆解、離線檔案與資料匯出</h2><div class="local-scroll" role="region" tabindex="0" aria-label="常見 API 比較（可橫移）"><table><thead><tr><th scope="col">API／工具</th><th scope="col">常見用法與適用場景</th><th scope="col">拿到資料後仍要核對</th></tr></thead><tbody><tr><th scope="row">bytes.fromhex</th><td><code>bytes.fromhex("0800")</code>：將固定範例轉成兩個 bytes。</td><td>不是文字編碼轉換；不從外界載入樣本。</td></tr><tr><th scope="row">memoryview</th><td><code>memoryview(frame)[14:]</code>：取得子視圖，不複製所切資料。</td><td>生命週期跟著來源；轉為 bytes 或 hex 表示時會配置輸出。</td></tr><tr><th scope="row">struct</th><td><code>struct.unpack_from("!H", view, 12)</code>：從 offset 12 讀 big-endian 無號 16 位整數。</td><td><code>!</code> 是網路位元組序，<code>calcsize("!H")==2</code>。先驗邊界。</td></tr><tr><th scope="row">ipaddress</th><td><code>str(ipaddress.IPv4Address(b"\xc0\x00\x02\x01"))</code>：將四個位元組轉成 IPv4 字串。</td><td>數值和字串輸入的語意與錯誤處理要區分。</td></tr><tr><th scope="row">Scapy（選用）</th><td><code>scapy.utils.PcapReader</code> 可逐筆讀已授權、脫敏樣本；<code>rdpcap()</code> 適合小檔讀入記憶體。</td><td>核對封裝、截斷與資源用量；不在本次環境執行。</td></tr><tr><th scope="row">TShark（選用）</th><td>讀檔模式 <code>-r</code>；<code>-T fields</code> 配 <code>-e</code> 選欄位，適合離線交叉比對。</td><td>核對欄位定義、空值、加密和 dissector 推斷；本章不擷取即時流量。</td></tr></tbody></table></div>
@@ -267,4 +277,58 @@ python3 python_offline_pcap_lab.py --read synthetic.pcap</code></pre>
 <pre><code>tshark -n -r synthetic.pcap -T fields -e frame.number -e frame.cap_len -e frame.len -e vlan.id -e udp.length
 tcpdump -nn -r synthetic.pcap</code></pre>
 <p>參考：<a href="https://www.wireshark.org/docs/man-pages/tshark.html">TShark 手冊</a> · <a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkOpen.html">Wireshark 讀檔</a> · <a href="https://github.com/the-tcpdump-group/tcpdump/blob/master/tcpdump.1.in">tcpdump 原始手冊</a> · <a href="https://scapy.readthedocs.io/en/latest/api/scapy.utils.html">Scapy 檔案 API</a> · <a href="https://www.rfc-editor.org/rfc/rfc768.html">RFC 768</a></p></section>
+<section class="panel" id="research-study" aria-labelledby="pcap-study-title">
+<div class="eyebrow">09 / RESEARCH METHODS · REPRODUCIBLE EXPERIMENT</div>
+<h2 id="pcap-study-title">研究型實作｜封包「完整可讀」需要哪些條件？</h2>
+<p>把解析視為一條<strong>可被反駁的證據鏈</strong>，而不是把工具印出的欄位當成真相。本研究只用內建合成框架改變觀測條件；不抓取網路、不重播封包，也不主張驗證了所有協定或版本。</p>
+<h3>一、問題、假設與觀測量</h3>
+<ol>
+<li><strong>H1：容器位元組序與線上協定位元組序互相獨立。</strong>PCAP magic 只決定檔案標頭和時間欄位怎麼讀；EtherType、IP 長度與 UDP 埠仍按網路位元組序解碼。</li>
+<li><strong>H2：捕獲不完整，不必然代表 IPv4 或 UDP 資料不完整。</strong>有標籤與無標籤的框架，若已經取得整個 IPv4 datagram，尾端未捕獲的 Ethernet padding 不應被算進 UDP payload。</li>
+<li><strong>H3：時間精度不同，不該改變等價觀測的時間。</strong>以整數奈秒對齊微秒與奈秒欄位；這只驗證數值轉換，不保證兩張網卡的時鐘同步。</li>
+</ol>
+<p>控制變數是已知的 UDP payload（4 bytes）和同一合成時間。自變數是 VLAN 有無、classic PCAP 的兩種端序與兩種時間精度、八個依協定邊界選取的 caplen。觀測量為狀態與已取得的 payload bytes，另保存每筆完整合成檔的 SHA-256，便於重做。</p>
+<h3>二、先寫邊界不變量，再讀取欄位</h3>
+<div class="pr-scroll" role="region" tabindex="0" aria-label="分層長度不變量"><table>
+<thead><tr><th scope="col">邊界</th><th scope="col">必須先成立的條件</th><th scope="col">不成立代表什麼</th></tr></thead><tbody>
+<tr><th scope="row">PCAP 檔案紀錄</th><td>紀錄標頭完整；<code>caplen ≤ snaplen</code>、<code>caplen ≤ original_len</code>，且檔內剩餘位元組足夠。</td><td>若檔案實際比宣告短，是檔案截斷；若 <code>caplen &lt; original_len</code> 但紀錄齊全，是捕獲只有前綴。兩者不能同樣報成網路掉包。</td></tr>
+<tr><th scope="row">Ethernet／VLAN</th><td>本實作 Ethernet II 無標籤的 L3 位移為 14；一層 802.1Q 為 18。檢查 EtherType 再進下一層。</td><td>不認得 LinkType、EtherType 或多層 VLAN 時應標不支援，不假裝可以用固定偏移解析。</td></tr>
+<tr><th scope="row">IPv4</th><td><code>IHL × 4 ≥ 20</code>；<code>total_length ≥ IHL × 4</code>。本研究要求取得整個 IPv4 datagram 才解碼 UDP。</td><td>有完整標頭不代表 payload 足夠；本程式不重組分片，把未重組的情況單獨分類。這是實驗的保守策略，不是分析器一律必須如此。</td></tr>
+<tr><th scope="row">UDP</th><td>UDP 長度至少 8 bytes，不超出已確認的 IPv4 payload 邊界；UDP 資料長度是 <code>udp_length − 8</code>。</td><td>將 padding 或其他尾端位元組拼進 payload 會破壞資料。標頭 checksum 欄位不是本研究的驗證輸出。</td></tr>
+<tr><th scope="row">時間戳</th><td>子秒在 <code>[0, precision)</code>；統一為 <code>seconds × 10⁹ + fraction × (10⁹ / precision)</code> 的整數。</td><td>捕獲點、網卡時間來源、NTP/PTP 校時與時鐘偏差不明時，不做跨點單程延遲結論；精度不是準確度。</td></tr>
+</tbody></table></div>
+<h3>三、64 條件的實驗與結果</h3>
+<p><strong>2 種鏈路封裝 × 2 種容器端序 × 2 種時間精度 × 8 個觀測長度 = 64。</strong>預期分類由固定的欄位長度和測試計畫先定義，再讓原解析器讀取；沒有用解析器的輸出當預期值。本表是含一層 VLAN 的代表切片，另有相同設計的無標籤組。</p>
+<div class="pr-scroll" role="region" tabindex="0" aria-label="VLAN 合成封包的觀測條件"><table><thead><tr><th scope="col">caplen（bytes）</th><th scope="col">能建立的證據</th><th scope="col">預期分類</th></tr></thead><tbody>
+<tr><th scope="row">12</th><td>可見兩個 MAC，尚無 EtherType。</td><td><code>truncated_ethernet</code></td></tr>
+<tr><th scope="row">17</th><td>尚未取得完整 VLAN 後的 EtherType。</td><td><code>truncated_vlan</code></td></tr>
+<tr><th scope="row">18、37</th><td>分別剛開始 L3、或剛好少一個 IPv4 最短標頭位元組。</td><td><code>truncated_ipv4_header</code></td></tr>
+<tr><th scope="row">38、49</th><td>IPv4 標頭齊全，但未觀測到全長 32-byte datagram。</td><td><code>truncated_ipv4_datagram</code></td></tr>
+<tr><th scope="row">50</th><td>18＋32；已包含完整 IPv4/UDP，未取得 Ethernet padding。</td><td><code>udp</code>；4 bytes payload；捕獲仍標部分。</td></tr>
+<tr><th scope="row">64</th><td>完整合成 Ethernet 框架，不含實體前導碼或線路間隔。</td><td><code>udp</code>；4 bytes payload。</td></tr>
+</tbody></table></div>
+<figure class="pr-chart" aria-labelledby="pcap-study-results"><figcaption id="pcap-study-results">解析狀態的條件數（共同尺度 0–16，非現場異常分布）</figcaption><ul>
+<li><span>Ethernet 截斷</span><i style="--bar:75%" aria-hidden="true"></i><b>12</b></li>
+<li><span>VLAN 截斷</span><i style="--bar:25%" aria-hidden="true"></i><b>4</b></li>
+<li><span>IPv4 標頭截斷</span><i style="--bar:100%" aria-hidden="true"></i><b>16</b></li>
+<li><span>IPv4 資料截斷</span><i style="--bar:100%" aria-hidden="true"></i><b>16</b></li>
+<li><span>UDP 可解碼</span><i style="--bar:100%" aria-hidden="true"></i><b>16</b></li>
+</ul></figure>
+<p>結果<strong>64／64 符合預期</strong>。其中 8 組捕獲只有 IP 結束位置，仍正確得到 4 bytes UDP；4 種容器格式下同一個 0.25 秒子秒值也轉成一致的 epoch 奈秒。本結果是邊界條件的回歸驗證，不等同現場解析準確率。</p>
+<h3>四、如何重做與保存證據</h3>
+<p>下載 <a href="python_packet_research_lab.py" download>研究實驗</a>與 <a href="python_offline_pcap_lab.py" download>原解析模組</a>，放同一資料夾。使用 Python 3.10+，兩檔只有標準函式庫，所有觀測在記憶體建立，不接網路。</p>
+<pre tabindex="0"><code>python python_offline_pcap_lab.py --self-test
+python python_packet_research_lab.py --test
+python python_packet_research_lab.py
+python python_packet_research_lab.py --cases &gt; study-cases.json</code></pre>
+<p><code>--cases</code> 給出每條件的封裝、時間單位、捕獲長度、預期、實際及檔案雜湊。比較兩次重跑時先固定解析器版本、Python 版本與樣本，留原始 JSON；若只比輸出表，無法知道輸入是否被換過。</p>
+<h3>五、效度界線與下一步</h3>
+<ul>
+<li><strong>觀測與原因：</strong>單個擷取點看不到封包，可能與 SPAN／TAP、捕獲程式丟棄、方向、篩選或時鐘有關，不足以定位網路損失或責任端。核對一致時間窗下的來源計數與接收證據。</li>
+<li><strong>時間與效能：</strong>若要研究尾延遲，先定義起止事件、時間來源及對時誤差，再報分位數與樣本數。大量封包還須分離檔案讀取、解析 CPU 與 JSON 輸出，不拿這 64 個條件推估實際吞吐。</li>
+<li><strong>校驗與應用語意：</strong>NIC checksum offload 可能讓主機捕獲看到尚未填入的校驗值；計算欄位不代表對端接受。TCP 還要考慮串流分段、重傳與重組，單一 TCP 封包不能保證是一筆 HTTP 訊息。</li>
+<li><strong>外在效度：</strong>此合成樣本不含 IPv6、PCAPNG、多介面時間尺度或真實擁塞；下一階段應先定義支持範圍，再用已授權、去識別、符合相同條件的離線檔作對照。沒有實測的工具或現場不能記為驗證通過。</li>
+</ul>
+<p>規格依據：<a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791 IPv4</a>、<a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768 UDP</a>、<a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293 TCP</a>與 <a href="https://www.wireshark.org/docs/wsug_html_chunked/ChAdvChecksums.html">Wireshark 校驗和及 offload 說明</a>。</p>
+</section>
 </main></body></html>

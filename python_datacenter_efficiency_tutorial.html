@@ -14,7 +14,7 @@ header :is(p,ul),main section :is(p,ul:not([class]),ol:not([class])),main figure
 /* These list elements are visual diagrams, not paragraph columns. */
 main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 </style></head><body id="top"><header><div><p class="kicker">DATA CENTER / PYTHON FIELD GUIDE</p><h1>機房能源效率：從電表到可驗證指標</h1><p>同一時窗算 PUE、分開看用水與碳、用冰水 ΔT 與 kW/RT 解釋冷卻廠變化。</p><p><a href="index.html">回 Python 教材首頁</a> · <a href="python_industrial_data_gateway_tutorial.html">工業資料閘道</a></p></div></header>
-<main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
+<main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#cdu-energy">CDU 能耗</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
 
 <section id="formula-sheet"><p class="kicker">FORMULA SHEET</p><h2>機房能效指標｜計算公式速查</h2><p>用下表直接查分子、分母、單位及原案例代入。要查原始分表、逐步驗算與資料品質，見 <a href="#worked-calculations">同一機房詳細計算</a>；水側例見 <a href="#cooling">冷卻系統</a>。</p>
 <h3>能效、用水與碳</h3><div class="scroll" role="region" aria-label="能效、用水與碳公式" tabindex="0"><table class="formula-sheet-table"><thead><tr><th scope="col">指標</th><th scope="col">計算公式</th><th scope="col">單位</th><th scope="col">原案例代入／查核</th></tr></thead><tbody>
@@ -41,7 +41,7 @@ main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 <tr><th scope="row">冰機／全廠 kW/RT</th><td data-label="計算公式">電功率［kW］÷ 同時、同邊界冷量［RT］</td><td data-label="單位">kW/RT</td><td data-label="原案例代入／查核">270 ÷ 428.50 ≈ 0.630；僅有冰機分表就不是全冷卻廠。</td></tr>
 <tr><th scope="row">期間 kW/RT</th><td data-label="計算公式">合計電能［kWh］÷ 同時間積分冷量［RT·h］</td><td data-label="單位">kW/RT</td><td data-label="原案例代入／查核">原例是瞬時點，不能當作期間積分；勿平均每一筆 kW/RT。</td></tr>
 </tbody></table></div>
-<p class="callout"><strong>先檢查時間窗、邊界與單位。</strong>期間比例先加總分子和分母再相除；功率 kW 不是能量 kWh。分母為 0 或關鍵資料缺窗時標 N/A，不填 0；PUE 同口徑小於 1，先查邊界或電表計量。</p></section>
+<h3>CDU 液冷（獨立算例）</h3><div class="scroll" role="region" aria-label="CDU 液冷能耗公式" tabindex="0"><table class="formula-sheet-table"><thead><tr><th scope="col">指標</th><th scope="col">計算公式</th><th scope="col">單位</th><th scope="col">原案例代入／查核</th></tr></thead><tbody><tr><th scope="row">CDU 輔機能耗強度</th><td data-label="計算公式">同窗 CDU 電量 ÷ 單一水側積分熱量</td><td data-label="單位">kWhₑ/kWhₜₕ</td><td data-label="原案例代入／查核">獨立例：8.00 ÷ 383.72 ≈ 0.02085；只算 CDU 輸入電。</td></tr><tr><th scope="row">CDU 電力／熱傳冷噸</th><td data-label="計算公式">CDU 電量 ÷ 熱量的 RT·h</td><td data-label="單位">kWₑ/熱傳 RT</td><td data-label="原案例代入／查核">8.00 ÷ 109.11 ≈ 0.07332；不是冰機蒸發器 RT。</td></tr><tr><th scope="row">CDU 冷端逼近溫差</th><td data-label="計算公式">IT 側冷供液 − 設施側冷進水</td><td data-label="單位">K</td><td data-label="原案例代入／查核">30 − 26＝4；比較前核對機型取點。</td></tr></tbody></table></div><p>液冷機房另見 <a href="#cdu-energy">CDU 能耗、熱傳與雙側對帳公式</a>。</p><p class="callout"><strong>先檢查時間窗、邊界與單位。</strong>期間比例先加總分子和分母再相除；功率 kW 不是能量 kWh。分母為 0 或關鍵資料缺窗時標 N/A，不填 0；PUE 同口徑小於 1，先查邊界或電表計量。</p></section>
 <section id="metrics"><p class="kicker">01 / METRICS</p><h2>各指標要回答不同問題</h2>
 <div class="scroll" tabindex="0" role="region" aria-label="機房 KPI 邊界對照"><table><thead><tr><th>指標</th><th>公式及單位</th><th>解讀與界線</th></tr></thead><tbody>
 <tr><th scope="row">PUE</th><td>全機房耗能 ÷ IT 耗能；無量綱</td><td>同時窗及相同機房範圍；納入已界定的電力損失、冷卻、輔助設施。PUE 不等於完成工作量效率、碳或總能耗。</td></tr>
@@ -135,6 +135,32 @@ main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 <p><a href="https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8">NIST SI 轉換：冷噸</a> · <a href="https://datacenters.lbl.gov/sites/default/files/Demo%20Alternative%20Cooling_Rack%20Mounted_2010.pdf">LBNL 水側熱量示例</a></p>
 </section>
 
+<section id="cdu-energy"><p class="kicker">05A / LIQUID-TO-LIQUID CDU</p><h2>CDU 能耗｜同時量「移走的熱」與「CDU 自己耗的電」</h2>
+<p>這裡以液對液 CDU（冷卻液分配單元）為例。<strong>設施水側 FWS</strong> 接收熱量，<strong>IT 技術冷卻側 TCS</strong> 把熱從液冷設備帶回；兩側經熱交換器隔離。預設 CDU 電力邊界只涵蓋該設備的輸入電表（內建泵、控制器與電源損失；再列是否含內建輔機）。上游設施泵、冰機、冷卻塔等另計。若系統為液對氣、內含冷凍循環，或泵在外側機櫃，需重新定義邊界。</p>
+<figure><figcaption>計量架構｜兩條水路的熱量各算一次，只拿來互相對帳</figcaption><ol class="flow"><li><strong>TCS｜IT 側</strong><span>IT 設備回液帶熱至 CDU；量回液與供液溫差，再取同側流量。</span></li><li><strong>CDU｜熱交換器＋內建泵</strong><span>標清溫度和流量感測點是在熱交換器還是整個機組邊界。</span></li><li><strong>FWS｜設施側</strong><span>冷供水進 CDU，暖回水出 CDU；分別量溫及流量。</span></li><li><strong>電表｜CDU 設備入口</strong><span>總有功功率與電能；若為 A/B 雙進線，只加互斥支路電量，不再加共同上游表。</span></li></ol></figure>
+<h3>逐項算一小時（與其他機房算例獨立）</h3>
+<p>示例目的是說明公式，不是任何 CDU 額定規格。兩側暫以純水近似密度 1,000 kg/m³、比熱 4.186 kJ/(kg·K)。實案需以各側冷卻液的配方、濃度及平均溫度選值，黏度也會影響壓降與泵能。</p>
+<div class="scroll" role="region" aria-label="CDU 半小時負載窗" tabindex="0"><table><thead><tr><th scope="col">時間窗</th><th scope="col">TCS 流量</th><th scope="col">TCS 供／回</th><th scope="col">傳熱率</th><th scope="col">CDU 輸入電功率</th></tr></thead><tbody>
+<tr><th scope="row">A｜0.5 h</th><td>60 m³/h</td><td>30／38 °C</td><td>558.13 kW 熱</td><td>10 kW 電</td></tr><tr><th scope="row">B｜0.5 h</th><td>36 m³/h</td><td>30／35 °C</td><td>209.30 kW 熱</td><td>6 kW 電</td></tr></tbody></table></div>
+<ol><li><strong>熱量要用同一側。</strong>公式 <code>Q̇ = ρ × (F_m³/h ÷ 3,600) × cₚ × (T_回 − T_供)</code>。A 窗代入：1,000 × (60÷3,600) × 4.186 × 8 ≈ 558.13 kW 熱；B 窗代入 36 m³/h、5 K 得 209.30 kW 熱。FWS 若以「進出機組」取差，應用暖回水減冷供水；不可拿 FWS 流量配 TCS ΔT，也不把兩側加總。</li>
+<li><strong>積分不能靠瞬時截圖。</strong>熱能＝558.13 × 0.5 ＋ 209.30 × 0.5 ≈ <strong>383.72 kWh<sub>th</sub></strong>。電能＝10 × 0.5 ＋ 6 × 0.5＝<strong>8.00 kWh<sub>e</sub></strong>；有積算電表可用期末減期初並檢查重置與重複量測。合計只算同一時窗內資料足夠的點，報告應說明覆蓋率。</li>
+<li><strong>CDU 輔機能耗強度。</strong>期間同窗 Σ電能 ÷ Σ單側熱能＝8 ÷ 383.72 ≈ <strong>0.02085 kWh<sub>e</sub>/kWh<sub>th</sub></strong>（每移走 1 MWh 熱約需 20.85 kWh 電）。平均兩個瞬時比會得到約 0.02329，是不同計算，不能冒充期間結果。停泵或零熱量窗仍保留耗電；總熱量為零時強度為 N/A。</li>
+<li><strong>換為 kW/熱傳 RT。</strong>1 RT≈3.516853 kW 熱，383.72 kWh 熱約為 109.11 RT·h；8 ÷ 109.11 ≈ <strong>0.07332 kW<sub>e</sub>/RT</strong>。分母是 CDU 實際熱傳，不是冰機蒸發器產冷，也不是散熱塔標稱冷噸。</li></ol>
+<pre tabindex="0"><code># Python 3：同側流量和溫差、分段累加後再相除。
+windows = [(0.5, 60, 8, 10), (0.5, 36, 5, 6)]  # h, m³/h, K, kW_e
+heat = sum(h * 1000 * f / 3600 * 4.186 * dt for h, f, dt, p in windows)
+elec = sum(h * p for h, f, dt, p in windows)
+print(round(heat, 2), round(elec, 2), round(elec / heat, 5))
+# 383.72 8.0 0.02085
+</code></pre>
+<h3>最近端溫差與熱平衡：用於診斷，不能直接換算節電</h3>
+<ul><li><strong>冷端逼近溫差。</strong>取同一時刻 TCS 冷供液 − FWS 冷進水；A 窗若 FWS 進水為 26 °C，則 30−26＝4 K。此處定義的是冷端量；若比較設備資料，先核對廠商 ATD 是否同樣取點。FWS 暖出水若為 34.8 °C，另一端是 38−34.8＝3.2 K，不能用冷端 4 K 當所有端點或當對數平均溫差。流量、入水條件、換熱器髒污及瞬態都會影響它；運轉容量須回到機型曲線、許用流量／壓降與冷卻液性質核對。</li>
+<li><strong>雙側比對。</strong>A 窗 FWS 若為 55 m³/h、26→34.8 °C，則傳熱估計約 562.78 kW；以 TCS 為參考，<code>e = (Q̇_FWS − Q̇_TCS) ÷ Q̇_TCS</code>，示例 +0.83%，絕對偏差 0.83%。熱差也可能來自泵的熱量落點、環境散熱、旁通或閥位切換、儲熱、儀表偏差或對時問題，<strong>不要把熱差當成節能量</strong>。若泵在被量測的供回水段內，該讀數可能含泵注入的熱，應寫明位置與口徑。</li>
+<li><strong>配對與不確定度。</strong>每側各自配對兩支溫度探頭，佈點避開混水或死角、檢查校正、流量計口徑及時間戳。若 A 窗兩探頭各有 0.10 K 標準不確定度且獨立、流量相對標準不確定度 2%，忽略冷卻液性質誤差時，單側合成約 √[(0.02)²＋(√2×0.10÷8)²]≈2.7%；0.83% 熱差僅憑此不能判成損失。仍需評估另一側及相關性，ΔT 很小時留白或標成低可信，不直接排名。</li></ul>
+<p class="callout"><strong>與既有 KPI 怎麼並列？</strong>CDU 比值只評估移熱所需的設備電力，不能當冰機 COP 或機房 PUE。一份 PUE 能量帳應按其採用的計量分類將 CDU 電量計入合適位置，不因設備接在 IT 配電後就重複加總，也不拿 CDU 熱能作 PUE 的分母。TCS 熱量僅代表液路承接的熱，不代表 IT 的所有發熱（另可能有風冷或其他散熱路徑）。</p>
+<p>一併記錄機型、泵/備援模式、兩側流量壓差與溫度、流體性質、電表位置與覆蓋率。沒有通用節能閾值；同機型、同負載與邊界，再用有校正的趨勢比較。</p>
+<p>原始參考：<a href="https://www.opencompute.org/documents/ocp-wp-l-lcdu-test-methodology-performance-rating-r1-pdf/">OCP 液對液 CDU 測試方法與效能額定</a> · <a href="https://www.vertiv.com/49eb71/globalassets/shared/vertiv-coolchip-cdu-600-application-guide-sl-07624.pdf">Vertiv CDU 600 應用指南：容量、流量與 ATD 曲線（機型例，不作共通限值）</a>。</p>
+</section>
 <section id="lab"><p class="kicker">06 / PYTHON LAB</p><h2>可執行的資料清理與聚合</h2>
 <p>標準函式庫；合成 CSV 四列與上方圖表完全相同。以 UTC 轉出標準化半開視窗，不接受缺窗或重複資料；保留錯誤並且不發布指標。時間欄代表區間起點。正式系統還要納入量測儀器、取樣整合、區間品質與原始值治理。</p>
 <p><a class="button" href="python_datacenter_efficiency_lab.py" download>下載完整 Python 實驗</a> <a class="button" href="python_datacenter_efficiency_fixture.csv" download>下載同一資料 CSV</a></p>
