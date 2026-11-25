@@ -22,9 +22,18 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
 .bars{list-style:none;padding:0;display:grid;gap:.55rem}.bars li{min-width:0;overflow-wrap:anywhere}.bar-track{background:#e6eef2;height:.65rem;border-radius:1rem;overflow:hidden}.bar-track span{display:block;height:100%;background:#277d6a;width:0}.bar-caption{font-size:.92rem}form{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.output{min-height:1.5rem;overflow-wrap:anywhere}summary{cursor:pointer;font-weight:750}
 @media(max-width:1050px){.flow{grid-template-columns:minmax(0,1fr)}.flow li:not(:last-child)::after{left:calc(50% - .23rem);top:calc(100% + .42rem);transform:rotate(135deg)}}
 @media(max-width:760px){.grid,.chain,.flow{grid-template-columns:minmax(0,1fr)}.chain li:not(:last-child)::after{left:calc(50% - .23rem);top:calc(100% + .42rem);transform:rotate(135deg)}}
+.connection-depth{overflow-wrap:anywhere;min-width:0}
+.cd-flow,.cd-grid{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.6rem;padding:0}
+.cd-flow li,.cd-grid li{background:#edf6fb;border:1px solid #aeccdf;border-radius:.55rem;padding:.65rem;min-width:0}
+.cd-flow p,.cd-grid p{margin:.3rem 0}
+.cd-table{max-width:100%;overflow:auto}.cd-table th,.cd-table td{vertical-align:top}.cd-table th{white-space:normal}
+.connection-depth pre{overflow:auto;max-width:100%}
+.connection-depth figcaption{display:block}
+.connection-depth details summary{cursor:pointer;font-weight:bold}
+@media(max-width:590px){.cd-table table,.cd-table tbody,.cd-table tr{display:block;min-width:0}.cd-table thead{position:absolute;clip-path:inset(50%);height:1px;width:1px;overflow:hidden}.cd-table tbody tr{border:1px solid #aeccdf;border-radius:.5rem;margin:.6rem 0;overflow:hidden}.cd-table th,.cd-table td{display:block;white-space:normal}.cd-table td::before{content:attr(data-label);display:block;color:#14516c;font-weight:bold}}
 </style></head><body><main>
 <header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
-<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
 </header>
 <section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
 <figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
@@ -118,6 +127,50 @@ try {
 <tr><td>SSE（概念比較）</td><td>伺服器 → 瀏覽器 / EventSource</td><td>狀態、進度、遙測事件</td><td>伺服器使用 text/event-stream；處理 proxy 緩衝、重連、Last-Event-ID 與心跳。原生 EventSource 不支援任意 Authorization 標頭。</td></tr>
 <tr><td>WebSocket（概念比較）</td><td>雙向 / WebSocket</td><td>低延遲雙向協作、時序事件</td><td>自行設計訊息契約、心跳、背壓、重連與權限；校驗 Origin，不能假設 CORS 自動保護握手。</td></tr>
 </tbody></table></div><p>更新頻率與可接受延遲是兩回事。4 個頁籤各每 3 秒查一次，約 80 次請求／分鐘；真正的流量仍取決於回應時間、退避、快取及頁籤節流。若資料只出不進，先比較輪詢和 SSE，再考慮 WebSocket。使用即時通道也要能重建目前狀態，例如先 GET 快照，再收帶事件序號的更新。</p></div>
+</section>
+<section id="connection-depth" class="connection-depth" aria-labelledby="connection-depth-title">
+<h2 id="connection-depth-title">連接方式深度研究：從首屏到重連</h2>
+<p>本節更新：<time id="connection-updated" datetime="2026-11-25T13:26:06+08:00">2026-11-25 13:26:06（台灣時間 UTC+08:00）</time>。先用 Python 伺服器或靜態站送出畫面，再根據更新頻率及訊息方向選連接；API 回傳 JSON 並不代表必須使用某種傳輸。</p>
+<ol class="cd-flow" aria-label="前後端資料生命週期">
+<li><strong>載入</strong><p>瀏覽器拿到 HTML、CSS 與 JS，建立畫面。</p></li>
+<li><strong>快照</strong><p>Fetch 讀目前狀態；記下資料流版本與最後序號。</p></li>
+<li><strong>增量</strong><p>輪詢差異、訂閱 SSE，或交由 WebSocket 雙向訊息。</p></li>
+<li><strong>收斂</strong><p>檢查重複、缺序與過期；必要時重抓快照。</p></li>
+</ol>
+
+<h3>常用連接比較</h3>
+<p>以下為工程取捨，不是固定的延遲或效能排行榜。SSE、WebSocket 同樣會受代理、後端速度、瀏覽器節流與資料大小影響。</p>
+<div class="cd-table" role="region" aria-label="連接方式優缺點" tabindex="0"><table><thead><tr><th scope="col">方法</th><th scope="col">優點</th><th scope="col">缺點與驗收</th><th scope="col">適用</th></tr></thead><tbody>
+<tr><th scope="row">伺服器渲染 HTML</th><td data-label="優點">瀏覽器只要導航即可看到首屏；不必另做快照 API。</td><td data-label="缺點與驗收">需正確轉義輸出；互動與局部刷新通常另用表單或 Fetch。驗證 HTML 錯誤頁與重整狀態。</td><td data-label="適用">導覽、報表、靜態配置頁；可搭配後續 API。</td></tr>
+<tr><th scope="row">HTTP Fetch（REST/JSON）</th><td data-label="優點">一次請求、一次結果，容易重試讀取並使用 HTTP 快取語意。</td><td data-label="缺點與驗收">不會主動收到新資料；Fetch 對 HTTP 4xx/5xx 通常仍回傳 Response，須查 <code>response.ok</code>。驗證取消、逾時及 JSON 契約。</td><td data-label="適用">初始快照、查詢、送表單或下達獨立操作。</td></tr>
+<tr><th scope="row">定時輪詢</th><td data-label="優點">沿用普通 GET、易監控；可用 ETag／304 避免重傳相同內容。</td><td data-label="缺點與驗收">仍會發出請求；更新延遲受排程與網路影響。完成後才排下一次，防止舊回應覆蓋新值。</td><td data-label="適用">低頻儀表板，或代理不允許長連線。</td></tr>
+<tr><th scope="row">長輪詢</th><td data-label="優點">伺服器等待有變化才回覆，仍使用一般 HTTP。</td><td data-label="缺點與驗收">需占用待機請求；代理逾時、重送、連線壓力與快速重試都要量測。傳回後用游標立即續接。</td><td data-label="適用">需要較快更新，但部署限制不便維持串流時。</td></tr>
+<tr><th scope="row">SSE／EventSource</th><td data-label="優點">伺服器→瀏覽器單向文字事件；內建重連，<code>id</code> 可帶回 Last-Event-ID。</td><td data-label="缺點與驗收">回補要伺服器保留歷史才成立；原生 EventSource 不能自由加自訂授權標頭。驗證代理不緩衝及心跳。</td><td data-label="適用">事件通知、設備讀值、任務進度；寫入另外走 HTTP。</td></tr>
+<tr><th scope="row">WebSocket</th><td data-label="優點">一條連線支援雙向訊息與二進位資料，可實現即時互動。</td><td data-label="缺點與驗收">須自行設計重連、驗證、續接和流量限制；標準瀏覽器 WebSocket API 不提供接收端背壓。驗證 Origin、斷線與佇列上限。</td><td data-label="適用">需要雙向互動、上游控制、協作等；不以連線本身代替授權。</td></tr>
+</tbody></table></div>
+
+<h3>啟動、重新連線與資料契約</h3>
+<ul class="cd-grid">
+<li><strong>快照加序號</strong><p><code>schema_version</code> 定義欄位相容性；<code>stream_id</code> 區別來源或重啟世代；<code>seq</code> 為同一資料流排序；<code>value_c</code> 和 <code>quality</code> 分別表示數值和品質。維護 <code>last_seq</code>，重複可忽略，缺號或串流世代改變要重抓。不要以時間戳直接當可靠排序鍵。</p></li>
+<li><strong>避免快照與訂閱間的空隙</strong><p>快照要回傳一致水位 S，續接時只取 S 之後的事件；快照與游標須對應同一資料邊界。若後端沒有保留序號區間，別承諾逐筆補齊，應重抓快照並顯示狀態已重同步。本實驗沒有持久化，重開連接從頭模擬。</p></li>
+<li><strong>限制排隊與重試</strong><p>Fetch 用 AbortController 設等待期限，不代表伺服器工作必定取消。長連線設最大佇列、最大訊息與閒置時間；可覆蓋的顯示資料可合併最新值，但告警事件不可任意丟棄。用有限的指數退避加抖動重連；授權失效不要無窮重試。</p></li>
+<li><strong>跨來源不是授權</strong><p>先選同源反向代理。跨來源 HTTP 需明確的 CORS 放行，Cookie 加上 credentials 時不能以萬用來源放行，狀態變更另做 CSRF 防護。WebSocket 不依賴 CORS 預檢，後端應驗 Origin、登入與訊息授權；外部部署使用 HTTPS/WSS 並設定反向代理逾時。</p></li>
+</ul>
+<figure class="cd-samples">
+<figcaption><strong>一個可跑的本機實驗</strong>：固定合成資料，並列 Fetch 快照、三筆 SSE 與 WebSocket 問答。同源、僅 loopback、無現場連線；HTTP 無認證，勿直接公開部署。</figcaption>
+<p><a href="python_frontend_dataflow_connection_lab.py" download>下載 FastAPI ＋瀏覽器同源實驗</a></p>
+<pre><code>python -m venv .venv
+# 啟用環境後：Linux/macOS 用 source .venv/bin/activate
+# Windows PowerShell 用 .venv\Scripts\Activate.ps1
+python -m pip install fastapi "uvicorn[standard]"
+python -m uvicorn python_frontend_dataflow_connection_lab:app --host 127.0.0.1 --port 8000</code></pre>
+<p>只用瀏覽器打開 <code>http://127.0.0.1:8000/</code>，依次點三個按鈕：Fetch 應顯示 <code>seq: 0</code>，SSE 停在第三筆 <code>seq: 3</code>，WebSocket 接到 <code>snapshot</code> 後送一筆資料並關閉。初次安裝套件可能需網路；實驗執行時只連本機。</p>
+<details><summary>為何這三條路由結果不同？</summary><dl>
+<dt><code>GET /api/snapshot</code></dt><dd>HTTP GET 輸出一個帶 schema_version 的 JSON 快照，頁面以 <code>textContent</code> 顯示而不解譯 HTML。</dd>
+<dt><code>GET /api/events</code></dt><dd>SSE 以 <code>text/event-stream</code> 傳 UTF-8。每筆資料由 <code>id</code>、<code>event</code>、<code>data</code> 與空白行組成。例子在第三筆關閉；它不示範生產重播。</dd>
+<dt><code>WS /api/ws</code></dt><dd>先檢查此實驗的 loopback Origin，接受後等待指定命令、限時回覆；正式環境仍需依使用者及資源授權。</dd>
+</dl></details></figure>
+<p>官方參考：<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">MDN Fetch</a>、<a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG SSE／EventSource</a>、<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSocket">MDN WebSocket</a>、<a href="https://fastapi.tiangolo.com/tutorial/cors/">FastAPI CORS</a>、<a href="https://fastapi.tiangolo.com/advanced/websockets/">FastAPI WebSockets</a>。</p>
 </section>
 <section id="origin"><h2>7. 同源、CORS、Cookie 與 API 安全</h2>
 <div class="card"><ul>
