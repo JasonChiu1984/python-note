@@ -73,6 +73,22 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+  
+.qgd{min-width:0;overflow-wrap:anywhere}
+.qgd figure{margin:1rem 0}
+.qgd figcaption{font-weight:850}
+.qgd-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.25rem;padding:0;list-style:none}
+.qgd-flow li{min-width:0;position:relative;padding:.6rem;background:#edf4fa;border:1px solid #c6d8e8;border-radius:.55rem}
+.qgd-flow li:not(:last-child)::after{content:"→";position:absolute;right:-1.05rem;top:calc(50% - .7rem);color:#235987}
+.qgd-flow b,.qgd-flow span{display:block}
+.qgd-table{overflow:auto;border:1px solid #c6d8e8;border-radius:.5rem}
+.qgd-table table{width:100%;min-width:37rem;border-collapse:collapse;text-align:left}
+.qgd-table :is(th,td){padding:.55rem;border-bottom:1px solid #c6d8e8;vertical-align:top}
+.qgd-table th{background:#edf4fa}
+.qgd pre{max-width:100%;overflow:auto}
+.qgd summary{font-weight:750;cursor:pointer}
+@media(max-width:800px){.qgd-flow{grid-template-columns:1fr}.qgd-flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.35rem}}
+
   </style>
 </head>
 <body>
@@ -86,6 +102,7 @@
         <a href="#matrix">Matrix</a>
         <a href="#coverage">Coverage</a>
         <a href="#workflow">Workflow</a>
+        <a href="#delivery-gate-deep-dive">交付閘門詳解</a>
         <a href="#release">Release</a>
         <a href="#sample">範例專案</a>
       </nav>
@@ -123,6 +140,65 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：workflow、matrix、coverage、unittest、py_compile、artifact、release、rollback">
         <div class="quick-links"><a href="#local">Local</a><a href="#matrix">Matrix</a><a href="#workflow">Workflow</a><a href="#release">Release</a></div>
       </div>
+<section id="delivery-gate-deep-dive" class="section-block qgd" aria-labelledby="qgd-title">
+<div class="section-head"><div><span class="eyebrow">Quality Gate · Engineering Evidence</span><h2 id="qgd-title">把檢查變成交付規則：從 PR 到實際部署</h2><p>每一道閘門都要說清楚「何時執行、擋哪個風險、什麼算通過、留下哪份證據」。同一個成品先驗證，再往預備與正式環境推進，不要每個環境各重建一次。</p></div></div>
+<figure><figcaption>架構圖｜把驗證、成品與部署權限分開</figcaption><ol class="qgd-flow"><li><b>來源與契約</b><span>Commit、鎖檔、支援矩陣、明確測試資料。</span></li><li><b>CI 建置與測試</b><span>乾淨環境執行檢查；建置一次，實測安裝後成品。</span></li><li><b>證據與成品庫</b><span>保留不可變 digest、測試報告、來源證明。</span></li><li><b>部署與營運</b><span>有權限的工作驗證同一份成品，漸進部署或回退。</span></li></ol></figure>
+<figure><figcaption>流程圖｜讓失敗停止交付，而不是只顯示一個紅色圖示</figcaption><ol class="qgd-flow"><li><b>PR 快檢</b><span>未通過 → 禁合併；修正、重跑、比對變更。</span></li><li><b>主線深檢</b><span>矩陣或整合失敗 → 不產生合格候選。</span></li><li><b>候選成品驗證</b><span>來源、雜湊、安裝或 smoke 不符 → 禁發布。</span></li><li><b>漸進發布</b><span>錯誤率、延遲或資料狀態失守 → 停止擴大並按計畫回復。</span></li></ol></figure>
+<p><a href="python_ci_quality_gate_architecture.drawio" download>下載可編輯的兩張架構與流程圖</a></p>
+<h3>Gate 矩陣：用風險決定關卡放在哪裡</h3>
+<div class="qgd-table" role="region" tabindex="0" aria-label="品質閘門矩陣">
+<table><thead><tr><th scope="col">關卡</th><th scope="col">必過條件</th><th scope="col">證據</th><th scope="col">失敗處置</th></tr></thead><tbody>
+<tr><th scope="row">PR：快速</th><td>格式／靜態檢查、單元測試、必要錯誤路徑。coverage 是補充訊號。</td><td>commit、Python 版、各項退出碼與必要測試數。</td><td>阻擋合併；零個測試、取消或必要步驟沒跑不算通過。</td></tr>
+<tr><th scope="row">主線：完整</th><td>支援版本及 OS／架構的矩陣、整合契約、遷移與復原演練。未承諾的平台另列探索，不將它混入發版條件。</td><td>每格矩陣、服務版本、測試報告、初始資料版本。</td><td>不貼可發版標籤；找出是程式、測試或基礎環境問題。</td></tr>
+<tr><th scope="row">候選：交付</th><td>裝 wheel 後在來源目錄外做 smoke；驗證成品 digest、來源及授權。依政策檢查弱點與授權條款。</td><td>成品名稱、SHA-256、來源 commit、建置環境與政策結果。</td><td>缺檔、換檔、雜湊不符或來源未核實時擋住，不能用 tag 名稱代替 digest。</td></tr>
+<tr><th scope="row">部署：營運</th><td>拉取已驗證成品；監控健康、延遲、錯誤與資料訂正狀態；明訂停止擴大的條件。</td><td>部署環境、成品 digest、核准、監測時窗與回復紀錄。</td><td>暫停流量切換。能回退才回退；不相容的資料遷移採 forward fix 或驗證過的還原。</td></tr>
+</tbody></table></div>
+<h3>直接重跑：通過、測試失敗、成品被改動</h3>
+<p>本機離線 Python 3.11+ 範例只建立合成資料，不安裝套件也不部署。先下載 <a href="python_ci_quality_gate_deep_lab.py" download>Python 品質閘門實驗</a>。</p>
+<pre><code>python python_ci_quality_gate_deep_lab.py --test
+python python_ci_quality_gate_deep_lab.py
+python python_ci_quality_gate_deep_lab.py --inject tests
+python python_ci_quality_gate_deep_lab.py --inject artifact</code></pre>
+<ul><li><code>subprocess.run([...], shell=False, timeout=..., check=False)</code> 以參數陣列執行子程序；明確辨識退出碼與逾時。不要把來自輸入的字串丟進 shell。</li><li><code>unittest</code> 用不變條件測正例、測試失敗後短路、雜湊不符與逾時；實際專案可用 <code>python -m unittest discover -s tests</code>，並另確認發現的測試數符合預期。</li><li><code>hashlib.file_digest(stream, "sha256")</code> 計算檔案內容；期望值要來自受信任的清單或驗證過的來源證明。實驗用程式內固定合成原件計算，不能證明現場的成品來源。</li><li><code>json.dumps()</code> 把結果輸出到標準輸出；錯誤說明走標準錯誤。實務報告不應包含憑證、個資或環境變數全文。</li></ul>
+<details><summary>GitHub Actions 範例：矩陣快檢和證據保存</summary>
+<p>放在教材實驗所在的儲存庫根目錄時可跑；這是教學 CI，不是自動部署設定。版本矩陣應依實際支援承諾。設定儲存庫 rulesets／required checks 才會阻擋合併。required workflow 不應因不相符的 path filter 而一直無結果；若有合併佇列，加入 <code>merge_group</code>。</p>
+<pre><code>name: Quality gate
+on: [pull_request, push, merge_group]
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Gate (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run gate
+        run: |
+          python python_ci_quality_gate_deep_lab.py --test
+          python python_ci_quality_gate_deep_lab.py &gt; gate.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() }}
+        with:
+          name: gate-python-${{ matrix.python }}
+          path: gate.json
+          if-no-files-found: ignore</code></pre>
+<p>固定完整 Action commit SHA 並查其屬於官方儲存庫；它不是永不更新的信任設定。記錄執行環境及已解析的 Python 版；需要可重現時固定 base image digest、直譯器、依賴和 runner 的相關輸入。<code>always()</code> 只保留已有報告，不將失敗改為成功。</p>
+</details>
+<details><summary>成品驗收與回退：把證據用在真正的部署決策</summary>
+<p>候選建置完成後，從受信任位置取得預期 digest，與待部署檔案比對。若建置流程已發佈 GitHub attestation，可在有存取授權的環境執行 <code>gh attestation verify path/to/artifact --repo OWNER/REPOSITORY</code>，再按組織政策核對簽署工作流程與來源。驗證來源證明不是程式安全保證。</p>
+<p>允許例外時記錄唯一編號、失敗範圍、責任人、到期日、補償控制與再驗證時點。到期自動失效；不可把所有失敗改成 <code>continue-on-error</code>。回退須指定前一個已驗證 digest、資料相容性與停止條件。文件先要求復原演練，不假設換回舊程式就會回復資料。</p>
+</details>
+<p>官方文件：<a href="https://docs.github.com/en/actions/reference/security/secure-use">GitHub Actions 安全操作</a>、<a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets">儲存庫規則</a>、<a href="https://docs.github.com/en/actions/concepts/security/artifact-attestations">成品來源證明</a>、<a href="https://docs.python.org/3/library/subprocess.html">Python 子程序</a>、<a href="https://docs.python.org/3/library/unittest.html">Python 單元測試</a>、<a href="https://docs.python.org/3/library/hashlib.html#hashlib.file_digest">SHA-256 檔案 API</a>。</p>
+</section>
       <section class="section-block" id="contract" data-group="contract"><div class="section-head"><div><span class="eyebrow">Contract</span><h2>先定義品質閘門要阻擋什麼風險</h2><p>CI/CD 不是把指令塞進 YAML，而是把專案可以交付的條件寫清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="local" data-group="local"><div class="section-head"><div><span class="eyebrow">Local Gate</span><h2>本機 gate 要和 CI 使用同一組命令</h2><p>開發者在提交前執行的檢查，應盡量等同 CI 的阻擋條件。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="matrix" data-group="matrix"><div class="section-head"><div><span class="eyebrow">Matrix</span><h2>版本矩陣依支援承諾設定</h2><p>承諾支援的版本須通過發版檢查。可另設正在評估的版本做升級預警。</p></div></div><div class="cards"></div></section>
