@@ -441,7 +441,27 @@
       .section-head { display: block; }
       .pager { flex-direction: column; }
     }
-  </style>
+  
+    .fast-figure{margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:.75rem;background:#f6faff}
+    .fast-figure figcaption{font-weight:800;color:#285c91}
+    .fast-flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.25rem;counter-reset:fast}
+    .fast-flow li{counter-increment:fast;position:relative;min-width:0;overflow-wrap:anywhere;border:1px solid #afc3d7;background:#fff;border-radius:.65rem;padding:.65rem}
+    .fast-flow strong::before{content:counter(fast) " · ";color:#285c91}
+    .fast-flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .18rem);top:36%;color:#285c91;font-weight:bold}
+    .fast-table{margin:.6rem 0 1rem;overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:.6rem}
+    .fast-table table{min-width:39rem;width:100%;border-collapse:collapse;text-align:left}
+    .fast-table th,.fast-table td{padding:.6rem;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+    .fast-table thead th,.fast-note{background:#edf6ff}
+    .fast-note{border-left:.25rem solid #2f6fbb;padding:.65rem}
+    #runnable-fastapi pre{max-width:100%;overflow:auto}
+    #runnable-fastapi details{margin:.6rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.55rem}
+    #runnable-fastapi summary{cursor:pointer;font-weight:750}
+    :not(pre) > code {overflow-wrap:anywhere}
+    @media(max-width:1050px){
+      .fast-flow{grid-template-columns:1fr}
+      .fast-flow li:not(:last-child)::after{content:"↓";left:50%;top:100%}
+    }
+</style>
 </head>
 <body>
   <div class="mobile-nav" aria-label="手機導覽">
@@ -466,6 +486,9 @@
         <span class="brand-copy"><strong>FastAPI 工程教學</strong><span>API Service to Delivery</span></span>
       </a>
       <nav class="nav" aria-label="章節導覽">
+        <a href="#architecture">架構與請求流程</a>
+        <a href="#api-reference">常用 API 對照</a>
+        <a href="#runnable-fastapi">實作與打包</a>
         <a href="#map">互動式心智圖</a>
         <a href="#intro">FastAPI 簡介</a>
         <a href="#commands">指令與參數</a>
@@ -484,13 +507,13 @@
           <h1>FastAPI 指令、API、應用與打包實戰</h1>
           <p>用專案工程角度學 FastAPI：不是只會寫一個 endpoint，而是能設計 request/response schema、dependency injection、error boundary、測試、OpenAPI、部署與 release smoke test。</p>
           <div class="status-strip" aria-label="教材重點">
-            <span>v0.9.0</span>
+            <span>架構、API 與 Wheel</span>
             <span>36 張互動卡</span>
             <span>心智圖 / 指令 / 路由 / 驗證 / 部署</span>
             <span>顯示輸出，不假執行</span>
           </div>
           <div class="hero-actions">
-            <a class="button primary" href="#map">看心智圖</a>
+            <a class="button primary" href="#runnable-fastapi">跑完整實驗</a>
             <a class="button green" href="#commands">看指令參數</a>
             <a class="button" href="index.html">回教材入口</a>
           </div>
@@ -566,6 +589,20 @@
         </div>
       </section>
 
+<section class="section-block" id="architecture">
+ <div class="section-head"><div><span class="eyebrow">Architecture · Request lifecycle</span><h2>從一個 HTTP 請求到可維護的 API 專案</h2><p>以冷水機溫度遙測為例。HTTP 層負責合約與驗證，業務層決定可寫範圍、權限與交易，持久化層處理資料；不把設備控制、遠端等待與資料庫重試全部塞進 router。</p></div></div>
+ <figure class="fast-figure"><figcaption>圖一｜部署架構：每層應有自己的責任</figcaption><ol class="fast-flow">
+ <li><strong>呼叫端</strong><br>Web／閘道／測試客戶端，帶入型別化 JSON 與必要身分。</li>
+ <li><strong>入口代理</strong><br>TLS、大小及頻率限制、關聯 ID；只信任核可代理的 forwarded headers。</li>
+ <li><strong>Uvicorn → FastAPI</strong><br>ASGI 處理連線；APIRouter、Depends 接線合約與身分。</li>
+ <li><strong>Service / Repository</strong><br>服務擁有業務規則及交易；Repository 封裝持久化與方言。</li>
+ <li><strong>DB／任務佇列</strong><br>寫入用持久化與冪等策略；耗時任務推送有追蹤的佇列。</li></ol></figure>
+ <figure class="fast-figure"><figcaption>圖二｜一次 POST 從 JSON 到狀態碼</figcaption><ol class="fast-flow">
+ <li><strong>路由比對</strong><br>HTTP method ＋ path；例如 POST /v1/readings。</li><li><strong>輸入合約</strong><br>解析 Path、Query、Body 等；Depends 解出依賴。不要依賴欄位驗證與依賴的相對執行順序來保護資源。</li>
+ <li><strong>授權與業務規則</strong><br>驗身分、對資源判斷授權，再做寫入；本機範例不接正式資料。</li><li><strong>資料寫入</strong><br>正常提交；驗證失敗不寫；可預期的衝突以一致錯誤合約回應。</li>
+ <li><strong>輸出合約</strong><br>正確回應模型、HTTP 201 與 Location；輸出驗證錯誤屬伺服器缺陷。</li></ol></figure>
+ <p><strong>並行選擇：</strong>能全程 await 的 I/O 用 async def；同步驅動可用同步路由或明確隔離阻塞；不要在 async def 裡直接執行阻塞 I/O。CPU 密集工作另用進程或任務服務。多 workers 不是共享記憶體，連線池預算需乘以 worker × 副本數，再留出遷移和管理用量。</p>
+</section>
       <section class="section-block" id="intro" data-group="intro">
         <div class="section-head"><div><span class="eyebrow">FastAPI Intro</span><h2>簡介與專案心智模型</h2><p>先把 FastAPI 放在正確位置：它是 ASGI web framework，靠 Python type hints、Pydantic、Starlette 與 OpenAPI，把 API contract 變成可驗證、可測試、可部署的 service。</p></div></div>
         <div class="cards"></div>
@@ -590,6 +627,22 @@
         <div class="cards"></div>
       </section>
 
+<section class="section-block" id="api-reference">
+ <div class="section-head"><div><span class="eyebrow">Common API Reference</span><h2>常用 API 用法與選型表</h2><p>先寫 method、資料位置、回應型別和失敗合約，再寫 endpoint。JSON Schema 是資料契約，不代替身分、租戶、資料庫約束或速率限制。</p></div></div>
+ <div class="fast-table" role="region" tabindex="0" aria-label="FastAPI 常見 API"><table><thead><tr><th scope="col">用途</th><th scope="col">寫法與案例</th><th scope="col">實務重點</th></tr></thead><tbody>
+ <tr><th scope="row">GET 單筆</th><td><code>reading_id: UUID</code> 取 path；回應 <code>ReadingOut</code></td><td>格式錯 422、不存在 404；先授權再讀私有資源。</td></tr>
+ <tr><th scope="row">GET 清單</th><td><code>Query(ge=1, le=100)</code> 限制頁大小；Query 篩裝置</td><td>固定排序；高寫入量改游標分頁，避免無上限掃描。</td></tr>
+ <tr><th scope="row">POST 建立</th><td>用 Pydantic Body + <code>response_model</code>；成功 201 + Location</td><td>可能重送的寫入要有冪等鍵、唯一約束及衝突處理；樣品簡化未實作。</td></tr>
+ <tr><th scope="row">PUT / PATCH / DELETE</th><td>PUT 完整更新；PATCH 可用 <code>model_dump(exclude_unset=True)</code>；DELETE 可回 204</td><td>PATCH 區分「沒送」與 explicit null；防止舊版覆蓋可用版本欄位／If-Match；204 不帶 body。</td></tr>
+ <tr><th scope="row">Header / Cookie</th><td><code>Header()</code> 讀關聯 ID；<code>Cookie()</code> 讀工作階段</td><td>不能信任自稱身分的 header；Cookie 身分要考慮 CSRF、Secure、HttpOnly、SameSite。</td></tr>
+ <tr><th scope="row">Multipart 上傳</th><td><code>UploadFile</code> ＋ <code>File()</code>；另裝 multipart 支援</td><td>限制總大小、內容與儲存位置；MIME 宣告不可信，非必要不接受檔案。</td></tr>
+ <tr><th scope="row">SSE / WebSocket</th><td>SSE 單向事件；WebSocket 雙向互動</td><td>逐連線驗權、心跳、背壓、斷線續傳；不同協定不以同一個 Swagger 表格視為完成。</td></tr>
+ <tr><th scope="row">依賴與生命週期</th><td><code>Annotated[Repo, Depends(get_repo)]</code>；<code>lifespan</code></td><td>每請求依賴和程序層資源分開；TestClient 用 with 執行 startup 跟 shutdown。</td></tr>
+ <tr><th scope="row">背景工作</th><td><code>BackgroundTasks</code> 適合小型回應後工作；長工作 202 回查詢資源</td><td>程序重啟可能丟失，不能當可靠任務佇列，也不應承諾 exactly-once。</td></tr>
+ </tbody></table></div>
+ <p class="fast-note"><strong>安全界線：</strong>401 表未驗證（Bearer 通常附 WWW-Authenticate），403 表身分已確認但無權限。JWT 驗簽、演算法、issuer、audience、期限後，再對資源檢查角色／scope／tenant。CORS 只是瀏覽器跨來源政策，既非認證亦非授權。輸出型別不是授權替代：敏感資料先不查，或明確映射成公開欄位。</p>
+ <p><a href="https://fastapi.tiangolo.com/tutorial/body/">Request Body</a> · <a href="https://fastapi.tiangolo.com/tutorial/response-model/">Response Model</a> · <a href="https://fastapi.tiangolo.com/tutorial/dependencies/">Dependencies</a> · <a href="https://fastapi.tiangolo.com/tutorial/cors/">CORS</a> · <a href="https://docs.pydantic.dev/latest/concepts/models/">Pydantic Models</a></p>
+</section>
       <section class="section-block" id="routing" data-group="routing">
         <div class="section-head"><div><span class="eyebrow">Routing</span><h2>路由、回應與 API contract</h2><p>每個 path operation 都是對外契約：path/query/body/status/response model 錯了，前端、SDK、CI、監控都會一起痛。</p></div></div>
         <div class="cards"></div>
@@ -610,6 +663,204 @@
         <div class="cards"></div>
       </section>
 
+<section class="section-block" id="runnable-fastapi">
+ <div class="section-head"><div><span class="eyebrow">Runnable · Build · Smoke Test</span><h2>實作：本機 FastAPI 冷水機遙測</h2><p>這是合成資料樣品，只綁本機、無正式認證、不連設備、不持久化。由 lifespan 管理記憶體 Repository；採單 worker；驗證會接受含時區的時間並標準化為 UTC，禁止多餘欄位，並限制溫度與清單大小。</p></div></div>
+ <p><a class="button primary" href="fastapi-learning-kit.zip" download>下載完整實驗專案 ZIP</a> <a class="button" href="fastapi-learning-kit/README.md">操作說明</a> <a class="button" href="fastapi-learning-kit/telemetry_api/main.py" download>下載主程式</a></p>
+ <pre><code>cd fastapi-learning-kit
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install '.[dev]'
+python -m pytest -q
+fastapi dev --host 127.0.0.1</code></pre>
+ <p>另開一個終端機；在命令列練成功與失敗，再看 <code>/docs</code> 與 <code>/openapi.json</code>。curl 範例只連 localhost：</p>
+ <pre><code>curl -i -X POST http://127.0.0.1:8000/v1/readings \
+  -H 'Content-Type: application/json' \
+  -d '{"device":"CHW01","temperature_c":7.25,"observed_at":"2026-11-25T17:00:00+08:00"}'
+curl -fsS 'http://127.0.0.1:8000/v1/readings?device=CHW01&amp;limit=10'
+curl -i http://127.0.0.1:8000/v1/readings/not-uuid</code></pre>
+ <details><summary>展開 app、路由、模型與 lifespan</summary><pre><code>&quot;&quot;&quot;Synthetic local telemetry API. No live devices or production security.&quot;&quot;&quot;
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from threading import Lock
+from typing import Annotated, Literal
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+
+class ReadingIn(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    device: str = Field(pattern=r&quot;^[A-Z][A-Z0-9_-]{1,31}$&quot;)
+    temperature_c: float = Field(ge=-100, le=200, strict=True)
+    observed_at: AwareDatetime
+
+
+class ReadingOut(ReadingIn):
+    id: UUID
+
+
+class ReadingPage(BaseModel):
+    items: list[ReadingOut]
+    offset: int
+    limit: int
+
+
+class ReadingRepository:
+    def __init__(self):
+        self.lock = Lock()
+        self.rows: dict[UUID, dict] = {}
+
+    def create(self, payload: ReadingIn) -&gt; dict:
+        key = uuid4()
+        row = payload.model_dump()
+        row[&quot;observed_at&quot;] = payload.observed_at.astimezone(UTC)
+        row.update(id=key, stored_at=datetime.now(UTC))
+        with self.lock:
+            if len(self.rows) &gt;= 1000:
+                raise HTTPException(status_code=503, detail=&quot;demo storage is full&quot;)
+            self.rows[key] = row
+        return row.copy()
+
+    def get(self, key: UUID) -&gt; dict | None:
+        with self.lock:
+            row = self.rows.get(key)
+            return row.copy() if row else None
+
+    def list(self, offset: int, limit: int, device: str | None) -&gt; list[dict]:
+        with self.lock:
+            rows = [row for row in self.rows.values() if not device or row[&quot;device&quot;] == device]
+            return [row.copy() for row in rows[offset:offset + limit]]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.repository = ReadingRepository()
+    try:
+        yield
+    finally:
+        del app.state.repository
+
+
+def get_repo(request: Request) -&gt; ReadingRepository:
+    return request.app.state.repository
+
+
+Repo = Annotated[ReadingRepository, Depends(get_repo)]
+router = APIRouter(prefix=&quot;/v1/readings&quot;, tags=[&quot;readings&quot;])
+
+
+@router.get(&quot;&quot;, response_model=ReadingPage)
+def list_readings(
+    repo: Repo,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    device: Annotated[str | None, Query(pattern=r&quot;^[A-Z][A-Z0-9_-]{1,31}$&quot;)] = None,
+):
+    # Convert each record to its public contract before returning nested data.
+    items = [ReadingOut.model_validate({key: row[key] for key in ReadingOut.model_fields})
+             for row in repo.list(offset, limit, device)]
+    return ReadingPage(items=items, offset=offset, limit=limit)
+
+
+def public_row(row: dict) -&gt; dict:
+    # Internal fields, e.g. stored_at, must not enter an API response.
+    return {key: row[key] for key in ReadingOut.model_fields}
+
+
+@router.get(&quot;/{reading_id}&quot;, response_model=ReadingOut, name=&quot;get_reading&quot;,
+            responses={404: {&quot;description&quot;: &quot;Unknown reading&quot;}})
+def get_reading(reading_id: UUID, repo: Repo):
+    row = repo.get(reading_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=&quot;reading not found&quot;)
+    return public_row(row)
+
+
+@router.post(&quot;&quot;, status_code=201, response_model=ReadingOut,
+             responses={503: {&quot;description&quot;: &quot;Lab capacity reached&quot;}})
+def create_reading(payload: ReadingIn, repo: Repo, response: Response, request: Request):
+    row = repo.create(payload)
+    response.headers[&quot;Location&quot;] = str(request.url_for(&quot;get_reading&quot;, reading_id=row[&quot;id&quot;]).path)
+    return public_row(row)
+
+
+app = FastAPI(title=&quot;Synthetic HVAC Telemetry&quot;, version=&quot;1.0.0&quot;, lifespan=lifespan)
+app.include_router(router)
+
+
+@app.get(&quot;/health/live&quot;)
+def live() -&gt; dict[str, Literal[&quot;live&quot;]]:
+    return {&quot;status&quot;: &quot;live&quot;}
+
+
+@app.get(&quot;/health/ready&quot;)
+def readiness(repo: Repo) -&gt; dict[str, Literal[&quot;ready&quot;]]:
+    # Memory lab only: dependency resolves a live repository.
+    return {&quot;status&quot;: &quot;ready&quot;}
+</code></pre></details>
+ <details><summary>展開 pytest / TestClient 回歸測試</summary><pre><code>from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+
+from telemetry_api.main import app
+
+PAYLOAD = {&quot;device&quot;: &quot;CHW01&quot;, &quot;temperature_c&quot;: 7.25,
+           &quot;observed_at&quot;: &quot;2026-11-25T17:00:00+08:00&quot;}
+
+
+@pytest.fixture
+def client():
+    # Context manager runs lifespan (startup and shutdown).
+    with TestClient(app) as session:
+        yield session
+
+
+def test_create_and_read(client):
+    created = client.post(&quot;/v1/readings&quot;, json=PAYLOAD)
+    assert created.status_code == 201
+    row = created.json()
+    assert set(row) == set(PAYLOAD) | {&quot;id&quot;}
+    assert row[&quot;observed_at&quot;] == &quot;2026-11-25T09:00:00Z&quot;
+    assert client.get(created.headers[&quot;Location&quot;]).json() == row
+
+
+def test_list_filter_pagination(client):
+    client.post(&quot;/v1/readings&quot;, json=PAYLOAD)
+    client.post(&quot;/v1/readings&quot;, json=PAYLOAD | {&quot;device&quot;: &quot;CHW02&quot;})
+    assert [r[&quot;device&quot;] for r in client.get(&quot;/v1/readings?limit=1&amp;offset=1&quot;).json()[&quot;items&quot;]] == [&quot;CHW02&quot;]
+    assert len(client.get(&quot;/v1/readings?device=CHW01&quot;).json()[&quot;items&quot;]) == 1
+    assert client.get(&quot;/v1/readings?limit=101&quot;).status_code == 422
+
+
+@pytest.mark.parametrize(&quot;invalid&quot;, [{&quot;temperature_c&quot;: &quot;7.25&quot;}, {&quot;temperature_c&quot;: 201},
+    {&quot;observed_at&quot;: &quot;2026-11-25T09:00:00&quot;}, {&quot;unexpected&quot;: True}, {&quot;device&quot;: &quot;bad device&quot;}])
+def test_reject_invalid_payload(client, invalid):
+    assert client.post(&quot;/v1/readings&quot;, json=PAYLOAD | invalid).status_code == 422
+    assert client.get(&quot;/v1/readings&quot;).json()[&quot;items&quot;] == []
+
+
+def test_status_and_openapi(client):
+    assert client.get(&quot;/health/live&quot;).json() == {&quot;status&quot;: &quot;live&quot;}
+    assert client.get(&quot;/health/ready&quot;).json() == {&quot;status&quot;: &quot;ready&quot;}
+    assert client.get(&quot;/v1/readings/not-uuid&quot;).status_code == 422
+    assert client.get(f&quot;/v1/readings/{uuid4()}&quot;).status_code == 404
+    schema = client.get(&quot;/openapi.json&quot;).json()
+    assert &quot;201&quot; in schema[&quot;paths&quot;][&quot;/v1/readings&quot;][&quot;post&quot;][&quot;responses&quot;]
+</code></pre></details>
+ <h3>開發、打包、部署：不同命令解不同問題</h3>
+ <div class="fast-table" role="region" tabindex="0" aria-label="FastAPI 命令及階段"><table><thead><tr><th scope="col">指令</th><th scope="col">場景</th><th scope="col">應驗證</th></tr></thead><tbody>
+ <tr><th scope="row"><code>fastapi dev --host 127.0.0.1</code></th><td>開發者本機，啟用 reload</td><td>不對外開放；重啟會重建程序狀態。</td></tr>
+ <tr><th scope="row"><code>fastapi run --host 127.0.0.1</code></th><td>本機以無 reload 模式驗收</td><td>CLI 的 run 預設可能聽所有介面，實驗明確指定 loopback。</td></tr>
+ <tr><th scope="row"><code>python -m build --wheel</code></th><td>封裝 import 路徑與依賴中繼資料</td><td>在新 venv 安裝 wheel，離開原始碼目錄再測，避免誤測 workspace 原檔。</td></tr>
+ <tr><th scope="row"><code>python -m uvicorn telemetry_api.main:app --host 127.0.0.1</code></th><td>直接由 ASGI server 啟動已安裝的 wheel</td><td>驗 readiness、OpenAPI、成功與失敗 API；預設單 worker。</td></tr>
+ <tr><th scope="row"><code>docker build -t python-note-telemetry .</code></th><td>用附帶 Dockerfile 封裝已建 wheel</td><td>容器內可聽 0.0.0.0，宿主實驗只映射 127.0.0.1。正式映像需 digest／依賴鎖、SBOM、掃描與回滾。</td></tr>
+ </tbody></table></div>
+ <p class="fast-note">已驗證 Python 3.12、FastAPI 0.165.0、Pydantic 2.14.4：8 項 pytest、wheel 建置、乾淨 venv 安裝後的本機 HTTP readiness 與 OpenAPI。Docker 未建置／未啟動，無正式部署、實體設備或負載測試。</p>
+ <p>正式環境的 liveness 檢測程序能否服務；readiness 額外檢測是否可接流量，依賴檢測應設超時。部署前壓測 p95/p99、排隊及超時，觀測 4xx/5xx；變更合約先保相容，遷移獨立執行，逐步放流量並保留回退策略。</p>
+ <p><a href="https://fastapi.tiangolo.com/fastapi-cli/">FastAPI CLI</a> · <a href="https://fastapi.tiangolo.com/advanced/events/">Lifespan</a> · <a href="https://fastapi.tiangolo.com/advanced/testing-events/">Testing lifespan</a> · <a href="https://fastapi.tiangolo.com/deployment/docker/">FastAPI Docker</a> · <a href="https://fastapi.tiangolo.com/deployment/server-workers/">Workers</a></p>
+</section>
       <section class="section-block" id="checklist">
         <div class="section-head"><div><span class="eyebrow">Checklist</span><h2>專案驗收清單</h2><p>完成此篇後，你應該能把一個 FastAPI service 從 contract、code、test、package 到 deployment smoke test 串起來。</p></div></div>
         <div class="check-grid">
@@ -1078,16 +1329,18 @@ def get_settings() -> Settings:
           tag: "Security",
           title: "Bearer token 權限邊界",
           visual: "lock",
-          summary: "安全不是 decorator 裝飾而已。要定義 current user、scope、permission denied 格式與審計事件。",
+          summary: "此卡是本機固定假 token 教學，不是 JWT 或正式認證。正式驗證須定義主體、資源權限、拒絕及稽核。",
           table: ["安全邊界", "`Security(...)` / `Depends(...)`", "JWT、service token、內部 API", "只驗 token 存在，不驗 scope 和租戶"],
           code: String.raw`from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+# Loopback mock only; do not ship a fixed token.
 bearer = HTTPBearer()
 
 def require_token(token: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
     if token.credentials != "dev-token":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            headers={"WWW-Authenticate": "Bearer"})
     return "user-1"`,
           output: "Missing or invalid token returns 401.",
           steps: [

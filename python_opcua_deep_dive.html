@@ -1,0 +1,149 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OPC UA 深度研究｜Python 工業通訊教材</title>
+<style>
+:root{font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:#142d43;background:#eef5f7}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{color:#edf9fd;background:#102c3e;padding:clamp(1rem,4vw,3rem)}header a{color:#9de9ee}header div,main,footer{max-width:72rem;margin:auto}main,footer{padding:clamp(.75rem,3vw,2rem)}h1{font-size:clamp(2rem,6vw,4rem);line-height:1.1;margin:.5rem 0 1rem}a{color:#005d6f;text-underline-offset:.2em}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1rem}nav a,.download{border:1px solid #aacbd2;background:#e3f5f5;border-radius:.5rem;padding:.3rem .6rem;display:inline-block}section{background:#fff;border:1px solid #bbd0d9;border-radius:.8rem;margin:0 0 1rem;padding:clamp(.75rem,2.5vw,1.7rem)}h2{margin:.15rem 0 .5rem}h3{margin-bottom:.3rem}.kicker,figcaption{color:#005d6f;font-weight:800}header .kicker{color:#9de9ee}.flow{list-style:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem;padding:0;counter-reset:step}.flow li{counter-increment:step;position:relative;padding:.65rem;border:1px solid #8bb6c0;border-radius:.5rem;background:white;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:#005d6f}.flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .16rem);top:38%;color:#005d6f;font-weight:800}figure{margin:1rem 0;padding:.8rem;border:1px solid #bed2dc;border-radius:.6rem;background:#f2f8fa}.scroll{max-width:100%;overflow:auto;border:1px solid #bed2dc;border-radius:.5rem}table{min-width:37rem;width:100%;border-collapse:collapse;text-align:left}th,td{padding:.6rem;vertical-align:top;border-bottom:1px solid #cbdce3}thead th{background:#e3f5f5}tbody tr:nth-child(even){background:#f2f8fa}pre{overflow:auto;padding:.8rem;color:#e9f9fe;background:#132b3d;border-radius:.6rem}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}details{border:1px solid #bbd0d9;padding:.65rem;border-radius:.55rem}summary{cursor:pointer;font-weight:700}:focus-visible{outline:2px solid #007d94;outline-offset:3px}.callout{background:#fff3dc;border-left:.3rem solid #ab6e13;padding:.6rem .8rem}@media(max-width:760px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:100%;left:50%}}
+</style>
+<body id="top"><header><div><p class="kicker">PYTHON 工業通訊教材 / 深度研究</p><h1>OPC UA：從點位語意到可驗收的可靠性</h1><p>以機房冰水系統為例，從 PLC/DDC 到監控、趨勢與告警：知道資料代表什麼、何時可能漏掉，以及怎麼恢復。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html#opcua">回工業協定比較</a></p></div></header>
+<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#model">資訊模型</a><a href="#security">安全</a><a href="#subscription">訂閱</a><a href="#loss">三層漏失</a><a href="#reconnect">重連</a><a href="#lab">實驗</a><a href="#acceptance">驗收</a></nav>
+<section id="architecture"><div class="kicker">01 / ARCHITECTURE</div><h2>控制留在現場；上位機負責觀測</h2>
+<figure><figcaption>圖一｜機房冰水資料通路：Python 不在控制迴路</figcaption><ol class="flow">
+<li><strong>現場點位</strong><br>出回水溫、流量、泵浦運轉回授。</li><li><strong>PLC / DDC</strong><br>保留 PID、連鎖與故障安全；上位機失聯仍按原設計運轉。</li><li><strong>OPC UA Server</strong><br>由 PLC 內建或閘道提供；定義型別、品質與時間。</li><li><strong>Python Client</strong><br>唯讀訂閱、核對應用與使用者身分、拆開接收與儲存。</li><li><strong>歷史與告警</strong><br>依品質與新鮮度判斷；標記缺測，不用前一個好值冒充新資料。</li></ol></figure>
+<p>若專案需要命令通道，應以獨立具名身分、允許的節點與值範圍、寫入稽核及現場連鎖處理；本教材不提供設備控制程式，也不把 OPC UA 當即時控制或安全連鎖的替代品。此章為 Client/Server；<a href="https://reference.opcfoundation.org/specs/OPC-10000-14/full">Part 14 PubSub</a> 是另一種通訊模型。</p></section>
+
+<section id="model"><div class="kicker">02 / INFORMATION MODEL</div><h2>NodeId、Namespace URI、DataValue 是整合契約</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="機房點位契約"><table><thead><tr><th>示例點位</th><th>型別與語意</th><th>消費端驗證</th></tr></thead><tbody>
+<tr><th scope="row">CHW01/LeavingTemperature</th><td>Double，°C；類比點可使用 AnalogItemType、EngineeringUnits、EURange</td><td>保留品質和時間，再計算溫差；不把缺測填成 0</td></tr>
+<tr><th scope="row">CHW01/Flow</th><td>Double，m³/h；量程由核可點表定義</td><td>零流量不必然故障；對照泵浦命令與回授</td></tr>
+<tr><th scope="row">Pump01/RunFeedback</th><td>Boolean；設備真實運轉回授</td><td>不等於 StartCommand；來源斷線不是 OFF</td></tr>
+</tbody></table></div>
+<p>位址空間由 Object、Variable、Method 等節點和具類型的 Reference 組成。BrowseName 是瀏覽用名稱，DisplayName 可本地化，皆不能當持久主鍵。記錄「伺服器身分＋命名空間 URI＋識別字類型和值」；每次新 Session 讀取 NamespaceArray 解析數字索引，不硬編碼 ns=2。教材用 URI <code>urn:python-note:hvac:lab</code> 與字串識別字 <code>Plant01.CHW01.LeavingTemperature</code>。</p>
+<p>DataValue 包含 Value、StatusCode、可選 SourceTimestamp 與 ServerTimestamp；另記客戶端接收時間。Bad 不當正常值，Uncertain 另標註；來源時間戳不是每次發布都更新，伺服器時間不是來源採集時間。跨設備量測延遲前先同步時鐘。</p>
+<p><a href="https://reference.opcfoundation.org/specs/OPC-10000-3/8.2">Part 3 NodeId</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/7.11">Part 4 DataValue</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-8/full">Part 8 Data Access</a></p></section>
+
+<section id="security"><div class="kicker">03 / SECURITY</div><h2>端點、應用憑證、使用者、授權分開驗證</h2><ol>
+<li><strong>端點。</strong>核對 URL、TransportProfile、SecurityPolicy、MessageSecurityMode、UserTokenPolicy。正式環境使用雙端核可的 SignAndEncrypt；不因連線錯誤默默退為 None。Sign 提供訊息完整性，不等於加密；實際可用政策需對照設備及組織基準。</li>
+<li><strong>應用身分。</strong>雙端配置 TrustList 或核可 CA。由可信管道查核憑證、ApplicationUri、主機名稱及撤銷政策；控管私鑰與到期輪替，不能自動信任 rejected 區的憑證。</li>
+<li><strong>使用者與角色。</strong>Session 使用者驗證與 Client 應用憑證不是同一件事。採集帳號只給核可節點所需 Browse、Read 等權限，不授權 Write、Call；用實際身分回歸驗證，不僅看設定畫面。</li>
+<li><strong>網路分區。</strong>白名單限定來源、目的地與連線方向；不直接曝露給公網。追蹤連線錯誤、憑證到期與授權拒絕，不把密碼和私鑰放入日志。</li></ol>
+<p><a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4">Part 2 Security architecture</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4.10">OPC UA 應用身分驗證</a></p></section>
+
+<section id="subscription"><div class="kicker">04 / SUBSCRIPTION</div><h2>採樣、變更通知、發布是不同時間尺度</h2>
+<figure><figcaption>圖二｜從 PLC 更新到資料存盤</figcaption><ol class="flow"><li><strong>來源更新</strong><br>PLC Scan、驅動或閘道刷新各有週期。</li><li><strong>取樣與過濾</strong><br>依修訂後 SamplingInterval 取樣並檢查 DataChangeFilter。</li><li><strong>Item 佇列</strong><br>每個監視項目各自排隊，滿時依規則丟棄。</li><li><strong>訂閱發布</strong><br>按訂閱 PublishingInterval，回覆客戶端待處理的 Publish 請求。</li><li><strong>消費入庫</strong><br>檢查 DataValue、序號及品質，再進應用有界佇列。</li></ol></figure>
+<p>典型順序是 OpenSecureChannel → CreateSession → ActivateSession → CreateSubscription → CreateMonitoredItems。SecureChannel 保護傳輸；Session 保存使用者與服務狀態；Subscription 管理通知，三者不等同一條 TCP 連線。記錄實際 revisedSamplingInterval、revisedPublishingInterval、revisedQueueSize，以及 keep-alive/lifetime；要求值不是保證。</p>
+<p>例如要求每 250 ms 採樣、1 s 發布，底層若每 1 s 更新一次，仍無法得到四個獨立量測。queueSize=1 適合最新值，不保證保留中間轉換；大於 1 再搭配 discardOldest 選保留較新或較早通知。類比點可測試伺服器支援的絕對 deadband，例如 0.1 °C；事件與資料變更不可混同，BACnet COV 也不是 OPC UA MonitoredItem。</p>
+<p>估算 item 容量：每秒峰值通知 × 可容忍未送出秒數 ＋ 裕量。4 筆/s × 3 s 可先試 16，依修訂後數值與壓測調整；這不是重傳佇列容量。Keep-alive 表示 Subscription 有回應，不代表每個點位新鮮。</p>
+<p><a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2">Sampling</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.5">Queue</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.1">Subscription model</a></p></section>
+
+<section id="loss"><div class="kicker">05 / LOSS BOUNDARIES</div><h2>三層漏失：先辨識缺在哪裡</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="三層漏失及回復"><table><thead><tr><th>層級</th><th>觀測訊號</th><th>恢復邊界</th></tr></thead><tbody>
+<tr><th scope="row">源頭／MonitoredItem</th><td>未取樣、被過濾、或佇列滿而丟棄。DataValue 佇列大小大於 1 時，可用 Overflow InfoBit 辨識伺服器標記；大小為 1 不可藉缺少旗標證明沒丟資料。</td><td>核對 PLC 更新與來源紀錄、實際取樣間隔、deadband、滿佇列策略。Republish 不會復活尚未成為已送出訊息的變更。</td></tr>
+<tr><th scope="row">Subscription 重傳</th><td>追蹤同一 Subscription 的 NotificationMessage 序號和 availableSequenceNumbers。Keep-alive 不等同新資料；重傳佇列可能淘汰舊訊息。</td><td>Republish 僅重取仍保留的已送出訊息。Bad_MessageNotAvailable 不證明資料完整；依缺口決定補歷史或重新同步現況。</td></tr>
+<tr><th scope="row">Client／應用儲存</th><td>回呼卡住、應用佇列滿、程序中斷或 DB commit 失敗。協定 ACK 不等於已持久化。</td><td>記錄 dropped、backlog 與寫入錯誤；依完整性需求用可持久 spool 或上游歷史。Republish 不保證補回已 ACK 而未存盤的資料。</td></tr>
+</tbody></table></div><p class="callout">Read／ResendData 更新的是當前值，不是完整中間歷程。需要補洞時，要有 Historian／Historical Access 或可信來源紀錄，且保存缺口證據。</p></section>
+
+<section id="reconnect"><div class="kicker">06 / RECOVERY</div><h2>重連先沿用、再補傳，最後重建</h2>
+<ol><li>偵測失聯後標記 degraded；對 transport/channel、訂閱逾時和單點品質分開處理，採有抖動的退避。</li>
+<li>先建立新 SecureChannel，嘗試 ActivateSession 沿用可用的舊 Session；失效才建立新 Session 並在伺服器支援且身分符合時 TransferSubscriptions。無法移轉才重建 Subscription、MonitoredItems 並重新解析 namespace。</li>
+<li>沿用或移轉成功時，依規範從下一個預期序號 Republish，直到 Bad_MessageNotAvailable，再恢復一般 Publish；若不能補全，記缺口，避免舊重傳覆蓋已接收的新值，處理序號回繞和重建訂閱世代。</li>
+<li>對不可補的缺口 Read 或在支援時 ResendData 恢復當前狀態；依支援情況補歷史。記錄缺口時間窗、補正方式與未恢復點位。</li></ol>
+<p><a href="https://reference.opcfoundation.org/specs/OPC-10000-4/6.7">Part 4 重連</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.7">移轉訂閱</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-11/full">Part 11 歷史存取</a></p></section>
+
+<section id="lab"><div class="kicker">07 / RUNNABLE LAB</div><h2>Python 實驗：唯讀點位、時間戳與應用佇列</h2>
+<p>使用 Python 3.12 和 asyncua 2.1.0，同一個程序內以真實 TCP 連線跑合成 Server／Client。僅綁 <code>127.0.0.1:48531</code>，使用 NoSecurity 並會出現預期的未加密警告；不可把範例改為 OT 網路端點或對外綁定。</p>
+<p><a class="download" href="opcua-learning-kit/loopback_lab.py" download>下載 loopback_lab.py</a> <a class="download" href="opcua-learning-kit/requirements.txt" download>下載 requirements.txt</a></p>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python loopback_lab.py</code></pre>
+<p>已實測 URI 解析、唯讀拒絕寫入、初始 7.0 °C 及附來源時間戳的 7.5 °C 通知；再讓應用佇列滿以驗證計數。未測正式設備憑證、多點負載、Server Overflow、斷線 Republish 或冗餘。</p>
+<details><summary>展開完整、可執行 Python 程式</summary><pre><code>&quot;&quot;&quot;Synthetic read-only OPC UA lab; NoSecurity on IPv4 loopback only.&quot;&quot;&quot;
+import asyncio
+from datetime import UTC, datetime
+import sys
+
+from asyncua import Client, Server, ua
+
+URI = &quot;urn:python-note:hvac:lab&quot;
+NODE = &quot;Plant01.CHW01.LeavingTemperature&quot;
+URL = &quot;opc.tcp://127.0.0.1:48531/python-note-hvac/&quot;
+END = object()
+
+
+class Handler:
+    def __init__(self):
+        self.queue = asyncio.Queue(maxsize=8)
+        self.dropped = 0
+
+    def datachange_notification(self, node, value, data):
+        # Keep callbacks short. Preserve status/timestamps, not only the value.
+        dv = data.monitored_item.Value
+        try:
+            self.queue.put_nowait(dv)
+        except asyncio.QueueFull:
+            self.dropped += 1
+
+
+async def main():
+    server = Server()
+    await server.init()
+    server.set_endpoint(URL)  # fixed loopback; never widen for this lab
+    server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
+    ns = await server.register_namespace(URI)
+    plant = await server.nodes.objects.add_object(ns, &quot;Plant01_CHW01&quot;)
+    sensor = await plant.add_variable(ua.NodeId(NODE, ns), &quot;LeavingTemperature&quot;, 7.0)
+    # Default AccessLevel is read-only for external clients. Server still writes.
+    async with server, Client(url=URL, timeout=5) as client:
+        resolved = await client.get_namespace_index(URI)
+        node = client.get_node(ua.NodeId(NODE, resolved))
+        assert await node.read_value() == 7.0
+        try:
+            await node.write_value(99.0)
+        except ua.UaStatusCodeError as error:
+            assert error.code in (
+                ua.StatusCodes.BadUserAccessDenied, ua.StatusCodes.BadNotWritable
+            ), error
+        else:
+            raise AssertionError(&quot;the external client unexpectedly wrote a value&quot;)
+        handler = Handler()
+        sub = await client.create_subscription(100, handler)
+        handle = await sub.subscribe_data_change(node, queuesize=4, sampling_interval=50)
+        try:
+            initial = await asyncio.wait_for(handler.queue.get(), timeout=5)
+            assert initial.Value.Value == 7.0 and initial.StatusCode.is_good()
+            source = datetime.now(UTC)
+            dv = ua.DataValue(Value=ua.Variant(7.5, ua.VariantType.Double),
+                              SourceTimestamp=source)
+            await sensor.write_value(dv)
+            changed = await asyncio.wait_for(handler.queue.get(), timeout=5)
+            assert changed.Value.Value == 7.5
+            assert changed.StatusCode.is_good()
+            assert changed.SourceTimestamp == source
+            assert not handler.dropped
+            # Explicit app-queue overflow exercise. This is not server overflow.
+            for _ in range(handler.queue.maxsize):
+                handler.queue.put_nowait(END)
+            # Exercise the same callback method without simulating protocol loss.
+            from types import SimpleNamespace
+            handler.datachange_notification(node, 7.5, SimpleNamespace(
+                monitored_item=SimpleNamespace(Value=changed)))
+            assert handler.dropped == 1
+        finally:
+            await sub.unsubscribe(handle)
+            await sub.delete()
+    print(&quot;PASS namespace lookup, read-only access, DataValue, subscription, app queue&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    if not __debug__:
+        sys.exit(&quot;Run the checks without -O.&quot;)
+    asyncio.run(main())
+</code></pre></details>
+<p><a href="https://github.com/FreeOpcUa/opcua-asyncio">FreeOpcUa asyncua 專案</a>。支援能力與重連行為需在指定 SDK 及伺服器版本驗證。</p></section>
+
+<section id="acceptance"><div class="kicker">08 / ACCEPTANCE</div><h2>現場驗收：證明資料品質，不只證明連得上</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="現場驗收表"><table><thead><tr><th>測項</th><th>留下的證據</th></tr></thead><tbody>
+<tr><th scope="row">容量與延遲</th><td>實際點數和峰值；記錄修訂參數、p50/p95/p99 與佇列水位；時鐘同步後才做跨裝置端到端量測。</td></tr>
+<tr><th scope="row">缺口隔離</th><td>在核可測試環境用合成遞增點位，分別測短斷線、超過重傳窗口與 client 慢寫；比對來源數、溢出、序號缺口及 DB 成功數。</td></tr>
+<tr><th scope="row">重啟及冗餘</th><td>測 namespace 索引改變、對照來源與訂閱狀態；若有主備，測應用有效值時間及漏失，不能只看 TCP 恢復。</td></tr>
+<tr><th scope="row">信任與權限</th><td>受信及不受信端點、到期憑證、唯讀帳號拒絕寫入；確認客戶端沒有靜默降級。</td></tr>
+</tbody></table></div><p>起始指標：每來源 last-good age、訂閱序號缺口和 Republish 結果、每 item Overflow、應用佇列水位與丟棄、成功寫入與憑證到期。定值點的最後變更時間不可單獨當作離線證據；用符合現場語意的心跳或品質。</p></section>
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html#opcua">工業協定比較</a></footer></body></html>

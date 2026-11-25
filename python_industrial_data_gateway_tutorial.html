@@ -90,6 +90,22 @@
       .overview-readable .readable-flow { grid-template-columns:repeat(3,minmax(0,1fr) auto) minmax(0,1fr); }
       .overview-readable .readable-arrow { transform:none; }
     }
+  
+    .gateway-hero-map { margin:0; }
+    .gateway-hero-map figcaption { color:#172033; font-weight:850; margin-bottom:.65rem; }
+    .gateway-flow { display:grid; min-width:0; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; align-items:stretch;
+      grid-template-areas:"input input" "incoming incoming" "gateway gateway" "outgoing alarming" "normal alarm"; }
+    .gateway-input { grid-area:input; }.gateway-in-arrow { grid-area:incoming; }
+    .gateway-center { grid-area:gateway; }.gateway-out-arrow { grid-area:outgoing; }
+    .gateway-output { grid-area:normal; }.gateway-alarm-arrow { grid-area:alarming; }.gateway-alarm { grid-area:alarm; }
+    @container (max-width: 18rem) {
+      .gateway-flow .readable-step { padding:.48rem; }
+    }
+    @container (min-width: 26rem) {
+      .gateway-flow { grid-template-columns:minmax(0,1fr) auto minmax(0,1.3fr) auto minmax(0,1fr);
+        grid-template-areas:"input incoming gateway outgoing normal" ". . alarming . ." ". . alarm . ."; }
+      .gateway-flow .gateway-in-arrow,.gateway-flow .gateway-out-arrow { transform:none; }
+    }
   </style>
 </head>
 <body>
@@ -118,22 +134,19 @@
           <div class="status-strip"><span>v2.5.0</span><span>32 張互動卡</span><span>standard library sample</span><span>Modbus + OPC UA + BACnet + MQTT</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始 Gateway 課程</a><a class="button blue" href="python_industrial_protocol_comparison_tutorial.html">看協定比較專題</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 760 430" role="img" aria-label="工業資料採集 gateway 架構圖">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto"><path d="M0.8 0.8l4.4 2.2-4.4 2.2z" fill="#2d8a69"></path></marker></defs>
-            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="58" y="92" width="138" height="74" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="127" y="136">PLC / DDC</text>
-              <path d="M206 129h40" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="262" y="92" width="152" height="74" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="338" y="136">Gateway</text>
-              <path d="M424 129h40" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="480" y="92" width="154" height="74" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="557" y="136">SCADA / MQTT</text>
-              <path d="M338 176v44" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="228" y="238" width="220" height="82" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="338" y="274">Alarm</text><text x="338" y="300" font-size="15" fill="#5d6b7d">Timeout / Fail-safe</text>
-            </g>
-            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">先定義點位契約，再談協定與資料平台</text>
-          </svg>
-        </div>
+        <figure class="surface readable-diagram gateway-hero-map" aria-labelledby="gateway-hero-heading">
+          <figcaption id="gateway-hero-heading">工業資料採集 Gateway 架構</figcaption>
+          <div class="gateway-flow">
+            <div class="readable-step gateway-input"><strong>PLC / DDC</strong><small>現場點位</small></div>
+            <span class="readable-arrow gateway-in-arrow" aria-hidden="true">→</span>
+            <div class="readable-step tone-green gateway-center"><strong>Gateway</strong><small>採集、轉換與品質判斷</small></div>
+            <span class="readable-arrow gateway-out-arrow" aria-hidden="true">→</span>
+            <div class="readable-step tone-amber gateway-output"><strong>SCADA / MQTT</strong><small>正常資料上送</small></div>
+            <span class="readable-arrow gateway-alarm-arrow" aria-hidden="true">→</span>
+            <div class="readable-step tone-red gateway-alarm"><strong>Alarm</strong><small>Timeout / Fail-safe</small></div>
+          </div>
+          <p class="readable-note">先定義點位契約，再談協定與資料平台。正常資料上送與異常告警都是由 Gateway 分流。</p>
+        </figure>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：Modbus、FC03、FC16、OPC UA、NodeId、BACnet、BBMD、MQTT、alarm、fail-safe">

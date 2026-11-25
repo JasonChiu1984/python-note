@@ -99,6 +99,20 @@
     .search:focus-visible, summary:focus-visible, pre:focus-visible{outline:3px solid #2f6fbb;outline-offset:2px}
     @media(max-width:980px){.hero,.layout,.tool-panel,.cards,.steps{grid-template-columns:minmax(0,1fr)}}
     @media(max-width:440px){.lesson-top{grid-template-columns:minmax(0,1fr)}.tag{white-space:normal}.lesson-card{overflow-wrap:anywhere}}
+  
+    .preflight-table{max-width:100%;overflow-x:auto;margin:.75rem 0;border:1px solid #c2d1e2;border-radius:8px}
+    .preflight-table table{width:100%;min-width:38rem;border-collapse:collapse}
+    .preflight-table th,.preflight-table td{padding:.65rem;text-align:start;vertical-align:top;border-bottom:1px solid #d8e2ec}
+    .preflight-table thead{background:#edf4ff}
+    .preflight-table :is(th:first-child,thead th){white-space:nowrap}
+    .preflight-table:focus-visible{outline:2px solid #2f6fbb;outline-offset:2px}
+    .preflight-manual{display:grid;gap:.35rem;min-width:0;padding:.7rem;border:1px solid #c2d1e2;border-radius:8px}
+    .preflight-manual label{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.4rem;align-items:start}
+    .preflight-manual input{margin-block-start:.45rem;accent-color:#2f6fbb}
+    @container (min-width: 58rem){
+      #preflight-checklist .release-flow{grid-template-columns:repeat(5,minmax(0,1fr))}
+      #preflight-checklist .release-flow li:not(:last-child)::after{inset-inline-start:auto;inset-inline-end:-1.18rem;inset-block-end:calc(50% - .28rem);transform:rotate(-45deg)}
+    }
   </style>
 </head>
 <body>
@@ -112,13 +126,14 @@
         <a href="#artifact">Artifact</a>
         <a href="#evidence">Evidence</a>
         <a href="#pipeline">Pipeline</a>
+        <a href="#preflight-checklist">上線前檢驗工具</a>
         <a href="#operations">Operations</a>
         <a href="#sample">範例專案</a>
       </nav>
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
     </aside>
     <main>
-<section class="hero" id="top"><div><span class="eyebrow">Packaging Release Engineering｜本機實驗</span><h1>把 Python 專案交付成可驗證的 release artifact</h1><p>不要交付「在開發機跑過的原始碼」。交付可安裝的成品，以及能回答「它來自哪個版本、如何驗證、出問題如何回退」的紀錄。以下用一個有 CLI 與套件資料檔的最小專案，走完從原始碼到乾淨環境的流程。</p><div class="hero-actions"><a class="button primary" href="#sample">開始本機實驗</a><a class="button" href="#pipeline">看流程圖</a><a class="button" href="index.html">回教材入口</a></div></div><div class="surface release-panel"><h2>架構圖：建置、驗收、發布三道邊界</h2><p>實驗止於驗收；不需帳號，不會上傳。</p><ol class="release-flow"><li><strong>建置區</strong><span>受控原始碼 + pyproject.toml → sdist → wheel</span></li><li><strong>驗收區</strong><span>下載同一份候選成品 → 核對摘要 → 新 venv 安裝 → 跑 CLI</span></li><li><strong>發布區</strong><span>只接收已驗證的同一位元組；正式流程另行授權</span></li></ol><p class="notice"><strong>旁路證據：</strong>保留成品 SHA-256、原始碼 commit、建置工具版本、測試紀錄與核准／工作流程 ID。需要可信來源時再驗證簽署的 provenance，不拿一般 JSON 假冒簽章。</p></div></section>
+<section class="hero" id="top"><div><span class="eyebrow">Packaging Release Engineering｜本機實驗</span><h1>把 Python 專案交付成可驗證的 release artifact</h1><p>不要交付「在開發機跑過的原始碼」。交付可安裝的成品，以及能回答「它來自哪個版本、如何驗證、出問題如何回退」的紀錄。以下用一個有 CLI 與套件資料檔的最小專案，走完從原始碼到乾淨環境的流程。</p><div class="hero-actions"><a class="button primary" href="#sample">開始本機實驗</a><a class="button" href="#pipeline">看流程圖</a><a class="button" href="#preflight-checklist">上線前檢驗</a><a class="button" href="index.html">回教材入口</a></div></div><div class="surface release-panel"><h2>架構圖：建置、驗收、發布三道邊界</h2><p>實驗止於驗收；不需帳號，不會上傳。</p><ol class="release-flow"><li><strong>建置區</strong><span>受控原始碼 + pyproject.toml → sdist → wheel</span></li><li><strong>驗收區</strong><span>下載同一份候選成品 → 核對摘要 → 新 venv 安裝 → 跑 CLI</span></li><li><strong>發布區</strong><span>只接收已驗證的同一位元組；正式流程另行授權</span></li></ol><p class="notice"><strong>旁路證據：</strong>保留成品 SHA-256、原始碼 commit、建置工具版本、測試紀錄與核准／工作流程 ID。需要可信來源時再驗證簽署的 provenance，不拿一般 JSON 假冒簽章。</p></div></section>
 <div class="tool-panel"><input class="search" id="lessonSearch" type="search" aria-label="搜尋原有複習卡" placeholder="搜尋原有複習卡（例如 checksum、manifest）"><div class="quick-links"><a href="#sample">可執行範例</a><a href="#evidence">驗證證據</a></div></div>
 <section class="section-block" id="metadata" data-group="metadata"><div class="section-head"><div><span class="eyebrow">01 / 契約</span><h2>先定義套件名稱與安裝入口</h2><p>發行名稱用於安裝與中繼資料，import 名稱是 Python 模組識別字，不能假設同名。</p></div></div><div class="release-panel"><ul><li><code>release-note-lab</code> 是發行名稱；匯入使用 <code>release_note_lab</code>。檔名可能將連字號正規化成底線。</li><li><code>[build-system]</code> 設定建置後端與依賴；<code>[project]</code> 描述成品版本、Python 需求與執行期依賴。兩種類型的依賴分開管理。</li><li><code>[project.scripts]</code> 讓安裝器建立 CLI。驗收時執行真正的 CLI 入口，而不是直接跑 repo 內的檔案。</li><li>這個練習是純 Python、無執行期依賴，宣告 Python ≥3.10；宣告範圍不是測試結果，正式專案依支援範圍配置 CI。</li></ul><details class="source-file"><summary>pyproject.toml（完整檔案）</summary><pre tabindex="0"><code>[build-system]
 requires = [&quot;setuptools==80.9.0&quot;]
@@ -169,6 +184,140 @@ python -m tarfile -l &quot;$DIST/release_note_lab-0.1.0.tar.gz&quot;
 python -m zipfile -l &quot;$DIST/release_note_lab-0.1.0-py3-none-any.whl&quot;</code></pre><p>預期 wheel 中含 <code>release_note_lab/message.txt</code>、<code>METADATA</code>、<code>WHEEL</code>、<code>entry_points.txt</code> 與 <code>RECORD</code>。<code>RECORD</code> 是安裝檔案清單及部分檔案摘要，不是整份 wheel 的簽章。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="evidence" data-group="evidence"><div class="section-head"><div><span class="eyebrow">04 / 證據</span><h2>完整性、來源、可重建性各自驗證</h2><p>知道檔案沒壞，不等於知道誰建置；知道誰建置，也不等於證明沒有漏洞。</p></div></div><div class="release-panel"><dl><dt>完整性：SHA-256</dt><dd>比對收到的檔案與已核准摘要；下載管道若能同時被改寫成品與摘要，裸摘要不能證明來源。範例以 UTF-8 相容 ASCII、固定檔名與換行格式產生 <code>SHA256SUMS</code>，在安裝前驗證。</dd><dt>來源：簽署的 attestation / provenance</dt><dd>按政策核對成品 digest、信任的簽署者／publisher、repo、ref 或工作流程。PyPI Publish Attestation 證明發布者與成品的聲明，不等於完整建置 provenance，也不代表已通過測試。一般 JSON 只算未簽署紀錄。</dd><dt>可重建性：用第二次建置驗證</dt><dd>鎖定 source commit、Python／OS／工具版本、相依圖、時間與 locale。<code>SOURCE_DATE_EPOCH</code> 只對會讀取它的工具生效；不同後端、歸檔格式、檔案順序與平台都可能改變位元組。重建失配先找差異，不要修改舊摘要來讓關卡通過。</dd></dl><p class="notice">最少附上：安裝包、來源包、SHA-256、建置條件、測試命令／環境／結果、已知限制、回退版本。SBOM 是依賴清單，不是漏洞不存在或已修補的證據。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="pipeline" data-group="pipeline"><div class="section-head"><div><span class="eyebrow">05 / 流程</span><h2>先驗成品，再讓同一成品過發布閘門</h2><p>每一站要有可觀察結果。以成品雜湊當作建置、驗收與發布的共同識別。</p></div></div><div class="release-panel"><ol class="release-flow"><li><strong>01 固定來源</strong><span>核對 tag 與 commit</span></li><li><strong>02 建置</strong><span>先 sdist，再 wheel</span></li><li><strong>03 驗包</strong><span>檔案清單與 SHA-256</span></li><li><strong>04 乾淨驗收</strong><span>新 venv、pip check、CLI、資源檔</span></li><li><strong>05 核准</strong><span>同一成品、證據齊全才可發布</span></li></ol><p>建置工作不持有發布憑證；驗收工作下載候選成品並重新驗證；發布工作不能重建另一份同名檔案。CI 如需透過 Trusted Publishing 授權，應限定核准的 repo／workflow／environment。練習僅留在本機，不包含上傳步驟。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<section class="section-block" id="preflight-checklist" aria-labelledby="preflight-title">
+  <div class="section-head"><div><span class="eyebrow">Go / No-Go</span><h2 id="preflight-title">程式上線前：檢驗流程與工具</h2><p>從要上線的版本倒推：用同一個 commit 建置、用同一組成品摘要驗收。找不到報告、掃描器失敗或演練未完成時，標記為未通過，不以人工勾選代替證據。</p></div></div>
+  <div class="release-panel">
+    <ol class="release-flow" aria-label="上線前檢驗順序">
+      <li><strong>固定候選版本</strong><span>commit、目標環境、wheel SHA-256</span></li>
+      <li><strong>檢查程式品質</strong><span>單元／整合測試、Lint、型別</span></li>
+      <li><strong>檢查相依與憑證</strong><span>掃描鎖檔與原始碼、產出 SBOM</span></li>
+      <li><strong>驗收候選成品</strong><span>確認摘要，隔離安裝並執行入口</span></li>
+      <li><strong>準備回退與核准</strong><span>在測試環境演練、留存 go/no-go 紀錄</span></li>
+    </ol>
+    <h3>輸入、工具、停點與證據</h3>
+    <div class="preflight-table" role="region" tabindex="0" aria-label="上線前檢驗工具矩陣（窄畫面可橫向捲動）">
+      <table>
+        <thead><tr><th scope="col">關卡</th><th scope="col">輸入與工具</th><th scope="col">何時停止</th><th scope="col">應保留的證據</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">測試</th><td>目標支援矩陣、固定測試資料；<code>unittest</code> 或 pytest。</td><td>必要案例失敗、未執行或環境覆蓋不符。</td><td>案例、執行結束狀態、Python／OS、commit。</td></tr>
+          <tr><th scope="row">Lint／型別</th><td>原始碼與固定設定；Ruff、mypy。</td><td>違反規則，或未經審查停用規則。</td><td>規則設定雜湊、命令與工具版本、輸出。</td></tr>
+          <tr><th scope="row">相依風險</th><td>該環境的實際相依清單；pip-audit 等。</td><td>違反風險政策、掃描失敗或清單有漏；例外需核准人、原因、期限及緩解措施。</td><td>鎖檔雜湊、掃描來源與時間、JSON 報告、例外。</td></tr>
+          <tr><th scope="row">密鑰掃描</th><td>受授權的 Git 歷史或指定檔案範圍；Gitleaks。</td><td>找到未處理密鑰、掃描歷史不完整或工具失敗。確認曝露時撤銷／輪替，不只刪檔。</td><td>掃描範圍與遮罩後結果；不留原始密鑰。</td></tr>
+          <tr><th scope="row">SBOM</th><td>針對目標環境鎖檔或已安裝的成品；CycloneDX。</td><td>缺檔、生成失敗、與交付內容不符或缺關鍵元件。</td><td>SBOM、格式版本、關聯成品 SHA-256。</td></tr>
+          <tr><th scope="row">成品驗收</th><td>同一候選 wheel、受信任摘要、隔離 venv；<code>check_release.py</code>。</td><td>雜湊、安裝、<code>pip check</code>、真實 CLI 或資料檔驗證任一失敗。</td><td>摘要驗證、完整命令、目標環境、測試輸出。</td></tr>
+          <tr><th scope="row">回退演練</th><td>前一穩定成品、設定與資料相容計畫、健康指標；隔離測試環境。</td><td>無法在時限內恢復，或遷移後的資料不能安全回復。</td><td>回退觸發門檻、執行結果、恢復時間、核准人。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>在 CI 或獨立工具環境執行</h3>
+    <p>下列是各個 job 的命令示例；須先從經審核的鎖檔安裝工具並設定規則。把每一項的狀態獨立記錄；保留遮罩後的報告，但只有全部必要 job 通過才允許後續交付。<code>requirements.lock</code> 指該目標環境凍結的 pip requirements 格式檔，不是本章練習附檔。</p>
+    <pre tabindex="0"><code># 從一般專案根目錄執行；預先建立受控工具環境
+mkdir -p evidence
+ruff check src tests
+mypy src
+python -m unittest discover -s tests -v
+
+# 依專案政策核准後才查詢公告來源；私有套件需受控服務
+pip-audit -r requirements.lock --format json --output evidence/pip-audit.json
+# 掃描本地授權的 checkout；確認 CI 沒有只取淺層歷史
+gitleaks git --redact --report-format json --report-path evidence/gitleaks.json .
+cyclonedx-py requirements requirements.lock --output-file evidence/sbom.json
+
+# 本章範例：先依 #sample 建成品，再驗已建好的那一份
+"$PY" check_release.py "$DIST" smoke</code></pre>
+    <p>SBOM 清單不代表沒有弱點；掃描結果也不涵蓋未知弱點。把掃描範圍、公告服務、工具版本、排除項與例外期限留存。不要把報告裡的環境機密或詳細內網資訊送入公共產物。</p>
+    <h3>本機證據 Gate：缺項、失敗或指到另一個成品就擋下來</h3>
+    <p><a href="範例程式碼/verified_release_lab/check_preflight.py">check_preflight.py 完整程式</a> 用標準函式庫核對候選 wheel 摘要與欄位，不會執行掃描，也不會呼叫部署。下例是一份上線前待填清單，不能直接當成通過紀錄：</p>
+    <pre tabindex="0"><code>{
+  "candidate_sha256": "填入已驗證 wheel 的 SHA-256",
+  "gates": {
+    "tests": {"status": "pending", "evidence": ""},
+    "lint_and_types": {"status": "pending", "evidence": ""},
+    "dependency_audit": {"status": "pending", "evidence": ""},
+    "secret_scan": {"status": "pending", "evidence": ""},
+    "sbom": {"status": "pending", "evidence": ""},
+    "artifact_smoke": {"status": "pending", "evidence": ""},
+    "rollback_rehearsal": {"status": "pending", "evidence": ""}
+  }
+}</code></pre>
+    <pre tabindex="0"><code>"$PY" check_preflight.py "$DIST/release_note_lab-0.1.0-py3-none-any.whl" evidence.json
+# 0：欄位檢驗通過；1：缺項、未通過或摘要不同；2：輸入不可讀／JSON 無效</code></pre>
+    <p class="notice">這支腳本只驗證清單結構、總清單綁定的摘要與每項是否填有證據，不會驗證報告真偽，也沒有逐份報告雜湊。正式 CI 只讀取核准 job 的產物，確認每份報告關聯同一 commit 或成品，從受限儲存下載並按政策驗證簽署來源。不可手填 <code>pass</code> 取代測試。</p>
+    <details class="source-file"><summary>展開證據 Gate 完整程式</summary><pre tabindex="0"><code>&quot;&quot;&quot;Local manifest gate. Validates evidence metadata; does not run scans or deploy.&quot;&quot;&quot;
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+REQUIRED = (
+    &quot;tests&quot;, &quot;lint_and_types&quot;, &quot;dependency_audit&quot;, &quot;secret_scan&quot;, &quot;sbom&quot;,
+    &quot;artifact_smoke&quot;, &quot;rollback_rehearsal&quot;,
+)
+
+
+def sha256(path: Path) -&gt; str:
+    digest = hashlib.sha256()
+    with path.open(&quot;rb&quot;) as stream:
+        while block := stream.read(1024 * 1024):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def distinct_keys(pairs: list[tuple]) -&gt; dict:
+    out: dict = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f&quot;duplicate key: {key}&quot;)
+        out[key] = value
+    return out
+
+
+def run(candidate: Path, manifest: Path) -&gt; list[str]:
+    digest = sha256(candidate)
+    payload = json.loads(manifest.read_text(encoding=&quot;utf-8&quot;),
+                         object_pairs_hook=distinct_keys)
+    if not isinstance(payload, dict) or payload.get(&quot;candidate_sha256&quot;) != digest:
+        return [&quot;candidate digest mismatch&quot;]
+    gates = payload.get(&quot;gates&quot;)
+    if not isinstance(gates, dict):
+        return [&quot;invalid gates&quot;]
+    errors = []
+    for name in REQUIRED:
+        item = gates.get(name)
+        if (not isinstance(item, dict) or item.get(&quot;status&quot;) != &quot;pass&quot;
+                or not isinstance(item.get(&quot;evidence&quot;), str)
+                or not item[&quot;evidence&quot;].strip()):
+            errors.append(f&quot;missing passing evidence: {name}&quot;)
+    return errors
+
+
+def main() -&gt; int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;candidate&quot;, type=Path)
+    parser.add_argument(&quot;manifest&quot;, type=Path)
+    args = parser.parse_args()
+    try:
+        errors = run(args.candidate, args.manifest)
+    except (ValueError, OSError):
+        print(json.dumps({&quot;decision&quot;: &quot;BLOCK&quot;, &quot;reasons&quot;: [&quot;unreadable artifact or manifest&quot;]}))
+        return 2
+    print(json.dumps({&quot;decision&quot;: &quot;BLOCK&quot; if errors else &quot;PASS&quot;, &quot;reasons&quot;: errors}))
+    return 1 if errors else 0
+
+
+if __name__ == &quot;__main__&quot;:
+    raise SystemExit(main())
+</code></pre></details>
+    <fieldset class="preflight-manual"><legend>交付前人工覆核（僅供本頁練習，不寫入 CI、不保存）</legend>
+      <label><input type="checkbox">候選成品對應已審查的 commit 和摘要</label>
+      <label><input type="checkbox">已檢視必要測試、靜態檢查和掃描的實際結果</label>
+      <label><input type="checkbox">已檢視 SBOM 與隔離環境安裝驗收紀錄</label>
+      <label><input type="checkbox">已演練回退並記錄觸發門檻、負責人與核准結果</label>
+    </fieldset>
+    <p>工具文件：<a href="https://docs.astral.sh/ruff/linter/">Ruff</a> · <a href="https://mypy.readthedocs.io/en/stable/getting_started.html">mypy</a> · <a href="https://github.com/pypa/pip-audit">PyPA pip-audit</a> · <a href="https://github.com/gitleaks/gitleaks">Gitleaks</a> · <a href="https://cyclonedx-bom-tool.readthedocs.io/en/latest/usage.html">CycloneDX Python</a>。</p>
+  </div>
+</section>
 <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">06 / 維運</span><h2>用失敗情境驗證發布設計</h2><p>保留上一版已驗證成品，並將套件回退、設定回退、資料遷移回退分開評估。</p></div></div><div class="release-panel"><ul><li>摘要錯誤：隔離候選成品、停止安裝，核對儲存與傳輸紀錄。</li><li>CLI 找不到：核對 entry point、是否裝到預期虛擬環境、實際啟動的執行檔路徑。</li><li>原始碼單測通過、wheel 讀不到資料檔：確認 <code>package-data</code> 與實際包內容，從 sdist 重建後再測。</li><li>有執行期依賴：改用經審核且完整的 wheelhouse 與雜湊鎖定，不要照抄此例的 <code>--no-deps</code>。</li><li>已發布錯版：依索引規則用新版本修正發行，必要時依政策 yank；部署端明確鎖定已驗證版本，不能假設 yank 會讓所有客戶端自動撤回。</li></ul></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">07 / 本機實作</span><h2>從 pyproject.toml 走到驗證過的安裝成品</h2><p>以下指令適用 macOS／Linux 的 POSIX shell。從 repository 根目錄進入新實驗目錄；不會發布到 PyPI 或 GitHub。首次取得建置工具需要網路或自備 wheelhouse。</p></div></div><div class="release-panel"><p><a href="範例程式碼/verified_release_lab/pyproject.toml">pyproject.toml</a> · <a href="範例程式碼/verified_release_lab/check_release.py">驗證腳本</a> · <a href="範例程式碼/packaging_release_engineering/README.md">既有進階實驗</a></p><h3>A. 建置與原始碼單測</h3><pre tabindex="0"><code>cd &#x27;範例程式碼/verified_release_lab&#x27;
 TOOLS=&quot;$(mktemp -d)&quot;
