@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ISO 50001 能源管理報表：公式與正規化</title><style>
+:root{font-family:system-ui,sans-serif;color:#173149;background:#edf5f8;line-height:1.7}*{box-sizing:border-box}body{margin:0}main{padding:clamp(.7rem,2vw,2rem)}a{color:#175879}header,section{border:1px solid #bcd4df;border-radius:.8rem;background:white;padding:clamp(.8rem,2vw,1.45rem);margin:0 0 1rem;overflow-wrap:anywhere}h1{font-size:clamp(1.65rem,4vw,2.6rem);line-height:1.2}h2{line-height:1.35}nav{display:flex;gap:.5rem;flex-wrap:wrap}nav a{border:1px solid #afc9d6;border-radius:.4rem;padding:.32rem .62rem;background:#eaf4f8}figure{margin:.65rem 0 1rem}figcaption{font-weight:800}.flow{padding:0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.35rem}.flow li{min-width:0;position:relative;border:1px solid #bcd4df;padding:.6rem;border-radius:.55rem;background:#edf6fa}.flow li:not(:last-child)::after{position:absolute;content:"→";right:-1.15rem;top:calc(50% - .75rem)}.flow b,.flow span{display:block}.tablebox{overflow:auto;border:1px solid #bcd4df;border-radius:.5rem}.tablebox table{border-collapse:collapse;min-width:35rem;width:100%}.tablebox :is(th,td){text-align:left;vertical-align:top;padding:.5rem;border-bottom:1px solid #bcd4df}.tablebox th{background:#edf6fa}pre{overflow:auto;background:#153047;color:white;padding:.7rem;border-radius:.4rem}summary{cursor:pointer;font-weight:750}.bars{display:grid;gap:.55rem}.bar{display:grid;grid-template-columns:minmax(4rem,10rem) minmax(1rem,28rem) max-content;align-items:center;gap:.5rem}.track{height:.7rem;border-radius:.35rem;background:#deebf2;overflow:hidden}.fill{height:100%;display:block;background:#276b94;width:var(--size)}.actual .fill{background:#168069}.note{background:#edf6fa;border-left:.25rem solid #287ba1;padding:.55rem .75rem}
+@media(max-width:760px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.37rem}}
+</style></head><body><main>
+<header><a href="index.html#facility-metrics">回 Python 教材入口</a><h1>ISO 50001 能源管理系統報表：從能源審查到可驗證的改善</h1><p>以工廠一個 30 天報告期的合成資料，算能源平衡、重大能源使用、能源績效指標與基線，並把目標差異、數據品質及責任寫進管理審查。這是可採用的教學報表，不是 ISO 規定的固定模板，也不代表認證判定。</p><nav><a href="#architecture">架構與流程</a><a href="#calculation">計算欄位</a><a href="#model">正規化與判讀</a><a href="#lab">Python API</a><a href="#review">交付與審查</a></nav></header>
+<section id="architecture"><h2>1｜報表如何接上能源管理流程</h2>
+<figure><figcaption>架構圖｜量測輸入、邊界與管理審查</figcaption><ol class="flow"><li><b>資料來源</b><span>總表、分表、燃料帳單、產量、氣象與工時。</span></li><li><b>清理與邊界</b><span>校對時區、倍率、缺值、輸入／輸出、期間。</span></li><li><b>EnPI／EnB</b><span>能源審查、重大能源使用、相同條件比較。</span></li><li><b>管理審查</b><span>目標、改善狀態、行動責任、版號與佐證。</span></li></ol></figure>
+<figure><figcaption>流程圖｜PDCA 與報表證據</figcaption><ol class="flow"><li><b>Plan 規劃</b><span>先定邊界、能效影響因子、基期與量測計畫。</span></li><li><b>Do 執行</b><span>以操作準則運行改善，留工作紀錄及資料來源。</span></li><li><b>Check 查核</b><span>對帳並比較目標；低覆蓋或超出模型域暫緩。</span></li><li><b>Act 改善</b><span>指派行動與期限；驗證後依準則確認基線是否需調整。</span></li></ol></figure>
+<p><a href="python_iso50001_reporting_diagrams.drawio" download>下載兩頁可編輯 Draw.io 架構和流程圖</a>。標準核心是系統化管理與績效改善。ISO 50001:2018/Amd 1:2024 補充氣候行動相關的組織情境考量，不是新增一張固定用電計算表；先記錄氣候變遷是否相關，並檢查適用的利害關係人要求。</p></section>
+<section id="calculation"><h2>2｜報表各欄怎麼算</h2>
+<p>範例邊界：廠區電力入口及燃氣入口，無自發自用、外送或跨邊界轉售；同一個 30 天期間。製程、空壓、冷卻為不重疊電力分表，燃料不進電力分母。能耗、用電需量與溫室氣體排放不同，不能互換。</p>
+<div class="tablebox" role="region" tabindex="0" aria-label="能源管理報表欄位"><table><thead><tr><th scope="col">欄位</th><th scope="col">公式／代入</th><th scope="col">結果與判讀</th></tr></thead><tbody>
+<tr><th scope="row">主表用電</th><td>累積表期末 − 期初後套用適用倍率，例 178,720 − 100,000</td><td>78,720 kWh。遇回捲、重設、換表應分段，勿把負差當作一般耗用。</td></tr>
+<tr><th scope="row">燃氣折算</th><td>2,400 Nm³ × 35.8 MJ/Nm³ ÷ 3.6 MJ/kWh</td><td>23,866.67 kWh（低位熱值 LHV）。需附標準體積參考狀態；若帳單已轉能量不要再乘。HHV／LHV 不能混用，熱值以供應商或核准資料為準。</td></tr>
+<tr><th scope="row">場址總能耗</th><td>78,720 + 23,866.67</td><td>102,586.67 kWh 等值；勿把分表再加回主表。多入口則列邊界、出口、自發自用和分攤口徑，不默認淨購電等於總耗用。</td></tr>
+<tr><th scope="row">電力平衡殘差</th><td>78,720 − (39,000 + 22,000 + 15,000) = 2,720；絕對比 = 2,720 ÷ 78,720</td><td>殘差 2,720 kWh、3.46%；可能為未分表負載、損失、時間或倍率差異，不能直接稱技術損失。負殘差應查重複或不對齊。</td></tr>
+<tr><th scope="row">重大能源使用 SEU 候選</th><td>製程占 39,000 ÷ 78,720 = 49.54%；空壓占 27.95%（電力審查口徑）</td><td>若本廠例訂篩選 ≥25%，兩者列候選；亦可依改善潛力評估低占比項目。25% 不是 ISO 指定。全場審查仍須納入燃氣等其他能源與相對範圍。</td></tr>
+<tr><th scope="row">量測覆蓋</th><td>2,872 ÷ 2,880 筆（30 天×96 個 15 分鐘區間）</td><td>99.7222%。筆數不是資料品質的全部；若缺值集中於尖峰或產品切換，仍應另檢查。主表總量例由期初／末獨立取得，不將短缺的時序資料當作零。</td></tr>
+<tr><th scope="row">簡單 EnPI</th><td>78,720 ÷ 10,000 件良品</td><td>7.872 kWh／件。不同產品組合、天氣或工時不能只比此比率。分母為零時報 N/A。</td></tr>
+<tr><th scope="row">正規化 EnB 及改善</th><td>同條件預期＝82,000；差額＝82,000 − 78,720；比率＝差額 ÷ 82,000</td><td>3,280 kWh／4.00%；屬本例電力範圍，不宣稱燃氣或全廠同樣改善。</td></tr>
+<tr><th scope="row">目標差</th><td>本例目標改善 5% → 上限 82,000 × 0.95＝77,900；78,720 − 77,900</td><td>超目標上限 820 kWh，差 1 個百分點；並列改善量、偏差原因與行動計畫。</td></tr>
+</tbody></table></div>
+</section>
+<section id="model"><h2>3｜正規化：把基線放回報告期條件</h2>
+<p>本例假設基期資料已建立模型：<strong>預期月電量 = 20,000 kWh + 5 kWh／良品 × Q + 80 kWh／(°C·日) × CDD</strong>。報告期 Q=10,000、CDD=150，得 82,000 kWh。CDD 的基準溫度、天氣站及期間需固定。係數是合成設定，不是由這一點資料擬合或 ISO 指定值。</p>
+<figure><figcaption>同條件電力比較圖（0–90,000 kWh）</figcaption><div class="bars">
+<div class="bar"><span>調整後基線</span><span class="track" aria-hidden="true"><span class="fill" style="--size:91.11%"></span></span><strong>82,000</strong></div>
+<div class="bar actual"><span>實際</span><span class="track" aria-hidden="true"><span class="fill" style="--size:87.47%"></span></span><strong>78,720</strong></div>
+<div class="bar"><span>目標上限</span><span class="track" aria-hidden="true"><span class="fill" style="--size:86.56%"></span></span><strong>77,900</strong></div></div></figure>
+<ul><li><strong>相關變數</strong>會隨期間變動並影響績效，例如良品、冷房度日、機台工時。<strong>靜態因素</strong>相對穩定，例如產線規模、建築面積、主要設備與配置。產線擴建後先確認模型是否仍適用，再使用預先規定的基線調整規則，記錄舊／新版本和理由。</li><li>模型要有代表性基期、留出或交叉驗證、誤差與殘差檢查、變數合理性和外推限制。比較前核對資料窗、誤差及量測不確定性。若未驗證、變數明顯外推或有效資料不足，標為「不可比／待補驗」而不是把未量測的改善寫成 0%。</li><li>有模型時報告估計差額並附適用範圍、誤差與合適的不確定性區間；若配適與獨立性假設不成立，不應編造信賴區間或宣稱顯著改善。應區分基線平均反應的不確定性與單期實際結果的預測區間。</li></ul>
+</section>
+<section id="lab"><h2>4｜Python API 與可重跑實驗</h2><p>只用 Python 標準庫。下載 <a href="python_iso50001_reporting_lab.py" download>離線報表程式</a> 後執行：</p><pre><code>python python_iso50001_reporting_lab.py
+python python_iso50001_reporting_lab.py --test</code></pre>
+<ul><li><code>Decimal(str(value))</code> 做十進位數值處理；拒絕 NaN、Inf、負值與無效筆數。</li><li><code>sheet(...)</code> 驗證並輸出用電、燃料換算、殘差、簡單指標和正規化比較。模型域與覆蓋門檻 99.5% 是此算例的政策，不等於符合標準或統計驗證。</li><li><code>json.dumps(default=str)</code> 將 Decimal 輸出成字串；不可比欄位輸出 <code>null</code>。正式服務應在 schema 定義數值格式、單位、電表來源、時間、模型／資料版本與不可比原因。</li></ul>
+<details><summary>檢查缺值時會不會錯算節省</summary><pre><code>from python_iso50001_reporting_lab import example
+r = example(valid_intervals=2800)
+assert r["normalization_status"] == "not_comparable"
+assert r["improvement_ratio"] is None</code></pre></details></section>
+<section id="review"><h2>5｜結果誰簽、改善如何跟進</h2>
+<ol><li>能源管理小組定邊界、能源類型、期間、記錄保留及資料互補原則；設備與生產端驗證表號、倍率、工時與良品定義。</li><li>能源管理者／量測驗證責任人管理 EnPI、EnB、相關變數與靜態因素、重新建立基線條件、資料覆蓋／誤差，以及報表來源的可追溯性。</li><li>管理審查回看未達 820 kWh 的原因，指定查核製程運轉、空壓洩漏或冰水控制等行動所需的資源、負責人、期限和驗證方法；節省只有完成比較與驗證後才可入帳。</li></ol>
+<p class="note">上線證據至少能重建：設備邊界、時間、來源及倍率原件、能源平衡表、資料更正紀錄、模型輸入與版本、目標核准與行動追蹤。報表月份、溫度基準及資料單位需明標。</p>
+<p>參考：<a href="https://www.iso.org/standard/69426.html">ISO 50001:2018</a>、<a href="https://www.iso.org/standard/88430.html">Amd 1:2024</a>、<a href="https://www.iso.org/standard/79367.html">ISO 50006:2023（EnPI 與 EnB）</a>、<a href="https://www.iso.org/standard/60043.html">ISO 50015:2014（量測驗證）</a>、<a href="https://50001-ready.lbl.gov/">美國能源部 50001 Ready Navigator</a>。</p>
+<p><a href="python_factory_energy_metrics_tutorial.html">工廠能效指標</a> · <a href="python_carbon_emissions_calculation_tutorial.html">碳排放量計算</a></p></section>
+</main></body></html>
