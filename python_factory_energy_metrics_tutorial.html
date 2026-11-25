@@ -50,7 +50,7 @@ section{box-shadow:0 .3rem 1.1rem #274e7310}
 .ff-card{min-width:0;margin:0;border:1px solid var(--line);border-radius:.65rem;padding:.75rem;background:#f6fafd}.ff-card h4{margin:0 0 .45rem;color:#174c7e}.ff-card p{margin:.3rem 0;overflow-wrap:anywhere}.ff-expression{font-weight:750;background:var(--soft);border-radius:.4rem;padding:.4rem .55rem;font-variant-numeric:tabular-nums}
 </style></head><body><main id="top">
 <header class="operations-hero"><div class="hero-top"><span class="tag">FACTORY ENERGY / OPERATIONS</span><span class="demo-status">合成資料 · 離線教材</span></div><h1>工廠能效指標：從分電表到單位良品能耗</h1><p>用一條產線、兩種產品和四個 15 分鐘區間，從原始資料算出用電、需量、負載率、耗電強度與相同產品組合的基準偏差。全部數值為合成教學資料。</p>
-<nav class="links" aria-label="章節導覽"><a href="index.html#facility-metrics">回機房與 HVAC 指標</a><a href="#dashboard">儀表板</a><a href="#architecture">架構與流程</a><a href="#metrics">公式與算例</a><a href="#formula-library">完整公式庫</a><a href="#apis">API 與實作</a><a href="#acceptance">驗收</a></nav></header>
+<nav class="links" aria-label="章節導覽"><a href="index.html#facility-metrics">回機房與 HVAC 指標</a><a href="#dashboard">儀表板</a><a href="#architecture">架構與流程</a><a href="#metrics">公式與算例</a><a href="#formula-library">完整公式庫</a><a href="#cooling-tower-energy">水塔能源</a><a href="#apis">API 與實作</a><a href="#acceptance">驗收</a></nav></header>
 <section id="dashboard" aria-labelledby="dash-title"><div class="dashboard-heading"><div><span class="section-kicker">01 / PERFORMANCE SNAPSHOT</span><h2 id="dash-title">產線能效總覽</h2></div><p>資料區間：08:00–09:00（UTC+08:00）<br>指標邊界：單一產線分電表與良品數</p></div><div class="dashboard-grid"><div class="cards" aria-label="算例主要結果"><div class="card"><b>210 kWh</b>一小時用電<span>分電表累計</span></div><div class="card"><b>0.75 kWh／件</b>單位良品能耗<span>210 kWh／280 件</span></div><div class="card"><b>260 kW</b>15 分鐘尖峰需量<span>08:15 起始窗</span></div><div class="card"><b>80.77%</b>本時窗負載率<span>平均 210 kW／尖峰 260 kW</span></div></div><figure class="demand-panel"><figcaption>需量長條圖｜每窗平均功率（0–300 kW）</figcaption>
 <div class="demand-scale" aria-hidden="true"><span>0</span><span>100</span><span>200</span><span>300 kW</span></div><ol class="barlist"><li><span>08:00</span><span class="track" aria-hidden="true"><span class="fill" style="--value:68%"></span></span><strong>204 kW</strong></li><li class="peak"><span>08:15</span><span class="track" aria-hidden="true"><span class="fill" style="--value:86.6667%"></span></span><strong>260 kW</strong></li><li><span>08:30</span><span class="track" aria-hidden="true"><span class="fill" style="--value:73.3333%"></span></span><strong>220 kW</strong></li><li><span>08:45</span><span class="track" aria-hidden="true"><span class="fill" style="--value:52%"></span></span><strong>156 kW</strong></li></ol>
 <p>本窗尖峰在 08:15（260 kW）；08:45 無良品仍用 39 kWh。先查設備同時啟動與待機紀錄，不為壓需量犧牲製程安全。</p></figure></div></section>
@@ -165,6 +165,42 @@ section{box-shadow:0 .3rem 1.1rem #274e7310}
   q.addEventListener("input",update);sel.addEventListener("change",update);update();
 })();
 </script>
+<section id="cooling-tower-energy" aria-labelledby="tower-title">
+<span class="section-kicker">UTILITY SYSTEM / COOLING TOWER</span>
+<h2 id="tower-title">水塔能源計算：冷卻塔散熱、風機及冷凝水泵</h2>
+<p>這裡的水塔是供冰機冷凝水使用的<strong>開式蒸發冷卻塔</strong>，不是儲水塔或密閉式乾冷器。先分清兩個數字：塔把多少熱排出去（kW 熱），系統為此消耗多少電（kW 電及 kWh 電）。</p>
+<figure aria-labelledby="tower-loop"><figcaption id="tower-loop">量測架構｜區分蒸發側產冷與冷凝側散熱</figcaption><ol class="flow"><li><strong>製程與蒸發器</strong><span>冰水流量 × 供回水溫差，得蒸發器實測冷量。</span></li><li><strong>冷媒壓縮與冷凝</strong><span>壓縮機電表獨立；冷凝熱由冷凝水帶出。</span></li><li><strong>冷凝水泵與塔</strong><span>泵輸入 kW；塔測循環水流量、進出水溫與風機 kW。</span></li><li><strong>塔入口與出流</strong><span>測入塔空氣濕球，不用乾球或另處氣象站讀值直接代換。</span></li></ol></figure>
+<h3>同一小時的合成算例</h3>
+<div class="tablebox" role="region" aria-label="冷卻塔計算步驟" tabindex="0"><table><thead><tr><th scope="col">量測項</th><th scope="col">公式與代入</th><th scope="col">工程判讀</th></tr></thead><tbody>
+<tr><th scope="row">Range（冷卻幅度）</th><td>塔進熱水 − 塔出冷水＝35 − 30＝5 K</td><td>反映冷凝側負荷與水量，並非單獨塔效率。</td></tr>
+<tr><th scope="row">Approach（逼近溫差）</th><td>塔出冷水 − 入塔濕球＝30 − 26＝4 K</td><td>應以同負荷、流量、濕球與塔運轉條件比較；濕球負誤差、氣流回流與錯測位置會扭曲結果。</td></tr>
+<tr><th scope="row">塔水側散熱</th><td>ρ × V̇ × cₚ × Range＝1,000 × (216÷3,600) × 4.186 × 5＝1,255.8 kW 熱</td><td>ρ kg/m³、V̇ m³/s、cₚ kJ/(kg·K)。示例採純水近似；量測邊界用塔進、出水同時值。換算熱量約 357.08 RT，但不是塔廠牌名目冷噸。</td></tr>
+<tr><th scope="row">塔風機電量</th><td>Σ(P<sub>i</sub> × Δt<sub>i</sub>)＝22 × 0.5 ＋ 12 × 0.5＝17 kWh</td><td>用區間平均真功率或分表差值。若固定功率只開 30 分鐘，電量就以 0.5 h 計；另檢查待機電。</td></tr>
+<tr><th scope="row">冷凝水泵輸入（估）</th><td>ρ × g × V̇ × H ÷ (1,000 × η<sub>線到水</sub>)＝1,000 × 9.81 × 0.06 × 18 ÷ (1,000 × 0.72)＝14.715 kW</td><td>H 是量測邊界總動揚程（m）；效率包含馬達、驅動與泵。優先用電表；此估算維持一小時得 14.715 kWh。</td></tr>
+<tr><th scope="row">全廠冷量與電量</th><td>蒸發器 1,015 kW 熱 × 1 h ≈ 288.61 RT·h；壓縮機 230、風機 17、冷凝泵 14.715、冰水泵 10，共 271.715 kWh</td><td>逐項獨立、互斥。現場若全廠電表已含這些分表，取總表來對帳，不再相加一次。</td></tr>
+</tbody></table></div>
+<p class="note"><strong>熱平衡核對：</strong>此合成邊界中 1,015 kW 蒸發器冷量＋230 kW 壓縮機輸入≈1,245 kW，相對塔的 1,255.8 kW 差約 10.8 kW。量級與冷凝迴路泵水力功率 10.59 kW 相近；泵能量及損失的去向、外殼散熱、旁通與暫態因裝置而異，不能把殘差全部硬指派給泵。若另有熱回收或冷凝器外的冷卻路徑，就不是這個平衡。</p>
+<h3>三種 kW/RT：標明電量與熱量分母，才可比較</h3>
+<div class="tablebox" role="region" aria-label="冷卻塔與冷凍廠 kW/RT 分母" tabindex="0"><table><thead><tr><th scope="col">指標邊界</th><th scope="col">累計電量 ÷ 累計 RT·h</th><th scope="col">本例</th></tr></thead><tbody>
+<tr><th scope="row">塔風機</th><td>17 kWh ÷ 357.08 RT·h（塔散熱）</td><td>0.0476 kW／散熱 RT</td></tr>
+<tr><th scope="row">風機＋冷凝水泵</th><td>31.715 kWh ÷ 357.08 RT·h（塔散熱）</td><td>0.0888 kW／散熱 RT</td></tr>
+<tr><th scope="row">冷凍廠</th><td>271.715 kWh ÷ 288.61 RT·h（蒸發器冷量）</td><td>0.9415 kW／蒸發器 RT</td></tr>
+</tbody></table></div>
+<p>1 RT≈3.516853 kW 熱，只是單位換算。冷卻塔廠牌的額定塔噸有另外的標準測定條件，不可直接套用。不同負載窗先算 Σ(kW 電 × h) ÷ Σ(RT 熱 × h)，不能做瞬時 kW/RT 的簡單平均；有效 RT·h 為零或資料缺漏時報「未定義／待補」，不可用 0 代替。</p>
+<figure aria-labelledby="tower-chart"><figcaption id="tower-chart">冷凍廠用電分解｜同一小時、同一比例尺（0–230 kWh）</figcaption><ul class="barlist">
+<li style="grid-template-columns:minmax(3.9rem,7rem) minmax(0,36rem) minmax(4rem,max-content)"><span>壓縮機</span><span class="track" aria-hidden="true"><span class="fill" style="--value:100%"></span></span><strong>230 kWh</strong></li>
+<li style="grid-template-columns:minmax(3.9rem,7rem) minmax(0,36rem) minmax(4rem,max-content)"><span>風機</span><span class="track" aria-hidden="true"><span class="fill" style="--value:7.39%"></span></span><strong>17 kWh</strong></li>
+<li style="grid-template-columns:minmax(3.9rem,7rem) minmax(0,36rem) minmax(4rem,max-content)"><span>冷凝水泵</span><span class="track" aria-hidden="true"><span class="fill" style="--value:6.40%"></span></span><strong>14.715 kWh</strong></li>
+<li style="grid-template-columns:minmax(3.9rem,7rem) minmax(0,36rem) minmax(4rem,max-content)"><span>冰水泵</span><span class="track" aria-hidden="true"><span class="fill" style="--value:4.35%"></span></span><strong>10 kWh</strong></li></ul></figure>
+<p><strong>變頻估算與驗收：</strong>同一風機、近似相似工況下，軸功率比可用 (轉速比)³ 初估；例如 80% 轉速約為原軸功率 51.2%，<em>不等於</em>電表必然省 48.8%。風阻、密度、變頻器低負載效率、最低風量、塔逼近溫差與冰機冷凝負荷都可能變動。應看同邊界總 kWh 和同負荷、濕球下的數據，不能只降低風機 kW 就判定全廠改善。</p>
+<p><strong>水量另算：</strong>穩態開式塔補水 M≈蒸發 E＋排污 B＋飄水 D（另有洩漏、溢流或槽位變動時需列回）。濃縮倍數 C 以適用且可比的導電度／溶質濃度近似；飄水可忽略、無其他損失時 B≈E÷(C−1)，須 C&gt;1。例如另給合成 E=2.0 m³/h、C=5，估 B≈0.5 m³/h、M≈2.5 m³/h。此 E 是另給數字，不是由塔水側總熱量直接除汽化潛熱推成的實測；散熱同時有顯熱。水質及藥劑須依現場規範，不由此算例決定。</p>
+<h3>Python 計算 API 和驗收</h3>
+<p>下載 <a href="python_cooling_tower_energy_lab.py" download>冷卻塔離線實驗</a>。<code>tower_heat_kw()</code> 回傳散熱、Range、Approach；<code>pump_input_kw()</code> 估線到水邊界下的輸入功率；<code>ratios()</code> 按窗積分並各用正確分母。只讀合成資料，不連接設備。</p>
+<pre tabindex="0"><code>python python_cooling_tower_energy_lab.py
+python python_cooling_tower_energy_lab.py --self-test</code></pre>
+<p>驗收先查冷卻塔水量與冰水量是否用了不同的正確表、時窗有沒有對齊、瞬時值是否積分、功率表是否涵蓋待機與所選邊界，最後以排熱平衡和連續趨勢對帳。</p>
+<ul><li><a href="https://spxcooling.com/wp-content/uploads/CTII-01A.pdf">SPX/Marley 工程說明：熱負荷、Range 與 Approach</a></li><li><a href="https://www.energy.gov/cmei/femp/best-management-practice-10-cooling-tower-management">美國能源部 FEMP：開式冷卻塔補水、排污與濃縮倍數</a></li><li><a href="https://betterbuildingssolutioncenter.energy.gov/sites/default/files/attachments/BP_Pump%20Systems_Info%20Card_Final.pdf">美國能源部 Better Plants：泵輸入與相似律</a>；<a href="https://www.energy.gov/cmei/femp/purchasing-energy-efficient-electric-chillers">FEMP：冰機效率評估</a></li></ul>
+</section>
 <section id="apis"><h2>4｜Python API 與實作：CSV、JSON、批次檢算</h2>
 <p>只需 Python 3.10+ 標準函式庫，不連 PLC、MES 或其他網路。可下載 <a href="python_factory_energy_metrics_lab.py" download>完整程式及 6 項自測</a>、<a href="python_factory_energy_metrics_sample.csv" download>四區間合成 CSV</a>。</p>
 <pre><code>python python_factory_energy_metrics_lab.py
