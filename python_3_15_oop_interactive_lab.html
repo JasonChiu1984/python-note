@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python 3.15 物件導向與類別 (OOP &amp; Classes) 互動式學習實驗室</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            pyblue: '#306998',
+            pyyellow: '#FFD43B',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .code-block {
+      font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      tab-size: 4;
+    }
+    .nav-btn.active {
+      background-color: #0f172a;
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .mro-node { transition: all 0.2s ease; cursor: pointer; }
+    .mro-node:hover rect { filter: brightness(0.96); }
+    .toast-enter { animation: slideUp 0.25s ease-out; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Top Header & Single-Line Responsive Navigation -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-cyan-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+            3.15
+          </div>
+          <div class="truncate">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">Python 3.15 物件導向與 Classes 互動實驗室</h1>
+            <p class="text-xs text-slate-500 hidden sm:block">PEP 814 frozendict · PEP 661 sentinel · PEP 800 disjoint_base · C3 MRO · CSV 實例化</p>
+          </div>
+        </div>
+
+        <!-- Desktop Single-Line Nav -->
+        <nav class="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl" aria-label="主要導覽">
+          <button type="button" data-tab="overview" class="nav-btn active px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 transition">3.15 總覽</button>
+          <button type="button" data-tab="builder" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 transition">類別建構器</button>
+          <button type="button" data-tab="mro" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 transition">繼承與 MRO</button>
+          <button type="button" data-tab="sandbox" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 transition">3.15 語意沙盒</button>
+          <button type="button" data-tab="csv_lab" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 transition">CSV 實例解析</button>
+        </nav>
+
+        <!-- Mobile Menu Button -->
+        <button type="button" id="mobile-menu-toggle" class="lg:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium" aria-expanded="false" aria-controls="mobile-nav">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+          <span>選單</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Mobile Nav -->
+      <nav id="mobile-nav" class="hidden lg:hidden pb-3 pt-1 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-1.5" aria-label="行動版導覽">
+        <button type="button" data-tab="overview" class="nav-btn active px-3 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 text-center">3.15 總覽</button>
+        <button type="button" data-tab="builder" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 text-center">類別建構器</button>
+        <button type="button" data-tab="mro" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 text-center">繼承與 MRO</button>
+        <button type="button" data-tab="sandbox" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 text-center">3.15 語意沙盒</button>
+        <button type="button" data-tab="csv_lab" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 text-center col-span-2 sm:col-span-1">CSV 實例解析</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <!-- ==================== TAB 1: OVERVIEW ==================== -->
+    <section id="tab-overview" class="tab-panel active space-y-6">
+      <!-- Hero Banner -->
+      <div class="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-sm">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-3 max-w-2xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-medium">
+              <span>Python 3.15 (2026-10-09 發布)</span>
+              <span>·</span>
+              <span>OOP &amp; Type System 實戰指南</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">現代 Python 3.15 物件導向設計全景</h2>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+              Python 3.15 為物件導向與類別設計帶來多項關鍵升級：內建不可變雜湊字典 <code class="text-cyan-300 font-mono">frozendict</code> (PEP 814)、原生哨兵型別 <code class="text-cyan-300 font-mono">sentinel</code> (PEP 661)、阻止非法多重繼承的 <code class="text-cyan-300 font-mono">@disjoint_base</code> (PEP 800)、嚴格 <code class="text-cyan-300 font-mono">TypedDict</code> (PEP 728)，搭配 Free-Threading 穩定 ABI 與升級版 JIT，讓不可變資料類別在多執行緒環境下更安全、更快速。
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-3 shrink-0">
+            <div class="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3.5">
+              <div class="text-xs text-slate-300">內建新基礎型別</div>
+              <div class="text-lg font-bold text-cyan-300 mt-0.5 font-mono">frozendict / sentinel</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">PEP 814 &amp; PEP 661</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3.5">
+              <div class="text-xs text-slate-300">靜態型別強化</div>
+              <div class="text-lg font-bold text-emerald-300 mt-0.5 font-mono">disjoint_base</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">PEP 800 / 728 / 747</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3.5">
+              <div class="text-xs text-slate-300">JIT 幾何平均加速</div>
+              <div class="text-lg font-bold text-amber-300 mt-0.5">+8~13%</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">Linux x86-64 / macOS ARM</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3.5">
+              <div class="text-xs text-slate-300">Tachyon 採樣上限</div>
+              <div class="text-lg font-bold text-purple-300 mt-0.5">1,000,000 Hz</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">PEP 799 profiling.sampling</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filterable Feature Grid -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Python 3.15 OOP 與類別相關核心 PEP</h3>
+            <p class="text-xs text-slate-500 mt-0.5">點擊篩選分類，快速檢視各項新特性對類別設計與實務架構的影響</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5" id="feature-filters">
+            <button type="button" data-filter="all" class="filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">全部 (6)</button>
+            <button type="button" data-filter="builtin" class="filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">內建型別</button>
+            <button type="button" data-filter="typing" class="filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">型別系統</button>
+            <button type="button" data-filter="runtime" class="filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">執行期與效能</button>
+          </div>
+        </div>
+        <div id="feature-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- Charts & Comparison Matrix -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Python 3.15 官方發布效能加速指標</h3>
+            <p class="text-xs text-slate-500 mt-1">依據 Python 3.15.0 官方公告與 Astral 基準測試回報之加速區間（中位數繪製，滑鼠移上檢視完整區間）</p>
+          </div>
+          <div class="relative h-64 mt-4">
+            <canvas id="perf-chart"></canvas>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+            <span>來源：</span>
+            <a href="https://blog.python.org/2026/08/python-3150-rc1/" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Python 3.15.0 官方部落格</a>
+            <a href="https://astral.sh/blog/python-3.15" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Astral Python 3.15 報告</a>
+            <a href="https://docs.python.org/3/whatsnew/3.15.html" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">What's New in 3.15</a>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm overflow-hidden">
+          <div class="mb-4">
+            <h3 class="text-base font-bold text-slate-900">Python 3.15 五大類別設計模式對照表</h3>
+            <p class="text-xs text-slate-500 mt-0.5">依記憶體結構、可變性、雜湊支援與 Free-Threading (No-GIL) 適用度挑選最佳方案</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 bg-slate-50 text-slate-600">
+                  <th class="py-2.5 px-3 font-semibold">模式</th>
+                  <th class="py-2.5 px-3 font-semibold">實例 `__dict__`</th>
+                  <th class="py-2.5 px-3 font-semibold">不可變 / Hashable</th>
+                  <th class="py-2.5 px-3 font-semibold">3.15 搭配建議</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700">
+                <tr class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-900">標準 class</td>
+                  <td class="py-2.5 px-3">有（可動態增刪屬性）</td>
+                  <td class="py-2.5 px-3">預設可變（依身分雜湊）</td>
+                  <td class="py-2.5 px-3">搭配 <code class="font-mono text-indigo-700">sentinel</code> 處理可選參數</td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-900">class + __slots__</td>
+                  <td class="py-2.5 px-3 text-emerald-700 font-medium">無（固定槽位省記憶體）</td>
+                  <td class="py-2.5 px-3">可變（需自訂 `__eq__`/`__hash__`）</td>
+                  <td class="py-2.5 px-3">搭配 <code class="font-mono text-indigo-700">@disjoint_base</code> 保護基底結構</td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-900">@dataclass</td>
+                  <td class="py-2.5 px-3">有（自動生成 `__init__`/`__repr__`）</td>
+                  <td class="py-2.5 px-3">可變（預設不可雜湊）</td>
+                  <td class="py-2.5 px-3">領域模型與 DTO 首選</td>
+                </tr>
+                <tr class="hover:bg-slate-50/70 bg-indigo-50/40">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-indigo-900">@dataclass(frozen=True, slots=True)</td>
+                  <td class="py-2.5 px-3 text-emerald-700 font-medium">無（最精簡布局）</td>
+                  <td class="py-2.5 px-3 text-emerald-700 font-medium">不可變且可雜湊</td>
+                  <td class="py-2.5 px-3 font-medium text-indigo-900">搭配 <code class="font-mono">frozendict</code> 達成 Free-Threading 安全</td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-900">TypedDict(closed=True)</td>
+                  <td class="py-2.5 px-3">執行期為普通 dict</td>
+                  <td class="py-2.5 px-3">執行期可變（靜態嚴格檢查）</td>
+                  <td class="py-2.5 px-3">PEP 728 嚴格 JSON / API 載荷契約</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: CLASS BUILDER ==================== -->
+    <section id="tab-builder" class="tab-panel space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Config Panel -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Python 3.15 互動式類別建構器</h2>
+            <p class="text-xs text-slate-500 mt-0.5">調整類別架構、Python 3.15 新特性與欄位，即時產出可執行程式碼與 UML 圖</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="cls-name" class="block text-xs font-semibold text-slate-700 mb-1">類別名稱 (Class Name)</label>
+              <input id="cls-name" type="text" value="ServiceNode" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label for="cls-style" class="block text-xs font-semibold text-slate-700 mb-1">類別模式</label>
+              <select id="cls-style" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="dataclass_frozen" selected>@dataclass(frozen=True, slots=True)</option>
+                <option value="dataclass">@dataclass (標準)</option>
+                <option value="classic">標準 class</option>
+                <option value="abc">ABC 抽象基底類別</option>
+                <option value="protocol">typing.Protocol 結構型別</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-xs font-semibold text-slate-700">Python 3.15 與 OOP 強化選項</div>
+            <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input id="opt-frozendict" type="checkbox" checked class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs">
+                <div class="font-semibold text-slate-800">PEP 814 <code class="font-mono text-indigo-600">frozendict</code> 不可變預設設定</div>
+                <div class="text-slate-500">加入 <code class="font-mono">metadata: frozendict[str, str] = frozendict()</code>，安全取代可變預設字典</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input id="opt-sentinel" type="checkbox" checked class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs">
+                <div class="font-semibold text-slate-800">PEP 661 <code class="font-mono text-indigo-600">sentinel</code> 三態更新方法</div>
+                <div class="text-slate-500">加入 <code class="font-mono">UNSET = sentinel(...)</code> 區分「省略參數」與明確傳入 <code class="font-mono">None</code></div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input id="opt-disjoint" type="checkbox" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs">
+                <div class="font-semibold text-slate-800">PEP 800 <code class="font-mono text-indigo-600">@disjoint_base</code> 互斥基底標記</div>
+                <div class="text-slate-500">標示此類別不可與其他 <code class="font-mono">@disjoint_base</code> 類別進行多重繼承</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input id="opt-slots" type="checkbox" checked class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs">
+                <div class="font-semibold text-slate-800">啟用 <code class="font-mono text-indigo-600">__slots__</code> 記憶體最佳化</div>
+                <div class="text-slate-500">移除每實例 <code class="font-mono">__dict__</code>，降低大量物件建立時的記憶體開銷</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input id="opt-property" type="checkbox" checked class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs">
+                <div class="font-semibold text-slate-800">加入 <code class="font-mono text-indigo-600">@property</code> 計算屬性與驗證</div>
+                <div class="text-slate-500">提供唯讀衍生屬性與初始化驗證邏輯</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Dynamic Fields Editor -->
+          <div class="space-y-2.5 pt-2 border-t border-slate-100">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">資料欄位 (Attributes)</span>
+              <button type="button" id="add-field-btn" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增欄位
+              </button>
+            </div>
+            <div id="builder-fields-list" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Right Output: Live Metrics + SVG UML + Generated Code -->
+        <div class="lg:col-span-7 space-y-5">
+          <!-- Structural Metrics Row -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="builder-metrics"></div>
+
+          <!-- Dynamic SVG UML Diagram -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-900">即時 UML 類別結構圖 (SVG)</h3>
+              <span class="text-[11px] text-slate-500">依欄位與方法自動調整尺寸</span>
+            </div>
+            <div id="uml-svg-container" class="w-full overflow-x-auto flex justify-center bg-slate-50 rounded-xl p-4 border border-slate-100"></div>
+          </div>
+
+          <!-- Generated Python 3.15 Code -->
+          <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800/80 border-b border-slate-700">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span class="text-xs font-mono text-slate-300 ml-2" id="builder-filename">service_node.py (Python 3.15)</span>
+              </div>
+              <button type="button" id="copy-builder-code" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> 複製程式碼
+              </button>
+            </div>
+            <pre class="p-4 text-xs sm:text-sm text-slate-100 overflow-x-auto leading-relaxed code-block"><code id="builder-code-output"></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: INHERITANCE & C3 MRO ==================== -->
+    <section id="tab-mro" class="tab-panel space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">繼承體系、C3 MRO 演算法與 PEP 800 Disjoint Base 模擬器</h2>
+            <p class="text-xs text-slate-500 mt-0.5">真實執行 Python C3 線性化演算法，並即時偵測 PEP 800 <code class="font-mono">@disjoint_base</code> 多重繼承衝突</p>
+          </div>
+          <div class="flex flex-wrap gap-2" id="mro-presets">
+            <button type="button" data-preset="diamond" class="mro-preset-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">鑽石繼承 (Diamond)</button>
+            <button type="button" data-preset="mixin" class="mro-preset-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Mixin + Dataclass</button>
+            <button type="button" data-preset="disjoint" class="mro-preset-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">PEP 800 衝突偵測</button>
+            <button type="button" data-preset="invalid_c3" class="mro-preset-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">非法 C3 順序衝突</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Interactive SVG Graph -->
+          <div class="lg:col-span-7 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">類別繼承 DAG 與 <code class="font-mono">super()</code> 解析路徑</span>
+              <div class="flex items-center gap-2">
+                <button type="button" id="mro-step-btn" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">
+                  <i data-lucide="play" class="w-3.5 h-3.5"></i> 逐步追蹤 super()
+                </button>
+                <button type="button" id="mro-reset-step-btn" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium">重設高亮</button>
+              </div>
+            </div>
+            <div id="mro-svg-container" class="w-full overflow-x-auto bg-slate-50 rounded-xl border border-slate-200 p-3 flex justify-center"></div>
+            <div id="mro-status-banner" class="rounded-xl p-3.5 text-xs sm:text-sm"></div>
+          </div>
+
+          <!-- Right Controls & Step-by-step C3 Derivation -->
+          <div class="lg:col-span-5 space-y-4">
+            <div class="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/70">
+              <div class="text-xs font-bold text-slate-800">自訂目標子類別的直接父類別順序（由左至右）</div>
+              <div id="mro-parent-controls" class="flex flex-wrap gap-2"></div>
+              <div class="text-[11px] text-slate-500">提示：點擊上方父類別標籤可切換是否繼承；也可切換左右順序觀察 C3 MRO 與衝突變化。</div>
+              <button type="button" id="mro-swap-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-700">
+                <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> 反轉直接父類別順序
+              </button>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 p-4 space-y-2.5">
+              <div class="text-xs font-bold text-slate-800">C3 線性化結果 (<code class="font-mono">__mro__</code>)</div>
+              <div id="mro-chain-badges" class="flex flex-wrap items-center gap-1.5"></div>
+            </div>
+
+            <div class="rounded-xl bg-slate-900 text-slate-100 p-4 space-y-2">
+              <div class="text-xs font-semibold text-cyan-300">對應 Python 3.15 程式碼與檢查器診斷</div>
+              <pre class="text-xs overflow-x-auto leading-relaxed code-block"><code id="mro-code-preview"></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: PYTHON 3.15 SEMANTIC SANDBOX ==================== -->
+    <section id="tab-sandbox" class="tab-panel space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Lab A: PEP 814 frozendict -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600">PEP 814 互動實驗</span>
+              <h3 class="text-base font-bold text-slate-900">frozendict 不可變字典行為測試器</h3>
+            </div>
+            <button type="button" id="fd-clear-btn" class="text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg border border-slate-200">清除終端</button>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            點擊下方 Python 3.15 指令，即時觀察 <code class="font-mono text-indigo-700">frozendict</code> 的雜湊、型別繼承階層（非 <code class="font-mono">dict</code> 子類別）、<code class="font-mono">|=</code> 重新繫結與淺凍結陷阱。
+          </p>
+          <div class="grid grid-cols-2 gap-2" id="fd-action-buttons"></div>
+          <div class="bg-slate-900 rounded-xl p-3.5 text-xs font-mono text-slate-100 h-64 overflow-y-auto space-y-2 code-block" id="fd-terminal"></div>
+        </div>
+
+        <!-- Lab B: PEP 661 sentinel -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">PEP 661 互動實驗</span>
+            <h3 class="text-base font-bold text-slate-900">sentinel 三態更新與 copy/pickle 身分測試</h3>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            模擬 <code class="font-mono text-emerald-700">UserProfile.update(display_name: str | None | MISSING = MISSING)</code>，比較「未提供參數」、「傳入 <code class="font-mono">None</code> 清除」與「傳入新字串」，並實測 <code class="font-mono">deepcopy()</code> 後的 <code class="font-mono">is</code> 行為。
+          </p>
+
+          <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs">
+              <span class="text-slate-500">目前物件狀態：</span>
+              <span id="sentinel-profile-state" class="font-mono font-bold text-slate-900"></span>
+            </div>
+            <button type="button" id="sentinel-reset-btn" class="text-xs text-indigo-600 hover:underline font-medium">重設物件</button>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="sentinel-new-name" type="text" value="Alice_315" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono" placeholder="輸入新 display_name" />
+            <button type="button" data-sentinel-op="set" class="sentinel-op-btn px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">傳入字串 (更新)</button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <button type="button" data-sentinel-op="omit" class="sentinel-op-btn px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold">省略參數 (MISSING)</button>
+            <button type="button" data-sentinel-op="none" class="sentinel-op-btn px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold">傳入 None (清除)</button>
+            <button type="button" data-sentinel-op="deepcopy" class="sentinel-op-btn px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-xs font-semibold col-span-2 sm:col-span-1">實測 deepcopy / pickle</button>
+          </div>
+
+          <div class="bg-slate-900 rounded-xl p-3.5 text-xs font-mono text-slate-100 h-44 overflow-y-auto space-y-2 code-block" id="sentinel-terminal"></div>
+        </div>
+      </div>
+
+      <!-- Lab C: PEP 728 TypedDict -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-purple-600">PEP 728 互動實驗</span>
+            <h3 class="text-base font-bold text-slate-900">TypedDict 嚴格度檢查器 (`closed=True` vs `extra_items=int`)</h3>
+          </div>
+          <div class="flex flex-wrap gap-1.5" id="td-mode-buttons">
+            <button type="button" data-td-mode="standard" class="td-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">標準 TypedDict</button>
+            <button type="button" data-td-mode="closed" class="td-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white">closed=True</button>
+            <button type="button" data-td-mode="extra_int" class="td-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">extra_items=int</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-5">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5">類別定義 (Python 3.15)</div>
+            <pre class="bg-slate-900 text-slate-100 rounded-xl p-3.5 text-xs code-block overflow-x-auto leading-relaxed"><code id="td-schema-code"></code></pre>
+          </div>
+          <div class="lg:col-span-4">
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="td-json-input" class="text-xs font-semibold text-slate-700">編輯測試資料 (JSON)</label>
+              <button type="button" id="td-sample-extra" class="text-[11px] text-purple-600 hover:underline">填入含額外鍵範例</button>
+            </div>
+            <textarea id="td-json-input" rows="6" class="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-purple-500">{
+  "host": "api.taipei.internal",
+  "port": 8080,
+  "retries": 3
+}</textarea>
+          </div>
+          <div class="lg:col-span-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-semibold text-slate-700 mb-1.5">靜態型別檢查診斷</div>
+              <div id="td-diagnostics" class="rounded-xl p-3.5 text-xs space-y-2 border"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: PRACTICAL CSV LAB ==================== -->
+    <section id="tab-csv_lab" class="tab-panel space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">實務應用：CSV 匯入/匯出與 Python 3.15 不可變類別實例解析器</h2>
+            <p class="text-xs text-slate-500 mt-0.5">將 CSV 列資料自動對應至 <code class="font-mono text-indigo-700">@dataclass(frozen=True, slots=True)</code>，空白欄位以 <code class="font-mono text-emerald-700">sentinel('UNSET')</code> 標記、標籤欄位轉為 <code class="font-mono text-cyan-700">frozendict</code></p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer transition">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+              <span>匯入 CSV</span>
+              <input id="csv-file-input" type="file" accept=".csv,text/csv" class="hidden" />
+            </label>
+            <button type="button" id="csv-export-btn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> 匯出 CSV
+            </button>
+            <button type="button" id="csv-copy-py-btn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
+              <i data-lucide="code-2" class="w-3.5 h-3.5"></i> 複製 Python 3.15 實例碼
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Row Form & Filter -->
+        <form id="csv-add-form" class="grid grid-cols-2 sm:grid-cols-6 gap-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <input id="csv-in-name" type="text" required placeholder="節點名稱 (例: worker-04)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono bg-white" />
+          <select id="csv-in-role" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+            <option value="api">api</option>
+            <option value="worker">worker</option>
+            <option value="cache">cache</option>
+            <option value="db">db</option>
+          </select>
+          <input id="csv-in-port" type="text" placeholder="埠號 (可留空→UNSET)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono bg-white" />
+          <input id="csv-in-tags" type="text" placeholder="標籤 (env=prod;nogil=1)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono bg-white col-span-2" />
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">新增實例</button>
+        </form>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Table -->
+          <div class="lg:col-span-8 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <label for="csv-filter-role" class="text-xs font-semibold text-slate-600">角色篩選：</label>
+                <select id="csv-filter-role" class="px-2.5 py-1 rounded-lg border border-slate-300 text-xs bg-white">
+                  <option value="all">全部角色</option>
+                  <option value="api">api</option>
+                  <option value="worker">worker</option>
+                  <option value="cache">cache</option>
+                  <option value="db">db</option>
+                </select>
+              </div>
+              <span id="csv-count-label" class="text-xs text-slate-500 font-medium"></span>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <th class="py-2.5 px-3 font-semibold">name</th>
+                    <th class="py-2.5 px-3 font-semibold">role</th>
+                    <th class="py-2.5 px-3 font-semibold">port (int | UNSET)</th>
+                    <th class="py-2.5 px-3 font-semibold">tags (frozendict)</th>
+                    <th class="py-2.5 px-3 font-semibold">狀態</th>
+                    <th class="py-2.5 px-3 font-semibold text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="csv-table-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Chart -->
+          <div class="lg:col-span-4 bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">類別實例解析狀態統計</h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">即時統計完整實例、含 <code class="font-mono">UNSET</code> 哨兵值與型別錯誤數量</p>
+            </div>
+            <div class="relative h-56 mt-3">
+              <canvas id="csv-stats-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <footer class="bg-white border-t border-slate-200 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <div>Python 3.15 物件導向與 Classes 互動教學網頁 · 依據 Python 3.15 官方文件與 PEP 規格製作</div>
+      <div class="flex flex-wrap gap-3">
+        <a href="https://docs.python.org/3/whatsnew/3.15.html" target="_blank" rel="noopener" class="hover:text-indigo-600">Python 3.15 Docs</a>
+        <a href="https://peps.python.org/pep-0814/" target="_blank" rel="noopener" class="hover:text-indigo-600">PEP 814</a>
+        <a href="https://peps.python.org/pep-0661/" target="_blank" rel="noopener" class="hover:text-indigo-600">PEP 661</a>
+        <a href="https://peps.python.org/pep-0800/" target="_blank" rel="noopener" class="hover:text-indigo-600">PEP 800</a>
+        <a href="https://peps.python.org/pep-0728/" target="_blank" rel="noopener" class="hover:text-indigo-600">PEP 728</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==================== UTILITIES ====================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const colors = {
+        info: 'bg-slate-900 text-white border-slate-700',
+        success: 'bg-emerald-700 text-white border-emerald-600',
+        error: 'bg-rose-700 text-white border-rose-600'
+      };
+      el.className = `toast-enter pointer-events-auto px-4 py-2.5 rounded-xl border shadow-lg text-xs font-medium ${colors[type] || colors.info}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 2800);
+    }
+
+    function copyTextToClipboard(text, label = '程式碼') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(`已複製${label}至剪貼簿`, 'success');
+        }).catch(() => fallbackCopy(text, label));
+      } else {
+        fallbackCopy(text, label);
+      }
+    }
+
+    function fallbackCopy(text, label) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(`已複製${label}至剪貼簿`, 'success');
+      } catch (e) {
+        showToast('無法自動複製，請手動選取複製', 'error');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ==================== NAVIGATION ====================
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+
+    function switchTab(tabId) {
+      navButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+      });
+      tabPanels.forEach(panel => {
+        panel.classList.toggle('active', panel.id === `tab-${tabId}`);
+      });
+      mobileNav.classList.add('hidden');
+      mobileMenuToggle.setAttribute('aria-expanded', 'false');
+      if (tabId === 'csv_lab') {
+        renderCsvChart();
+      }
+    }
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    mobileMenuToggle.addEventListener('click', () => {
+      const isHidden = mobileNav.classList.toggle('hidden');
+      mobileMenuToggle.setAttribute('aria-expanded', String(!isHidden));
+    });
+
+    // ==================== TAB 1: OVERVIEW DATA & CHART ====================
+    const FEATURES_315 = [
+      {
+        pep: 'PEP 814',
+        title: 'frozendict 內建不可變字典',
+        category: 'builtin',
+        badge: '內建型別',
+        color: 'indigo',
+        desc: '無需匯入的不可變映射型別，所有鍵值可雜湊時可當作 dict 鍵或 functools.cache 參數；注意它不是 dict 子類別（檢查應使用 collections.abc.Mapping），且為淺凍結。',
+        snippet: 'cfg = frozendict(host="0.0.0.0", port=8080)\ncfg2 = cfg | {"port": 9090}',
+        url: 'https://peps.python.org/pep-0814/'
+      },
+      {
+        pep: 'PEP 661',
+        title: 'sentinel 內建哨兵型別',
+        category: 'builtin',
+        badge: '內建型別',
+        color: 'emerald',
+        desc: '取代 _MISSING = object() 慣用法。具備可讀 repr、支援 int | MISSING 聯集型別標註，且在 deepcopy() 與 pickle 往返後維持 is 身分一致，無 __dict__。',
+        snippet: 'UNSET = sentinel("UNSET")\ndef patch(val: str | None | UNSET = UNSET): ...',
+        url: 'https://peps.python.org/pep-0661/'
+      },
+      {
+        pep: 'PEP 800',
+        title: '@typing.disjoint_base 互斥基底',
+        category: 'typing',
+        badge: '型別系統',
+        color: 'purple',
+        desc: '標記底層記憶體結構不相容的類別（如內建 str 與 int），讓靜態型別檢查器在編譯前攔截非法多重繼承並強化 assert_never 窮舉檢查。',
+        snippet: '@disjoint_base\nclass SolidBaseA: ...',
+        url: 'https://peps.python.org/pep-0800/'
+      },
+      {
+        pep: 'PEP 728',
+        title: 'TypedDict closed 與 extra_items',
+        category: 'typing',
+        badge: '型別系統',
+        color: 'cyan',
+        desc: '為字典結構類別新增 closed=True（禁止未宣告額外鍵）與 extra_items=<type>（統一約束額外鍵值型別），讓 API JSON 契約更嚴謹。',
+        snippet: 'class Payload(TypedDict, extra_items=int):\n    host: str',
+        url: 'https://peps.python.org/pep-0728/'
+      },
+      {
+        pep: 'PEP 747',
+        title: 'typing.TypeForm 型別運算式標註',
+        category: 'typing',
+        badge: '型別系統',
+        color: 'amber',
+        desc: '允許撰寫接受「型別運算式本身」作為參數的泛型工廠與驗證函式（如 TypeForm[T]），在執行期直接回傳原物件，簡化框架與序列化類別設計。',
+        snippet: 'def cast[T](typ: TypeForm[T], val: Any) -> T: ...',
+        url: 'https://docs.python.org/3/whatsnew/3.15.html'
+      },
+      {
+        pep: 'PEP 799 / 803',
+        title: 'Tachyon 採樣分析與 Free-Threading ABI',
+        category: 'runtime',
+        badge: '執行期與效能',
+        color: 'rose',
+        desc: '新增 profiling.sampling (Tachyon) 最高 1,000,000 Hz 零負擔採樣剖析類別方法熱點，並提供 Free-Threading 穩定 ABI，搭配不可變類別可無鎖並行。',
+        snippet: 'python -m profiling.sampling attach <PID>',
+        url: 'https://docs.python.org/3/whatsnew/3.15.html'
+      }
+    ];
+
+    function renderFeatureCards(filter = 'all') {
+      const grid = document.getElementById('feature-cards-grid');
+      const items = filter === 'all' ? FEATURES_315 : FEATURES_315.filter(f => f.category === filter);
+      const badgeStyles = {
+        indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        purple: 'bg-purple-50 text-purple-700 border-purple-200',
+        cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+        amber: 'bg-amber-50 text-amber-700 border-amber-200',
+        rose: 'bg-rose-50 text-rose-700 border-rose-200'
+      };
+      grid.innerHTML = items.map(f => `
+        <article class="rounded-xl border border-slate-200 p-4 flex flex-col justify-between hover:border-indigo-300 transition bg-slate-50/40">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeStyles[f.color]}">${escapeHtml(f.pep)}</span>
+              <span class="text-[11px] text-slate-500 font-medium">${escapeHtml(f.badge)}</span>
+            </div>
+            <h4 class="font-bold text-sm text-slate-900">${escapeHtml(f.title)}</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">${escapeHtml(f.desc)}</p>
+            <pre class="bg-slate-900 text-cyan-200 rounded-lg p-2.5 text-[11px] overflow-x-auto code-block"><code>${escapeHtml(f.snippet)}</code></pre>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-200/70 flex justify-end">
+            <a href="${f.url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+              <span>檢視官方規格</span>
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+        </article>
+      `).join('');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    document.getElementById('feature-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-chip');
+      if (!btn) return;
+      document.querySelectorAll('.filter-chip').forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-700');
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-700');
+      btn.classList.add('bg-indigo-600', 'text-white');
+      renderFeatureCards(btn.dataset.filter);
+    });
+
+    function initPerfChart() {
+      const ctx = document.getElementById('perf-chart');
+      if (!ctx || !window.Chart) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Linux x86-64\n(升級版 JIT)', 'macOS AArch64\n(升級版 JIT)', 'Windows x86-64\n(Clang 19 / Tail-Call)'],
+          datasets: [{
+            label: '官方回報幾何平均加速中位數 (%)',
+            data: [8.5, 12.5, 17.5],
+            backgroundColor: ['#4f46e5', '#0891b2', '#059669'],
+            borderRadius: 8,
+            barThickness: 38
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const ranges = ['8% ~ 9% (相對標準直譯器)', '12% ~ 13% (相對 tail-calling 直譯器)', '最高 15% ~ 20% (pyperformance 套件)'];
+                  return `官方實測區間：+${ranges[context.dataIndex]}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 22,
+              ticks: { callback: (v) => `+${v}%`, font: { size: 11 } },
+              grid: { color: '#f1f5f9' }
+            },
+            x: {
+              ticks: { font: { size: 11 } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // ==================== TAB 2: CLASS BUILDER ====================
+    let builderFields = [
+      { id: 1, name: 'host', type: 'str', defaultVal: '' },
+      { id: 2, name: 'port', type: 'int', defaultVal: '8080' },
+      { id: 3, name: 'workers', type: 'int', defaultVal: '4' }
+    ];
+    let nextFieldId = 4;
+
+    function renderBuilderFieldsList() {
+      const list = document.getElementById('builder-fields-list');
+      list.innerHTML = builderFields.map(f => `
+        <div class="grid grid-cols-12 gap-1.5 items-center" data-field-id="${f.id}">
+          <input type="text" value="${escapeHtml(f.name)}" data-prop="name" placeholder="欄位名" class="field-input col-span-4 px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono" />
+          <select data-prop="type" class="field-input col-span-3 px-1.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono bg-white">
+            <option value="str" ${f.type === 'str' ? 'selected' : ''}>str</option>
+            <option value="int" ${f.type === 'int' ? 'selected' : ''}>int</option>
+            <option value="float" ${f.type === 'float' ? 'selected' : ''}>float</option>
+            <option value="bool" ${f.type === 'bool' ? 'selected' : ''}>bool</option>
+          </select>
+          <input type="text" value="${escapeHtml(f.defaultVal)}" data-prop="defaultVal" placeholder="預設值(選填)" class="field-input col-span-4 px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono" />
+          <button type="button" data-remove-id="${f.id}" class="remove-field-btn col-span-1 p-1.5 text-slate-400 hover:text-rose-600 flex justify-center" title="移除欄位">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function updateBuilderOutput() {
+      const rawName = (document.getElementById('cls-name').value || 'ServiceNode').replace(/[^A-Za-z0-9_]/g, '') || 'ServiceNode';
+      const clsName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      const style = document.getElementById('cls-style').value;
+      const useFrozenDict = document.getElementById('opt-frozendict').checked;
+      const useSentinel = document.getElementById('opt-sentinel').checked;
+      const useDisjoint = document.getElementById('opt-disjoint').checked;
+      const useSlots = document.getElementById('opt-slots').checked || style === 'dataclass_frozen';
+      const useProperty = document.getElementById('opt-property').checked;
+
+      const isFrozen = style === 'dataclass_frozen';
+      const isDataclass = style === 'dataclass' || style === 'dataclass_frozen';
+      const isABC = style === 'abc';
+      const isProtocol = style === 'protocol';
+
+      // Build Python 3.15 code
+      const imports = [];
+      if (isDataclass) imports.push('from dataclasses import dataclass, replace');
+      if (isABC) imports.push('from abc import ABC, abstractmethod');
+      const typingImports = [];
+      if (useDisjoint) typingImports.push('disjoint_base');
+      if (isProtocol) typingImports.push('Protocol');
+      if (useSentinel || useProperty) typingImports.push('Self');
+      if (typingImports.length) imports.push(`from typing import ${typingImports.join(', ')}`);
+
+      const lines = [];
+      lines.push('# Python 3.15+ 物件導向類別範例');
+      if (imports.length) {
+        lines.push(...imports);
+        lines.push('');
+      }
+      if (useSentinel) {
+        lines.push(`# PEP 661: 內建 sentinel 型別（免匯入，支援 | 聯集與 deepcopy/pickle 身分保留）`);
+        lines.push(`UNSET = sentinel("${clsName}.UNSET")`);
+        lines.push('');
+      }
+
+      if (useDisjoint && !isProtocol) {
+        lines.push('@disjoint_base  # PEP 800: 禁止與其他 disjoint_base 類別多重繼承');
+      }
+      if (isDataclass) {
+        const dcArgs = [];
+        if (isFrozen) dcArgs.push('frozen=True');
+        if (useSlots) dcArgs.push('slots=True');
+        lines.push(dcArgs.length ? `@dataclass(${dcArgs.join(', ')})` : '@dataclass');
+      }
+
+      const baseStr = isABC ? '(ABC)' : isProtocol ? '(Protocol)' : '';
+      lines.push(`class ${clsName}${baseStr}:`);
+
+      // Sort fields so non-default come first for valid Python syntax
+      const validFields = builderFields.filter(f => f.name.trim() !== '');
+      const requiredFields = validFields.filter(f => f.defaultVal.trim() === '');
+      const optionalFields = validFields.filter(f => f.defaultVal.trim() !== '');
+      const orderedFields = [...requiredFields, ...optionalFields];
+
+      if (!isDataclass && !isProtocol && useSlots) {
+        const slotNames = orderedFields.map(f => `"${f.name.trim()}"`);
+        if (useFrozenDict) slotNames.push('"metadata"');
+        lines.push(`    __slots__ = (${slotNames.join(', ')}${slotNames.length === 1 ? ',' : ''})`);
+      }
+
+      if (isDataclass || isProtocol) {
+        orderedFields.forEach(f => {
+          const def = f.defaultVal.trim();
+          const formattedDef = def ? (f.type === 'str' && !def.startsWith('"') && !def.startsWith("'") ? ` = "${def}"` : ` = ${def}`) : '';
+          lines.push(`    ${f.name.trim()}: ${f.type}${formattedDef}`);
+        });
+        if (useFrozenDict) {
+          lines.push(`    # PEP 814: frozendict 不可變且可雜湊，可直接當作安全預設值`);
+          lines.push(`    metadata: frozendict[str, str] = frozendict()`);
+        }
+      } else {
+        const initParams = orderedFields.map(f => {
+          const def = f.defaultVal.trim();
+          const formattedDef = def ? (f.type === 'str' && !def.startsWith('"') && !def.startsWith("'") ? ` = "${def}"` : ` = ${def}`) : '';
+          return `${f.name.trim()}: ${f.type}${formattedDef}`;
+        });
+        if (useFrozenDict) {
+          initParams.push('metadata: frozendict[str, str] = frozendict()');
+        }
+        lines.push(`    def __init__(self, ${initParams.join(', ')}) -> None:`);
+        orderedFields.forEach(f => {
+          lines.push(`        self.${f.name.trim()} = ${f.name.trim()}`);
+        });
+        if (useFrozenDict) {
+          lines.push(`        self.metadata = metadata`);
+        }
+      }
+
+      const methodList = [];
+      if (!isDataclass && !isProtocol) methodList.push('__init__(...) -> None');
+      if (isDataclass) methodList.push('__init__ / __repr__ / __eq__ (auto)');
+      if (isFrozen) methodList.push('__hash__() -> int (auto)');
+
+      if (useProperty) {
+        lines.push('');
+        lines.push('    @property');
+        lines.push('    def summary(self) -> str:');
+        const firstField = orderedFields[0] ? orderedFields[0].name.trim() : 'id';
+        lines.push(`        return f"${clsName}({firstField}={self.${firstField}!r})"`);
+        methodList.push('@property summary -> str');
+      }
+
+      if (useSentinel && !isProtocol) {
+        const targetField = orderedFields[0] ? orderedFields[0].name.trim() : 'name';
+        const targetType = orderedFields[0] ? orderedFields[0].type : 'str';
+        lines.push('');
+        lines.push(`    def update(self, ${targetField}: ${targetType} | None | UNSET = UNSET) -> Self:`);
+        lines.push(`        if ${targetField} is UNSET:`);
+        lines.push(`            return self  # 省略參數：維持原值`);
+        if (isDataclass) {
+          lines.push(`        return replace(self, ${targetField}=${targetField})`);
+        } else {
+          lines.push(`        self.${targetField} = ${targetField}`);
+          lines.push(`        return self`);
+        }
+        methodList.push(`update(${targetField}: ... | UNSET) -> Self`);
+      }
+
+      if (isABC) {
+        lines.push('');
+        lines.push('    @abstractmethod');
+        lines.push('    def health_check(self) -> bool: ...');
+        methodList.push('@abstractmethod health_check() -> bool');
+      }
+
+      if (isProtocol) {
+        lines.push('');
+        lines.push('    def health_check(self) -> bool: ...');
+        methodList.push('health_check() -> bool');
+      }
+
+      document.getElementById('builder-code-output').textContent = lines.join('\n');
+      document.getElementById('builder-filename').textContent = `${clsName.toLowerCase()}.py (Python 3.15)`;
+
+      // Update Structural Metrics
+      const hasDict = !useSlots && !isProtocol;
+      const hashable = isFrozen ? '是 (值雜湊)' : (isProtocol ? '依實作決定' : (isDataclass ? '否 (可變)' : '依物件身分'));
+      const threadSafe = (isFrozen && useFrozenDict) ? '高 (無鎖不可變)' : (isFrozen ? '中高 (不可變)' : '需自行加鎖');
+
+      const metricsHtml = [
+        { label: '實例 __dict__', val: hasDict ? '存在' : '無 (__slots__)', tone: hasDict ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+        { label: '可雜湊 (Hashable)', val: hashable, tone: isFrozen ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-700 bg-slate-50 border-slate-200' },
+        { label: '3.15t 並行安全', val: threadSafe, tone: (isFrozen && useFrozenDict) ? 'text-indigo-700 bg-indigo-50 border-indigo-200' : 'text-slate-700 bg-slate-50 border-slate-200' },
+        { label: '欄位 / 方法數', val: `${orderedFields.length + (useFrozenDict ? 1 : 0)} / ${methodList.length}`, tone: 'text-cyan-700 bg-cyan-50 border-cyan-200' }
+      ].map(m => `
+        <div class="rounded-xl border p-3 ${m.tone}">
+          <div class="text-[11px] opacity-80">${m.label}</div>
+          <div class="text-sm font-bold mt-0.5">${m.val}</div>
+        </div>
+      `).join('');
+      document.getElementById('builder-metrics').innerHTML = metricsHtml;
+
+      // Render Dynamic UML SVG with exact bounding box calculation
+      const attrLines = orderedFields.map(f => `+ ${f.name.trim()}: ${f.type}${f.defaultVal.trim() ? ' = ' + f.defaultVal.trim() : ''}`);
+      if (useFrozenDict) attrLines.push('+ metadata: frozendict[str, str]');
+      const stereoParts = [];
+      if (isDataclass) stereoParts.push(isFrozen ? 'dataclass(frozen, slots)' : 'dataclass');
+      if (isABC) stereoParts.push('abstract');
+      if (isProtocol) stereoParts.push('protocol');
+      if (useDisjoint) stereoParts.push('disjoint_base');
+      const stereotype = stereoParts.length ? `«${stereoParts.join(', ')}»` : '«class»';
+
+      const allTextLines = [stereotype, clsName, ...attrLines, ...methodList];
+      const maxChars = Math.max(...allTextLines.map(s => s.length), 24);
+      const boxWidth = Math.max(320, Math.min(560, maxChars * 8.2 + 44));
+      const headerH = 58;
+      const attrH = Math.max(36, attrLines.length * 22 + 20);
+      const methH = Math.max(36, methodList.length * 22 + 20);
+      const totalH = headerH + attrH + methH + 24;
+
+      const svgHtml = `
+        <svg viewBox="0 0 ${boxWidth + 24} ${totalH}" width="${boxWidth + 24}" height="${totalH}" class="max-w-full h-auto" role="img" aria-label="${escapeHtml(clsName)} UML 類別圖">
+          <defs>
+            <filter id="umlShadow" x="-5%" y="-5%" width="110%" height="115%">
+              <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+            </filter>
+          </defs>
+          <g transform="translate(12, 10)" filter="url(#umlShadow)">
+            <rect x="0" y="0" width="${boxWidth}" height="${headerH + attrH + methH}" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+            <path d="M12,0 H${boxWidth - 12} Q${boxWidth},0 ${boxWidth},12 V${headerH} H0 V12 Q0,0 12,0 Z" fill="#1e293b"/>
+            <text x="${boxWidth / 2}" y="22" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="JetBrains Mono, monospace">${escapeHtml(stereotype)}</text>
+            <text x="${boxWidth / 2}" y="44" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="700" font-family="JetBrains Mono, monospace">${escapeHtml(clsName)}</text>
+            <line x1="0" y1="${headerH + attrH}" x2="${boxWidth}" y2="${headerH + attrH}" stroke="#e2e8f0" stroke-width="1.5"/>
+            ${attrLines.map((line, i) => `<text x="16" y="${headerH + 24 + i * 22}" fill="#334155" font-size="12" font-family="JetBrains Mono, monospace">${escapeHtml(line)}</text>`).join('')}
+            ${methodList.map((line, i) => `<text x="16" y="${headerH + attrH + 24 + i * 22}" fill="#0f766e" font-size="12" font-family="JetBrains Mono, monospace">${escapeHtml(line)}</text>`).join('')}
+          </g>
+        </svg>
+      `;
+      document.getElementById('uml-svg-container').innerHTML = svgHtml;
+    }
+
+    document.getElementById('add-field-btn').addEventListener('click', () => {
+      builderFields.push({ id: nextFieldId++, name: `field_${nextFieldId}`, type: 'str', defaultVal: '' });
+      renderBuilderFieldsList();
+      updateBuilderOutput();
+    });
+
+    document.getElementById('builder-fields-list').addEventListener('input', (e) => {
+      const input = e.target.closest('.field-input');
+      if (!input) return;
+      const row = input.closest('[data-field-id]');
+      const id = Number(row.dataset.fieldId);
+      const item = builderFields.find(f => f.id === id);
+      if (item) {
+        item[input.dataset.prop] = input.value;
+        updateBuilderOutput();
+      }
+    });
+
+    document.getElementById('builder-fields-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('.remove-field-btn');
+      if (!btn) return;
+      if (builderFields.length <= 1) {
+        showToast('至少需保留 1 個欄位', 'info');
+        return;
+      }
+      const id = Number(btn.dataset.removeId);
+      builderFields = builderFields.filter(f => f.id !== id);
+      renderBuilderFieldsList();
+      updateBuilderOutput();
+    });
+
+    ['cls-name', 'cls-style', 'opt-frozendict', 'opt-sentinel', 'opt-disjoint', 'opt-slots', 'opt-property'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateBuilderOutput);
+      document.getElementById(id).addEventListener('change', updateBuilderOutput);
+    });
+
+    document.getElementById('copy-builder-code').addEventListener('click', () => {
+      copyTextToClipboard(document.getElementById('builder-code-output').textContent, 'Python 3.15 類別程式碼');
+    });
+
+    // ==================== TAB 3: C3 MRO & PEP 800 SIMULATOR ====================
+    const MRO_PRESETS = {
+      diamond: {
+        title: '經典鑽石繼承 (Diamond Inheritance)',
+        target: 'D',
+        nodes: {
+          object: { parents: [], disjoint: false, x: 260, y: 28 },
+          A: { parents: ['object'], disjoint: false, x: 260, y: 108 },
+          B: { parents: ['A'], disjoint: false, x: 130, y: 196 },
+          C: { parents: ['A'], disjoint: false, x: 390, y: 196 },
+          D: { parents: ['B', 'C'], disjoint: false, x: 260, y: 288 }
+        },
+        candidates: ['B', 'C', 'A']
+      },
+      mixin: {
+        title: 'Mixin + Dataclass 組合繼承',
+        target: 'UserModel',
+        nodes: {
+          object: { parents: [], disjoint: false, x: 260, y: 28 },
+          BaseEntity: { parents: ['object'], disjoint: false, x: 130, y: 112 },
+          JsonMixin: { parents: ['object'], disjoint: false, x: 390, y: 112 },
+          AuditMixin: { parents: ['BaseEntity'], disjoint: false, x: 130, y: 202 },
+          UserModel: { parents: ['AuditMixin', 'JsonMixin'], disjoint: false, x: 260, y: 292 }
+        },
+        candidates: ['AuditMixin', 'JsonMixin', 'BaseEntity']
+      },
+      disjoint: {
+        title: 'PEP 800 @disjoint_base 多重繼承衝突',
+        target: 'HybridValue',
+        nodes: {
+          object: { parents: [], disjoint: false, x: 260, y: 28 },
+          IntBase: { parents: ['object'], disjoint: true, x: 130, y: 145 },
+          StrBase: { parents: ['object'], disjoint: true, x: 390, y: 145 },
+          HybridValue: { parents: ['IntBase', 'StrBase'], disjoint: false, x: 260, y: 280 }
+        },
+        candidates: ['IntBase', 'StrBase']
+      },
+      invalid_c3: {
+        title: '非法 C3 單調性衝突 (TypeError)',
+        target: 'BadChild',
+        nodes: {
+          object: { parents: [], disjoint: false, x: 260, y: 28 },
+          X: { parents: ['object'], disjoint: false, x: 140, y: 110 },
+          Y: { parents: ['X'], disjoint: false, x: 380, y: 192 },
+          BadChild: { parents: ['X', 'Y'], disjoint: false, x: 260, y: 288 }
+        },
+        candidates: ['X', 'Y']
+      }
+    };
+
+    let currentMroState = JSON.parse(JSON.stringify(MRO_PRESETS.diamond));
+    let mroHighlightIndex = -1;
+
+    function computeC3(nodeName, nodes, memo = {}) {
+      if (memo[nodeName]) return memo[nodeName];
+      const node = nodes[nodeName];
+      if (!node || node.parents.length === 0) {
+        memo[nodeName] = { ok: true, mro: [nodeName] };
+        return memo[nodeName];
+      }
+      const parentMros = [];
+      for (const p of node.parents) {
+        const res = computeC3(p, nodes, memo);
+        if (!res.ok) return res;
+        parentMros.push([...res.mro]);
+      }
+      const seqs = [...parentMros, [...node.parents]];
+      const result = [nodeName];
+      while (seqs.some(s => s.length > 0)) {
+        const nonEmpty = seqs.filter(s => s.length > 0);
+        let candidate = null;
+        for (const seq of nonEmpty) {
+          const head = seq[0];
+          const inTail = nonEmpty.some(other => other.slice(1).includes(head));
+          if (!inTail) {
+            candidate = head;
+            break;
+          }
+        }
+        if (!candidate) {
+          return {
+            ok: false,
+            error: `TypeError: Cannot create a consistent method resolution order (MRO) for bases ${node.parents.join(', ')}`
+          };
+        }
+        result.push(candidate);
+        seqs.forEach(s => {
+          if (s[0] === candidate) s.shift();
+        });
+      }
+      memo[nodeName] = { ok: true, mro: result };
+      return memo[nodeName];
+    }
+
+    function detectDisjointConflict(targetName, nodes, mroList) {
+      // Find all ancestors marked disjoint_base
+      const disjointAncestors = mroList.filter(name => name !== targetName && nodes[name] && nodes[name].disjoint);
+      if (disjointAncestors.length < 2) return null;
+      // Check if any pair is unrelated (neither inherits from the other)
+      for (let i = 0; i < disjointAncestors.length; i++) {
+        for (let j = i + 1; j < disjointAncestors.length; j++) {
+          const a = disjointAncestors[i];
+          const b = disjointAncestors[j];
+          const mroA = computeC3(a, nodes);
+          const mroB = computeC3(b, nodes);
+          const aHasB = mroA.ok && mroA.mro.includes(b);
+          const bHasA = mroB.ok && mroB.mro.includes(a);
+          if (!aHasB && !bHasA) {
+            return { a, b };
+          }
+        }
+      }
+      return null;
+    }
+
+    function renderMroView() {
+      const { target, nodes, candidates } = currentMroState;
+      const c3Res = computeC3(target, nodes);
+      const disjointErr = c3Res.ok ? detectDisjointConflict(target, nodes, c3Res.mro) : null;
+
+      // Render parent toggle controls
+      const ctrlEl = document.getElementById('mro-parent-controls');
+      const targetParents = nodes[target].parents;
+      ctrlEl.innerHTML = candidates.map(c => {
+        const active = targetParents.includes(c);
+        const idx = targetParents.indexOf(c);
+        return `
+          <button type="button" data-toggle-parent="${c}" class="mro-parent-chip px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}">
+            ${active ? `#${idx + 1} ` : '+ '}${c}${nodes[c]?.disjoint ? ' (@disjoint)' : ''}
+          </button>
+        `;
+      }).join('');
+
+      // Render Status Banner & MRO Badges
+      const banner = document.getElementById('mro-status-banner');
+      const badges = document.getElementById('mro-chain-badges');
+
+      if (!c3Res.ok) {
+        banner.className = 'rounded-xl p-3.5 text-xs sm:text-sm bg-rose-50 border border-rose-200 text-rose-800';
+        banner.innerHTML = `<strong>C3 線性化失敗：</strong><code class="font-mono">${escapeHtml(c3Res.error)}</code><div class="mt-1 text-xs">請點擊「反轉直接父類別順序」將子類置於父類之前以修復單調性。</div>`;
+        badges.innerHTML = `<span class="text-xs text-rose-600 font-semibold">無法建立合法 __mro__</span>`;
+      } else if (disjointErr) {
+        banner.className = 'rounded-xl p-3.5 text-xs sm:text-sm bg-amber-50 border border-amber-300 text-amber-900';
+        banner.innerHTML = `<strong>PEP 800 靜態型別檢查錯誤：</strong><code class="font-mono">${escapeHtml(target)}</code> 同時繼承了兩個不相交基底 <code class="font-mono font-bold">${escapeHtml(disjointErr.a)}</code> 與 <code class="font-mono font-bold">${escapeHtml(disjointErr.b)}</code>（兩者皆標記 <code class="font-mono">@disjoint_base</code>，底層記憶體布局不相容，無法擁有共同子類）。`;
+        badges.innerHTML = c3Res.mro.map((cls, i) => `
+          <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold ${i === mroHighlightIndex ? 'bg-emerald-600 text-white ring-2 ring-emerald-300' : 'bg-slate-100 text-slate-800'}">${i + 1}. ${escapeHtml(cls)}</span>
+          ${i < c3Res.mro.length - 1 ? '<span class="text-slate-400 text-xs">→</span>' : ''}
+        `).join('');
+      } else {
+        banner.className = 'rounded-xl p-3.5 text-xs sm:text-sm bg-emerald-50 border border-emerald-200 text-emerald-900';
+        banner.innerHTML = `<strong>合法繼承架構：</strong>C3 MRO 驗證通過，共 ${c3Res.mro.length} 個解析層級，無 PEP 800 互斥基底衝突。`;
+        badges.innerHTML = c3Res.mro.map((cls, i) => `
+          <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold ${i === mroHighlightIndex ? 'bg-emerald-600 text-white ring-2 ring-emerald-300' : 'bg-indigo-50 text-indigo-800 border border-indigo-200'}">${i + 1}. ${escapeHtml(cls)}</span>
+          ${i < c3Res.mro.length - 1 ? '<span class="text-slate-400 text-xs">→</span>' : ''}
+        `).join('');
+      }
+
+      // Render SVG Inheritance Graph (safe box widths so text never overflows)
+      const svgW = 520;
+      const svgH = 340;
+      const boxH = 42;
+      const edges = [];
+      Object.entries(nodes).forEach(([child, info]) => {
+        info.parents.forEach(p => {
+          if (nodes[p]) {
+            edges.push({ from: child, to: p });
+          }
+        });
+      });
+
+      const activeNodeName = (c3Res.ok && mroHighlightIndex >= 0 && mroHighlightIndex < c3Res.mro.length) ? c3Res.mro[mroHighlightIndex] : null;
+
+      const edgesSvg = edges.map(e => {
+        const c = nodes[e.from];
+        const p = nodes[e.to];
+        const isConflictEdge = (disjointErr && e.from === target && (e.to === disjointErr.a || e.to === disjointErr.b)) || (!c3Res.ok && e.from === target);
+        return `<line x1="${c.x}" y1="${c.y - boxH / 2}" x2="${p.x}" y2="${p.y + boxH / 2}" stroke="${isConflictEdge ? '#e11d48' : '#94a3b8'}" stroke-width="${isConflictEdge ? '2.5' : '1.8'}" ${isConflictEdge ? 'stroke-dasharray="5,4"' : ''} marker-end="url(#arrow${isConflictEdge ? 'Red' : 'Gray'})" />`;
+      }).join('');
+
+      const nodesSvg = Object.entries(nodes).map(([name, info]) => {
+        const label = info.disjoint ? `${name}` : name;
+        const subLabel = info.disjoint ? '@disjoint_base' : (name === target ? 'Target Subclass' : (name === 'object' ? 'builtin root' : 'class'));
+        const boxW = Math.max(126, Math.max(label.length, subLabel.length) * 8.2 + 28);
+        const isHighlighted = activeNodeName === name;
+        const mroOrder = c3Res.ok ? c3Res.mro.indexOf(name) + 1 : 0;
+        const fill = isHighlighted ? '#059669' : (name === target ? '#4f46e5' : (info.disjoint ? '#fef3c7' : '#ffffff'));
+        const stroke = isHighlighted ? '#047857' : (name === target ? '#3730a3' : (info.disjoint ? '#d97706' : '#cbd5e1'));
+        const textFill = (isHighlighted || name === target) ? '#ffffff' : '#0f172a';
+        const subFill = (isHighlighted || name === target) ? '#e0e7ff' : (info.disjoint ? '#b45309' : '#64748b');
+
+        return `
+          <g class="mro-node" data-node="${escapeHtml(name)}" transform="translate(${info.x - boxW / 2}, ${info.y - boxH / 2})">
+            <rect width="${boxW}" height="${boxH}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="1.8" />
+            <text x="${boxW / 2}" y="18" text-anchor="middle" fill="${textFill}" font-size="12.5" font-weight="700" font-family="JetBrains Mono, monospace">${escapeHtml(label)}</text>
+            <text x="${boxW / 2}" y="33" text-anchor="middle" fill="${subFill}" font-size="10" font-family="JetBrains Mono, monospace">${escapeHtml(subLabel)}</text>
+            ${mroOrder > 0 ? `<circle cx="${boxW - 4}" cy="4" r="10" fill="${isHighlighted ? '#fbbf24' : '#0f172a'}" /><text x="${boxW - 4}" y="8" text-anchor="middle" fill="${isHighlighted ? '#0f172a' : '#ffffff'}" font-size="10" font-weight="700" font-family="Inter, sans-serif">${mroOrder}</text>` : ''}
+          </g>
+        `;
+      }).join('');
+
+      document.getElementById('mro-svg-container').innerHTML = `
+        <svg viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" class="max-w-full h-auto" role="img" aria-label="類別繼承與 MRO 路徑圖">
+          <defs>
+            <marker id="arrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
+            </marker>
+            <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#e11d48" />
+            </marker>
+          </defs>
+          ${edgesSvg}
+          ${nodesSvg}
+        </svg>
+      `;
+
+      // Update Python 3.15 Code Preview
+      const codeLines = [];
+      const hasAnyDisjoint = Object.values(nodes).some(n => n.disjoint);
+      if (hasAnyDisjoint) codeLines.push('from typing import disjoint_base\n');
+      Object.entries(nodes).forEach(([name, info]) => {
+        if (name === 'object') return;
+        if (info.disjoint) codeLines.push('@disjoint_base');
+        const bases = info.parents.filter(p => p !== 'object').join(', ');
+        codeLines.push(`class ${name}${bases ? `(${bases})` : ''}: pass`);
+      });
+      codeLines.push('');
+      if (!c3Res.ok) {
+        codeLines.push(`# 執行期錯誤 -> ${c3Res.error}`);
+      } else if (disjointErr) {
+        codeLines.push(`# 靜態型別檢查器錯誤 (PEP 800):`);
+        codeLines.push(`# Class "${target}" cannot inherit from disjoint bases "${disjointErr.a}" and "${disjointErr.b}"`);
+      } else {
+        codeLines.push(`print([c.__name__ for c in ${target}.__mro__])`);
+        codeLines.push(`# -> ${JSON.stringify(c3Res.mro)}`);
+      }
+      document.getElementById('mro-code-preview').textContent = codeLines.join('\n');
+    }
+
+    document.getElementById('mro-presets').addEventListener('click', (e) => {
+      const btn = e.target.closest('.mro-preset-btn');
+      if (!btn) return;
+      document.querySelectorAll('.mro-preset-btn').forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-700');
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-700');
+      btn.classList.add('bg-indigo-600', 'text-white');
+      currentMroState = JSON.parse(JSON.stringify(MRO_PRESETS[btn.dataset.preset]));
+      mroHighlightIndex = -1;
+      renderMroView();
+    });
+
+    document.getElementById('mro-parent-controls').addEventListener('click', (e) => {
+      const btn = e.target.closest('.mro-parent-chip');
+      if (!btn) return;
+      const pName = btn.dataset.toggleParent;
+      const arr = currentMroState.nodes[currentMroState.target].parents;
+      if (arr.includes(pName)) {
+        if (arr.length <= 1) {
+          showToast('目標類別至少需保留 1 個父類別', 'info');
+          return;
+        }
+        currentMroState.nodes[currentMroState.target].parents = arr.filter(x => x !== pName);
+      } else {
+        arr.push(pName);
+      }
+      mroHighlightIndex = -1;
+      renderMroView();
+    });
+
+    document.getElementById('mro-swap-btn').addEventListener('click', () => {
+      currentMroState.nodes[currentMroState.target].parents.reverse();
+      mroHighlightIndex = -1;
+      renderMroView();
+    });
+
+    document.getElementById('mro-step-btn').addEventListener('click', () => {
+      const c3Res = computeC3(currentMroState.target, currentMroState.nodes);
+      if (!c3Res.ok) {
+        showToast('目前 MRO 不合法，無法追蹤 super()', 'error');
+        return;
+      }
+      mroHighlightIndex = (mroHighlightIndex + 1) % c3Res.mro.length;
+      renderMroView();
+    });
+
+    document.getElementById('mro-reset-step-btn').addEventListener('click', () => {
+      mroHighlightIndex = -1;
+      renderMroView();
+    });
+
+    // ==================== TAB 4: SANDBOX LABS ====================
+    // Lab A: frozendict
+    const FD_ACTIONS = [
+      {
+        label: '建立與相等比較',
+        cmd: 'a = frozendict(x=1, y=2); b = frozendict(y=2, x=1)\n(a == b, hash(a) == hash(b), a == {"x": 1, "y": 2})',
+        out: '(True, True, True)  # 保留插入順序，但相等與雜湊與順序無關',
+        tone: 'text-emerald-300'
+      },
+      {
+        label: 'isinstance 型別檢查',
+        cmd: 'from collections.abc import Mapping\n(isinstance(a, dict), isinstance(a, Mapping))',
+        out: '(False, True)  # 重要：frozendict 不是 dict 的子類別！',
+        tone: 'text-amber-300'
+      },
+      {
+        label: '嘗試 .update() 修改',
+        cmd: 'a.update(z=3)',
+        out: "AttributeError: 'frozendict' object has no attribute 'update'. Did you mean to use a 'dict' object?",
+        tone: 'text-rose-400'
+      },
+      {
+        label: '|= 重新繫結 (非原地)',
+        cmd: 'alias = a; a |= {"z": 3}\n(a, alias)',
+        out: "(frozendict({'x': 1, 'y': 2, 'z': 3}), frozendict({'x': 1, 'y': 2}))  # alias 未被修改",
+        tone: 'text-cyan-300'
+      },
+      {
+        label: '作為 @functools.cache 鍵',
+        cmd: '@cache\ndef score(cfg: frozendict[str, int]): return cfg["x"] * 10\nscore(frozendict(x=5))',
+        out: '50  # 一般 dict 會引發 TypeError，frozendict 可直接快取',
+        tone: 'text-emerald-300'
+      },
+      {
+        label: '淺凍結陷阱 (巢狀 list)',
+        cmd: 'bad = frozendict(tags=["api", "v3"]); hash(bad)',
+        out: "TypeError: unhashable type: 'list'  # 淺凍結：內部 list 仍可變，導致不可雜湊",
+        tone: 'text-rose-400'
+      }
+    ];
+
+    function appendTerminal(elId, cmd, out, tone = 'text-emerald-300') {
+      const term = document.getElementById(elId);
+      const block = document.createElement('div');
+      block.className = 'border-b border-slate-800 pb-2';
+      block.innerHTML = `<div class="text-slate-400">&gt;&gt;&gt; ${escapeHtml(cmd).replace(/\n/g, '<br>... ')}</div><div class="${tone} mt-1">${escapeHtml(out)}</div>`;
+      term.appendChild(block);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function initFdLab() {
+      const btnWrap = document.getElementById('fd-action-buttons');
+      btnWrap.innerHTML = FD_ACTIONS.map((a, idx) => `
+        <button type="button" data-fd-idx="${idx}" class="fd-run-btn text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-xs font-semibold text-slate-800 transition">
+          ${escapeHtml(a.label)}
+        </button>
+      `).join('');
+      appendTerminal('fd-terminal', '# Python 3.15.2 REPL — 點擊上方按鈕執行測試', 'frozendict 已就緒 (PEP 814 內建型別)', 'text-cyan-300');
+    }
+
+    document.getElementById('fd-action-buttons').addEventListener('click', (e) => {
+      const btn = e.target.closest('.fd-run-btn');
+      if (!btn) return;
+      const act = FD_ACTIONS[Number(btn.dataset.fdIdx)];
+      appendTerminal('fd-terminal', act.cmd, act.out, act.tone);
+    });
+
+    document.getElementById('fd-clear-btn').addEventListener('click', () => {
+      document.getElementById('fd-terminal').innerHTML = '';
+      appendTerminal('fd-terminal', '# 終端機已清除', 'Ready', 'text-slate-400');
+    });
+
+    // Lab B: sentinel
+    let sentinelProfile = { display_name: 'TaipeiDev' };
+
+    function renderSentinelState() {
+      const valStr = sentinelProfile.display_name === null ? 'None' : `'${sentinelProfile.display_name}'`;
+      document.getElementById('sentinel-profile-state').textContent = `UserProfile(display_name=${valStr})`;
+    }
+
+    document.querySelectorAll('.sentinel-op-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const op = btn.dataset.sentinelOp;
+        if (op === 'omit') {
+          appendTerminal(
+            'sentinel-terminal',
+            'profile.update()  # display_name 預設為 MISSING',
+            `參數為 MISSING → 維持原值 display_name=${sentinelProfile.display_name === null ? 'None' : `'${sentinelProfile.display_name}'`}`,
+            'text-cyan-300'
+          );
+        } else if (op === 'none') {
+          sentinelProfile.display_name = null;
+          renderSentinelState();
+          appendTerminal(
+            'sentinel-terminal',
+            'profile.update(display_name=None)',
+            '參數明確為 None (非 MISSING) → 清除欄位為 None',
+            'text-amber-300'
+          );
+        } else if (op === 'set') {
+          const val = document.getElementById('sentinel-new-name').value.trim() || 'Alice_315';
+          sentinelProfile.display_name = val;
+          renderSentinelState();
+          appendTerminal(
+            'sentinel-terminal',
+            `profile.update(display_name="${val}")`,
+            `已更新為 '${val}'`,
+            'text-emerald-300'
+          );
+        } else if (op === 'deepcopy') {
+          appendTerminal(
+            'sentinel-terminal',
+            'OLD = object(); NEW = sentinel("MISSING")\n(deepcopy(OLD) is OLD, deepcopy(NEW) is NEW, pickle.loads(pickle.dumps(NEW)) is NEW)',
+            '(False, True, True)  # object() 複製後身分失效，PEP 661 sentinel 完美保持唯一身分！',
+            'text-emerald-300'
+          );
+        }
+      });
+    });
+
+    document.getElementById('sentinel-reset-btn').addEventListener('click', () => {
+      sentinelProfile = { display_name: 'TaipeiDev' };
+      renderSentinelState();
+      document.getElementById('sentinel-terminal').innerHTML = '';
+      appendTerminal('sentinel-terminal', '# 物件已重設', "UserProfile(display_name='TaipeiDev')", 'text-slate-400');
+    });
+
+    // Lab C: PEP 728 TypedDict
+    let currentTdMode = 'closed';
+
+    const TD_SCHEMAS = {
+      standard: `from typing import TypedDict\n\nclass ServerConfig(TypedDict):\n    host: str\n    port: int\n# 標準模式：允許結構子型別帶入未宣告額外鍵`,
+      closed: `from typing import TypedDict\n\nclass ServerConfig(TypedDict, closed=True):\n    host: str\n    port: int\n# PEP 728 closed=True：禁止任何未宣告的額外鍵`,
+      extra_int: `from typing import TypedDict\n\nclass ServerConfig(TypedDict, extra_items=int):\n    host: str\n    port: int\n# PEP 728 extra_items=int：允許額外鍵，但值必須全為 int`
+    };
+
+    function evaluateTypedDict() {
+      document.getElementById('td-schema-code').textContent = TD_SCHEMAS[currentTdMode];
+      const raw = document.getElementById('td-json-input').value;
+      const diagEl = document.getElementById('td-diagnostics');
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (err) {
+        diagEl.className = 'rounded-xl p-3.5 text-xs space-y-1.5 border bg-rose-50 border-rose-200 text-rose-800';
+        diagEl.innerHTML = `<div class="font-bold">JSON 語法錯誤</div><div class="font-mono">${escapeHtml(err.message)}</div>`;
+        return;
+      }
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        diagEl.className = 'rounded-xl p-3.5 text-xs space-y-1.5 border bg-rose-50 border-rose-200 text-rose-800';
+        diagEl.innerHTML = `<div class="font-bold">型別錯誤</div><div>輸入必須為 JSON 物件 (dict)</div>`;
+        return;
+      }
+
+      const errors = [];
+      if (typeof parsed.host !== 'string') errors.push('必要鍵 "host" 缺失或非 str');
+      if (typeof parsed.port !== 'number' || !Number.isInteger(parsed.port)) errors.push('必要鍵 "port" 缺失或非 int');
+
+      const extraKeys = Object.keys(parsed).filter(k => k !== 'host' && k !== 'port');
+      if (extraKeys.length > 0) {
+        if (currentTdMode === 'closed') {
+          errors.push(`PEP 728 closed=True 違規：不允許額外鍵 ${extraKeys.map(k => `"${k}"`).join(', ')}`);
+        } else if (currentTdMode === 'extra_int') {
+          extraKeys.forEach(k => {
+            if (typeof parsed[k] !== 'number' || !Number.isInteger(parsed[k])) {
+              errors.push(`extra_items=int 違規：額外鍵 "${k}" 的值 (${JSON.stringify(parsed[k])}) 不是 int`);
+            }
+          });
+        }
+      }
+
+      if (errors.length === 0) {
+        diagEl.className = 'rounded-xl p-3.5 text-xs space-y-1.5 border bg-emerald-50 border-emerald-200 text-emerald-900';
+        diagEl.innerHTML = `
+          <div class="font-bold flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-4 h-4"></i> 型別檢查通過</div>
+          <div>所有必要鍵與額外鍵規則均符合 <code class="font-mono">${currentTdMode}</code> 契約。</div>
+        `;
+      } else {
+        diagEl.className = 'rounded-xl p-3.5 text-xs space-y-1.5 border bg-rose-50 border-rose-200 text-rose-900';
+        diagEl.innerHTML = `
+          <div class="font-bold flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 偵測到 ${errors.length} 項型別錯誤</div>
+          <ul class="list-disc pl-4 space-y-1">${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul>
+        `;
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    document.getElementById('td-mode-buttons').addEventListener('click', (e) => {
+      const btn = e.target.closest('.td-mode-btn');
+      if (!btn) return;
+      currentTdMode = btn.dataset.tdMode;
+      document.querySelectorAll('.td-mode-btn').forEach(b => {
+        b.classList.remove('bg-purple-600', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-700');
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-700');
+      btn.classList.add('bg-purple-600', 'text-white');
+      evaluateTypedDict();
+    });
+
+    document.getElementById('td-json-input').addEventListener('input', evaluateTypedDict);
+    document.getElementById('td-sample-extra').addEventListener('click', () => {
+      document.getElementById('td-json-input').value = JSON.stringify({
+        host: 'api.taipei.internal',
+        port: 8080,
+        retries: 3,
+        region: 'ap-east'
+      }, null, 2);
+      evaluateTypedDict();
+    });
+
+    // ==================== TAB 5: CSV PRACTICAL LAB ====================
+    let csvRecords = [
+      { id: 1, name: 'gateway-01', role: 'api', portRaw: '8080', tagsRaw: 'env=prod;nogil=true' },
+      { id: 2, name: 'worker-01', role: 'worker', portRaw: '', tagsRaw: 'env=prod;queue=high' },
+      { id: 3, name: 'redis-01', role: 'cache', portRaw: '6379', tagsRaw: 'env=prod;eviction=lru' },
+      { id: 4, name: 'pg-primary', role: 'db', portRaw: '5432', tagsRaw: 'env=prod;ha=sync' },
+      { id: 5, name: 'worker-02', role: 'worker', portRaw: 'abc', tagsRaw: 'env=staging' },
+      { id: 6, name: 'gateway-02', role: 'api', portRaw: '', tagsRaw: 'env=staging;jit=on' }
+    ];
+    let nextCsvId = 7;
+    let csvChartInstance = null;
+
+    function parseRecord(rec) {
+      const pTrim = (rec.portRaw || '').trim();
+      let portDisplay = 'UNSET';
+      let status = 'valid';
+      if (pTrim === '') {
+        portDisplay = 'UNSET';
+        status = 'sentinel';
+      } else if (/^\d+$/.test(pTrim) && Number(pTrim) > 0 && Number(pTrim) <= 65535) {
+        portDisplay = String(Number(pTrim));
+        status = 'valid';
+      } else {
+        portDisplay = `ValueError("${pTrim}")`;
+        status = 'error';
+      }
+
+      const tagPairs = (rec.tagsRaw || '')
+        .split(';')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(pair => {
+          const [k, ...rest] = pair.split('=');
+          return [k.trim(), rest.join('=').trim() || 'true'];
+        });
+      const frozenDictStr = tagPairs.length
+        ? `frozendict({${tagPairs.map(([k, v]) => `'${k}': '${v}'`).join(', ')}})`
+        : 'frozendict()';
+
+      return { ...rec, portDisplay, status, frozenDictStr };
+    }
+
+    function renderCsvTable() {
+      const roleFilter = document.getElementById('csv-filter-role').value;
+      const parsedAll = csvRecords.map(parseRecord);
+      const filtered = roleFilter === 'all' ? parsedAll : parsedAll.filter(r => r.role === roleFilter);
+
+      document.getElementById('csv-count-label').textContent = `顯示 ${filtered.length} / 共 ${parsedAll.length} 筆實例`;
+      const tbody = document.getElementById('csv-table-body');
+      const statusBadges = {
+        valid: '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">完整有效</span>',
+        sentinel: '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">含 UNSET</span>',
+        error: '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">型別錯誤</span>'
+      };
+
+      tbody.innerHTML = filtered.map(r => `
+        <tr class="hover:bg-slate-50/80">
+          <td class="py-2 px-3 font-mono font-semibold text-slate-900">${escapeHtml(r.name)}</td>
+          <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 font-mono text-[11px]">${escapeHtml(r.role)}</span></td>
+          <td class="py-2 px-3 font-mono ${r.status === 'error' ? 'text-rose-600 font-semibold' : r.status === 'sentinel' ? 'text-amber-700 font-semibold' : 'text-slate-700'}">${escapeHtml(r.portDisplay)}</td>
+          <td class="py-2 px-3 font-mono text-[11px] text-indigo-700">${escapeHtml(r.frozenDictStr)}</td>
+          <td class="py-2 px-3">${statusBadges[r.status]}</td>
+          <td class="py-2 px-3 text-right">
+            <button type="button" data-del-csv="${r.id}" class="csv-del-btn text-slate-400 hover:text-rose-600 p-1" title="刪除">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      if (window.lucide) window.lucide.createIcons();
+      renderCsvChart();
+    }
+
+    function renderCsvChart() {
+      const ctx = document.getElementById('csv-stats-chart');
+      if (!ctx || !window.Chart) return;
+      const parsedAll = csvRecords.map(parseRecord);
+      const validCnt = parsedAll.filter(r => r.status === 'valid').length;
+      const sentinelCnt = parsedAll.filter(r => r.status === 'sentinel').length;
+      const errorCnt = parsedAll.filter(r => r.status === 'error').length;
+
+      if (csvChartInstance) {
+        csvChartInstance.data.datasets[0].data = [validCnt, sentinelCnt, errorCnt];
+        csvChartInstance.update();
+        return;
+      }
+      csvChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['完整有效實例', '含 UNSET 哨兵值', '型別解析錯誤'],
+          datasets: [{
+            data: [validCnt, sentinelCnt, errorCnt],
+            backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+            borderWidth: 2,
+            borderColor: '#f8fafc'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+          }
+        }
+      });
+    }
+
+    document.getElementById('csv-add-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('csv-in-name').value.trim();
+      if (!name) return;
+      csvRecords.push({
+        id: nextCsvId++,
+        name,
+        role: document.getElementById('csv-in-role').value,
+        portRaw: document.getElementById('csv-in-port').value.trim(),
+        tagsRaw: document.getElementById('csv-in-tags').value.trim()
+      });
+      e.target.reset();
+      renderCsvTable();
+      showToast(`已新增實例 ${name}`, 'success');
+    });
+
+    document.getElementById('csv-filter-role').addEventListener('change', renderCsvTable);
+
+    document.getElementById('csv-table-body').addEventListener('click', (e) => {
+      const btn = e.target.closest('.csv-del-btn');
+      if (!btn) return;
+      const id = Number(btn.dataset.delCsv);
+      csvRecords = csvRecords.filter(r => r.id !== id);
+      renderCsvTable();
+    });
+
+    document.getElementById('csv-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = String(ev.target.result || '');
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          showToast('CSV 至少需包含標題列與 1 筆資料', 'error');
+          return;
+        }
+        const imported = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          if (!cols[0]) continue;
+          imported.push({
+            id: nextCsvId++,
+            name: cols[0],
+            role: cols[1] || 'worker',
+            portRaw: cols[2] || '',
+            tagsRaw: cols[3] || ''
+          });
+        }
+        if (imported.length === 0) {
+          showToast('未解析到有效 CSV 列', 'error');
+          return;
+        }
+        csvRecords = imported;
+        renderCsvTable();
+        showToast(`成功匯入 ${imported.length} 筆 CSV 類別實例`, 'success');
+      };
+      reader.readAsText(file, 'utf-8');
+      e.target.value = '';
+    });
+
+    document.getElementById('csv-export-btn').addEventListener('click', () => {
+      const header = 'name,role,port,tags';
+      const rows = csvRecords.map(r => `${r.name},${r.role},${r.portRaw},"${(r.tagsRaw || '').replace(/"/g, '""')}"`);
+      const csvContent = [header, ...rows].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'python315_service_nodes.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('已匯出 python315_service_nodes.csv', 'success');
+    });
+
+    document.getElementById('csv-copy-py-btn').addEventListener('click', () => {
+      const parsed = csvRecords.map(parseRecord).filter(r => r.status !== 'error');
+      const pyLines = [
+        'from dataclasses import dataclass',
+        '',
+        'UNSET = sentinel("ServiceNode.UNSET")',
+        '',
+        '@dataclass(frozen=True, slots=True)',
+        'class ServiceNode:',
+        '    name: str',
+        '    role: str',
+        '    port: int | UNSET = UNSET',
+        '    tags: frozendict[str, str] = frozendict()',
+        '',
+        'nodes = ('
+      ];
+      parsed.forEach(r => {
+        pyLines.push(`    ServiceNode(name="${r.name}", role="${r.role}", port=${r.portDisplay}, tags=${r.frozenDictStr}),`);
+      });
+      pyLines.push(')');
+      copyTextToClipboard(pyLines.join('\n'), 'Python 3.15 實例化程式碼');
+    });
+
+    // ==================== INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderFeatureCards('all');
+      initPerfChart();
+      renderBuilderFieldsList();
+      updateBuilderOutput();
+      renderMroView();
+      initFdLab();
+      renderSentinelState();
+      appendTerminal('sentinel-terminal', '# PEP 661 sentinel 沙盒就緒', "UserProfile(display_name='TaipeiDev')", 'text-slate-400');
+      evaluateTypedDict();
+      renderCsvTable();
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

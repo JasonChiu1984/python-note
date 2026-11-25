@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python 3.15 語法、平行運算與執行緒互動實驗室</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background-color: #0b1120;
+      color: #e2e8f0;
+    }
+    code, pre {
+      font-family: var(--font-mono);
+    }
+    .code-surface {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+    }
+    .tab-btn {
+      transition: all 0.18s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #2563eb, #0891b2);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+    .syntax-pill.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: #38bdf8;
+      color: #e0f2fe;
+    }
+    .choice-btn.active {
+      background: rgba(37, 99, 235, 0.25);
+      border-color: #60a5fa;
+      color: #ffffff;
+    }
+    .highlight-line {
+      background: rgba(56, 189, 248, 0.18);
+      border-left: 3px solid #38bdf8;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2 rounded-lg border border-cyan-500/40 bg-slate-900/95 px-4 py-2.5 text-sm font-medium text-cyan-200 shadow-xl backdrop-blur">
+    <i data-lucide="check-circle-2" class="h-4 w-4 text-cyan-400"></i>
+    <span id="toastText">已複製到剪貼簿</span>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/90 bg-slate-950/90 backdrop-blur">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-900/40">
+          <i data-lucide="cpu" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-white sm:text-lg">Python 3.15 語法與平行運算互動實驗室</h1>
+            <span class="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-300">v3.15.2</span>
+          </div>
+          <p class="text-xs text-slate-400">2026-10-09 發布 · Lazy Imports · Free-Threading (abi3t) · Thread-Safe Iterators · Tachyon</p>
+        </div>
+      </div>
+
+      <!-- Main Navigation -->
+      <nav aria-label="主要功能分頁" class="flex flex-wrap items-center gap-1.5">
+        <button data-tab="syntax" class="tab-btn active flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 sm:text-sm">
+          <i data-lucide="code-2" class="h-4 w-4"></i>
+          <span>3.15 語法實驗室</span>
+        </button>
+        <button data-tab="simulator" class="tab-btn flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 sm:text-sm">
+          <i data-lucide="activity" class="h-4 w-4"></i>
+          <span>平行運算模擬器</span>
+        </button>
+        <button data-tab="threading" class="tab-btn flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 sm:text-sm">
+          <i data-lucide="git-branch" class="h-4 w-4"></i>
+          <span>執行緒與 Tachyon</span>
+        </button>
+        <button data-tab="wizard" class="tab-btn flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 sm:text-sm">
+          <i data-lucide="compass" class="h-4 w-4"></i>
+          <span>決策精靈與基準</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <!-- ==================== TAB 1: SYNTAX LAB ==================== -->
+    <section id="tab-syntax" class="tab-panel space-y-6">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-white">Python 3.15 核心新語法與內建型別</h2>
+            <p class="mt-1 text-sm text-slate-400">點選下方特性卡片，互動體驗執行步驟、舊版寫法對照與 Python 3.15 實測行為。</p>
+          </div>
+          <a href="https://docs.python.org/3/whatsnew/3.15.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-cyan-300 hover:border-cyan-500/50 hover:bg-slate-800">
+            <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
+            <span>官方 What's New 3.15</span>
+          </a>
+        </div>
+
+        <!-- Feature Selector Pills -->
+        <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <button data-syntax="pep810" class="syntax-pill active rounded-xl border border-slate-700/80 bg-slate-950/60 p-3 text-left transition hover:border-slate-500">
+            <div class="text-xs font-semibold text-cyan-400">PEP 810</div>
+            <div class="mt-0.5 text-sm font-bold text-white">lazy import</div>
+            <div class="mt-0.5 text-xs text-slate-400">顯式延遲載入</div>
+          </button>
+          <button data-syntax="pep798" class="syntax-pill rounded-xl border border-slate-700/80 bg-slate-950/60 p-3 text-left transition hover:border-slate-500">
+            <div class="text-xs font-semibold text-cyan-400">PEP 798</div>
+            <div class="mt-0.5 text-sm font-bold text-white">推導式解包</div>
+            <div class="mt-0.5 text-xs text-slate-400">[*L] / {**d}</div>
+          </button>
+          <button data-syntax="pep814" class="syntax-pill rounded-xl border border-slate-700/80 bg-slate-950/60 p-3 text-left transition hover:border-slate-500">
+            <div class="text-xs font-semibold text-cyan-400">PEP 814</div>
+            <div class="mt-0.5 text-sm font-bold text-white">frozendict</div>
+            <div class="mt-0.5 text-xs text-slate-400">不可變內建字典</div>
+          </button>
+          <button data-syntax="pep661" class="syntax-pill rounded-xl border border-slate-700/80 bg-slate-950/60 p-3 text-left transition hover:border-slate-500">
+            <div class="text-xs font-semibold text-cyan-400">PEP 661</div>
+            <div class="mt-0.5 text-sm font-bold text-white">sentinel</div>
+            <div class="mt-0.5 text-xs text-slate-400">內建哨兵物件</div>
+          </button>
+          <button data-syntax="misc" class="syntax-pill rounded-xl border border-slate-700/80 bg-slate-950/60 p-3 text-left transition hover:border-slate-500">
+            <div class="text-xs font-semibold text-cyan-400">PEP 686 / 747</div>
+            <div class="mt-0.5 text-sm font-bold text-white">UTF-8 與其他</div>
+            <div class="mt-0.5 text-xs text-slate-400">take_bytes / 錯誤提示</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Syntax Playground Container -->
+      <div id="syntaxContent" class="space-y-4"></div>
+    </section>
+
+    <!-- ==================== TAB 2: CONCURRENCY SIMULATOR ==================== -->
+    <section id="tab-simulator" class="tab-panel hidden space-y-6">
+      <div class="grid gap-6 lg:grid-cols-12">
+        <!-- Control Panel -->
+        <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold text-white">排程模擬器參數</h2>
+            <span class="rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300">教學視覺化模擬</span>
+          </div>
+
+          <!-- Execution Model -->
+          <div>
+            <label for="simModelSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Python 3.15 執行模型</label>
+            <select id="simModelSelect" class="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white focus:border-cyan-500 focus:outline-none">
+              <option value="gil_thread">1. 傳統 GIL + ThreadPoolExecutor</option>
+              <option value="free_thread" selected>2. Python 3.15t 無 GIL 自由執行緒 (Free-Threading)</option>
+              <option value="subinterp">3. 多直譯器 InterpreterPoolExecutor</option>
+              <option value="multiproc">4. 多行程 ProcessPoolExecutor</option>
+              <option value="asyncio">5. 非同步協程 asyncio + TaskGroup.cancel()</option>
+            </select>
+          </div>
+
+          <!-- Workload Type -->
+          <div>
+            <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400">工作負載類型</span>
+            <div class="mt-1.5 grid grid-cols-3 gap-2">
+              <button data-workload="cpu" class="choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-semibold text-slate-300 hover:border-slate-500">CPU 密集</button>
+              <button data-workload="io" class="choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-semibold text-slate-300 hover:border-slate-500">I/O 密集</button>
+              <button data-workload="mixed" class="choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-semibold text-slate-300 hover:border-slate-500">混合負載</button>
+            </div>
+          </div>
+
+          <!-- Sliders -->
+          <div class="space-y-3 pt-1">
+            <div>
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-slate-300">CPU 核心數 (Cores)</span>
+                <span id="coresVal" class="font-mono font-bold text-cyan-400">4 核心</span>
+              </div>
+              <input id="simCores" type="range" min="1" max="8" value="4" class="mt-1.5 h-2 w-full cursor-pointer accent-cyan-500" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-slate-300">任務數量 (Tasks)</span>
+                <span id="tasksVal" class="font-mono font-bold text-cyan-400">8 任務</span>
+              </div>
+              <input id="simTasks" type="range" min="4" max="16" value="8" class="mt-1.5 h-2 w-full cursor-pointer accent-cyan-500" />
+            </div>
+          </div>
+
+          <!-- Playback Buttons -->
+          <div class="flex flex-wrap gap-2 pt-2">
+            <button id="simRunBtn" class="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-900/30 hover:from-blue-500 hover:to-cyan-500">
+              <i data-lucide="play" class="h-4 w-4"></i>
+              <span id="simRunText">開始模擬</span>
+            </button>
+            <button id="simResetBtn" class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-700">
+              <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+              <span>重設</span>
+            </button>
+            <button id="simSpeedBtn" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 font-mono text-xs font-bold text-cyan-300 hover:border-cyan-500">1x</button>
+          </div>
+
+          <!-- Model Explanation Box -->
+          <div id="simModelNote" class="rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 text-xs leading-relaxed text-slate-300"></div>
+        </div>
+
+        <!-- Canvas & Live Metrics -->
+        <div class="space-y-4 lg:col-span-8">
+          <!-- KPI Row -->
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+              <div class="text-xs text-slate-400">模擬進度時間</div>
+              <div id="kpiTime" class="mt-1 font-mono text-xl font-bold text-white">0.00 s</div>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+              <div class="text-xs text-slate-400">完成任務</div>
+              <div id="kpiDone" class="mt-1 font-mono text-xl font-bold text-emerald-400">0 / 8</div>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+              <div class="text-xs text-slate-400">GIL 狀態</div>
+              <div id="kpiGil" class="mt-1 text-sm font-bold text-cyan-300">已停用 (No-GIL)</div>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+              <div class="text-xs text-slate-400">記憶體模型</div>
+              <div id="kpiMem" class="mt-1 text-sm font-bold text-indigo-300">共享 Heap (mimalloc)</div>
+            </div>
+          </div>
+
+          <!-- Execution Timeline Canvas -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-white">多核心排程即時時間軸</h3>
+              <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-300">
+                <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-cyan-500"></span>CPU 計算</span>
+                <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>I/O 等待 (釋放核心)</span>
+                <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-amber-500"></span>GIL 鎖爭用等待</span>
+                <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-violet-500"></span>行程/直譯器啟動開銷</span>
+              </div>
+            </div>
+            <div class="relative w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+              <canvas id="simCanvas" class="block w-full" style="height: 290px;"></canvas>
+            </div>
+          </div>
+
+          <!-- Live Execution Timing & Performance Analysis -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-bold text-white">即時執行效能與時間拆解分析</h3>
+                <p class="text-[11px] text-slate-400">以 <code class="text-cyan-300">CPU Time ÷ Wall Time</code> 計算有效並行核心數，即時追蹤 GIL 爭用與啟動開銷</p>
+              </div>
+              <button id="compareAllModelsBtn" class="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/15 px-3 py-1.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25">
+                <i data-lucide="bar-chart-3" class="h-3.5 w-3.5"></i>
+                <span>一鍵對比 5 種模型總耗時</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-2.5">
+                <div class="text-[11px] text-slate-400">Wall Time (牆鐘)</div>
+                <div id="perfWall" class="mt-0.5 font-mono text-sm font-bold text-white">0.00 s</div>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-2.5">
+                <div class="text-[11px] text-slate-400">CPU Time (累計)</div>
+                <div id="perfCpu" class="mt-0.5 font-mono text-sm font-bold text-cyan-300">0.00 s</div>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-2.5">
+                <div class="text-[11px] text-slate-400">有效並行核心數</div>
+                <div id="perfBusy" class="mt-0.5 font-mono text-sm font-bold text-emerald-300">0.00x</div>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-2.5">
+                <div class="text-[11px] text-slate-400">GIL 爭用等待</div>
+                <div id="perfGilWait" class="mt-0.5 font-mono text-sm font-bold text-amber-300">0.00 s</div>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-2.5">
+                <div class="text-[11px] text-slate-400">核心利用率</div>
+                <div id="perfUtil" class="mt-0.5 font-mono text-sm font-bold text-indigo-300">0%</div>
+              </div>
+            </div>
+
+            <div id="allModelsCompareBox" class="hidden rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <div class="mb-2 flex items-center justify-between text-xs">
+                <span id="compareHeader" class="font-bold text-cyan-300">5 種模型模擬總耗時對比</span>
+                <span class="text-[11px] text-slate-400">越短越快（基準：傳統 GIL Threading）</span>
+              </div>
+              <div id="allModelsCompareRows" class="space-y-2 text-xs"></div>
+            </div>
+          </div>
+
+          <!-- Matching Python 3.15 Code Snippet -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+            <div class="mb-2 flex items-center justify-between">
+              <h3 id="simCodeTitle" class="text-sm font-bold text-white">對應 Python 3.15 實戰程式碼</h3>
+              <button id="copySimCodeBtn" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-cyan-500 hover:text-cyan-200">
+                <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+                <span>複製</span>
+              </button>
+            </div>
+            <pre id="simCodeBlock" class="code-surface overflow-x-auto rounded-xl p-3.5 text-xs leading-relaxed text-slate-200"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: THREADING & TACHYON ==================== -->
+    <section id="tab-threading" class="tab-panel hidden space-y-6">
+      <!-- Architecture SVG Diagram -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-white">Python 3.15 四大平行與執行緒架構拓撲</h2>
+            <p class="text-xs text-slate-400">比較單一行程內的 GIL 執行緒、3.15t 無 GIL 自由執行緒、多直譯器與多行程記憶體隔離模型</p>
+          </div>
+          <a href="https://docs.python.org/3/howto/free-threading-python.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-medium text-cyan-300 hover:underline">
+            <span>Free-Threading 官方指南</span>
+            <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
+          </a>
+        </div>
+
+        <div class="w-full overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-3">
+          <svg viewBox="0 0 920 300" class="mx-auto block h-auto w-full max-w-4xl" role="img" aria-label="Python 3.15 四大並發模型架構比較圖">
+            <defs>
+              <linearGradient id="gBlue" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+              </linearGradient>
+              <linearGradient id="gCyan" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#155e75" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+              </linearGradient>
+              <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#4c1d95" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+              </linearGradient>
+              <linearGradient id="gEmerald" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#065f46" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Col 1: Traditional GIL Threading -->
+            <rect x="12" y="16" width="212" height="268" rx="14" fill="url(#gBlue)" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="118" y="42" text-anchor="middle" fill="#f8fafc" font-size="13.5" font-weight="700">傳統 GIL 執行緒</text>
+            <text x="118" y="60" text-anchor="middle" fill="#93c5fd" font-size="11">標準建置 (python3.15)</text>
+            <rect x="28" y="76" width="180" height="34" rx="8" fill="#7f1d1d" stroke="#ef4444" stroke-width="1"/>
+            <text x="118" y="97" text-anchor="middle" fill="#fecaca" font-size="11.5" font-weight="600">單一全域 GIL 鎖</text>
+            <rect x="28" y="122" width="84" height="44" rx="8" fill="#1e293b" stroke="#64748b"/>
+            <text x="70" y="142" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Thread 1</text>
+            <text x="70" y="157" text-anchor="middle" fill="#94a3b8" font-size="10">輪流執行</text>
+            <rect x="124" y="122" width="84" height="44" rx="8" fill="#1e293b" stroke="#64748b"/>
+            <text x="166" y="142" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Thread 2</text>
+            <text x="166" y="157" text-anchor="middle" fill="#94a3b8" font-size="10">等待 GIL</text>
+            <rect x="28" y="180" width="180" height="40" rx="8" fill="#0f172a" stroke="#334155"/>
+            <text x="118" y="198" text-anchor="middle" fill="#cbd5e1" font-size="11">共享單一 Heap 記憶體</text>
+            <text x="118" y="213" text-anchor="middle" fill="#94a3b8" font-size="10">pymalloc 配置器</text>
+            <text x="118" y="246" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="600">適合：I/O 密集任務</text>
+            <text x="118" y="264" text-anchor="middle" fill="#94a3b8" font-size="10">CPU 無法多核擴展</text>
+
+            <!-- Col 2: Free-Threading 3.15t -->
+            <rect x="240" y="16" width="212" height="268" rx="14" fill="url(#gCyan)" stroke="#06b6d4" stroke-width="1.8"/>
+            <text x="346" y="42" text-anchor="middle" fill="#f8fafc" font-size="13.5" font-weight="700">自由執行緒 (3.15t)</text>
+            <text x="346" y="60" text-anchor="middle" fill="#67e8f9" font-size="11">PEP 703 / PEP 803 abi3t</text>
+            <rect x="256" y="76" width="180" height="34" rx="8" fill="#083344" stroke="#22d3ee" stroke-width="1"/>
+            <text x="346" y="97" text-anchor="middle" fill="#a5f3fc" font-size="11.5" font-weight="600">GIL 停用 (真正多核心)</text>
+            <rect x="256" y="122" width="84" height="44" rx="8" fill="#0f172a" stroke="#22d3ee"/>
+            <text x="298" y="142" text-anchor="middle" fill="#e0f2fe" font-size="11" font-weight="600">Thread 1</text>
+            <text x="298" y="157" text-anchor="middle" fill="#67e8f9" font-size="10">Core 0 並行</text>
+            <rect x="352" y="122" width="84" height="44" rx="8" fill="#0f172a" stroke="#22d3ee"/>
+            <text x="394" y="142" text-anchor="middle" fill="#e0f2fe" font-size="11" font-weight="600">Thread 2</text>
+            <text x="394" y="157" text-anchor="middle" fill="#67e8f9" font-size="10">Core 1 並行</text>
+            <rect x="256" y="180" width="180" height="40" rx="8" fill="#0f172a" stroke="#155e75"/>
+            <text x="346" y="198" text-anchor="middle" fill="#cbd5e1" font-size="11">共享記憶體 + 細粒度鎖</text>
+            <text x="346" y="213" text-anchor="middle" fill="#67e8f9" font-size="10">mimalloc + QSBR / 偏向計數</text>
+            <text x="346" y="246" text-anchor="middle" fill="#67e8f9" font-size="11" font-weight="600">適合：多核 CPU + 共享資料</text>
+            <text x="346" y="264" text-anchor="middle" fill="#94a3b8" font-size="10">搭配 frozendict / 安全迭代器</text>
+
+            <!-- Col 3: Subinterpreters -->
+            <rect x="468" y="16" width="212" height="268" rx="14" fill="url(#gViolet)" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text x="574" y="42" text-anchor="middle" fill="#f8fafc" font-size="13.5" font-weight="700">多直譯器 (Subinterpreters)</text>
+            <text x="574" y="60" text-anchor="middle" fill="#c4b5fd" font-size="11">InterpreterPoolExecutor</text>
+            <rect x="484" y="76" width="180" height="34" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1"/>
+            <text x="574" y="97" text-anchor="middle" fill="#ddd6fe" font-size="11.5" font-weight="600">各自獨立 Per-Interpreter GIL</text>
+            <rect x="484" y="122" width="84" height="44" rx="8" fill="#1e1b4b" stroke="#8b5cf6"/>
+            <text x="526" y="142" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="600">Interp A</text>
+            <text x="526" y="157" text-anchor="middle" fill="#c4b5fd" font-size="10">獨立 GIL A</text>
+            <rect x="580" y="122" width="84" height="44" rx="8" fill="#1e1b4b" stroke="#8b5cf6"/>
+            <text x="622" y="142" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="600">Interp B</text>
+            <text x="622" y="157" text-anchor="middle" fill="#c4b5fd" font-size="10">獨立 GIL B</text>
+            <rect x="484" y="180" width="180" height="40" rx="8" fill="#0f172a" stroke="#4c1d95"/>
+            <text x="574" y="198" text-anchor="middle" fill="#cbd5e1" font-size="11">同行程、物件狀態隔離</text>
+            <text x="574" y="213" text-anchor="middle" fill="#c4b5fd" font-size="10">透過通道/訊息傳遞資料</text>
+            <text x="574" y="246" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">適合：輕量隔離多核運算</text>
+            <text x="574" y="264" text-anchor="middle" fill="#94a3b8" font-size="10">標準建置即可多核平行</text>
+
+            <!-- Col 4: Multiprocessing -->
+            <rect x="696" y="16" width="212" height="268" rx="14" fill="url(#gEmerald)" stroke="#10b981" stroke-width="1.5"/>
+            <text x="802" y="42" text-anchor="middle" fill="#f8fafc" font-size="13.5" font-weight="700">多行程 (Multiprocessing)</text>
+            <text x="802" y="60" text-anchor="middle" fill="#6ee7b7" font-size="11">ProcessPoolExecutor</text>
+            <rect x="712" y="76" width="180" height="34" rx="8" fill="#064e3b" stroke="#34d399" stroke-width="1"/>
+            <text x="802" y="97" text-anchor="middle" fill="#a7f3d0" font-size="11.5" font-weight="600">各自獨立 OS 行程與 GIL</text>
+            <rect x="712" y="122" width="84" height="44" rx="8" fill="#064e3b" stroke="#10b981"/>
+            <text x="754" y="142" text-anchor="middle" fill="#ecfdf5" font-size="11" font-weight="600">PID 101</text>
+            <text x="754" y="157" text-anchor="middle" fill="#6ee7b7" font-size="10">獨立記憶體</text>
+            <rect x="808" y="122" width="84" height="44" rx="8" fill="#064e3b" stroke="#10b981"/>
+            <text x="850" y="142" text-anchor="middle" fill="#ecfdf5" font-size="11" font-weight="600">PID 102</text>
+            <text x="850" y="157" text-anchor="middle" fill="#6ee7b7" font-size="10">獨立記憶體</text>
+            <rect x="712" y="180" width="180" height="40" rx="8" fill="#0f172a" stroke="#065f46"/>
+            <text x="802" y="198" text-anchor="middle" fill="#cbd5e1" font-size="11">IPC 序列化 (Pickle/SharedMem)</text>
+            <text x="802" y="213" text-anchor="middle" fill="#6ee7b7" font-size="10">3.15 崩潰回報 PID 與結束碼</text>
+            <text x="802" y="246" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">適合：強隔離與舊版 C 擴充</text>
+            <text x="802" y="264" text-anchor="middle" fill="#94a3b8" font-size="10">啟動與記憶體開銷最高</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Two-Column Deep Dive: Thread-Safe Iterators + asyncio.TaskGroup.cancel -->
+      <div class="grid gap-6 lg:grid-cols-2">
+        <!-- Thread-Safe Iterators Interactive Demo -->
+        <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="rounded bg-cyan-500/15 px-2 py-0.5 text-[11px] font-semibold text-cyan-300">Python 3.15 新增 threading API</span>
+              <h3 class="mt-1 text-base font-bold text-white">執行緒安全迭代器與生成器</h3>
+            </div>
+            <button id="runIterDemoBtn" class="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-cyan-500">
+              <i data-lucide="play" class="h-3.5 w-3.5"></i>
+              <span>模擬雙執行緒讀取</span>
+            </button>
+          </div>
+          <p class="text-xs leading-relaxed text-slate-300">
+            在無 GIL 自由執行緒模式下，多個執行緒同時呼叫一般生成器的 <code class="text-cyan-300">next()</code> 會拋出 <code class="text-rose-300">ValueError: generator already executing</code>。Python 3.15 新增 <code class="text-cyan-300">serialize_iterator</code>、<code class="text-cyan-300">synchronized_iterator</code> 與 <code class="text-cyan-300">concurrent_tee</code> 直接保護迭代器狀態。
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <button data-itermode="unsafe" class="iter-mode-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">未加鎖 (競爭失敗)</button>
+            <button data-itermode="sync" class="iter-mode-btn choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">@synchronized_iterator</button>
+            <button data-itermode="tee" class="iter-mode-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">concurrent_tee</button>
+          </div>
+          <pre id="iterCode" class="code-surface overflow-x-auto rounded-xl p-3 text-xs leading-relaxed text-slate-200"></pre>
+          <div id="iterLog" class="rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-300">
+            點擊上方「模擬雙執行緒讀取」觀察執行結果。
+          </div>
+        </div>
+
+        <!-- asyncio.TaskGroup.cancel() + Free-Threading Highlights -->
+        <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+          <div>
+            <span class="rounded bg-indigo-500/15 px-2 py-0.5 text-[11px] font-semibold text-indigo-300">Python 3.15 結構化並發與 3.15t 強化</span>
+            <h3 class="mt-1 text-base font-bold text-white">asyncio.TaskGroup.cancel() 與 3.15t 關鍵更新</h3>
+          </div>
+          <pre class="code-surface overflow-x-auto rounded-xl p-3 text-xs leading-relaxed text-slate-200"><code>import asyncio
+
+async def fetch_mirror(name: str, delay: float, winner: list[str], tg: asyncio.TaskGroup):
+    await asyncio.sleep(delay)
+    winner.append(f"{name} ({delay}s)")
+    tg.cancel()  # Python 3.15：優雅取消其餘未完成任務，正常離開 async with
+
+async def main():
+    winner: list[str] = []
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(fetch_mirror("Mirror-TW", 0.12, winner, tg))
+        tg.create_task(fetch_mirror("Mirror-JP", 0.35, winner, tg))
+        tg.create_task(fetch_mirror("Mirror-US", 0.60, winner, tg))
+    print("最快回應：", winner[0])</code></pre>
+
+          <div class="grid gap-2.5 sm:grid-cols-2">
+            <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+              <div class="text-xs font-bold text-cyan-300">PEP 803: abi3t 穩定 ABI</div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">C/Rust (PyO3/Maturin) 擴充套件可編譯單一 <code class="text-slate-200">abi3t</code> wheel，跨 3.15+ 無 GIL 版本二進位相容。</p>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+              <div class="text-xs font-bold text-cyan-300">macOS 預設安裝 & mimalloc</div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">macOS 官方安裝檔預設附帶自由執行緒建置；<code class="text-slate-200">mimalloc</code> 成為原始記憶體配置預設值以提升多緒效能。</p>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+              <div class="text-xs font-bold text-cyan-300">匯入鎖父優先 (3.15.2 修正)</div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">多執行緒同時匯入 <code class="text-slate-200">pkg.sub</code> 與 <code class="text-slate-200">pkg.sub.mod</code> 採階層順序鎖定，避免跨緒死結。</p>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+              <div class="text-xs font-bold text-cyan-300">ContextDecorator 修正</div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">裝飾生成器與協程函式時，context manager 現在會維持開啟直到迭代或 <code class="text-slate-200">await</code> 結束。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tachyon Profiler CLI Builder -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">PEP 799 · 最高 1,000,000 Hz 零負擔取樣</span>
+            <h3 class="mt-1 text-base font-bold text-white">Tachyon 高頻取樣效能分析器指令產生器 (<code>profiling.sampling</code>)</h3>
+          </div>
+          <button id="copyTachyonBtn" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:border-cyan-500">
+            <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+            <span>複製指令</span>
+          </button>
+        </div>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label for="tachyonTarget" class="block text-xs font-semibold text-slate-400">執行目標 (Subcommand)</label>
+            <select id="tachyonTarget" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
+              <option value="run app.py">run app.py (啟動並分析腳本)</option>
+              <option value="attach 12345">attach 12345 (掛載線上 PID)</option>
+              <option value="dump 12345">dump 12345 (擷取卡死行程快照)</option>
+            </select>
+          </div>
+          <div>
+            <label for="tachyonMode" class="block text-xs font-semibold text-slate-400">量測模式 (<code>--mode</code>)</label>
+            <select id="tachyonMode" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
+              <option value="wall">wall (真實牆鐘時間含 I/O)</option>
+              <option value="cpu">cpu (僅純 CPU 運算時間)</option>
+              <option value="gil" selected>gil (鎖定 GIL 時間，揪出爭用)</option>
+              <option value="exception">exception (僅取樣處理例外期間)</option>
+            </select>
+          </div>
+          <div>
+            <label for="tachyonOutput" class="block text-xs font-semibold text-slate-400">視覺化輸出格式</label>
+            <select id="tachyonOutput" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
+              <option value="--flamegraph -o flame.html">--flamegraph (互動式 D3 火焰圖)</option>
+              <option value="--heatmap -o heat_dir">--heatmap (逐行熱力圖)</option>
+              <option value="--gecko -o profile.json">--gecko (Firefox Profiler)</option>
+              <option value="--pstats">--pstats (傳統表格統計)</option>
+              <option value="--live">--live (即時 top 介面)</option>
+            </select>
+          </div>
+          <div class="flex flex-col justify-center gap-2 pt-4 sm:pt-5">
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+              <input id="tachyonAllThreads" type="checkbox" checked class="h-4 w-4 rounded accent-cyan-500" />
+              <span><code>-a</code> 分析所有執行緒</span>
+            </label>
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+              <input id="tachyonAsync" type="checkbox" class="h-4 w-4 rounded accent-cyan-500" />
+              <span><code>--async-aware</code> 重建協程堆疊</span>
+            </label>
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+              <input id="tachyonOpcodes" type="checkbox" class="h-4 w-4 rounded accent-cyan-500" />
+              <span><code>--opcodes</code> 收集位元組碼指令</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-emerald-500/30 bg-slate-950 p-3.5">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">產生的 CLI 指令</div>
+          <pre id="tachyonCmd" class="mt-1.5 overflow-x-auto font-mono text-xs font-semibold text-emerald-200 sm:text-sm"></pre>
+          <p id="tachyonExplain" class="mt-2 text-xs text-slate-400"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: DECISION WIZARD & BENCHMARKS ==================== -->
+    <section id="tab-wizard" class="tab-panel hidden space-y-6">
+      <!-- Interactive Decision Wizard -->
+      <div class="grid gap-6 lg:grid-cols-12">
+        <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-5">
+          <h2 class="text-lg font-bold text-white">Python 3.15 並發架構決策精靈</h2>
+          <p class="text-xs text-slate-400">依專案條件點選以下 3 項特徵，系統將即時推薦最適合的 Python 3.15 平行方案。</p>
+
+          <div>
+            <div class="text-xs font-semibold text-slate-300">1. 主要效能瓶頸</div>
+            <div class="mt-1.5 grid grid-cols-3 gap-2">
+              <button data-wq="bottleneck" data-wv="cpu" class="wiz-btn choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">CPU 密集</button>
+              <button data-wq="bottleneck" data-wv="io" class="wiz-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">高併發 I/O</button>
+              <button data-wq="bottleneck" data-wv="mixed" class="wiz-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">I/O + CPU 混合</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-xs font-semibold text-slate-300">2. 第三方 C 擴充套件相容性</div>
+            <div class="mt-1.5 grid grid-cols-2 gap-2">
+              <button data-wq="cext" data-wv="ready" class="wiz-btn choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">純 Python / 支援 abi3t</button>
+              <button data-wq="cext" data-wv="legacy" class="wiz-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">依賴舊版未適配 C 套件</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-xs font-semibold text-slate-300">3. 資料共享與容錯需求</div>
+            <div class="mt-1.5 grid grid-cols-2 gap-2">
+              <button data-wq="state" data-wv="shared" class="wiz-btn choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">高頻共享記憶體 / 快取</button>
+              <button data-wq="state" data-wv="isolated" class="wiz-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-300">需要嚴格隔離防崩潰</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-5 lg:col-span-7">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-bold text-cyan-300">推薦架構</span>
+            <button id="copyWizCodeBtn" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-cyan-500">
+              <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+              <span>複製範本</span>
+            </button>
+          </div>
+          <h3 id="wizTitle" class="mt-2 text-xl font-bold text-white"></h3>
+          <p id="wizDesc" class="mt-1.5 text-sm leading-relaxed text-slate-300"></p>
+          <div id="wizCaveat" class="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200"></div>
+          <pre id="wizCode" class="code-surface mt-3 overflow-x-auto rounded-xl p-3.5 text-xs leading-relaxed text-slate-200"></pre>
+        </div>
+      </div>
+
+      <!-- Official pyperformance Benchmark Chart -->
+      <div class="grid gap-6 lg:grid-cols-12">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-7">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-base font-bold text-white">Python 3.15 官方 pyperformance 效能指標</h3>
+              <p class="text-xs text-slate-400">數據完全依據 Python 3.15.2 官方文件（What's New 與 Free-Threading HOWTO）所載之幾何平均變化</p>
+            </div>
+          </div>
+          <div class="relative h-72 w-full">
+            <canvas id="benchChart"></canvas>
+          </div>
+          <p class="mt-2 text-[11px] text-slate-400">
+            註：圖表顯示官方報告區間之中位數（例如 JIT Linux 7–8% 標示為 +7.5%，Windows MSVC 18 尾呼叫 15–20% 標示為 +17.5%），滑鼠移至長條可檢視完整官方區間說明。
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-5">
+          <h3 class="text-base font-bold text-white">五種並發模型速查表</h3>
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="border-b border-slate-800 text-slate-400">
+                <tr>
+                  <th class="pb-2 pr-2 font-semibold">模型</th>
+                  <th class="pb-2 pr-2 font-semibold">多核 CPU</th>
+                  <th class="pb-2 pr-2 font-semibold">記憶體</th>
+                  <th class="pb-2 font-semibold">3.15 亮點</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/80 text-slate-300">
+                <tr>
+                  <td class="py-2.5 pr-2 font-semibold text-white">GIL Threading</td>
+                  <td class="py-2.5 pr-2 text-rose-300">否</td>
+                  <td class="py-2.5 pr-2">共享</td>
+                  <td class="py-2.5">安全迭代器、匯入鎖修復</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 pr-2 font-semibold text-cyan-300">Free-Threading (3.15t)</td>
+                  <td class="py-2.5 pr-2 text-emerald-300">是</td>
+                  <td class="py-2.5 pr-2">共享</td>
+                  <td class="py-2.5">PEP 803 abi3t、mimalloc</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 pr-2 font-semibold text-violet-300">InterpreterPool</td>
+                  <td class="py-2.5 pr-2 text-emerald-300">是</td>
+                  <td class="py-2.5 pr-2">隔離</td>
+                  <td class="py-2.5">同行程獨立 GIL</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 pr-2 font-semibold text-emerald-300">ProcessPool</td>
+                  <td class="py-2.5 pr-2 text-emerald-300">是</td>
+                  <td class="py-2.5 pr-2">獨立行程</td>
+                  <td class="py-2.5">崩潰回報 PID / exit code</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 pr-2 font-semibold text-amber-300">asyncio</td>
+                  <td class="py-2.5 pr-2 text-rose-300">單核協作</td>
+                  <td class="py-2.5 pr-2">共享</td>
+                  <td class="py-2.5">TaskGroup.cancel()</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-World Python 3.15 Execution Timing Benchmarks -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span class="rounded bg-cyan-500/15 px-2 py-0.5 text-[11px] font-semibold text-cyan-300">實測執行時間與冷啟動分析</span>
+            <h3 class="mt-1 text-base font-bold text-white">Python 3.15 實測執行時間對照（秒 / 毫秒）</h3>
+            <p class="text-xs text-slate-400">彙整 2026 年公開實測之 CPU 多執行緒耗時、GIL 飽和度與 PEP 810 啟動延遲數據</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button data-timing="fib" class="timing-btn choice-btn active rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">fib(40) 多執行緒 (秒)</button>
+            <button data-timing="index" class="timing-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">8 緒/行程文字索引</button>
+            <button data-timing="lazy" class="timing-btn choice-btn rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">PEP 810 啟動耗時 (ms)</button>
+          </div>
+        </div>
+
+        <div class="grid gap-5 lg:grid-cols-12">
+          <div class="lg:col-span-7">
+            <div class="relative h-72 w-full rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <canvas id="timingChart"></canvas>
+            </div>
+            <p id="timingSourceNote" class="mt-2 text-xs text-slate-400"></p>
+          </div>
+          <div class="space-y-3 lg:col-span-5">
+            <div id="timingInsights" class="rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 text-xs leading-relaxed text-slate-300"></div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3.5">
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-xs font-bold text-cyan-300">自行量測 Wall Time vs CPU Time 範本</span>
+                <button id="copyTimingCodeBtn" class="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-[11px] text-cyan-300 hover:border-cyan-500">複製</button>
+              </div>
+              <pre id="timingMeasureCode" class="overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-200"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer Sources -->
+  <footer class="mt-8 border-t border-slate-800/90 bg-slate-950/80 py-6">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6">
+      <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">官方文件與 PEP 參考來源</div>
+      <div class="mt-2.5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-cyan-300">
+        <a href="https://docs.python.org/3/whatsnew/3.15.html" target="_blank" rel="noopener noreferrer" class="hover:underline">What's New in Python 3.15</a>
+        <a href="https://docs.python.org/3/howto/free-threading-python.html" target="_blank" rel="noopener noreferrer" class="hover:underline">Free-Threading HOWTO (3.15)</a>
+        <a href="https://peps.python.org/pep-0810/" target="_blank" rel="noopener noreferrer" class="hover:underline">PEP 810: Explicit lazy imports</a>
+        <a href="https://peps.python.org/pep-0798/" target="_blank" rel="noopener noreferrer" class="hover:underline">PEP 798: Unpacking in Comprehensions</a>
+        <a href="https://peps.python.org/pep-0661/" target="_blank" rel="noopener noreferrer" class="hover:underline">PEP 661: Sentinel Values</a>
+        <a href="https://docs.python.org/3/library/threading.html" target="_blank" rel="noopener noreferrer" class="hover:underline">threading 官方文件</a>
+        <a href="https://docs.python.org/3/library/concurrent.futures.html" target="_blank" rel="noopener noreferrer" class="hover:underline">concurrent.futures 官方文件</a>
+        <a href="https://docs.python.org/3/library/concurrent.interpreters.html" target="_blank" rel="noopener noreferrer" class="hover:underline">concurrent.interpreters 官方文件</a>
+        <a href="https://realpython.com/python-news-november-2026/" target="_blank" rel="noopener noreferrer" class="hover:underline">Real Python: Python 3.15 fib(40) 實測</a>
+        <a href="https://www.designgurus.io/blog/python-gil-explained" target="_blank" rel="noopener noreferrer" class="hover:underline">DesignGurus: 3.15.2 GIL 與多核索引實測</a>
+        <a href="https://www.nihardaily.com/posts/python-315-makes-utf-8-the-default-what-breaks" target="_blank" rel="noopener noreferrer" class="hover:underline">NiharDaily: Lazy Import 啟動實測</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==================== UTILITIES ====================
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      const txt = document.getElementById('toastText');
+      txt.textContent = msg;
+      t.classList.remove('hidden');
+      t.classList.add('flex');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        t.classList.add('hidden');
+        t.classList.remove('flex');
+      }, 2200);
+    }
+
+    function copyText(text, label = '已複製程式碼') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast(label)).catch(() => fallbackCopy(text, label));
+      } else {
+        fallbackCopy(text, label);
+      }
+    }
+
+    function fallbackCopy(text, label) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(label);
+      } catch (e) {
+        showToast('瀏覽器限制自動複製，請手動選取');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ==================== TAB NAVIGATION ====================
+    let benchChartInstance = null;
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('hidden', panel.id !== 'tab-' + tabName);
+      });
+      if (tabName === 'simulator') {
+        resizeSimCanvas();
+        drawSimCanvas();
+      }
+      if (tabName === 'wizard') {
+        if (!benchChartInstance) initBenchChart();
+        if (!timingChartInstance) renderTimingBenchmark();
+      }
+    }
+
+    // ==================== TAB 1: SYNTAX LAB ====================
+    const syntaxState = {
+      active: 'pep810',
+      lazyMode: 'lazy',
+      lazyStep: 0,
+      unpackType: 'list',
+      frozenLog: [
+        '>>> cfg = frozendict(workers=4, mode="no-gil")',
+        "frozendict({'workers': 4, 'mode': 'no-gil'})"
+      ]
+    };
+
+    const unpackExamples = {
+      list: {
+        label: 'List 扁平化',
+        oldCode: 'lists = [[1, 2], [3, 4], [5]]\nflat = [x for L in lists for x in L]',
+        newCode: 'lists = [[1, 2], [3, 4], [5]]\nflat = [*L for L in lists]',
+        output: '[1, 2, 3, 4, 5]'
+      },
+      set: {
+        label: 'Set 聯集展開',
+        oldCode: 'sets = [{1, 2}, {2, 3}, {3, 4}]\nmerged = {x for s in sets for x in s}',
+        newCode: 'sets = [{1, 2}, {2, 3}, {3, 4}]\nmerged = {*s for s in sets}',
+        output: '{1, 2, 3, 4}'
+      },
+      dict: {
+        label: 'Dict 合併展開',
+        oldCode: "dicts = [{'a': 1}, {'b': 2}, {'a': 3}]\nmerged = {k: v for d in dicts for k, v in d.items()}",
+        newCode: "dicts = [{'a': 1}, {'b': 2}, {'a': 3}]\nmerged = {**d for d in dicts}",
+        output: "{'a': 3, 'b': 2}"
+      },
+      gen: {
+        label: 'Generator 表達式',
+        oldCode: 'lists = [[1, 2], [3, 4], [5]]\ngen = (x for L in lists for x in L)\nlist(gen)',
+        newCode: 'lists = [[1, 2], [3, 4], [5]]\ngen = (*L for L in lists)\nlist(gen)',
+        output: '[1, 2, 3, 4, 5]'
+      },
+      async_gen: {
+        label: 'Async Generator',
+        oldCode: 'agen_flat = (x async for a in agen() for x in a)',
+        newCode: 'agen_flat = (*a async for a in agen())',
+        output: '依序非同步展開每個批次元素（無需雙層迴圈）'
+      }
+    };
+
+    function renderSyntaxLab() {
+      const container = document.getElementById('syntaxContent');
+      document.querySelectorAll('.syntax-pill').forEach(b => {
+        b.classList.toggle('active', b.dataset.syntax === syntaxState.active);
+      });
+
+      if (syntaxState.active === 'pep810') {
+        const isLazy = syntaxState.lazyMode === 'lazy';
+        const lines = isLazy
+          ? [
+              'import sys',
+              'lazy import json',
+              'lazy from pathlib import Path',
+              'print("Startup done:", "json" in sys.modules)',
+              'data = json.loads(\'{"ok": true}\')  # 首次存取觸發載入'
+            ]
+          : [
+              'import sys',
+              'import json  # 啟動時立即讀取、編譯並執行',
+              'from pathlib import Path  # 啟動時立即載入',
+              'print("Startup done:", "json" in sys.modules)',
+              'data = json.loads(\'{"ok": true}\')'
+            ];
+
+        const stepInfo = isLazy
+          ? [
+              { mods: ['sys'], proxy: [], msg: '第 1 行：載入 sys 模組。' },
+              { mods: ['sys'], proxy: ['json (LazyImportType)'], msg: '第 2 行：建立輕量代理物件，尚未從磁碟載入 json！' },
+              { mods: ['sys'], proxy: ['json', 'Path'], msg: '第 3 行：Path 亦為代理物件，CLI 啟動零負擔。' },
+              { mods: ['sys'], proxy: ['json', 'Path'], msg: '第 4 行：輸出 "Startup done: False"，啟動完成！' },
+              { mods: ['sys', 'json'], proxy: ['Path'], msg: '第 5 行：首次使用 json.loads()，透明載入 json 並替換代理物件（Path 仍未載入）。' }
+            ]
+          : [
+              { mods: ['sys'], proxy: [], msg: '第 1 行：載入 sys 模組。' },
+              { mods: ['sys', 'json'], proxy: [], msg: '第 2 行：立即載入 json，即使後續分支可能用不到。' },
+              { mods: ['sys', 'json', 'pathlib'], proxy: [], msg: '第 3 行：立即載入 pathlib，增加冷啟動延遲。' },
+              { mods: ['sys', 'json', 'pathlib'], proxy: [], msg: '第 4 行：輸出 "Startup done: True"，模組皆已載入。' },
+              { mods: ['sys', 'json', 'pathlib'], proxy: [], msg: '第 5 行：直接呼叫已載入的 json.loads()。' }
+            ];
+
+        const cur = stepInfo[syntaxState.lazyStep];
+        const fullCode = lines.join('\n') + '\n\n# 向下相容 Python <3.15 寫法：\n__lazy_modules__ = ["json", "pathlib"]';
+
+        container.innerHTML = `
+          <div class="grid gap-5 lg:grid-cols-12">
+            <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-7">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-base font-bold text-white">PEP 810：顯式延遲載入（Explicit Lazy Imports）</h3>
+                <div class="flex items-center gap-1.5">
+                  <button id="modeLazyBtn" class="choice-btn ${isLazy ? 'active' : ''} rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-semibold text-slate-300">3.15 lazy import</button>
+                  <button id="modeEagerBtn" class="choice-btn ${!isLazy ? 'active' : ''} rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-semibold text-slate-300">傳統 eager import</button>
+                  <button id="copyPep810Btn" class="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-cyan-300 hover:border-cyan-500">複製</button>
+                </div>
+              </div>
+              <div class="code-surface overflow-x-auto rounded-xl p-3 font-mono text-xs leading-6">
+                ${lines.map((l, idx) => `<div class="px-2 py-0.5 ${idx === syntaxState.lazyStep ? 'highlight-line text-white' : 'text-slate-300'}"><span class="mr-3 select-none text-slate-500">${idx + 1}</span>${escapeHtml(l)}</div>`).join('')}
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex gap-2">
+                  <button id="lazyPrevBtn" class="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-40" ${syntaxState.lazyStep === 0 ? 'disabled' : ''}>上一步</button>
+                  <button id="lazyNextBtn" class="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-cyan-500 disabled:opacity-40" ${syntaxState.lazyStep === lines.length - 1 ? 'disabled' : ''}>下一步執行</button>
+                  <button id="lazyResetBtn" class="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-500">重設</button>
+                </div>
+                <span class="font-mono text-xs text-slate-400">步驟 ${syntaxState.lazyStep + 1} / ${lines.length}</span>
+              </div>
+            </div>
+
+            <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-5">
+              <h4 class="text-sm font-bold text-white">即時直譯器狀態追蹤</h4>
+              <div class="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs leading-relaxed text-cyan-100">${cur.msg}</div>
+              <div>
+                <div class="text-xs font-semibold text-slate-400">sys.modules（已實際載入）</div>
+                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                  ${cur.mods.map(m => `<span class="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 font-mono text-xs text-emerald-200">${m}</span>`).join('')}
+                </div>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-400">待觸發延遲代理 (types.LazyImportType)</div>
+                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                  ${cur.proxy.length ? cur.proxy.map(p => `<span class="rounded-md border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 font-mono text-xs text-amber-200">${p}</span>`).join('') : '<span class="text-xs text-slate-500">無待載入代理</span>'}
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-relaxed text-slate-300">
+                <div class="font-bold text-white">語法限制與全域控制：</div>
+                <ul class="mt-1.5 list-disc space-y-1 pl-4 text-slate-400">
+                  <li><code>lazy</code> 為軟關鍵字，僅允許於<strong>模組頂層</strong>使用（函式、類別或 <code>try/except</code> 內會報 <code>SyntaxError</code>）。</li>
+                  <li>不支援 <code>lazy from m import *</code> 與 <code>__future__</code>。</li>
+                  <li>可透過 <code>-X lazy_imports=all</code> 或 <code>sys.set_lazy_imports_filter()</code> 全域控管。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('modeLazyBtn').addEventListener('click', () => { syntaxState.lazyMode = 'lazy'; syntaxState.lazyStep = 0; renderSyntaxLab(); });
+        document.getElementById('modeEagerBtn').addEventListener('click', () => { syntaxState.lazyMode = 'eager'; syntaxState.lazyStep = 0; renderSyntaxLab(); });
+        document.getElementById('lazyPrevBtn').addEventListener('click', () => { if (syntaxState.lazyStep > 0) { syntaxState.lazyStep--; renderSyntaxLab(); } });
+        document.getElementById('lazyNextBtn').addEventListener('click', () => { if (syntaxState.lazyStep < lines.length - 1) { syntaxState.lazyStep++; renderSyntaxLab(); } });
+        document.getElementById('lazyResetBtn').addEventListener('click', () => { syntaxState.lazyStep = 0; renderSyntaxLab(); });
+        document.getElementById('copyPep810Btn').addEventListener('click', () => copyText(fullCode));
+      }
+
+      else if (syntaxState.active === 'pep798') {
+        const ex = unpackExamples[syntaxState.unpackType];
+        container.innerHTML = `
+          <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-base font-bold text-white">PEP 798：推導式與生成器解包 (<code>*</code> / <code>**</code>)</h3>
+                <p class="mt-0.5 text-xs text-slate-400">直接以解包語法取代巢狀推導式與 <code>itertools.chain.from_iterable()</code>。</p>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                ${Object.entries(unpackExamples).map(([k, v]) => `
+                  <button data-utype="${k}" class="unpack-btn choice-btn ${k === syntaxState.unpackType ? 'active' : ''} rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-300">${v.label}</button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+                <div class="mb-2 text-xs font-semibold text-slate-400">Python 3.14 及以前（巢狀寫法）</div>
+                <pre class="overflow-x-auto font-mono text-xs leading-relaxed text-slate-300">${escapeHtml(ex.oldCode)}</pre>
+              </div>
+              <div class="rounded-xl border border-cyan-500/40 bg-slate-950/90 p-4">
+                <div class="mb-2 flex items-center justify-between">
+                  <span class="text-xs font-semibold text-cyan-300">Python 3.15 新語法 (PEP 798)</span>
+                  <button id="copyUnpackBtn" class="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-[11px] text-cyan-300 hover:border-cyan-500">複製</button>
+                </div>
+                <pre class="overflow-x-auto font-mono text-xs leading-relaxed text-cyan-100">${escapeHtml(ex.newCode)}</pre>
+              </div>
+            </div>
+            <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 font-mono text-xs text-emerald-200">
+              <span class="font-bold text-emerald-400">輸出結果 &gt;&gt;&gt; </span>${escapeHtml(ex.output)}
+            </div>
+          </div>
+        `;
+        document.querySelectorAll('.unpack-btn').forEach(btn => {
+          btn.addEventListener('click', () => { syntaxState.unpackType = btn.dataset.utype; renderSyntaxLab(); });
+        });
+        document.getElementById('copyUnpackBtn').addEventListener('click', () => copyText(ex.newCode));
+      }
+
+      else if (syntaxState.active === 'pep814') {
+        const snippet = `cfg = frozendict(workers=4, mode="no-gil")\n# 跨執行緒安全共享、可當 dict key 或 set 元素\ncache = {cfg: "ready"}\n\n# 搭配 Python 3.15 json.loads(array_hook=tuple) 建立深層不可變結構\nimport json\nimmutable_data = json.loads(\n    '{"cores": [0, 1, 2, 3]}',\n    object_pairs_hook=frozendict,\n    array_hook=tuple,\n)`;
+        container.innerHTML = `
+          <div class="grid gap-5 lg:grid-cols-12">
+            <div class="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-6">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white">PEP 814：內建不可變字典 <code>frozendict</code></h3>
+                <button id="copyFrozenBtn" class="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-cyan-300 hover:border-cyan-500">複製</button>
+              </div>
+              <p class="text-xs leading-relaxed text-slate-300">
+                <code>frozendict</code> 直接繼承自 <code>object</code>（非 <code>dict</code> 子類別），建立後不可修改；所有鍵值皆可雜湊時即具備雜湊性，非常適合在無 GIL 多執行緒環境中安全共享設定與快取鍵值。
+              </p>
+              <pre class="code-surface overflow-x-auto rounded-xl p-3.5 text-xs leading-relaxed text-slate-200">${escapeHtml(snippet)}</pre>
+            </div>
+            <div class="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 lg:col-span-6">
+              <h4 class="text-sm font-bold text-white">互動 REPL 模擬測試</h4>
+              <div class="flex flex-wrap gap-2">
+                <button id="fzMutateBtn" class="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/25">嘗試修改 cfg["x"] = 1</button>
+                <button id="fzHashBtn" class="rounded-lg border border-cyan-500/40 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/25">驗證無序相等與 hash()</button>
+                <button id="fzJsonBtn" class="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25">測試 json array_hook</button>
+              </div>
+              <pre id="frozenRepl" class="code-surface h-48 overflow-y-auto rounded-xl p-3.5 font-mono text-xs leading-relaxed text-emerald-200">${escapeHtml(syntaxState.frozenLog.join('\n'))}</pre>
+            </div>
+          </div>
+        `;
+        document.getElementById('copyFrozenBtn').addEventListener('click', () => copyText(snippet));
+        document.getElementById('fzMutateBtn').addEventListener('click', () => {
+          syntaxState.frozenLog = [
+            '>>> cfg = frozendict(workers=4, mode="no-gil")',
+            '>>> cfg["x"] = 1',
+            "TypeError: 'frozendict' object does not support item assignment"
+          ];
+          renderSyntaxLab();
+        });
+        document.getElementById('fzHashBtn').addEventListener('click', () => {
+          syntaxState.frozenLog = [
+            '>>> a = frozendict(x=1, y=2)',
+            '>>> b = frozendict(y=2, x=1)',
+            '>>> a == b',
+            'True',
+            '>>> hash(a) == hash(b)',
+            'True  # 保留插入順序，但相等性與雜湊與順序無關'
+          ];
+          renderSyntaxLab();
+        });
+        document.getElementById('fzJsonBtn').addEventListener('click', () => {
+          syntaxState.frozenLog = [
+            '>>> json.loads(\'{"cores": [0, 1, 2, 3]}\', object_pairs_hook=frozendict, array_hook=tuple)',
+            "frozendict({'cores': (0, 1, 2, 3)})  # 深層不可變結構，可直接跨執行緒安全共享"
+          ];
+          renderSyntaxLab();
+        });
+      }
+
+      else if (syntaxState.active === 'pep661') {
+        const oldCode = `_MISSING = object()\n\ndef update_user(name: object = _MISSING):\n    # repr 醜陋：<object object at 0x7f...>\n    # copy.deepcopy(_MISSING) is _MISSING -> False!\n    if name is not _MISSING:\n        ...`;
+        const newCode = `MISSING = sentinel("MISSING")\n\ndef update_user(name: str | None | MISSING = MISSING) -> None:\n    # 清楚的 repr：MISSING\n    # copy / deepcopy / pickle 後仍保持同一物件身份 (is)\n    if name is MISSING:\n        print("未傳入欄位，維持原值")\n    elif name is None:\n        print("明確清空欄位為 None")`;
+        container.innerHTML = `
+          <div class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-base font-bold text-white">PEP 661：內建哨兵型別 <code>sentinel</code></h3>
+                <p class="mt-0.5 text-xs text-slate-400">無需匯入模組，解決 <code>_MISSING = object()</code> 在簽章可讀性、型別檢查與 <code>copy/pickle</code> 下的長期痛點。</p>
+              </div>
+              <button id="copySentinelBtn" class="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-semibold text-cyan-300 hover:border-cyan-500">複製 3.15 寫法</button>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+                <div class="mb-2 text-xs font-semibold text-rose-300">舊慣用法：object()</div>
+                <pre class="overflow-x-auto font-mono text-xs leading-relaxed text-slate-300">${escapeHtml(oldCode)}</pre>
+              </div>
+              <div class="rounded-xl border border-cyan-500/40 bg-slate-950/90 p-4">
+                <div class="mb-2 text-xs font-semibold text-cyan-300">Python 3.15：builtins.sentinel</div>
+                <pre class="overflow-x-auto font-mono text-xs leading-relaxed text-cyan-100">${escapeHtml(newCode)}</pre>
+              </div>
+            </div>
+          </div>
+        `;
+        document.getElementById('copySentinelBtn').addEventListener('click', () => copyText(newCode));
+      }
+
+      else {
+        container.innerHTML = `
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
+              <div class="text-xs font-bold text-cyan-400">PEP 686 · 預設 UTF-8 編碼</div>
+              <p class="text-xs text-slate-300"><code>open("data.txt")</code> 未指定 <code>encoding</code> 時不再依賴系統 locale，一律預設使用 UTF-8（可用 <code>PYTHONUTF8=0</code> 或 <code>-X utf8=0</code> 關閉）。</p>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
+              <div class="text-xs font-bold text-cyan-400">bytearray.take_bytes() 零拷貝提取</div>
+              <p class="text-xs text-slate-300">網路緩衝區與協定解析可直接 <code>data = buf.take_bytes(n)</code> 取出 <code>bytes</code> 而不需額外複製與手動清空。</p>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
+              <div class="text-xs font-bold text-cyan-400">更聰明的跨語言 AttributeError 提示</div>
+              <p class="text-xs text-slate-300">呼叫 <code>[1, 2].push(3)</code> 會提示 <code>Did you mean '.append'?</code>；呼叫 <code>(1, 2).append(3)</code> 會建議改用 <code>list</code>。</p>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
+              <div class="text-xs font-bold text-cyan-400">型別系統強化 (PEP 728 / 747 / 800) & re.prefixmatch</div>
+              <p class="text-xs text-slate-300">新增 <code>typing.TypeForm</code>、<code>TypedDict(closed=True, extra_items=...)</code>、<code>@typing.disjoint_base</code> 與更語意明確的 <code>re.prefixmatch()</code>。</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // ==================== TAB 2: CONCURRENCY SIMULATOR ====================
+    const simConfig = {
+      gil_thread: {
+        gilLabel: '全域單一 GIL 鎖定',
+        gilColor: 'text-rose-400',
+        memLabel: '共享 Heap (pymalloc)',
+        note: '傳統 CPython 建置中，所有執行緒必須爭奪同一把 GIL。執行 CPU 密集運算時同一時間只有 1 顆核心能執行 Python 位元組碼；但遇到 I/O 等待時會釋放 GIL 讓其他執行緒前進。',
+        code: `from concurrent.futures import ThreadPoolExecutor\nimport sys\n\nprint("GIL enabled:", sys._is_gil_enabled())  # True\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(work_fn, range(8)))`
+      },
+      free_thread: {
+        gilLabel: '已停用 (No-GIL)',
+        gilColor: 'text-cyan-300',
+        memLabel: '共享 Heap (mimalloc)',
+        note: 'Python 3.15t 自由執行緒建置停用 GIL，多個執行緒可同時在所有可用 CPU 核心上真正平行執行位元組碼！搭配 mimalloc、PEP 803 abi3t 與 frozendict 減少鎖爭用。',
+        code: `# 以 python3.15t 或 PYTHON_GIL=0 執行\nfrom concurrent.futures import ThreadPoolExecutor\nimport sys, sysconfig\n\nassert sysconfig.get_config_var("Py_GIL_DISABLED") == 1\nassert not sys._is_gil_enabled()  # False：真正多核心平行\n\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(cpu_heavy_fn, range(8)))`
+      },
+      subinterp: {
+        gilLabel: '每直譯器獨立 GIL',
+        gilColor: 'text-violet-300',
+        memLabel: '同行程隔離記憶體',
+        note: '透過 concurrent.futures.InterpreterPoolExecutor 在同一個行程內建立多個子直譯器，每個子直譯器擁有獨立 GIL 與狀態，無需切換至 3.15t 建置也能多核平行，啟動比多行程更輕量。',
+        code: `from concurrent.futures import InterpreterPoolExecutor\n\ndef compute(n: int) -> int:\n    return sum(i * i for i in range(n))\n\nwith InterpreterPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(compute, [500_000] * 8))`
+      },
+      multiproc: {
+        gilLabel: '各行程獨立 GIL',
+        gilColor: 'text-emerald-300',
+        memLabel: '獨立 OS 行程 (IPC)',
+        note: 'ProcessPoolExecutor 透過多個獨立作業系統行程繞過 GIL，具備最強故障隔離與舊版 C 擴充相容性，但行程啟動與資料序列化 (pickle) 具有明顯開銷。Python 3.15 在子行程異常終止時會明確回報 PID 與 exit code。',
+        code: `from concurrent.futures import ProcessPoolExecutor\n\ndef compute(n: int) -> int:\n    return sum(i * i for i in range(n))\n\nif __name__ == "__main__":\n    with ProcessPoolExecutor(max_workers=4) as pool:\n        results = list(pool.map(compute, [500_000] * 8))`
+      },
+      asyncio: {
+        gilLabel: '單執行緒事件迴圈',
+        gilColor: 'text-amber-300',
+        memLabel: '單緒共享狀態 (無鎖)',
+        note: 'asyncio 在單一執行緒上透過協作式多工處理海量 I/O 等待，零執行緒切換成本；但若在協程內執行純 CPU 運算會阻塞整個事件迴圈。Python 3.15 新增 TaskGroup.cancel() 簡化提早終止。',
+        code: `import asyncio\n\nasync def fetch_item(i: int) -> str:\n    await asyncio.sleep(0.2)\n    return f"item-{i}"\n\nasync def main():\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch_item(i)) for i in range(8)]\n    return [t.result() for t in tasks]`
+      }
+    };
+
+    const simState = {
+      model: 'free_thread',
+      workload: 'cpu',
+      cores: 4,
+      taskCount: 8,
+      speed: 1,
+      running: false,
+      paused: false,
+      time: 0,
+      cpuTime: 0,
+      gilWaitTime: 0,
+      startupTime: 0,
+      rafId: null,
+      lastTs: 0,
+      tasks: [],
+      laneHistory: []
+    };
+
+    function buildSimTasks() {
+      const n = simState.taskCount;
+      const m = simState.model;
+      const w = simState.workload;
+      const startupCost = m === 'multiproc' ? 0.55 : m === 'subinterp' ? 0.22 : 0.04;
+      const tasks = [];
+      for (let i = 0; i < n; i++) {
+        let cpuDur = 1.1;
+        let ioDur = 0;
+        if (w === 'cpu') { cpuDur = 1.2 + (i % 3) * 0.25; ioDur = 0; }
+        else if (w === 'io') { cpuDur = 0.25; ioDur = 1.15 + (i % 2) * 0.3; }
+        else { cpuDur = 0.75 + (i % 2) * 0.2; ioDur = 0.65; }
+        tasks.push({
+          id: i + 1,
+          startupLeft: i < simState.cores ? startupCost : 0,
+          cpuLeft: cpuDur,
+          ioLeft: ioDur,
+          phase: i < simState.cores && startupCost > 0 ? 'startup' : 'cpu',
+          done: false,
+          core: -1,
+          waitGil: false
+        });
+      }
+      simState.tasks = tasks;
+      simState.time = 0;
+      simState.cpuTime = 0;
+      simState.gilWaitTime = 0;
+      simState.startupTime = 0;
+      simState.laneHistory = Array.from({ length: simState.cores }, () => []);
+    }
+
+    function updateSimUI() {
+      const cfg = simConfig[simState.model];
+      document.getElementById('coresVal').textContent = `${simState.cores} 核心`;
+      document.getElementById('tasksVal').textContent = `${simState.taskCount} 任務`;
+      document.getElementById('kpiGil').textContent = cfg.gilLabel;
+      document.getElementById('kpiGil').className = `mt-1 text-sm font-bold ${cfg.gilColor}`;
+      document.getElementById('kpiMem').textContent = cfg.memLabel;
+      document.getElementById('simModelNote').textContent = cfg.note;
+      document.getElementById('simCodeBlock').textContent = cfg.code;
+      const doneCount = simState.tasks.filter(t => t.done).length;
+      document.getElementById('kpiDone').textContent = `${doneCount} / ${simState.taskCount}`;
+      document.getElementById('kpiTime').textContent = `${simState.time.toFixed(2)} s`;
+
+      const wall = simState.time;
+      const busyCpus = wall > 0.001 ? simState.cpuTime / wall : 0;
+      const utilPct = simState.cores > 0 ? Math.min(100, Math.round((busyCpus / simState.cores) * 100)) : 0;
+      document.getElementById('perfWall').textContent = `${wall.toFixed(2)} s`;
+      document.getElementById('perfCpu').textContent = `${simState.cpuTime.toFixed(2)} s`;
+      document.getElementById('perfBusy').textContent = `${busyCpus.toFixed(2)} 核`;
+      document.getElementById('perfGilWait').textContent = `${simState.gilWaitTime.toFixed(2)} s`;
+      document.getElementById('perfUtil').textContent = `${utilPct}%`;
+    }
+
+    function resetSimulation() {
+      if (simState.rafId) {
+        cancelAnimationFrame(simState.rafId);
+        simState.rafId = null;
+      }
+      simState.running = false;
+      simState.paused = false;
+      document.getElementById('simRunText').textContent = '開始模擬';
+      buildSimTasks();
+      updateSimUI();
+      drawSimCanvas();
+    }
+
+    function stepSimulation(dt) {
+      const m = simState.model;
+      const cores = simState.cores;
+      simState.time += dt;
+
+      // Active tasks
+      const unfinished = simState.tasks.filter(t => !t.done);
+      if (unfinished.length === 0) {
+        simState.running = false;
+        document.getElementById('simRunText').textContent = '重新模擬';
+        return;
+      }
+
+      // Reset transient flags
+      simState.tasks.forEach(t => { t.waitGil = false; });
+
+      // Assign lanes
+      const maxWorkers = m === 'asyncio' ? 1 : cores;
+      const activePool = unfinished.slice(0, m === 'asyncio' ? unfinished.length : maxWorkers);
+
+      // Track what each core did in this slice
+      const coreStates = Array.from({ length: cores }, () => ({ state: 'idle', taskId: null }));
+
+      if (m === 'asyncio') {
+        // Single event loop on core 0: 1 task runs CPU at a time, all IO tasks progress concurrently
+        let cpuTaken = false;
+        for (const t of activePool) {
+          if (t.phase === 'startup') {
+            t.startupLeft -= dt;
+            if (t.startupLeft <= 0) t.phase = 'cpu';
+            coreStates[0] = { state: 'startup', taskId: t.id };
+            cpuTaken = true;
+          } else if (t.phase === 'cpu') {
+            if (!cpuTaken) {
+              t.cpuLeft -= dt;
+              coreStates[0] = { state: 'cpu', taskId: t.id };
+              cpuTaken = true;
+              if (t.cpuLeft <= 0) {
+                t.phase = t.ioLeft > 0 ? 'io' : 'done';
+                if (t.phase === 'done') t.done = true;
+              }
+            }
+          } else if (t.phase === 'io') {
+            t.ioLeft -= dt;
+            if (!cpuTaken && coreStates[0].state === 'idle') {
+              coreStates[0] = { state: 'io', taskId: t.id };
+            }
+            if (t.ioLeft <= 0) {
+              t.done = true;
+              t.phase = 'done';
+            }
+          }
+        }
+      } else if (m === 'gil_thread') {
+        // GIL allows only ONE thread to run CPU bytecode at a time; IO progresses in parallel
+        let gilHolderIdx = Math.floor(simState.time * 4) % Math.max(1, activePool.length);
+        let gilGranted = false;
+        activePool.forEach((t, idx) => {
+          const lane = idx % cores;
+          if (t.phase === 'startup') {
+            t.startupLeft -= dt;
+            if (t.startupLeft <= 0) t.phase = 'cpu';
+            coreStates[lane] = { state: 'startup', taskId: t.id };
+          } else if (t.phase === 'io') {
+            t.ioLeft -= dt;
+            coreStates[lane] = { state: 'io', taskId: t.id };
+            if (t.ioLeft <= 0) { t.done = true; t.phase = 'done'; }
+          } else if (t.phase === 'cpu') {
+            if (!gilGranted && (idx === gilHolderIdx || activePool.filter(x => x.phase === 'cpu').length === 1)) {
+              gilGranted = true;
+              t.cpuLeft -= dt;
+              coreStates[lane] = { state: 'cpu', taskId: t.id };
+              if (t.cpuLeft <= 0) {
+                t.phase = t.ioLeft > 0 ? 'io' : 'done';
+                if (t.phase === 'done') t.done = true;
+              }
+            } else {
+              t.waitGil = true;
+              coreStates[lane] = { state: 'gil', taskId: t.id };
+            }
+          }
+        });
+        // Ensure if gilHolder wasn't in cpu phase, grant GIL to first cpu task
+        if (!gilGranted) {
+          for (let idx = 0; idx < activePool.length; idx++) {
+            const t = activePool[idx];
+            if (t.phase === 'cpu') {
+              const lane = idx % cores;
+              t.waitGil = false;
+              t.cpuLeft -= dt;
+              coreStates[lane] = { state: 'cpu', taskId: t.id };
+              if (t.cpuLeft <= 0) {
+                t.phase = t.ioLeft > 0 ? 'io' : 'done';
+                if (t.phase === 'done') t.done = true;
+              }
+              break;
+            }
+          }
+        }
+      } else {
+        // True multi-core parallel (free_thread, subinterp, multiproc)
+        // Slight single-thread overhead (~4%) for free_thread modeled subtly
+        const effDt = m === 'free_thread' ? dt * 0.96 : dt;
+        activePool.forEach((t, idx) => {
+          const lane = idx % cores;
+          if (t.phase === 'startup') {
+            t.startupLeft -= dt;
+            coreStates[lane] = { state: 'startup', taskId: t.id };
+            if (t.startupLeft <= 0) t.phase = 'cpu';
+          } else if (t.phase === 'cpu') {
+            t.cpuLeft -= effDt;
+            coreStates[lane] = { state: 'cpu', taskId: t.id };
+            if (t.cpuLeft <= 0) {
+              t.phase = t.ioLeft > 0 ? 'io' : 'done';
+              if (t.phase === 'done') t.done = true;
+            }
+          } else if (t.phase === 'io') {
+            t.ioLeft -= dt;
+            coreStates[lane] = { state: 'io', taskId: t.id };
+            if (t.ioLeft <= 0) { t.done = true; t.phase = 'done'; }
+          }
+        });
+      }
+
+      for (let c = 0; c < cores; c++) {
+        if (coreStates[c].state === 'cpu') simState.cpuTime += dt;
+        else if (coreStates[c].state === 'gil') simState.gilWaitTime += dt;
+        else if (coreStates[c].state === 'startup') simState.startupTime += dt;
+
+        simState.laneHistory[c].push({
+          t: simState.time,
+          state: coreStates[c].state,
+          taskId: coreStates[c].taskId
+        });
+        if (simState.laneHistory[c].length > 260) {
+          simState.laneHistory[c].shift();
+        }
+      }
+    }
+
+    function resizeSimCanvas() {
+      const canvas = document.getElementById('simCanvas');
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(300, Math.floor(rect.width));
+      const h = 290;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+    }
+
+    function drawSimCanvas() {
+      const canvas = document.getElementById('simCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, w, h);
+
+      const cores = simState.cores;
+      const padLeft = 66;
+      const padRight = 18;
+      const padTop = 18;
+      const padBottom = 24;
+      const plotW = Math.max(100, w - padLeft - padRight);
+      const plotH = h - padTop - padBottom;
+      const laneH = plotH / cores;
+      const barH = Math.max(12, Math.min(28, laneH - 10));
+
+      const colorMap = {
+        cpu: '#06b6d4',
+        io: '#10b981',
+        gil: '#f59e0b',
+        startup: '#8b5cf6',
+        idle: '#0f172a'
+      };
+
+      for (let c = 0; c < cores; c++) {
+        const yCenter = padTop + c * laneH + laneH / 2;
+        const yTop = yCenter - barH / 2;
+
+        // Track bg
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(padLeft, yTop, plotW, barH);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(padLeft, yTop, plotW, barH);
+
+        // Label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 11px ui-monospace, monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`Core ${c}`, padLeft - 10, yCenter);
+
+        // Draw timeline history
+        const hist = simState.laneHistory[c] || [];
+        const sliceW = plotW / 260;
+        for (let i = 0; i < hist.length; i++) {
+          const item = hist[i];
+          if (item.state === 'idle') continue;
+          ctx.fillStyle = colorMap[item.state] || '#334155';
+          ctx.fillRect(padLeft + i * sliceW, yTop + 1, Math.ceil(sliceW) + 0.5, barH - 2);
+        }
+
+        // Latest active task badge
+        if (hist.length > 0) {
+          const last = hist[hist.length - 1];
+          if (last.taskId && last.state !== 'idle') {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '700 10px ui-monospace, monospace';
+            ctx.textAlign = 'left';
+            const xBadge = Math.min(padLeft + plotW - 36, padLeft + hist.length * sliceW + 4);
+            ctx.fillText(`T${last.taskId}`, xBadge, yCenter);
+          }
+        }
+      }
+
+      // Bottom time axis caption
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('← 執行時間軸（即時推進）', padLeft, h - 8);
+      ctx.textAlign = 'right';
+      ctx.fillText(`倍速: ${simState.speed}x`, w - padRight, h - 8);
+
+      ctx.restore();
+    }
+
+    function simLoop(ts) {
+      if (!simState.running || simState.paused) return;
+      if (!simState.lastTs) simState.lastTs = ts;
+      const rawDt = Math.min(0.05, (ts - simState.lastTs) / 1000);
+      simState.lastTs = ts;
+      stepSimulation(rawDt * simState.speed);
+      updateSimUI();
+      drawSimCanvas();
+      if (simState.running) {
+        simState.rafId = requestAnimationFrame(simLoop);
+      }
+    }
+
+    // ==================== TAB 3: THREADING ITERATORS & TACHYON ====================
+    const iterState = { mode: 'sync' };
+    const iterSnippets = {
+      unsafe: {
+        code: `def counter():\n    for i in range(1, 7):\n        yield i\n\ngen = counter()\n# 兩條無 GIL 執行緒同時呼叫 next(gen) -> 競爭條件！`,
+        logs: [
+          '[Thread-1] 呼叫 next(gen) -> 取得 1',
+          '[Thread-2] 同時呼叫 next(gen) -> ValueError: generator already executing!',
+          '結論：標準生成器與迭代器在多執行緒下非執行緒安全。'
+        ]
+      },
+      sync: {
+        code: `import threading\n\n@threading.synchronized_iterator  # Python 3.15 新增\ndef counter():\n    for i in range(1, 7):\n        yield i\n\ngen = counter()  # 自動加鎖序列化 next() 存取`,
+        logs: [
+          '[Thread-1] 安全取得 -> 1',
+          '[Thread-2] 安全取得 -> 2',
+          '[Thread-1] 安全取得 -> 3',
+          '[Thread-2] 安全取得 -> 4',
+          '[Thread-1] 安全取得 -> 5',
+          '[Thread-2] 安全取得 -> 6（無遺漏、無競爭錯誤）'
+        ]
+      },
+      tee: {
+        code: `import threading\n\n# Python 3.15 新增：執行緒安全地將單一資料流複製給多條執行緒\nit1, it2 = threading.concurrent_tee(range(1, 5), 2)\n# Thread-1 消費 it1，Thread-2 獨立消費 it2`,
+        logs: [
+          '[Thread-1 / it1] 完整接收串流 -> [1, 2, 3, 4]',
+          '[Thread-2 / it2] 完整接收串流 -> [1, 2, 3, 4]',
+          '結論：concurrent_tee 內部具鎖保護，避免傳統 itertools.tee 在多緒下損毀。'
+        ]
+      }
+    };
+
+    function renderIterDemo(runNow = false) {
+      document.querySelectorAll('.iter-mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.itermode === iterState.mode);
+      });
+      const item = iterSnippets[iterState.mode];
+      document.getElementById('iterCode').textContent = item.code;
+      const logBox = document.getElementById('iterLog');
+      if (runNow) {
+        logBox.innerHTML = item.logs.map(line => {
+          const cls = line.includes('ValueError') ? 'text-rose-300' : line.startsWith('結論') ? 'text-cyan-300 font-semibold' : 'text-emerald-300';
+          return `<div class="${cls}">${escapeHtml(line)}</div>`;
+        }).join('');
+      } else {
+        logBox.innerHTML = '<span class="text-slate-400">點擊上方「模擬雙執行緒讀取」觀察輸出日誌。</span>';
+      }
+    }
+
+    function updateTachyonBuilder() {
+      const target = document.getElementById('tachyonTarget').value;
+      const mode = document.getElementById('tachyonMode').value;
+      const out = document.getElementById('tachyonOutput').value;
+      const allThreads = document.getElementById('tachyonAllThreads').checked;
+      const asyncAware = document.getElementById('tachyonAsync').checked;
+      const opcodes = document.getElementById('tachyonOpcodes').checked;
+
+      const isDump = target.startsWith('dump');
+      const parts = ['python3.15 -m profiling.sampling', target];
+      if (!isDump) {
+        parts.push(`--mode ${mode}`);
+        parts.push(out);
+      }
+      if (allThreads && !isDump) parts.push('-a');
+      if (asyncAware) parts.push('--async-aware');
+      if (opcodes && !isDump) parts.push('--opcodes');
+
+      const cmd = parts.join(' ');
+      document.getElementById('tachyonCmd').textContent = cmd;
+
+      let explain = isDump
+        ? '立即擷取目標 PID 所有執行緒（或協程任務）的堆疊快照，適合排查死結或卡死行程，不需重啟服務。'
+        : `以 ${mode} 模式進行高頻統計取樣（最高支援 1,000,000 Hz），無需修改原始碼即可產生 ${out.split(' ')[0]} 報告。`;
+      if (mode === 'gil' && !isDump) {
+        explain += '（--mode gil 專門用來找出佔用 GIL 最久的熱點函式與執行緒。）';
+      }
+      document.getElementById('tachyonExplain').textContent = explain;
+    }
+
+    // ==================== TAB 4: DECISION WIZARD & BENCHMARKS ====================
+    const wizState = { bottleneck: 'cpu', cext: 'ready', state: 'shared' };
+
+    function renderWizard() {
+      document.querySelectorAll('.wiz-btn').forEach(b => {
+        b.classList.toggle('active', wizState[b.dataset.wq] === b.dataset.wv);
+      });
+
+      let title = '';
+      let desc = '';
+      let caveat = '';
+      let code = '';
+
+      if (wizState.bottleneck === 'io') {
+        title = 'asyncio + TaskGroup.cancel()（搭配非同步驅動）';
+        desc = '高併發 I/O 任務最適合單執行緒事件迴圈，能以極低記憶體同時維持數千條連線。Python 3.15 新增 TaskGroup.cancel()，讓超時、競速或提早達標時的任務取消更乾淨。';
+        caveat = '注意：若呼叫阻塞式同步函式，請以 asyncio.to_thread() 交給背景執行緒，避免卡住事件迴圈。';
+        code = `import asyncio\n\nasync def run_all(urls: list[str]):\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch(u)) for u in urls]\n    return [t.result() for t in tasks]`;
+      } else if (wizState.bottleneck === 'mixed') {
+        title = 'asyncio（I/O 調度）+ 3.15t Free-Threading 或 InterpreterPool（CPU 解析）';
+        desc = '外層以 asyncio 處理高併發網路 I/O，將重度 CPU 解析或運算委派至無 GIL 執行緒池（3.15t）或子直譯器池，兼顧吞吐量與多核心利用率。';
+        caveat = wizState.cext === 'legacy'
+          ? '因專案依賴舊版未適配 C 擴充，建議 CPU 階段優先選用 ProcessPoolExecutor 或確認套件是否已支援 abi3t。'
+          : '搭配 PEP 814 frozendict 傳遞不可變設定，可零拷貝且執行緒安全地跨工作執行緒共享。';
+        code = `import asyncio\nfrom concurrent.futures import ThreadPoolExecutor\n\nasync def pipeline(payloads: list[bytes]):\n    loop = asyncio.get_running_loop()\n    with ThreadPoolExecutor(max_workers=4) as pool:\n        return await asyncio.gather(*[\n            loop.run_in_executor(pool, parse_heavy, p) for p in payloads\n        ])`;
+      } else {
+        // CPU-bound
+        if (wizState.cext === 'ready' && wizState.state === 'shared') {
+          title = 'Python 3.15t 無 GIL 自由執行緒（ThreadPoolExecutor + abi3t）';
+          desc = '純 Python 或支援 PEP 803 abi3t 的 CPU 密集運算且需共享記憶體快取時，3.15t 自由執行緒提供真正多核心平行、免 pickle 序列化，並預設採用 mimalloc 降低多緒配置爭用。';
+          caveat = '提醒：執行前以 sys._is_gil_enabled() 確認為 False；共享迭代器請使用 threading.synchronized_iterator，唯讀字典優先使用 frozendict。';
+          code = `from concurrent.futures import ThreadPoolExecutor\nimport sys\n\nCONFIG = frozendict(threshold=0.95, precision=64)\nassert not sys._is_gil_enabled()\n\nwith ThreadPoolExecutor(max_workers=8) as pool:\n    results = list(pool.map(lambda x: compute(x, CONFIG), dataset))`;
+        } else if (wizState.cext === 'ready' && wizState.state === 'isolated') {
+          title = '多直譯器（concurrent.futures.InterpreterPoolExecutor）';
+          desc = '在單一行程中啟用多個隔離的 Python 子直譯器，每個子直譯器擁有獨立 GIL 與物件空間，無需切換 3.15t 建置也能多核加速，且記憶體開銷低於多行程。';
+          caveat = '提醒：跨直譯器傳遞的物件須為可共享或可序列化型別（如基礎型別、bytes、memoryview）。';
+          code = `from concurrent.futures import InterpreterPoolExecutor\n\nwith InterpreterPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(cpu_worker, chunks))`;
+        } else {
+          title = '多行程（concurrent.futures.ProcessPoolExecutor）';
+          desc = '當專案依賴尚未支援自由執行緒（未宣告 Py_MOD_GIL_NOT_USED / abi3t）的舊版 C 擴充套件，或需要最嚴格的行程級容錯隔離時，ProcessPoolExecutor 是最穩健的選擇。';
+          caveat = 'Python 3.15 強化了子行程異常終止的錯誤追蹤，會直接顯示崩潰子行程的 PID 與 exit code 方便除錯。';
+          code = `from concurrent.futures import ProcessPoolExecutor\n\nif __name__ == "__main__":\n    with ProcessPoolExecutor(max_workers=4) as pool:\n        results = list(pool.map(legacy_c_ext_job, batches))`;
+        }
+      }
+
+      document.getElementById('wizTitle').textContent = title;
+      document.getElementById('wizDesc').textContent = desc;
+      document.getElementById('wizCaveat').textContent = caveat;
+      document.getElementById('wizCode').textContent = code;
+    }
+
+    function initBenchChart() {
+      const ctx = document.getElementById('benchChart').getContext('2d');
+      const labels = [
+        'Windows 64-bit 尾呼叫直譯器',
+        '實驗性 JIT (macOS AArch64)',
+        '實驗性 JIT (Linux x86-64)',
+        'Free-Threading 單緒開銷 (macOS)',
+        'Free-Threading 單緒開銷 (Linux)'
+      ];
+      const values = [17.5, 11.5, 7.5, -1.0, -8.0];
+      const ranges = [
+        '官方報告：+15% 至 +20% 幾何平均加速 (MSVC 18)',
+        '官方報告：+11% 至 +12% 幾何平均加速',
+        '官方報告：+7% 至 +8% 幾何平均加速',
+        '官方報告：約 1% 平均單執行緒開銷 (AArch64)',
+        '官方報告：約 8% 平均單執行緒開銷 (x86-64)'
+      ];
+
+      benchChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '相較標準直譯器效能變化 (%)',
+            data: values,
+            backgroundColor: values.map(v => v >= 0 ? 'rgba(6, 182, 212, 0.78)' : 'rgba(245, 158, 11, 0.78)'),
+            borderColor: values.map(v => v >= 0 ? '#22d3ee' : '#fbbf24'),
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => ranges[item.dataIndex]
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(51, 65, 85, 0.45)' },
+              ticks: {
+                color: '#cbd5e1',
+                callback: (v) => (v > 0 ? `+${v}%` : `${v}%`)
+              }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#e2e8f0', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function simulateModelSummary(modelKey, workload, cores, taskCount) {
+      const startupCost = modelKey === 'multiproc' ? 0.55 : modelKey === 'subinterp' ? 0.22 : 0.04;
+      const tasks = [];
+      for (let i = 0; i < taskCount; i++) {
+        let cpuDur = 1.1, ioDur = 0;
+        if (workload === 'cpu') { cpuDur = 1.2 + (i % 3) * 0.25; ioDur = 0; }
+        else if (workload === 'io') { cpuDur = 0.25; ioDur = 1.15 + (i % 2) * 0.3; }
+        else { cpuDur = 0.75 + (i % 2) * 0.2; ioDur = 0.65; }
+        tasks.push({
+          startupLeft: i < cores ? startupCost : 0,
+          cpuLeft: cpuDur,
+          ioLeft: ioDur,
+          phase: i < cores && startupCost > 0 ? 'startup' : 'cpu',
+          done: false
+        });
+      }
+      const dt = 0.02;
+      let t = 0, cpuTime = 0, gilWait = 0;
+      let guard = 0;
+      while (tasks.some(x => !x.done) && guard < 4000) {
+        guard++;
+        t += dt;
+        const unfinished = tasks.filter(x => !x.done);
+        const pool = unfinished.slice(0, modelKey === 'asyncio' ? unfinished.length : cores);
+        if (modelKey === 'asyncio') {
+          let cpuTaken = false;
+          for (const tk of pool) {
+            if (tk.phase === 'startup') {
+              tk.startupLeft -= dt;
+              if (tk.startupLeft <= 0) tk.phase = 'cpu';
+              cpuTaken = true;
+            } else if (tk.phase === 'cpu') {
+              if (!cpuTaken) {
+                tk.cpuLeft -= dt; cpuTime += dt; cpuTaken = true;
+                if (tk.cpuLeft <= 0) { tk.phase = tk.ioLeft > 0 ? 'io' : 'done'; if (tk.phase === 'done') tk.done = true; }
+              }
+            } else if (tk.phase === 'io') {
+              tk.ioLeft -= dt;
+              if (tk.ioLeft <= 0) { tk.phase = 'done'; tk.done = true; }
+            }
+          }
+        } else if (modelKey === 'gil_thread') {
+          let gilGranted = false;
+          for (const tk of pool) {
+            if (tk.phase === 'startup') {
+              tk.startupLeft -= dt;
+              if (tk.startupLeft <= 0) tk.phase = 'cpu';
+            } else if (tk.phase === 'io') {
+              tk.ioLeft -= dt;
+              if (tk.ioLeft <= 0) { tk.phase = 'done'; tk.done = true; }
+            } else if (tk.phase === 'cpu') {
+              if (!gilGranted) {
+                gilGranted = true; tk.cpuLeft -= dt; cpuTime += dt;
+                if (tk.cpuLeft <= 0) { tk.phase = tk.ioLeft > 0 ? 'io' : 'done'; if (tk.phase === 'done') tk.done = true; }
+              } else {
+                gilWait += dt;
+              }
+            }
+          }
+        } else {
+          const effDt = modelKey === 'free_thread' ? dt * 0.96 : dt;
+          for (const tk of pool) {
+            if (tk.phase === 'startup') {
+              tk.startupLeft -= dt;
+              if (tk.startupLeft <= 0) tk.phase = 'cpu';
+            } else if (tk.phase === 'cpu') {
+              tk.cpuLeft -= effDt; cpuTime += dt;
+              if (tk.cpuLeft <= 0) { tk.phase = tk.ioLeft > 0 ? 'io' : 'done'; if (tk.phase === 'done') tk.done = true; }
+            } else if (tk.phase === 'io') {
+              tk.ioLeft -= dt;
+              if (tk.ioLeft <= 0) { tk.phase = 'done'; tk.done = true; }
+            }
+          }
+        }
+      }
+      return { wall: t, cpuTime, gilWait, busy: t > 0 ? cpuTime / t : 0 };
+    }
+
+    function runAllModelsComparison() {
+      const models = [
+        { key: 'gil_thread', name: '傳統 GIL Threading', color: 'bg-rose-500' },
+        { key: 'free_thread', name: '3.15t 無 GIL 自由執行緒', color: 'bg-cyan-500' },
+        { key: 'subinterp', name: 'InterpreterPoolExecutor', color: 'bg-violet-500' },
+        { key: 'multiproc', name: 'ProcessPoolExecutor', color: 'bg-emerald-500' },
+        { key: 'asyncio', name: 'asyncio 單緒協程', color: 'bg-amber-500' }
+      ];
+      const results = models.map(m => ({
+        ...m,
+        ...simulateModelSummary(m.key, simState.workload, simState.cores, simState.taskCount)
+      }));
+      const baseWall = results[0].wall || 1;
+      const maxWall = Math.max(...results.map(r => r.wall), 0.1);
+      const wlLabel = simState.workload === 'cpu' ? 'CPU 密集' : simState.workload === 'io' ? 'I/O 密集' : '混合負載';
+      document.getElementById('compareHeader').textContent = `5 種模型模擬總耗時（${wlLabel} · ${simState.cores} 核心 · ${simState.taskCount} 任務）`;
+      document.getElementById('allModelsCompareRows').innerHTML = results.map(r => {
+        const pct = Math.max(8, Math.round((r.wall / maxWall) * 100));
+        const speedup = (baseWall / Math.max(0.01, r.wall)).toFixed(2);
+        return `
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-semibold text-slate-200">${r.name}</span>
+              <span class="font-mono text-[11px] text-slate-300">Wall: <strong class="text-white">${r.wall.toFixed(2)}s</strong> · 並行: <strong class="text-cyan-300">${r.busy.toFixed(2)}核</strong> · 加速: <strong class="text-emerald-300">${speedup}x</strong></span>
+            </div>
+            <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div class="h-full rounded-full ${r.color}" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('allModelsCompareBox').classList.remove('hidden');
+    }
+
+    // ==================== TAB 4: REAL-WORLD TIMING BENCHMARKS ====================
+    let timingChartInstance = null;
+    const timingState = { active: 'fib' };
+    const timingMeasureSnippet = `import time, sys
+from concurrent.futures import ThreadPoolExecutor
+
+t_wall0 = time.perf_counter()
+t_cpu0 = time.process_time()
+
+with ThreadPoolExecutor(max_workers=4) as pool:
+    list(pool.map(cpu_task, range(4)))
+
+wall = time.perf_counter() - t_wall0
+cpu = time.process_time() - t_cpu0
+print(f"GIL enabled: {sys._is_gil_enabled()}")
+print(f"Wall: {wall:.2f}s | CPU: {cpu:.2f}s | Busy CPUs: {cpu / wall:.2f}")`;
+
+    const timingDatasets = {
+      fib: {
+        unit: '秒 (越短越快)',
+        labels: [
+          '3.14 單執行緒',
+          '3.15 單執行緒',
+          '3.15 + 實驗性 JIT (單緒)',
+          '3.15 標準 GIL (4 執行緒)',
+          '3.15t 無 GIL (4 執行緒)'
+        ],
+        values: [7.17, 6.94, 5.76, 32.5, 7.2],
+        colors: ['#64748b', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4'],
+        sourceHtml: '來源：<a href="https://realpython.com/python-news-november-2026/" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">Real Python (2026-11) — Miguel Grinberg fib(40) 實測</a>',
+        insightHtml: `
+          <div class="font-bold text-white">重點解析：4 執行緒 CPU 運算加速約 4.5 倍</div>
+          <ul class="mt-1.5 list-disc space-y-1 pl-4 text-slate-300">
+            <li>單執行緒 <code>fib(40)</code>：3.15 (<strong>6.94 秒</strong>) 較 3.14 (<strong>7.17 秒</strong>) 微幅提升約 3%，開啟實驗性 JIT 降至 <strong>5.76 秒</strong>。</li>
+            <li>4 執行緒同時執行（4 倍工作量）：標準 GIL 因輪流搶鎖耗時 <strong>32.5 秒</strong>；無 GIL 3.15t 僅耗時 <strong>7.2 秒</strong>，幾乎等於單次計算時間。</li>
+          </ul>
+        `
+      },
+      index: {
+        unit: '秒 (Wall Time，越短越快)',
+        labels: [
+          '3.15.2 標準 GIL (8 執行緒 · 1.0 核)',
+          '3.15.2 ProcessPool (8 行程)'
+        ],
+        values: [1.54, 0.28],
+        colors: ['#f43f5e', '#10b981'],
+        sourceHtml: '來源：<a href="https://www.designgurus.io/blog/python-gil-explained" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">DesignGurus (2026-11-16) — Ryzen 桌機 Python 3.15.2 純 Python 文字索引實測</a>',
+        insightHtml: `
+          <div class="font-bold text-white">重點解析：用 CPU Time ÷ Wall Time 揪出 GIL 瓶頸</div>
+          <ul class="mt-1.5 list-disc space-y-1 pl-4 text-slate-300">
+            <li>標準 GIL 下 8 執行緒索引耗時 <strong>1.54 秒</strong>（1.64s CPU / 1.65s Wall = 僅 <strong>1.0 顆 CPU</strong> 忙碌）。</li>
+            <li>同批任務在 3.15.2t 無 GIL 建置可讓 <strong>7.0 顆 CPU</strong> 同時滿載；若匯入未宣告支援無 GIL 的 C 擴充，8 緒會瞬間從 <strong>6.7 核</strong>跌回 <strong>1.0 核</strong>。</li>
+            <li>標準建置改用 8 行程 <code>ProcessPoolExecutor</code> 僅需 <strong>0.28 秒</strong>。</li>
+          </ul>
+        `
+      },
+      lazy: {
+        unit: '毫秒 ms (越短越快)',
+        labels: [
+          '16 標準庫模組 (Eager)',
+          '16 標準庫模組 (Lazy)',
+          'pypistats --help (Eager)',
+          'pypistats --help (Lazy)',
+          'pymobiledevice3 --help (Eager)',
+          'pymobiledevice3 --help (Lazy)'
+        ],
+        values: [87, 19, 104, 35, 550, 230],
+        colors: ['#64748b', '#06b6d4', '#64748b', '#06b6d4', '#64748b', '#06b6d4'],
+        sourceHtml: '來源：<a href="https://www.nihardaily.com/posts/python-315-makes-utf-8-the-default-what-breaks" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">NiharDaily 16 模組實測</a> · <a href="https://peps.python.org/pep-0810/" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">PEP 810 官方規範</a>',
+        insightHtml: `
+          <div class="font-bold text-white">重點解析：CLI 與冷啟動延遲大幅縮減</div>
+          <ul class="mt-1.5 list-disc space-y-1 pl-4 text-slate-300">
+            <li>16 個標準庫模組啟動從 <strong>87 ms</strong> 降至 <strong>19 ms</strong>（單次省下 68 ms）。</li>
+            <li><code>pypistats --help</code> 從 <strong>104 ms → 35 ms</strong>（3 倍速）；<code>pymobiledevice3 --help</code> 從 <strong>550 ms → 230 ms</strong>（2.4 倍速）。</li>
+            <li>PEP 810 官方歸納實務專案可降低 <strong>50–70%</strong> 啟動時間與 <strong>30–40%</strong> 記憶體佔用。</li>
+          </ul>
+        `
+      }
+    };
+
+    function renderTimingBenchmark() {
+      document.querySelectorAll('.timing-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.timing === timingState.active);
+      });
+      const ds = timingDatasets[timingState.active];
+      document.getElementById('timingSourceNote').innerHTML = ds.sourceHtml;
+      document.getElementById('timingInsights').innerHTML = ds.insightHtml;
+      document.getElementById('timingMeasureCode').textContent = timingMeasureSnippet;
+
+      const ctx = document.getElementById('timingChart').getContext('2d');
+      if (timingChartInstance) {
+        timingChartInstance.destroy();
+      }
+      timingChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ds.labels,
+          datasets: [{
+            label: ds.unit,
+            data: ds.values,
+            backgroundColor: ds.colors,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => `${item.raw} ${ds.unit}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: 'rgba(51, 65, 85, 0.45)' },
+              ticks: { color: '#cbd5e1' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#e2e8f0', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide && window.lucide.createIcons) {
+        window.lucide.createIcons();
+      }
+
+      // Main Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // Tab 1 Syntax Pills
+      document.querySelectorAll('.syntax-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          syntaxState.active = btn.dataset.syntax;
+          renderSyntaxLab();
+        });
+      });
+      renderSyntaxLab();
+
+      // Tab 2 Simulator Controls
+      document.getElementById('simModelSelect').addEventListener('change', (e) => {
+        simState.model = e.target.value;
+        resetSimulation();
+      });
+      document.querySelectorAll('[data-workload]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          simState.workload = btn.dataset.workload;
+          document.querySelectorAll('[data-workload]').forEach(b => b.classList.toggle('active', b === btn));
+          resetSimulation();
+        });
+      });
+      document.getElementById('simCores').addEventListener('input', (e) => {
+        simState.cores = Number(e.target.value);
+        resetSimulation();
+      });
+      document.getElementById('simTasks').addEventListener('input', (e) => {
+        simState.taskCount = Number(e.target.value);
+        resetSimulation();
+      });
+      document.getElementById('simRunBtn').addEventListener('click', () => {
+        const allDone = simState.tasks.every(t => t.done);
+        if (allDone) {
+          buildSimTasks();
+        }
+        if (!simState.running) {
+          simState.running = true;
+          simState.paused = false;
+          simState.lastTs = 0;
+          document.getElementById('simRunText').textContent = '暫停模擬';
+          simState.rafId = requestAnimationFrame(simLoop);
+        } else {
+          simState.paused = !simState.paused;
+          document.getElementById('simRunText').textContent = simState.paused ? '繼續模擬' : '暫停模擬';
+          if (!simState.paused) {
+            simState.lastTs = 0;
+            simState.rafId = requestAnimationFrame(simLoop);
+          }
+        }
+      });
+      document.getElementById('simResetBtn').addEventListener('click', resetSimulation);
+      document.getElementById('simSpeedBtn').addEventListener('click', (e) => {
+        simState.speed = simState.speed === 1 ? 2 : 1;
+        e.target.textContent = `${simState.speed}x`;
+        drawSimCanvas();
+      });
+      document.getElementById('copySimCodeBtn').addEventListener('click', () => {
+        copyText(simConfig[simState.model].code);
+      });
+      buildSimTasks();
+      updateSimUI();
+      window.addEventListener('resize', () => {
+        if (!document.getElementById('tab-simulator').classList.contains('hidden')) {
+          resizeSimCanvas();
+          drawSimCanvas();
+        }
+      });
+
+      // Tab 3 Iterators & Tachyon
+      document.querySelectorAll('.iter-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          iterState.mode = btn.dataset.itermode;
+          renderIterDemo(false);
+        });
+      });
+      document.getElementById('runIterDemoBtn').addEventListener('click', () => renderIterDemo(true));
+      renderIterDemo(true);
+
+      ['tachyonTarget', 'tachyonMode', 'tachyonOutput', 'tachyonAllThreads', 'tachyonAsync', 'tachyonOpcodes'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateTachyonBuilder);
+      });
+      document.getElementById('copyTachyonBtn').addEventListener('click', () => {
+        copyText(document.getElementById('tachyonCmd').textContent, '已複製 Tachyon CLI 指令');
+      });
+      updateTachyonBuilder();
+
+      // Tab 4 Decision Wizard
+      document.querySelectorAll('.wiz-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          wizState[btn.dataset.wq] = btn.dataset.wv;
+          renderWizard();
+        });
+      });
+      document.getElementById('copyWizCodeBtn').addEventListener('click', () => {
+        copyText(document.getElementById('wizCode').textContent, '已複製推薦架構程式碼');
+      });
+      renderWizard();
+
+      document.getElementById('compareAllModelsBtn').addEventListener('click', runAllModelsComparison);
+      document.querySelectorAll('.timing-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          timingState.active = btn.dataset.timing;
+          renderTimingBenchmark();
+        });
+      });
+      document.getElementById('copyTimingCodeBtn').addEventListener('click', () => {
+        copyText(timingMeasureSnippet, '已複製執行時間量測範本');
+      });
+    });
+  </script>
+</body>
+</html>

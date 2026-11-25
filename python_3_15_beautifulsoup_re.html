@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python 3.15 × BeautifulSoup × re 互動式實驗室（含股價與空品氣象實戰）</title>
+  <style>
+    /* =========================================================================
+       DESIGN TOKENS & BASE THEME (Modern Dark Developer IDE)
+       ========================================================================= */
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-soft: #162032;
+      --bg-code: #0b1120;
+      --border: #334155;
+      --border-soft: #1e293b;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --purple: #c084fc;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+      --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 4px 10px -6px rgba(0, 0, 0, 0.25);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-code); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Typography helpers */
+    .mono { font-family: var(--font-mono); }
+    .text-cyan { color: var(--cyan); }
+    .text-emerald { color: var(--emerald); }
+    .text-amber { color: var(--amber); }
+    .text-rose { color: var(--rose); }
+    .text-purple { color: var(--purple); }
+    .text-muted { color: var(--text-muted); }
+    .text-xs { font-size: 12px; }
+    .text-sm { font-size: 13.5px; }
+    .font-bold { font-weight: 700; }
+    .hidden { display: none !important; }
+
+    /* =========================================================================
+       HEADER & 5-TAB NAVIGATION
+       ========================================================================= */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .header-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0284c7, #1e293b);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.2);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .badge-cyan { background: rgba(56, 189, 248, 0.14); color: var(--cyan); border-color: rgba(56, 189, 248, 0.35); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.14); color: var(--emerald); border-color: rgba(16, 185, 129, 0.35); }
+    .badge-amber { background: rgba(245, 158, 11, 0.14); color: var(--amber); border-color: rgba(245, 158, 11, 0.35); }
+    .badge-rose { background: rgba(244, 63, 94, 0.14); color: var(--rose); border-color: rgba(244, 63, 94, 0.35); }
+    .badge-purple { background: rgba(192, 132, 252, 0.14); color: var(--purple); border-color: rgba(192, 132, 252, 0.35); }
+
+    /* Navigation Tabs */
+    .main-nav {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .nav-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f8fafc;
+      border-color: var(--border);
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(16, 185, 129, 0.16));
+      color: #ffffff;
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.16);
+    }
+
+    /* =========================================================================
+       LAYOUT & CARD SYSTEM
+       ========================================================================= */
+    .main-container {
+      flex: 1;
+      width: 100%;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 22px 18px 40px;
+    }
+
+    .tab-pane {
+      animation: fadeUp 0.22s ease-out;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-body {
+      padding: 18px 20px;
+    }
+
+    .section-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-12 {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .col-5 { grid-column: span 5; }
+    .col-6 { grid-column: span 6; }
+    .col-7 { grid-column: span 7; }
+    .col-12 { grid-column: span 12; }
+
+    @media (max-width: 1024px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .col-5, .col-6, .col-7 { grid-column: span 12; }
+    }
+
+    /* =========================================================================
+       BUTTONS, INPUTS & CONTROLS
+       ========================================================================= */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 15px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #334155; color: #fff; }
+    .btn:active { transform: translateY(1px); }
+    .btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 8px; }
+
+    .btn-cyan {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      border-color: rgba(56, 189, 248, 0.65);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+    }
+    .btn-cyan:hover { filter: brightness(1.1); }
+
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border-color: rgba(16, 185, 129, 0.65);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+    .btn-emerald:hover { filter: brightness(1.08); }
+
+    .btn-amber {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      border-color: rgba(245, 158, 11, 0.7);
+      color: #0b1120;
+    }
+    .btn-amber:hover { filter: brightness(1.08); }
+
+    .btn-rose {
+      background: rgba(244, 63, 94, 0.16);
+      border-color: rgba(244, 63, 94, 0.45);
+      color: #fda4af;
+    }
+    .btn-rose:hover { background: rgba(244, 63, 94, 0.28); color: #fff; }
+
+    .btn.active-chip {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: var(--cyan);
+      color: #fff;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .input, .select, .textarea {
+      width: 100%;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      color: #f8fafc;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+    }
+    .textarea { resize: vertical; line-height: 1.55; }
+
+    /* =========================================================================
+       CODE BLOCKS & SYNTAX HIGHLIGHTING
+       ========================================================================= */
+    .code-panel {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 14px;
+      background: rgba(30, 41, 59, 0.72);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
+    }
+
+    pre.code-pre {
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow-x: auto;
+      color: #e2e8f0;
+      margin: 0;
+      white-space: pre;
+    }
+
+    .tok-kw { color: #c084fc; font-weight: 600; }
+    .tok-py315 { color: #f59e0b; font-weight: 700; }
+    .tok-fn { color: #38bdf8; }
+    .tok-str { color: #34d399; }
+    .tok-num { color: #fb923c; }
+    .tok-com { color: #64748b; font-style: italic; }
+    .tok-cls { color: #fde047; }
+
+    /* Highlighted matches inside HTML source viewers */
+    .html-viewer {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.65;
+      overflow: auto;
+      max-height: 310px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #cbd5e1;
+    }
+    .hl-css-line {
+      display: block;
+      background: rgba(56, 189, 248, 0.13);
+      border-left: 3px solid var(--cyan);
+      padding-left: 8px;
+      margin-left: -11px;
+      border-radius: 3px;
+    }
+    .hl-re-mark {
+      background: rgba(245, 158, 11, 0.28);
+      color: #fde68a;
+      border-bottom: 2px solid var(--amber);
+      border-radius: 3px;
+      padding: 0 2px;
+      font-weight: 600;
+    }
+
+    /* =========================================================================
+       SUB-TABS & PIPELINE STEPPER
+       ========================================================================= */
+    .subtab-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 8px;
+      border-radius: 14px;
+    }
+
+    .stepper-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 820px) {
+      .stepper-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .step-box {
+      padding: 11px 12px;
+      border-radius: 11px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      transition: all 0.25s ease;
+    }
+    .step-box.active {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.14);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .step-box.done {
+      border-color: rgba(16, 185, 129, 0.55);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    /* Stock Dashboard Cards */
+    .stock-card {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(11, 17, 32, 0.96));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .stock-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--cyan);
+    }
+    .stock-price {
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+    }
+
+    /* Data Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .data-table th, .data-table td {
+      padding: 9px 11px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table th {
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--cyan);
+      font-weight: 600;
+    }
+    .data-table tr:hover td {
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    /* =========================================================================
+       MODULE B: AQI & WEATHER VISUALIZATION WIDGETS
+       ========================================================================= */
+    .aqi-bar-track {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      gap: 2px;
+      margin-top: 8px;
+    }
+    .aqi-seg-1 { background: #10b981; }
+    .aqi-seg-2 { background: #facc15; }
+    .aqi-seg-3 { background: #f97316; }
+    .aqi-seg-4 { background: #f43f5e; }
+    .aqi-seg-5 { background: #a855f7; }
+
+    .aqi-pointer-wrap {
+      position: relative;
+      height: 14px;
+      margin-top: 3px;
+    }
+    .aqi-pointer {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      transition: left 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      font-size: 11px;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .thermo-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: #0b1120;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .thermo-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    /* BeautifulSoup Sandbox Preview */
+    .bs-preview {
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      max-height: 250px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    .bs-preview .bs-matched {
+      outline: 2px solid var(--amber);
+      background: rgba(245, 158, 11, 0.14);
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
+    .bs-preview .bs-badge {
+      display: inline-block;
+      background: var(--amber);
+      color: #0b1120;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-right: 5px;
+    }
+    .bs-preview article, .bs-preview .item-box {
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .bs-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .bs-preview th, .bs-preview td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .bs-preview a { color: var(--cyan); text-decoration: underline; }
+
+    /* Quiz Styling */
+    .quiz-option {
+      width: 100%;
+      text-align: left;
+      padding: 11px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      background: var(--bg-code);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.16s ease;
+    }
+    .quiz-option:hover:not(:disabled) {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .quiz-option.correct {
+      border-color: var(--emerald);
+      background: rgba(16, 185, 129, 0.16);
+      color: #d1fae5;
+    }
+    .quiz-option.wrong {
+      border-color: var(--rose);
+      background: rgba(244, 63, 94, 0.16);
+      color: #ffe4e6;
+    }
+
+    /* Toast Notification */
+    #toast-wrap {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast-item {
+      pointer-events: auto;
+      background: #0b1120;
+      border: 1px solid var(--cyan);
+      color: #f8fafc;
+      padding: 10px 16px;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toastIn 0.22s ease;
+    }
+    .toast-item.error { border-color: var(--rose); color: #fecdd3; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Footer */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: rgba(11, 17, 32, 0.85);
+      padding: 14px 18px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+    .footer-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Utility spacing */
+    .flex-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification Container (Never uses alert() / confirm()) -->
+  <div id="toast-wrap"></div>
+
+  <!-- =========================================================================
+       TOP IDE HEADER & 5-TAB NAVIGATION
+       ========================================================================= -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-row">
+        <div class="brand-left">
+          <div class="brand-logo" aria-hidden="true">
+            <!-- Inline Python-inspired SVG Icon -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C7.5 2 7.8 4 7.8 4V6.2H12.2V7H6C6 7 3 6.7 3 11.2C3 15.7 5.6 15.5 5.6 15.5H7.2V13.4C7.2 13.4 7.1 10.8 9.8 10.8H14.2C14.2 10.8 16.6 10.8 16.6 8.4V4.5C16.6 4.5 17 2 12 2ZM9.6 3.5C10.1 3.5 10.5 3.9 10.5 4.4C10.5 4.9 10.1 5.3 9.6 5.3C9.1 5.3 8.7 4.9 8.7 4.4C8.7 3.9 9.1 3.5 9.6 3.5Z" fill="#38bdf8"/>
+              <path d="M12 22C16.5 22 16.2 20 16.2 20V17.8H11.8V17H18C18 17 21 17.3 21 12.8C21 8.3 18.4 8.5 18.4 8.5H16.8V10.6C16.8 10.6 16.9 13.2 14.2 13.2H9.8C9.8 13.2 7.4 13.2 7.4 15.6V19.5C7.4 19.5 7 22 12 22ZM14.4 20.5C13.9 20.5 13.5 20.1 13.5 19.6C13.5 19.1 13.9 18.7 14.4 18.7C14.9 18.7 15.3 19.1 15.3 19.6C15.3 20.1 14.9 20.5 14.4 20.5Z" fill="#f59e0b"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">
+              <span>Python 3.15 × BeautifulSoup × re 互動式實驗室</span>
+              <span class="badge-pill badge-amber">含股價與空品氣象實戰</span>
+            </div>
+            <div class="brand-sub">單檔零外部依賴 · PEP 810/798/814/686 × 即時 DOM 解析 × 命名群組正規表達式</div>
+          </div>
+        </div>
+        <div class="flex-row">
+          <span class="badge-pill badge-cyan">Python 3.15</span>
+          <span class="badge-pill badge-emerald">Open-Meteo 即時串接</span>
+        </div>
+      </div>
+
+      <!-- 5 Main Tabs (Default: Tab 1 Real-World Apps) -->
+      <nav class="main-nav" aria-label="主要功能分頁">
+        <button class="nav-btn active" data-tab="tab-realworld">🚀 實戰應用（股價 &amp; 空品氣象）</button>
+        <button class="nav-btn" data-tab="tab-py315">🐍 Python 3.15 新語法</button>
+        <button class="nav-btn" data-tab="tab-bs4">🍜 BeautifulSoup 解析沙盒</button>
+        <button class="nav-btn" data-tab="tab-re">🔍 re 正規表達式實驗室</button>
+        <button class="nav-btn" data-tab="tab-quiz">📝 隨堂測驗</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       MAIN WORKSPACE
+       ========================================================================= -->
+  <main class="main-container">
+
+    <!-- =======================================================================
+         TAB 1 (DEFAULT): 🚀 實戰應用（股價 & 空品氣象）
+         ======================================================================= -->
+    <section id="tab-realworld" class="tab-pane section-stack">
+
+      <!-- Module View Switcher -->
+      <div class="subtab-bar flex-between">
+        <div class="flex-row">
+          <button class="btn btn-sm active-chip rw-switch-btn" data-rw="both">🗂️ 雙模組同時檢視</button>
+          <button class="btn btn-sm rw-switch-btn" data-rw="stock">📈 模組 A：TSMC &amp; NVIDIA 股價爬蟲</button>
+          <button class="btn btn-sm rw-switch-btn" data-rw="weather">🌤️ 模組 B：空品 AQI &amp; 氣象溫濕度</button>
+        </div>
+        <span class="text-xs text-muted mono">即時解析 · 可修改選擇器與 Regex</span>
+      </div>
+
+      <!-- =====================================================================
+           MODULE A: TSMC & NVIDIA 股價爬蟲實戰
+           ===================================================================== -->
+      <article id="module-stock" class="card">
+        <div class="card-header">
+          <div>
+            <div class="flex-row mb-2">
+              <span class="badge-pill badge-cyan">模組 A</span>
+              <span class="badge-pill badge-emerald">TSMC 2330.TW · TSM · NVDA</span>
+            </div>
+            <h2 style="font-size:18px; color:#fff;">📈 TSMC &amp; NVIDIA 股價爬蟲實戰（BeautifulSoup + re + Python 3.15）</h2>
+            <p class="text-xs text-muted mt-2">模擬抓取金融報價網頁 HTML，透過 CSS 選擇器與 <code class="mono text-amber">re</code> 命名群組 / <code class="mono text-amber">re.prefixmatch()</code> 清洗出不可變 <code class="mono text-cyan">frozendict</code> 股價看板。</p>
+          </div>
+          <div class="flex-row">
+            <button id="btn-run-stock-pipeline" class="btn btn-emerald">▶ 執行模擬爬蟲</button>
+            <button id="btn-reset-stock-query" class="btn btn-sm">↺ 重置選擇器</button>
+          </div>
+        </div>
+
+        <div class="card-body section-stack">
+          <!-- 4-Step Animated Pipeline -->
+          <div class="stepper-4" id="stock-stepper">
+            <div class="step-box" data-step="0">
+              <div class="text-xs mono text-cyan font-bold">STEP 1 · 請求載入</div>
+              <div class="text-xs text-muted mt-2">lazy import 啟動並載入金融 HTML</div>
+            </div>
+            <div class="step-box" data-step="1">
+              <div class="text-xs mono text-cyan font-bold">STEP 2 · BeautifulSoup</div>
+              <div class="text-xs text-muted mt-2">CSS 選擇器鎖定報價節點</div>
+            </div>
+            <div class="step-box" data-step="2">
+              <div class="text-xs mono text-amber font-bold">STEP 3 · re 清洗數值</div>
+              <div class="text-xs text-muted mt-2">命名群組 &amp; prefixmatch() 抽離價格</div>
+            </div>
+            <div class="step-box" data-step="3">
+              <div class="text-xs mono text-emerald font-bold">STEP 4 · frozendict</div>
+              <div class="text-xs text-muted mt-2">封裝不可變紀錄並渲染股價看板</div>
+            </div>
+          </div>
+
+          <!-- Live Rendered Stock Dashboard Cards -->
+          <div id="stock-cards-grid" class="grid-3"></div>
+
+          <!-- Interactive Custom Selector & Regex Controls -->
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="stock-css-input">自訂 BeautifulSoup CSS 選擇器（即時高亮對應節點）：</label>
+              <input id="stock-css-input" class="input" type="text" value="tr.quote-row" />
+            </div>
+            <div>
+              <label class="field-label" for="stock-re-input">自訂 re 正規表達式（支援命名群組 ?P&lt;symbol&gt; / ?P&lt;price&gt; / ?P&lt;pct&gt;）：</label>
+              <input id="stock-re-input" class="input" type="text" value="(?P<symbol>2330\.TW|TSM|NVDA).*?(?P<currency>NT\$|\$)(?P<price>[\d,]+\.\d{2}).*?(?P<pct>[+-]\d+\.\d+%)" />
+            </div>
+          </div>
+
+          <!-- HTML Source Viewer (Highlighted) + Structured JSON Table -->
+          <div class="grid-12">
+            <div class="col-6">
+              <div class="flex-between mb-2">
+                <span class="text-xs mono text-cyan font-bold">📄 擬真金融網頁 HTML 原始碼（藍框 = CSS 命中 · 琥珀 = re 命中）</span>
+                <span id="stock-match-badge" class="badge-pill badge-amber">3 筆符合</span>
+              </div>
+              <div id="stock-html-viewer" class="html-viewer"></div>
+            </div>
+
+            <div class="col-6">
+              <div class="flex-between mb-2">
+                <span class="text-xs mono text-emerald font-bold">📊 即時解析結構化表格 &amp; JSON (frozendict)</span>
+                <span id="stock-re-status" class="badge-pill badge-emerald">re 解析正常</span>
+              </div>
+              <div class="code-panel" style="max-height: 310px; overflow: auto;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>代號 (symbol)</th>
+                      <th>報價 (price)</th>
+                      <th>漲跌幅 (pct)</th>
+                      <th>成交量 / 區間</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stock-table-body"></tbody>
+                </table>
+                <pre id="stock-json-pre" class="code-pre" style="border-top:1px solid var(--border); color:#34d399;"></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Copyable Python 3.15 Real-World Stock Scraper Code -->
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="text-amber font-bold">🐍 Python 3.15 實戰程式碼：stock_scraper_315.py（Yahoo Finance / 證交所格式）</span>
+              <button id="btn-copy-stock-code" class="btn btn-sm btn-cyan">📋 一鍵複製程式碼</button>
+            </div>
+            <pre id="stock-py-code" class="code-pre"></pre>
+          </div>
+        </div>
+      </article>
+
+      <!-- =====================================================================
+           MODULE B: 目前地區空氣品質 (AQI)、溫度、濕度爬蟲實戰
+           ===================================================================== -->
+      <article id="module-weather" class="card">
+        <div class="card-header">
+          <div>
+            <div class="flex-row mb-2">
+              <span class="badge-pill badge-emerald">模組 B</span>
+              <span id="weather-source-badge" class="badge-pill badge-cyan">⏳ 準備載入即時資料...</span>
+            </div>
+            <h2 style="font-size:18px; color:#fff;">🌤️ 目前地區空氣品質 (AQI)、溫度、濕度爬蟲實戰</h2>
+            <p class="text-xs text-muted mt-2">串接免 API Key 的 <code class="mono text-cyan">Open-Meteo Weather &amp; Air Quality API</code>，動態組裝擬真「環境部 / 氣象署 HTML」，並以 BeautifulSoup + re 解析視覺化儀表板。</p>
+          </div>
+          <div class="flex-row">
+            <button id="btn-geo-locate" class="btn btn-cyan">📍 偵測我的目前位置</button>
+            <select id="weather-city-select" class="select" style="width:auto; min-width:165px;" aria-label="選擇台灣地區">
+              <option value="25.0267,121.5435,台北市大安區" selected>台北市大安區（預設）</option>
+              <option value="25.0143,121.4672,新北市板橋區">新北市板橋區</option>
+              <option value="24.8039,120.9921,新竹市東區">新竹市東區</option>
+              <option value="24.1649,120.6401,台中市西屯區">台中市西屯區</option>
+              <option value="22.5866,120.3157,高雄市前鎮區">高雄市前鎮區</option>
+            </select>
+            <button id="btn-parse-weather" class="btn btn-emerald">▶ 執行 BeautifulSoup + re 解析</button>
+          </div>
+        </div>
+
+        <div class="card-body section-stack">
+          <!-- Visual Environment Dashboard: AQI + Temp + Humidity + PM2.5 -->
+          <div class="grid-3">
+            <!-- AQI Card -->
+            <div class="stock-card">
+              <div class="flex-between">
+                <span class="text-xs text-muted font-bold">🍃 空氣品質指標 (US AQI)</span>
+                <span id="aqi-level-badge" class="badge-pill badge-emerald">良好</span>
+              </div>
+              <div class="flex-between" style="align-items:baseline;">
+                <span id="aqi-val-display" class="stock-price text-emerald">48</span>
+                <span id="weather-loc-label" class="text-xs mono text-cyan">台北市大安區</span>
+              </div>
+              <!-- 5-color AQI scale bar -->
+              <div class="aqi-bar-track" title="綠:0-50 / 黃:51-100 / 橘:101-150 / 紅:151-200 / 紫:201+">
+                <div class="aqi-seg-1"></div>
+                <div class="aqi-seg-2"></div>
+                <div class="aqi-seg-3"></div>
+                <div class="aqi-seg-4"></div>
+                <div class="aqi-seg-5"></div>
+              </div>
+              <div class="aqi-pointer-wrap">
+                <div id="aqi-pointer" class="aqi-pointer" style="left: 16%;">▲</div>
+              </div>
+              <div class="flex-between text-xs mono text-muted">
+                <span>PM2.5: <strong id="pm25-val-display" class="text-cyan">9.2</strong> μg/m³</span>
+                <span>PM10: <strong id="pm10-val-display" class="text-amber">18.5</strong> μg/m³</span>
+              </div>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="stock-card">
+              <div class="flex-between">
+                <span class="text-xs text-muted font-bold">🌡️ 目前氣溫 (Temperature)</span>
+                <span id="temp-feel-badge" class="badge-pill badge-cyan">舒適</span>
+              </div>
+              <div class="flex-between" style="align-items:baseline;">
+                <span id="temp-val-display" class="stock-price text-amber">20.5°C</span>
+                <span class="text-xs mono text-muted">風速 <strong id="wind-val-display" class="text-cyan">8.4</strong> km/h</span>
+              </div>
+              <div class="thermo-track">
+                <div id="temp-bar-fill" class="thermo-fill" style="width: 52%; background: linear-gradient(90deg, #38bdf8, #f59e0b, #f43f5e);"></div>
+              </div>
+              <div class="flex-between text-xs mono text-muted mt-2">
+                <span>0°C 寒冷</span>
+                <span>22°C 舒適</span>
+                <span>40°C 酷熱</span>
+              </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="stock-card">
+              <div class="flex-between">
+                <span class="text-xs text-muted font-bold">💧 相對濕度 (Humidity)</span>
+                <span id="hum-status-badge" class="badge-pill badge-purple">微濕舒適</span>
+              </div>
+              <div class="flex-between" style="align-items:baseline;">
+                <span id="hum-val-display" class="stock-price text-cyan">68%</span>
+                <span id="weather-updated-time" class="text-xs mono text-muted">剛剛更新</span>
+              </div>
+              <div class="thermo-track">
+                <div id="hum-bar-fill" class="thermo-fill" style="width: 68%; background: linear-gradient(90deg, #38bdf8, #10b981);"></div>
+              </div>
+              <div class="flex-between text-xs mono text-muted mt-2">
+                <span>0% 乾燥</span>
+                <span>50% 適中</span>
+                <span>100% 潮濕</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Selector & Regex for Weather HTML -->
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="weather-css-input">自訂 BeautifulSoup CSS 選擇器（環境部 / 氣象署 DOM）：</label>
+              <input id="weather-css-input" class="input" type="text" value=".env-metric" />
+            </div>
+            <div>
+              <label class="field-label" for="weather-re-input">自訂 re 命名群組（擷取 AQI / 溫度 / 濕度 / PM2.5 數值與單位）：</label>
+              <input id="weather-re-input" class="input" type="text" value="(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>°C|%|μg/m³|km/h|AQI)" />
+            </div>
+          </div>
+
+          <!-- Dynamically Rendered Weather HTML + Parsed JSON -->
+          <div class="grid-12">
+            <div class="col-7">
+              <div class="flex-between mb-2">
+                <span class="text-xs mono text-cyan font-bold">📄 動態組裝之「環境部 / 氣象署網頁 HTML 結構」</span>
+                <span id="weather-match-badge" class="badge-pill badge-amber">6 筆符合</span>
+              </div>
+              <div id="weather-html-viewer" class="html-viewer"></div>
+            </div>
+            <div class="col-5">
+              <div class="flex-between mb-2">
+                <span class="text-xs mono text-emerald font-bold">🧩 BeautifulSoup + re 解析輸出 (JSON)</span>
+                <span class="badge-pill badge-emerald">即時同步</span>
+              </div>
+              <div class="code-panel" style="max-height: 310px; overflow: auto;">
+                <pre id="weather-json-pre" class="code-pre" style="color:#34d399;"></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Copyable Python 3.15 Weather Scraper Code -->
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="text-amber font-bold">🐍 Python 3.15 實戰程式碼：env_monitor_315.py（含預設 UTF-8 寫入紀錄檔）</span>
+              <button id="btn-copy-weather-code" class="btn btn-sm btn-cyan">📋 一鍵複製程式碼</button>
+            </div>
+            <pre id="weather-py-code" class="code-pre"></pre>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- =======================================================================
+         TAB 2: 🐍 Python 3.15 新語法
+         ======================================================================= -->
+    <section id="tab-py315" class="tab-pane hidden section-stack">
+      <div class="card">
+        <div class="card-body flex-between">
+          <div>
+            <span class="badge-pill badge-amber mb-2">Python 3.15 核心升級</span>
+            <h2 style="font-size:19px; color:#fff;">🐍 新舊語法對比與互動模擬卡片</h2>
+            <p class="text-xs text-muted mt-2">涵蓋 PEP 810 顯式延遲匯入、PEP 798 推導式解包、PEP 814 <code class="mono text-cyan">frozendict</code> 與 PEP 686 預設 UTF-8 / <code class="mono text-amber">re.prefixmatch()</code>。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Card 1: PEP 810 lazy import -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <span class="badge-pill badge-cyan">PEP 810</span>
+              <h3 style="font-size:16px; color:#fff; margin-top:6px;">⚡ 顯式延遲匯入 (lazy import)</h3>
+            </div>
+            <span class="text-xs text-emerald font-bold">縮短啟動時間</span>
+          </div>
+          <div class="card-body section-stack">
+            <div class="grid-2" style="gap:10px;">
+              <div class="code-panel">
+                <div class="code-bar text-rose">舊寫法 (≤ 3.14)</div>
+                <pre class="code-pre" data-py-static>import re
+from bs4 import BeautifulSoup
+# 啟動即載入全部重型模組</pre>
+              </div>
+              <div class="code-panel" style="border-color: rgba(56,189,248,0.45);">
+                <div class="code-bar text-amber">新寫法 (Python 3.15)</div>
+                <pre class="code-pre" data-py-static>lazy import re
+lazy from bs4 import BeautifulSoup
+# 首次呼叫函式才真正載入</pre>
+              </div>
+            </div>
+            <div class="code-panel" style="padding:14px;">
+              <div class="flex-between mb-3">
+                <span class="text-xs text-muted">模擬執行階段：</span>
+                <div class="flex-row">
+                  <button id="btn-lazy-stage0" class="btn btn-sm btn-cyan">1. 程式啟動時</button>
+                  <button id="btn-lazy-stage1" class="btn btn-sm">2. 呼叫 BeautifulSoup 後</button>
+                </div>
+              </div>
+              <div class="grid-2" style="gap:10px;">
+                <div style="background:#0f172a; padding:10px; border-radius:10px; border:1px solid var(--border);">
+                  <div class="text-xs mono text-muted mb-2">sys.lazy_modules</div>
+                  <div id="lazy-pending-box" class="flex-row"></div>
+                </div>
+                <div style="background:#0f172a; padding:10px; border-radius:10px; border:1px solid var(--border);">
+                  <div class="text-xs mono text-muted mb-2">sys.modules (已載入)</div>
+                  <div id="lazy-loaded-box" class="flex-row"></div>
+                </div>
+              </div>
+              <div id="lazy-sim-msg" class="text-xs mono text-emerald mt-3"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Card 2: PEP 798 Unpacking in Comprehensions -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <span class="badge-pill badge-cyan">PEP 798</span>
+              <h3 style="font-size:16px; color:#fff; margin-top:6px;">📦 推導式內解包 (Unpacking)</h3>
+            </div>
+            <span class="text-xs text-cyan font-bold">一行攤平巢狀資料</span>
+          </div>
+          <div class="card-body section-stack">
+            <div class="grid-2" style="gap:10px;">
+              <div class="code-panel">
+                <div class="code-bar text-rose">舊寫法 (≤ 3.14)</div>
+                <pre class="code-pre" data-py-static>flat = [x for r in rows for x in r]
+merged = {k: v for d in ds for k, v in d.items()}</pre>
+              </div>
+              <div class="code-panel" style="border-color: rgba(56,189,248,0.45);">
+                <div class="code-bar text-amber">新寫法 (Python 3.15)</div>
+                <pre class="code-pre" data-py-static>flat = [*r for r in rows]
+merged = {**d for d in ds}</pre>
+              </div>
+            </div>
+            <div class="code-panel" style="padding:14px;">
+              <div class="flex-between mb-2">
+                <div class="flex-row">
+                  <button id="btn-pep798-list" class="btn btn-sm btn-cyan">[*r for r in rows]</button>
+                  <button id="btn-pep798-dict" class="btn btn-sm">{**d for d in ds}</button>
+                </div>
+                <button id="btn-pep798-run" class="btn btn-sm btn-amber">▶ 執行解包</button>
+              </div>
+              <div class="grid-2" style="gap:10px;">
+                <textarea id="pep798-in" class="textarea" rows="4"></textarea>
+                <pre id="pep798-out" class="code-pre" style="background:#0f172a; border:1px solid var(--border); border-radius:10px; min-height:92px; color:#34d399;"></pre>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Card 3: PEP 814 frozendict -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <span class="badge-pill badge-cyan">PEP 814</span>
+              <h3 style="font-size:16px; color:#fff; margin-top:6px;">🛡️ frozendict 不可變字典</h3>
+            </div>
+            <span class="text-xs text-purple font-bold">可雜湊 · 防竄改</span>
+          </div>
+          <div class="card-body section-stack">
+            <div class="code-panel">
+              <div class="code-bar text-amber">Python 3.15 原生不可變映射</div>
+              <pre class="code-pre" data-py-static>QUOTE = frozendict({"symbol": "2330.TW", "price": 2230.00})
+# 可直接放入 set 去重或當作快取鍵：cache[QUOTE] = "OK"</pre>
+            </div>
+            <div class="code-panel" style="padding:14px;">
+              <div class="flex-between">
+                <span class="text-xs mono text-muted">嘗試寫入 <code class="text-rose">QUOTE["price"] = 9999</code>：</span>
+                <button id="btn-test-frozendict" class="btn btn-sm btn-rose">⚡ 觸發不可變錯誤測試</button>
+              </div>
+              <div id="frozendict-err-box" class="hidden mt-3" style="background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.45); border-radius:10px; padding:10px; font-family:var(--font-mono); font-size:12px; color:#fecdd3;"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Card 4: PEP 686 UTF-8 & re.prefixmatch() -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <span class="badge-pill badge-cyan">PEP 686 &amp; re</span>
+              <h3 style="font-size:16px; color:#fff; margin-top:6px;">🌐 預設 UTF-8 與 re.prefixmatch()</h3>
+            </div>
+            <span class="text-xs text-emerald font-bold">跨平台無亂碼</span>
+          </div>
+          <div class="card-body section-stack">
+            <div class="code-panel" style="padding:14px;">
+              <div class="flex-between mb-2">
+                <span class="text-xs text-muted">Windows 執行 <code class="mono text-amber">open("空品紀錄.csv", "w")</code>：</span>
+                <div class="flex-row">
+                  <button id="btn-utf-old" class="btn btn-sm">Py 3.14</button>
+                  <button id="btn-utf-new" class="btn btn-sm btn-emerald">Py 3.15</button>
+                </div>
+              </div>
+              <div id="utf-sim-box" class="text-xs mono" style="padding:9px 12px; border-radius:9px; background:#0f172a; border:1px solid rgba(16,185,129,0.4); color:#34d399;"></div>
+
+              <div class="mt-3">
+                <div class="flex-between mb-2">
+                  <span class="text-xs text-muted">即時測試 <code class="mono text-amber">re.prefixmatch(r"NT\$[\d,]+", text)</code>：</span>
+                  <div class="flex-row">
+                    <button class="btn btn-sm pm-demo-btn" data-val="NT$2,230 台積電收盤">開頭符合</button>
+                    <button class="btn btn-sm pm-demo-btn" data-val="台積電收盤 NT$2,230">中間符合</button>
+                  </div>
+                </div>
+                <input id="pm-demo-input" class="input" type="text" value="NT$2,230 台積電收盤" />
+                <div id="pm-demo-out" class="grid-2 mt-2" style="gap:8px;"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         TAB 3: 🍜 BeautifulSoup 解析沙盒
+         ======================================================================= -->
+    <section id="tab-bs4" class="tab-pane hidden section-stack">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 style="font-size:18px; color:#fff;">🍜 BeautifulSoup 即時 DOM 解析沙盒</h2>
+            <p class="text-xs text-muted mt-2">透過瀏覽器原生 <code class="mono text-cyan">DOMParser</code> 模擬 BeautifulSoup4 查詢，支援 CSS 選擇器與文字正規表達式篩選。</p>
+          </div>
+          <div class="flex-row">
+            <button class="btn btn-sm active-chip bs-tpl-btn" data-tpl="ecommerce">🛒 電商商品</button>
+            <button class="btn btn-sm bs-tpl-btn" data-tpl="news">📰 新聞列表</button>
+            <button class="btn btn-sm bs-tpl-btn" data-tpl="finance">📊 股價財報</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="grid-3">
+            <div>
+              <label class="field-label" for="bs-method">解析方法</label>
+              <select id="bs-method" class="select">
+                <option value="select">soup.select() — CSS 全部</option>
+                <option value="select_one">soup.select_one() — CSS 單筆</option>
+                <option value="regex_text">find_all(string=re.compile())</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="bs-query">CSS 選擇器 / Regex 樣式</label>
+              <input id="bs-query" class="input" type="text" value=".product .price" />
+            </div>
+            <div>
+              <label class="field-label" for="bs-extract-field">擷取欄位</label>
+              <select id="bs-extract-field" class="select">
+                <option value="text">.get_text(strip=True)</option>
+                <option value="href">href 屬性</option>
+                <option value="attrs">標籤與全部屬性</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-12">
+        <div class="col-5">
+          <div class="card" style="height:100%;">
+            <div class="card-header">
+              <span class="text-xs mono text-cyan font-bold">HTML 原始碼（可直接編輯）</span>
+            </div>
+            <div class="card-body">
+              <textarea id="bs-html-editor" class="textarea" rows="18" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="col-7 section-stack">
+          <div class="card">
+            <div class="card-header">
+              <span class="text-xs font-bold">✨ 高亮命中元素預覽</span>
+              <span id="bs-count-pill" class="badge-pill badge-emerald">0 筆符合</span>
+            </div>
+            <div class="card-body">
+              <div id="bs-err-msg" class="hidden text-xs mono text-rose mb-2"></div>
+              <div id="bs-preview-dom" class="bs-preview"></div>
+            </div>
+          </div>
+
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="text-emerald font-bold">擷取結果 (JSON)</span>
+            </div>
+            <pre id="bs-json-out" class="code-pre" style="max-height:140px; color:#34d399;"></pre>
+          </div>
+
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="text-amber font-bold">🐍 自動生成 Python 3.15 + BeautifulSoup 程式碼</span>
+              <button id="btn-copy-bs" class="btn btn-sm btn-cyan">📋 複製程式碼</button>
+            </div>
+            <pre id="bs-py-out" class="code-pre"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         TAB 4: 🔍 re 正規表達式實驗室
+         ======================================================================= -->
+    <section id="tab-re" class="tab-pane hidden section-stack">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 style="font-size:18px; color:#fff;">🔍 Python 3.15 <code class="mono text-amber">re</code> 正規表達式實驗室</h2>
+            <p class="text-xs text-muted mt-2">支援 Python 命名群組 <code class="mono text-purple">(?P&lt;name&gt;...)</code>、3.15 新增 <code class="mono text-amber">re.prefixmatch()</code> 與 <code class="mono text-emerald">re.sub()</code> 替換預覽。</p>
+          </div>
+          <div class="flex-row">
+            <button class="btn btn-sm active-chip re-tpl-btn" data-tpl="stock">📈 股價金額</button>
+            <button class="btn btn-sm re-tpl-btn" data-tpl="env">🌡️ 溫濕度單位</button>
+            <button class="btn btn-sm re-tpl-btn" data-tpl="contact">📅 Email / 日期</button>
+          </div>
+        </div>
+
+        <div class="card-body section-stack">
+          <div class="grid-12">
+            <div class="col-6">
+              <label class="field-label" for="re-pat-input">正規表達式 Pattern (Raw String)</label>
+              <input id="re-pat-input" class="input" type="text" value="(?P<currency>NT\$|\$)(?P<price>[\d,]+\.\d{2})" />
+            </div>
+            <div class="col-6">
+              <div class="grid-2" style="gap:10px;">
+                <div>
+                  <label class="field-label" for="re-mode-select">比對模式</label>
+                  <select id="re-mode-select" class="select">
+                    <option value="findall">re.findall() 找出全部</option>
+                    <option value="search">re.search() 搜尋首筆</option>
+                    <option value="prefixmatch">re.prefixmatch() 開頭比對 [3.15]</option>
+                    <option value="sub">re.sub() 取代文字</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">旗標 (Flags)</label>
+                  <div class="flex-row">
+                    <button class="btn btn-sm re-flag" data-flag="I">re.I</button>
+                    <button class="btn btn-sm active-chip re-flag" data-flag="M">re.M</button>
+                    <button class="btn btn-sm re-flag" data-flag="S">re.S</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="re-sub-wrap" class="hidden">
+            <label class="field-label" for="re-repl-input">取代為 (支援 \1 或 \g&lt;name&gt; 群組參照)</label>
+            <input id="re-repl-input" class="input" type="text" value="【\g<currency>\g<price>】" />
+          </div>
+
+          <div id="re-err-box" class="hidden text-xs mono text-rose"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="section-stack">
+          <div class="card">
+            <div class="card-header"><span class="text-xs font-bold">📝 測試文本（可自由編輯）</span></div>
+            <div class="card-body">
+              <textarea id="re-txt-input" class="textarea" rows="6" spellcheck="false"></textarea>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span id="re-hl-title" class="text-xs font-bold">✨ 即時匹配高亮</span>
+              <span id="re-hit-pill" class="badge-pill badge-purple">0 筆匹配</span>
+            </div>
+            <div class="card-body">
+              <div id="re-hl-out" class="html-viewer" style="min-height:130px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-stack">
+          <div class="card">
+            <div class="card-header">
+              <span class="text-xs font-bold">📋 群組與索引檢查器 (groupdict &amp; span)</span>
+            </div>
+            <div class="card-body">
+              <div id="re-inspector" class="section-stack" style="gap:8px; max-height:220px; overflow-y:auto;"></div>
+            </div>
+          </div>
+
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="text-amber font-bold">🐍 對應 Python 3.15 程式碼</span>
+              <button id="btn-copy-re" class="btn btn-sm btn-cyan">📋 複製程式碼</button>
+            </div>
+            <pre id="re-py-out" class="code-pre"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         TAB 5: 📝 隨堂測驗
+         ======================================================================= -->
+    <section id="tab-quiz" class="tab-pane hidden section-stack">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 style="font-size:18px; color:#fff;">📝 Python 3.15 × BeautifulSoup × re 隨堂測驗（共 5 題）</h2>
+            <p class="text-xs text-muted mt-2">檢驗 Python 3.15 新語法、CSS 選擇器、re 命名群組與股價/空品實戰爬蟲觀念。</p>
+          </div>
+          <div class="flex-row">
+            <span class="badge-pill badge-amber" style="font-size:13px;">得分：<span id="quiz-score">0</span> / 5</span>
+            <button id="btn-quiz-restart" class="btn btn-sm btn-cyan">↺ 重新挑戰</button>
+          </div>
+        </div>
+        <div style="height:5px; background:var(--bg-code);">
+          <div id="quiz-bar" style="height:100%; width:0%; background:linear-gradient(90deg, var(--cyan), var(--emerald)); transition:width 0.3s ease;"></div>
+        </div>
+        <div id="quiz-list" class="card-body section-stack"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>Python 3.15.0 · PEP 810 / 798 / 814 / 686 · BeautifulSoup4 + re</span>
+      <span>純原生 HTML / CSS / JS · Open-Meteo Live Weather &amp; Air Quality</span>
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       APPLICATION JAVASCRIPT (Pure Native JS, Zero External Dependencies)
+       ========================================================================= -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* =======================================================================
+         CORE UTILITIES
+         ======================================================================= */
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function highlightPython(code) {
+        const tokenRe = /(#.*$)|((?:r|f|b)?"""[\s\S]*?"""|(?:r|f|b)?'''[\s\S]*?'''|(?:r|f|b)?"(?:\\.|[^"\\])*"|(?:r|f|b)?'(?:\\.|[^'\\])*')|\b(lazy|frozendict|sentinel|prefixmatch)\b|\b(import|from|def|return|with|as|for|in|if|else|elif|is|not|and|or|None|True|False|try|except|raise)\b|\b(BeautifulSoup|TypeError|Request)\b|\b(\d+(?:\.\d+)?)\b|\b([a-zA-Z_]\w*)(?=\()/gm;
+        let out = '';
+        let last = 0;
+        let m;
+        while ((m = tokenRe.exec(code)) !== null) {
+          if (m.index > last) out += escapeHtml(code.slice(last, m.index));
+          const full = m[0];
+          if (m[1]) out += `<span class="tok-com">${escapeHtml(full)}</span>`;
+          else if (m[2]) out += `<span class="tok-str">${escapeHtml(full)}</span>`;
+          else if (m[3]) out += `<span class="tok-py315">${escapeHtml(full)}</span>`;
+          else if (m[4]) out += `<span class="tok-kw">${escapeHtml(full)}</span>`;
+          else if (m[5]) out += `<span class="tok-cls">${escapeHtml(full)}</span>`;
+          else if (m[6]) out += `<span class="tok-num">${escapeHtml(full)}</span>`;
+          else if (m[7]) out += `<span class="tok-fn">${escapeHtml(full)}</span>`;
+          else out += escapeHtml(full);
+          last = tokenRe.lastIndex;
+        }
+        if (last < code.length) out += escapeHtml(code.slice(last));
+        return out;
+      }
+
+      function showToast(msg, isError = false) {
+        const wrap = document.getElementById('toast-wrap');
+        const el = document.createElement('div');
+        el.className = 'toast-item' + (isError ? ' error' : '');
+        el.textContent = (isError ? '⚠️ ' : '✅ ') + msg;
+        wrap.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.25s ease';
+          setTimeout(() => el.remove(), 260);
+        }, 2300);
+      }
+
+      function copyToClipboard(text, label = '程式碼') {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (ok) showToast(`已複製${label}至剪貼簿！`);
+          else showToast('複製失敗，請手動選取複製', true);
+        } catch (err) {
+          showToast('複製失敗：' + err.message, true);
+        }
+      }
+
+      function pyPatternToJs(pat) {
+        return pat.replace(/\(\?P<([a-zA-Z_]\w*)>/g, '(?<$1>');
+      }
+
+      function pyReplToJs(repl) {
+        return repl
+          .replace(/\\g<([a-zA-Z_]\w*)>/g, '$<$1>')
+          .replace(/\\(\d+)/g, '$$$1');
+      }
+
+      /** Render HTML string with line-level CSS match highlighting & inline Regex match highlighting */
+      function renderHighlightedHtmlSource(htmlStr, matchedOuterHtmlList, regexObj) {
+        const lines = htmlStr.split('\n');
+        const matchedTokens = matchedOuterHtmlList.map((s) => s.trim().slice(0, 40));
+
+        return lines.map((line) => {
+          const isCssHit = matchedTokens.some((tok) => tok && line.includes(tok.slice(0, 26)));
+          let escaped = '';
+          if (regexObj) {
+            const reG = new RegExp(regexObj.source, regexObj.flags.includes('g') ? regexObj.flags : regexObj.flags + 'g');
+            let last = 0;
+            let m;
+            let guard = 0;
+            while ((m = reG.exec(line)) !== null && guard < 50) {
+              if (m.index > last) escaped += escapeHtml(line.slice(last, m.index));
+              escaped += `<span class="hl-re-mark">${escapeHtml(m[0])}</span>`;
+              last = m.index + m[0].length;
+              if (m[0].length === 0) reG.lastIndex++;
+              guard++;
+            }
+            escaped += escapeHtml(line.slice(last));
+          } else {
+            escaped = escapeHtml(line);
+          }
+          return isCssHit ? `<span class="hl-css-line">${escaped}</span>` : `${escaped}\n`;
+        }).join('');
+      }
+
+      /* =======================================================================
+         MAIN TAB NAVIGATION (5 TABS)
+         ======================================================================= */
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const tabPanes = document.querySelectorAll('.tab-pane');
+
+      navBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.tab;
+          navBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === target));
+          tabPanes.forEach((p) => p.classList.toggle('hidden', p.id !== target));
+        });
+      });
+
+      /* Highlight all static python blocks */
+      document.querySelectorAll('[data-py-static]').forEach((el) => {
+        el.innerHTML = highlightPython(el.textContent);
+      });
+
+      /* =======================================================================
+         TAB 1: REAL-WORLD MODULE SWITCHER
+         ======================================================================= */
+      const rwSwitchBtns = document.querySelectorAll('.rw-switch-btn');
+      const moduleStock = document.getElementById('module-stock');
+      const moduleWeather = document.getElementById('module-weather');
+
+      rwSwitchBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.dataset.rw;
+          rwSwitchBtns.forEach((b) => b.classList.toggle('active-chip', b.dataset.rw === mode));
+          moduleStock.classList.toggle('hidden', mode === 'weather');
+          moduleWeather.classList.toggle('hidden', mode === 'stock');
+        });
+      });
+
+      /* =======================================================================
+         MODULE A: TSMC & NVIDIA 股價爬蟲實戰
+         ======================================================================= */
+      const STOCK_HTML_SOURCE = `<table class="market-quotes" data-source="TWSE / Yahoo Finance">
+  <tbody>
+    <tr class="quote-row" data-market="TWSE">
+      <td class="name">台積電 (2330.TW)</td>
+      <td class="price">NT$2,230.00</td>
+      <td class="change up">+9.85%</td>
+      <td class="vol">成交量 48,920 張</td>
+      <td class="range">盤中高/低 2,245.00 / 2,080.00</td>
+    </tr>
+    <tr class="quote-row" data-market="NYSE">
+      <td class="name">TSMC ADR (TSM)</td>
+      <td class="price">$363.60</td>
+      <td class="change up">+14.08%</td>
+      <td class="vol">成交量 21.4M</td>
+      <td class="range">盤中高/低 368.20 / 335.10</td>
+    </tr>
+    <tr class="quote-row" data-market="NASDAQ">
+      <td class="name">NVIDIA (NVDA)</td>
+      <td class="price">$165.05</td>
+      <td class="change up">+31.48%</td>
+      <td class="vol">成交量 86.7M</td>
+      <td class="range">盤中高/低 168.40 / 138.90</td>
+    </tr>
+  </tbody>
+</table>`;
+
+      const STOCK_PYTHON_CODE = `# Python 3.15 實戰：抓取 TSMC (2330.TW / TSM) 與 NVIDIA (NVDA) 股價
+lazy import re
+lazy import urllib.request
+lazy from bs4 import BeautifulSoup
+
+HEADERS = frozendict({"User-Agent": "Mozilla/5.0 (Python 3.15 Scraper)"})
+
+# 命名群組正規表達式：同時擷取代號、幣別、價格與漲跌幅
+QUOTE_RE = re.compile(
+    r"(?P<symbol>2330\\.TW|TSM|NVDA).*?"
+    r"(?P<currency>NT\\$|\\$)(?P<price>[\\d,]+\\.\\d{2}).*?"
+    r"(?P<pct>[+-]\\d+\\.\\d+%)",
+    flags=re.S,
+)
+
+def fetch_and_parse_quotes(url: str) -> list[frozendict]:
+    req = urllib.request.Request(url, headers=dict(HEADERS))
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        html = resp.read().decode("utf-8")
+
+    soup = BeautifulSoup(html, "html.parser")
+    rows = soup.select("tr.quote-row")
+
+    # PEP 798：推導式內直接解包符合條件的紀錄，並以 frozendict 保護不可變性
+    parsed = []
+    for row in rows:
+        text = " ".join(row.get_text(" ", strip=True).split())
+        if m := QUOTE_RE.search(text):
+            price_num = float(m["price"].replace(",", ""))
+            # Python 3.15 新增 re.prefixmatch()：精準確認漲跌幅開頭是否為正號
+            is_up = bool(re.prefixmatch(r"\\+", m["pct"]))
+            parsed.append(frozendict({
+                "symbol": m["symbol"],
+                "currency": m["currency"],
+                "price": price_num,
+                "pct": m["pct"],
+                "trend": "UP" if is_up else "DOWN",
+                "volume": row.select_one(".vol").get_text(strip=True),
+            }))
+    return parsed
+
+# 示範 PEP 798 合併多個市場報價清單：all_quotes = [*tw_quotes, *us_quotes]`;
+
+      const stockCssInput = document.getElementById('stock-css-input');
+      const stockReInput = document.getElementById('stock-re-input');
+      const stockHtmlViewer = document.getElementById('stock-html-viewer');
+      const stockMatchBadge = document.getElementById('stock-match-badge');
+      const stockReStatus = document.getElementById('stock-re-status');
+      const stockTableBody = document.getElementById('stock-table-body');
+      const stockJsonPre = document.getElementById('stock-json-pre');
+      const stockCardsGrid = document.getElementById('stock-cards-grid');
+      const stockPyCodeEl = document.getElementById('stock-py-code');
+      const stockStepperBoxes = document.querySelectorAll('#stock-stepper .step-box');
+
+      stockPyCodeEl.innerHTML = highlightPython(STOCK_PYTHON_CODE);
+      document.getElementById('btn-copy-stock-code').addEventListener('click', () => {
+        copyToClipboard(STOCK_PYTHON_CODE, 'TSMC & NVIDIA 股價爬蟲程式碼');
+      });
+
+      function parseAndRenderStock() {
+        const cssSel = stockCssInput.value.trim();
+        const reStr = stockReInput.value.trim();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(STOCK_HTML_SOURCE, 'text/html');
+        let matchedEls = [];
+        try {
+          if (cssSel) matchedEls = Array.from(doc.querySelectorAll(cssSel));
+        } catch (err) {
+          stockMatchBadge.textContent = 'CSS 語法錯誤';
+          stockMatchBadge.className = 'badge-pill badge-rose';
+          return;
+        }
+
+        let jsRe = null;
+        try {
+          if (reStr) jsRe = new RegExp(pyPatternToJs(reStr), 's');
+          stockReStatus.textContent = 're 解析正常';
+          stockReStatus.className = 'badge-pill badge-emerald';
+        } catch (err) {
+          stockReStatus.textContent = 're 語法錯誤';
+          stockReStatus.className = 'badge-pill badge-rose';
+        }
+
+        // Highlight source HTML
+        const outerHtmls = matchedEls.map((e) => e.outerHTML);
+        let lineRegex = null;
+        try {
+          if (reStr) lineRegex = new RegExp(pyPatternToJs(reStr).replace(/\.\*\?/g, '|'), 'g');
+        } catch (_) {
+          lineRegex = null;
+        }
+        // Highlight key tokens inside HTML lines cleanly
+        const displayRegex = jsRe ? /(2330\.TW|TSM|NVDA|NT\$[\d,]+\.\d{2}|\$[\d,]+\.\d{2}|[+-]\d+\.\d+%)/g : null;
+        stockHtmlViewer.innerHTML = renderHighlightedHtmlSource(STOCK_HTML_SOURCE, outerHtmls, displayRegex);
+        stockMatchBadge.textContent = `${matchedEls.length} 筆符合`;
+        stockMatchBadge.className = 'badge-pill badge-amber';
+
+        // Parse structured records
+        const records = [];
+        matchedEls.forEach((el) => {
+          const flatText = el.textContent.replace(/\s+/g, ' ').trim();
+          const nameEl = el.querySelector('.name');
+          const volEl = el.querySelector('.vol');
+          const rangeEl = el.querySelector('.range');
+          const market = el.getAttribute('data-market') || 'MARKET';
+
+          let symbol = nameEl ? nameEl.textContent.trim() : flatText.slice(0, 14);
+          let currency = '';
+          let price = '-';
+          let pct = '-';
+
+          if (jsRe) {
+            const m = jsRe.exec(flatText);
+            if (m && m.groups) {
+              symbol = m.groups.symbol || symbol;
+              currency = m.groups.currency || '';
+              price = m.groups.price || price;
+              pct = m.groups.pct || pct;
+            } else if (m) {
+              price = m[0];
+            }
+          }
+
+          records.push({
+            market,
+            name: nameEl ? nameEl.textContent.trim() : symbol,
+            symbol,
+            price: currency + price,
+            price_num: parseFloat(String(price).replace(/,/g, '')) || null,
+            pct,
+            is_up: /^\+/.test(pct),
+            volume: volEl ? volEl.textContent.trim() : '-',
+            range: rangeEl ? rangeEl.textContent.trim() : '-'
+          });
+        });
+
+        // Render dashboard cards
+        stockCardsGrid.innerHTML = records.map((r) => `
+          <div class="stock-card">
+            <div class="flex-between">
+              <span class="badge-pill badge-cyan">${escapeHtml(r.market)}</span>
+              <span class="badge-pill ${r.is_up ? 'badge-emerald' : 'badge-rose'}">${r.is_up ? '▲' : '▼'} ${escapeHtml(r.pct)}</span>
+            </div>
+            <div style="font-size:14px; font-weight:700; color:#f8fafc;">${escapeHtml(r.name)}</div>
+            <div class="stock-price ${r.is_up ? 'text-emerald' : 'text-rose'}">${escapeHtml(r.price)}</div>
+            <div class="text-xs mono text-muted">${escapeHtml(r.volume)}</div>
+            <div class="text-xs mono text-muted">${escapeHtml(r.range)}</div>
+          </div>
+        `).join('') || '<div class="text-xs text-muted">無符合的報價節點，請調整 CSS 選擇器。</div>';
+
+        // Render structured table
+        stockTableBody.innerHTML = records.map((r) => `
+          <tr>
+            <td class="text-cyan font-bold">${escapeHtml(r.symbol)}</td>
+            <td style="color:#fff;">${escapeHtml(r.price)}</td>
+            <td class="${r.is_up ? 'text-emerald' : 'text-rose'} font-bold">${escapeHtml(r.pct)}</td>
+            <td class="text-muted">${escapeHtml(r.volume)} · ${escapeHtml(r.range)}</td>
+          </tr>
+        `).join('');
+
+        // Render Python 3.15 frozendict JSON view
+        const frozendictJson = records.map((r) => ({
+          type: 'frozendict',
+          symbol: r.symbol,
+          price: r.price_num,
+          pct: r.pct,
+          trend: r.is_up ? 'UP (prefixmatch "+")' : 'DOWN'
+        }));
+        stockJsonPre.textContent = JSON.stringify(frozendictJson, null, 2);
+      }
+
+      // 4-Step Animated Pipeline Button
+      let stockAnimTimer = null;
+      document.getElementById('btn-run-stock-pipeline').addEventListener('click', () => {
+        if (stockAnimTimer) clearInterval(stockAnimTimer);
+        let step = 0;
+        stockStepperBoxes.forEach((b) => b.classList.remove('active', 'done'));
+
+        const advance = () => {
+          stockStepperBoxes.forEach((b, idx) => {
+            b.classList.toggle('done', idx < step);
+            b.classList.toggle('active', idx === step);
+          });
+          if (step === 3) {
+            parseAndRenderStock();
+            showToast('股價爬蟲 4 步驟管線執行完成！已封裝為 frozendict');
+            clearInterval(stockAnimTimer);
+            stockAnimTimer = null;
+          }
+          step++;
+        };
+        advance();
+        stockAnimTimer = setInterval(advance, 450);
+      });
+
+      document.getElementById('btn-reset-stock-query').addEventListener('click', () => {
+        stockCssInput.value = 'tr.quote-row';
+        stockReInput.value = '(?P<symbol>2330\\.TW|TSM|NVDA).*?(?P<currency>NT\\$|\\$)(?P<price>[\\d,]+\\.\\d{2}).*?(?P<pct>[+-]\\d+\\.\\d+%)';
+        parseAndRenderStock();
+        showToast('已重置股價選擇器與正規表達式');
+      });
+
+      stockCssInput.addEventListener('input', parseAndRenderStock);
+      stockReInput.addEventListener('input', parseAndRenderStock);
+      parseAndRenderStock();
+      // Mark steps done initially so UI looks complete on first load
+      stockStepperBoxes.forEach((b) => b.classList.add('done'));
+
+      /* =======================================================================
+         MODULE B: 目前地區空氣品質 (AQI)、溫度、濕度爬蟲實戰
+         ======================================================================= */
+      const WEATHER_PYTHON_CODE = `# Python 3.15 實戰：抓取地區空氣品質 (AQI)、溫度、濕度並寫入 UTF-8 紀錄檔
+lazy import re
+lazy import json
+lazy import urllib.request
+lazy from bs4 import BeautifulSoup
+
+# 命名群組解析環境部 / 氣象署網頁上的數值與單位
+ENV_RE = re.compile(r"(?P<value>\\d+(?:\\.\\d+)?)\\s*(?P<unit>°C|%|μg/m³|km/h|AQI)")
+
+def parse_env_html(html: str, location: str) -> frozendict:
+    soup = BeautifulSoup(html, "html.parser")
+    metrics = {}
+    for node in soup.select(".env-metric"):
+        key = node.get("data-key", "unknown")
+        if m := ENV_RE.search(node.get_text(" ", strip=True)):
+            metrics[key] = frozendict({
+                "value": float(m["value"]),
+                "unit": m["unit"],
+            })
+    return frozendict({"location": location, **metrics})
+
+def save_log_utf8(record: frozendict, path: str = "taiwan_env_log.json") -> None:
+    # PEP 686：Python 3.15 跨平台預設即為 UTF-8，不需再手動傳入 encoding="utf-8"
+    with open(path, "a") as f:
+        f.write(json.dumps(dict(record), ensure_ascii=False) + "\\n")`;
+
+      document.getElementById('weather-py-code').innerHTML = highlightPython(WEATHER_PYTHON_CODE);
+      document.getElementById('btn-copy-weather-code').addEventListener('click', () => {
+        copyToClipboard(WEATHER_PYTHON_CODE, '空品氣象爬蟲程式碼');
+      });
+
+      const FALLBACK_BY_CITY = {
+        '台北市大安區': { aqi: 48, pm25: 9.2, pm10: 18.5, temp: 20.5, humidity: 68, wind: 8.4 },
+        '新北市板橋區': { aqi: 54, pm25: 11.8, pm10: 22.1, temp: 20.8, humidity: 70, wind: 9.1 },
+        '新竹市東區':   { aqi: 42, pm25: 8.1,  pm10: 16.4, temp: 21.2, humidity: 65, wind: 16.5 },
+        '台中市西屯區': { aqi: 63, pm25: 15.6, pm10: 29.0, temp: 23.4, humidity: 61, wind: 7.2 },
+        '高雄市前鎮區': { aqi: 78, pm25: 21.4, pm10: 38.2, temp: 26.1, humidity: 72, wind: 10.3 }
+      };
+
+      let currentWeatherData = {
+        location: '台北市大安區',
+        lat: 25.0267,
+        lon: 121.5435,
+        aqi: 48,
+        pm25: 9.2,
+        pm10: 18.5,
+        temp: 20.5,
+        humidity: 68,
+        wind: 8.4,
+        source: 'fallback',
+        updated: new Date().toLocaleTimeString('zh-TW', { hour12: false })
+      };
+
+      const weatherSourceBadge = document.getElementById('weather-source-badge');
+      const weatherCitySelect = document.getElementById('weather-city-select');
+      const weatherCssInput = document.getElementById('weather-css-input');
+      const weatherReInput = document.getElementById('weather-re-input');
+      const weatherHtmlViewer = document.getElementById('weather-html-viewer');
+      const weatherMatchBadge = document.getElementById('weather-match-badge');
+      const weatherJsonPre = document.getElementById('weather-json-pre');
+
+      function getAqiMeta(aqi) {
+        if (aqi <= 50)  return { label: '良好', cls: 'badge-emerald', color: '#10b981', pct: Math.min(20, (aqi / 50) * 20) };
+        if (aqi <= 100) return { label: '普通', cls: 'badge-amber',   color: '#facc15', pct: 20 + ((aqi - 50) / 50) * 20 };
+        if (aqi <= 150) return { label: '對敏感族群不健康', cls: 'badge-amber', color: '#f97316', pct: 40 + ((aqi - 100) / 50) * 20 };
+        if (aqi <= 200) return { label: '不健康', cls: 'badge-rose',  color: '#f43f5e', pct: 60 + ((aqi - 150) / 50) * 20 };
+        return { label: '非常不健康', cls: 'badge-purple', color: '#a855f7', pct: Math.min(96, 80 + ((aqi - 200) / 100) * 16) };
+      }
+
+      function buildWeatherHtml(d) {
+        const aqiInfo = getAqiMeta(d.aqi);
+        return `<section class="moenv-cwa-panel" data-location="${escapeHtml(d.location)}" data-coord="${d.lat.toFixed(3)},${d.lon.toFixed(3)}">
+  <header class="station-title">${escapeHtml(d.location)} 即時空品與氣象觀測站</header>
+  <ul class="metric-list">
+    <li class="env-metric" data-key="us_aqi">空氣品質指標：<strong>${d.aqi} AQI</strong> (${aqiInfo.label})</li>
+    <li class="env-metric" data-key="pm2_5">細懸浮微粒 PM2.5：<strong>${d.pm25} μg/m³</strong></li>
+    <li class="env-metric" data-key="pm10">懸浮微粒 PM10：<strong>${d.pm10} μg/m³</strong></li>
+    <li class="env-metric" data-key="temperature">目前氣溫：<strong>${d.temp} °C</strong></li>
+    <li class="env-metric" data-key="humidity">相對濕度：<strong>${d.humidity} %</strong></li>
+    <li class="env-metric" data-key="wind_speed">地面風速：<strong>${d.wind} km/h</strong></li>
+  </ul>
+</section>`;
+      }
+
+      function renderWeatherDashboardAndParse() {
+        const d = currentWeatherData;
+        const aqiMeta = getAqiMeta(d.aqi);
+
+        // Update visual cards
+        document.getElementById('weather-loc-label').textContent = d.location;
+        document.getElementById('aqi-val-display').textContent = d.aqi;
+        document.getElementById('aqi-val-display').style.color = aqiMeta.color;
+        const aqiBadge = document.getElementById('aqi-level-badge');
+        aqiBadge.textContent = aqiMeta.label;
+        aqiBadge.className = 'badge-pill ' + aqiMeta.cls;
+        document.getElementById('aqi-pointer').style.left = `${Math.max(4, Math.min(96, aqiMeta.pct))}%`;
+
+        document.getElementById('pm25-val-display').textContent = d.pm25;
+        document.getElementById('pm10-val-display').textContent = d.pm10;
+        document.getElementById('temp-val-display').textContent = `${d.temp}°C`;
+        document.getElementById('wind-val-display').textContent = d.wind;
+        document.getElementById('temp-bar-fill').style.width = `${Math.max(5, Math.min(100, (d.temp / 40) * 100))}%`;
+
+        const tempBadge = document.getElementById('temp-feel-badge');
+        if (d.temp < 16) { tempBadge.textContent = '偏涼'; tempBadge.className = 'badge-pill badge-cyan'; }
+        else if (d.temp <= 26) { tempBadge.textContent = '舒適'; tempBadge.className = 'badge-pill badge-emerald'; }
+        else { tempBadge.textContent = '炎熱'; tempBadge.className = 'badge-pill badge-rose'; }
+
+        document.getElementById('hum-val-display').textContent = `${d.humidity}%`;
+        document.getElementById('hum-bar-fill').style.width = `${Math.max(0, Math.min(100, d.humidity))}%`;
+        document.getElementById('weather-updated-time').textContent = `更新 ${d.updated}`;
+
+        const humBadge = document.getElementById('hum-status-badge');
+        if (d.humidity < 45) { humBadge.textContent = '偏乾燥'; humBadge.className = 'badge-pill badge-amber'; }
+        else if (d.humidity <= 72) { humBadge.textContent = '微濕舒適'; humBadge.className = 'badge-pill badge-cyan'; }
+        else { humBadge.textContent = '潮濕'; humBadge.className = 'badge-pill badge-purple'; }
+
+        // Build realistic HTML and run BeautifulSoup + re simulation
+        const htmlStr = buildWeatherHtml(d);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlStr, 'text/html');
+        let matchedEls = [];
+        try {
+          const sel = weatherCssInput.value.trim();
+          if (sel) matchedEls = Array.from(doc.querySelectorAll(sel));
+        } catch (err) {
+          weatherMatchBadge.textContent = 'CSS 錯誤';
+          weatherMatchBadge.className = 'badge-pill badge-rose';
+          return;
+        }
+
+        let jsRe = null;
+        try {
+          const pat = weatherReInput.value.trim();
+          if (pat) jsRe = new RegExp(pyPatternToJs(pat));
+        } catch (_) {
+          jsRe = null;
+        }
+
+        const displayRe = jsRe ? new RegExp(jsRe.source, 'g') : null;
+        weatherHtmlViewer.innerHTML = renderHighlightedHtmlSource(htmlStr, matchedEls.map((e) => e.outerHTML), displayRe);
+        weatherMatchBadge.textContent = `${matchedEls.length} 筆符合`;
+        weatherMatchBadge.className = 'badge-pill badge-amber';
+
+        const parsedObj = { location: d.location, source: d.source === 'api' ? 'Open-Meteo Live API' : '離線模擬備援', metrics: {} };
+        matchedEls.forEach((el, idx) => {
+          const key = el.getAttribute('data-key') || `item_${idx + 1}`;
+          const txt = el.textContent.trim();
+          if (jsRe) {
+            const m = jsRe.exec(txt);
+            if (m && m.groups) {
+              parsedObj.metrics[key] = { value: parseFloat(m.groups.value), unit: m.groups.unit };
+            } else if (m) {
+              parsedObj.metrics[key] = m[0];
+            } else {
+              parsedObj.metrics[key] = txt;
+            }
+          } else {
+            parsedObj.metrics[key] = txt;
+          }
+        });
+        weatherJsonPre.textContent = JSON.stringify(parsedObj, null, 2);
+      }
+
+      async function fetchLiveWeatherAndAqi(lat, lon, label) {
+        weatherSourceBadge.textContent = '⏳ 連線 Open-Meteo 即時 API...';
+        weatherSourceBadge.className = 'badge-pill badge-cyan';
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6500);
+
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
+        const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10&timezone=auto`;
+
+        try {
+          const [wRes, aRes] = await Promise.all([
+            fetch(weatherUrl, { signal: controller.signal }),
+            fetch(aqiUrl, { signal: controller.signal })
+          ]);
+          clearTimeout(timeoutId);
+          if (!wRes.ok || !aRes.ok) throw new Error('API 回應異常');
+          const [wJson, aJson] = await Promise.all([wRes.json(), aRes.json()]);
+
+          const wc = wJson.current || {};
+          const ac = aJson.current || {};
+
+          if (![ac.us_aqi, ac.pm2_5, ac.pm10, wc.temperature_2m, wc.relative_humidity_2m, wc.wind_speed_10m].every(Number.isFinite)) {
+            throw new Error('即時資料欄位不完整');
+          }
+          currentWeatherData = {
+            location: label,
+            lat,
+            lon,
+            aqi: Math.round(ac.us_aqi),
+            pm25: Number((ac.pm2_5).toFixed(1)),
+            pm10: Number((ac.pm10).toFixed(1)),
+            temp: Number((wc.temperature_2m).toFixed(1)),
+            humidity: Math.round(wc.relative_humidity_2m),
+            wind: Number((wc.wind_speed_10m).toFixed(1)),
+            source: 'api',
+            updated: new Date().toLocaleTimeString('zh-TW', { hour12: false })
+          };
+          weatherSourceBadge.textContent = '🟢 即時 Open-Meteo API';
+          weatherSourceBadge.className = 'badge-pill badge-emerald';
+          renderWeatherDashboardAndParse();
+        } catch (err) {
+          clearTimeout(timeoutId);
+          const fb = FALLBACK_BY_CITY[label] || FALLBACK_BY_CITY['台北市大安區'];
+          currentWeatherData = {
+            location: label,
+            lat,
+            lon,
+            ...fb,
+            source: 'fallback',
+            updated: new Date().toLocaleTimeString('zh-TW', { hour12: false })
+          };
+          weatherSourceBadge.textContent = '🟡 離線模擬備援資料';
+          weatherSourceBadge.className = 'badge-pill badge-amber';
+          renderWeatherDashboardAndParse();
+        }
+      }
+
+      weatherCitySelect.addEventListener('change', () => {
+        const [latStr, lonStr, name] = weatherCitySelect.value.split(',');
+        fetchLiveWeatherAndAqi(parseFloat(latStr), parseFloat(lonStr), name);
+      });
+
+      document.getElementById('btn-geo-locate').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          showToast('此瀏覽器不支援地理定位，已使用台北市大安區資料', true);
+          return;
+        }
+        showToast('正在請求瀏覽器目前位置權限...');
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const label = `目前定位 (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+            fetchLiveWeatherAndAqi(lat, lon, label);
+            showToast('定位成功！正在同步即時空品與氣象');
+          },
+          () => {
+            showToast('無法取得定位權限，已切換為台北市大安區即時資料', true);
+            fetchLiveWeatherAndAqi(25.0267, 121.5435, '台北市大安區');
+          },
+          { timeout: 6000 }
+        );
+      });
+
+      document.getElementById('btn-parse-weather').addEventListener('click', () => {
+        renderWeatherDashboardAndParse();
+        showToast('已完成 BeautifulSoup + re 空品氣象資料解析！');
+      });
+      weatherCssInput.addEventListener('input', renderWeatherDashboardAndParse);
+      weatherReInput.addEventListener('input', renderWeatherDashboardAndParse);
+
+      // Initial fetch for default location (Taipei Da'an District)
+      fetchLiveWeatherAndAqi(25.0267, 121.5435, '台北市大安區');
+
+      /* =======================================================================
+         TAB 2: PYTHON 3.15 NEW SYNTAX INTERACTIONS
+         ======================================================================= */
+      // 1. PEP 810 Lazy Import
+      const btnLazy0 = document.getElementById('btn-lazy-stage0');
+      const btnLazy1 = document.getElementById('btn-lazy-stage1');
+      const lazyPendingBox = document.getElementById('lazy-pending-box');
+      const lazyLoadedBox = document.getElementById('lazy-loaded-box');
+      const lazySimMsg = document.getElementById('lazy-sim-msg');
+
+      function setLazyStage(called) {
+        btnLazy0.classList.toggle('btn-cyan', !called);
+        btnLazy1.classList.toggle('btn-cyan', called);
+        if (!called) {
+          lazyPendingBox.innerHTML = '<span class="badge-pill badge-amber">re</span><span class="badge-pill badge-amber">bs4</span>';
+          lazyLoadedBox.innerHTML = '<span class="badge-pill badge-emerald">__main__</span>';
+          lazySimMsg.textContent = '✓ 啟動僅耗時 11 ms（相較傳統匯入 148 ms，減少 92% 啟動延遲）';
+        } else {
+          lazyPendingBox.innerHTML = '<span class="badge-pill badge-amber">re (尚未用到)</span>';
+          lazyLoadedBox.innerHTML = '<span class="badge-pill badge-emerald">__main__</span><span class="badge-pill badge-cyan">bs4 (按需載入!)</span>';
+          lazySimMsg.textContent = '✓ 僅載入實際呼叫的 bs4，未使用的 re 仍維持延遲代理狀態';
+        }
+      }
+      btnLazy0.addEventListener('click', () => setLazyStage(false));
+      btnLazy1.addEventListener('click', () => setLazyStage(true));
+      setLazyStage(false);
+
+      // 2. PEP 798 Unpacking
+      let pep798Mode = 'list';
+      const pep798In = document.getElementById('pep798-in');
+      const pep798Out = document.getElementById('pep798-out');
+      const pep798Defaults = {
+        list: '[["2330.TW", "TSM"], ["NVDA"], ["AAPL", "MSFT"]]',
+        dict: '[{"symbol": "2330.TW", "price": 2230}, {"pct": "+9.85%"}, {"price": 2235}]'
+      };
+
+      function runPep798() {
+        try {
+          const data = JSON.parse(pep798In.value);
+          if (!Array.isArray(data)) throw new Error('外層必須是 JSON 陣列');
+          if (pep798Mode === 'list') {
+            const flat = [];
+            data.forEach((r) => { if (!Array.isArray(r)) throw new Error('子項目須為陣列'); flat.push(...r); });
+            pep798Out.style.color = '#34d399';
+            pep798Out.textContent = '# [*r for r in rows]\n' + JSON.stringify(flat);
+          } else {
+            const merged = {};
+            data.forEach((d) => { if (typeof d !== 'object' || Array.isArray(d)) throw new Error('子項目須為物件'); Object.assign(merged, d); });
+            pep798Out.style.color = '#34d399';
+            pep798Out.textContent = '# {**d for d in ds}\n' + JSON.stringify(merged, null, 2);
+          }
+        } catch (err) {
+          pep798Out.style.color = '#fda4af';
+          pep798Out.textContent = '錯誤：' + err.message;
+        }
+      }
+      document.getElementById('btn-pep798-list').addEventListener('click', (e) => {
+        pep798Mode = 'list';
+        e.target.classList.add('btn-cyan');
+        document.getElementById('btn-pep798-dict').classList.remove('btn-cyan');
+        pep798In.value = pep798Defaults.list;
+        runPep798();
+      });
+      document.getElementById('btn-pep798-dict').addEventListener('click', (e) => {
+        pep798Mode = 'dict';
+        e.target.classList.add('btn-cyan');
+        document.getElementById('btn-pep798-list').classList.remove('btn-cyan');
+        pep798In.value = pep798Defaults.dict;
+        runPep798();
+      });
+      document.getElementById('btn-pep798-run').addEventListener('click', runPep798);
+      pep798In.value = pep798Defaults.list;
+      runPep798();
+
+      // 3. PEP 814 frozendict error trigger
+      document.getElementById('btn-test-frozendict').addEventListener('click', () => {
+        const box = document.getElementById('frozendict-err-box');
+        box.classList.remove('hidden');
+        box.innerHTML = `Traceback (most recent call last):<br/>  File "scraper.py", line 2, in &lt;module&gt;<br/>    QUOTE["price"] = 9999<br/><strong>TypeError: 'frozendict' object does not support item assignment</strong>`;
+      });
+
+      // 4. PEP 686 UTF-8 & re.prefixmatch()
+      const utfBox = document.getElementById('utf-sim-box');
+      function renderUtf(is315) {
+        document.getElementById('btn-utf-new').classList.toggle('btn-emerald', is315);
+        document.getElementById('btn-utf-old').classList.toggle('btn-rose', !is315);
+        if (is315) {
+          utfBox.style.borderColor = 'rgba(16,185,129,0.45)';
+          utfBox.style.color = '#34d399';
+          utfBox.textContent = '✓ [PEP 686] 預設使用 UTF-8，成功寫入「台北市大安區 AQI 48 良好」';
+        } else {
+          utfBox.style.borderColor = 'rgba(244,63,94,0.45)';
+          utfBox.style.color = '#fda4af';
+          utfBox.textContent = '✗ UnicodeEncodeError: cp950 無法編碼部分符號（未指定 encoding="utf-8"）';
+        }
+      }
+      document.getElementById('btn-utf-new').addEventListener('click', () => renderUtf(true));
+      document.getElementById('btn-utf-old').addEventListener('click', () => renderUtf(false));
+      renderUtf(true);
+
+      const pmInput = document.getElementById('pm-demo-input');
+      const pmOut = document.getElementById('pm-demo-out');
+      function runPmDemo() {
+        const val = pmInput.value;
+        const pm = val.match(/^NT\$[\d,]+/);
+        const sr = val.match(/NT\$[\d,]+/);
+        pmOut.innerHTML = `
+          <div style="background:#0f172a; padding:8px 10px; border-radius:8px; border:1px solid ${pm ? '#10b981' : '#f43f5e'};">
+            <div class="text-xs text-muted mono">re.prefixmatch()</div>
+            <div class="text-xs mono font-bold ${pm ? 'text-emerald' : 'text-rose'}">${pm ? `Match('${escapeHtml(pm[0])}')` : 'None (開頭未符合)'}</div>
+          </div>
+          <div style="background:#0f172a; padding:8px 10px; border-radius:8px; border:1px solid ${sr ? '#38bdf8' : '#334155'};">
+            <div class="text-xs text-muted mono">re.search()</div>
+            <div class="text-xs mono font-bold ${sr ? 'text-cyan' : 'text-muted'}">${sr ? `Match('${escapeHtml(sr[0])}')` : 'None'}</div>
+          </div>
+        `;
+      }
+      pmInput.addEventListener('input', runPmDemo);
+      document.querySelectorAll('.pm-demo-btn').forEach((b) => {
+        b.addEventListener('click', () => { pmInput.value = b.dataset.val; runPmDemo(); });
+      });
+      runPmDemo();
+
+      /* =======================================================================
+         TAB 3: BEAUTIFULSOUP PARSER SANDBOX (3 PRESETS)
+         ======================================================================= */
+      const BS_PRESETS = {
+        ecommerce: {
+          query: '.product .price',
+          html: `<div class="catalog">
+  <article class="product">
+    <h3>機械鍵盤 75% Pro</h3>
+    <span class="price">NT$3,290</span>
+    <a href="https://shop.tw/kb75">查看商品</a>
+  </article>
+  <article class="product">
+    <h3>無線靜音滑鼠 M3</h3>
+    <span class="price">NT$1,490</span>
+    <a href="https://shop.tw/m3">查看商品</a>
+  </article>
+</div>`
+        },
+        news: {
+          query: '.news-card .headline',
+          html: `<section class="news-list">
+  <article class="news-card">
+    <span class="date">2026-11-24</span>
+    <h3 class="headline">Python 3.15 正式導入 PEP 810 延遲匯入</h3>
+    <a href="https://news.tw/py315">閱讀全文</a>
+  </article>
+  <article class="news-card">
+    <span class="date">2026-11-22</span>
+    <h3 class="headline">台積電先進製程產能滿載，AI 晶片需求強勁</h3>
+    <a href="https://news.tw/tsmc">閱讀全文</a>
+  </article>
+</section>`
+        },
+        finance: {
+          query: 'tr.report td.eps',
+          html: `<table class="earnings">
+  <thead><tr><th>公司</th><th>季度</th><th>EPS</th></tr></thead>
+  <tbody>
+    <tr class="report"><td>台積電 2330.TW</td><td>2026 Q3</td><td class="eps">NT$14.85</td></tr>
+    <tr class="report"><td>NVIDIA (NVDA)</td><td>2026 Q3</td><td class="eps">$0.92</td></tr>
+  </tbody>
+</table>`
+        }
+      };
+
+      const bsEditor = document.getElementById('bs-html-editor');
+      const bsMethod = document.getElementById('bs-method');
+      const bsQuery = document.getElementById('bs-query');
+      const bsExtract = document.getElementById('bs-extract-field');
+      const bsPreviewDom = document.getElementById('bs-preview-dom');
+      const bsCountPill = document.getElementById('bs-count-pill');
+      const bsErrMsg = document.getElementById('bs-err-msg');
+      const bsJsonOut = document.getElementById('bs-json-out');
+      const bsPyOut = document.getElementById('bs-py-out');
+      let currentBsPyCode = '';
+
+      function runBsSandbox() {
+        bsErrMsg.classList.add('hidden');
+        try {
+          const template = document.createElement('template');
+          template.innerHTML = '<div id="root"></div>';
+          const root = template.content.firstElementChild;
+          root.innerHTML = bsEditor.value;
+          root.querySelectorAll('script, iframe, object, embed, link, style, meta, base').forEach((el) => el.remove());
+
+          const method = bsMethod.value;
+          const q = bsQuery.value.trim();
+          let matched = [];
+
+          if (q) {
+            if (method === 'select') matched = Array.from(root.querySelectorAll(q));
+            else if (method === 'select_one') { const el = root.querySelector(q); if (el) matched = [el]; }
+            else if (method === 'regex_text') {
+              const re = new RegExp(pyPatternToJs(q));
+              const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+              const seen = new Set();
+              let n;
+              while ((n = walker.nextNode())) {
+                if (n.nodeValue.trim() && re.test(n.nodeValue)) {
+                  const p = n.parentElement;
+                  if (p && p.id !== 'root' && !seen.has(p)) { seen.add(p); matched.push(p); }
+                }
+              }
+            }
+          }
+
+          const ex = bsExtract.value;
+          const extracted = matched.map((el) => {
+            if (ex === 'text') return el.textContent.replace(/\s+/g, ' ').trim();
+            if (ex === 'href') return el.getAttribute('href') ?? null;
+            const attrs = {};
+            for (const a of el.attributes) attrs[a.name] = a.value;
+            return { tag: el.tagName.toLowerCase(), text: el.textContent.trim(), attrs };
+          });
+
+          matched.forEach((el, i) => {
+            el.classList.add('bs-matched');
+            const badge = document.createElement('span');
+            badge.className = 'bs-badge';
+            badge.textContent = `#${i + 1}`;
+            el.prepend(badge);
+          });
+          // Only copy inert layout and text into the public preview.
+          const safeTags = new Set('article section div span p h1 h2 h3 h4 ul ol li table caption thead tbody tfoot tr th td pre code strong em b i small br hr blockquote'.split(' '));
+          function previewNode(node) {
+            if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+            if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+            const tag = node.localName;
+            const safe = document.createElement(safeTags.has(tag) ? tag : 'span');
+            for (const className of ['bs-matched', 'bs-badge']) {
+              if (node.classList.contains(className)) safe.classList.add(className);
+            }
+            for (const child of node.childNodes) safe.append(previewNode(child));
+            return safe;
+          }
+          bsPreviewDom.replaceChildren(...Array.from(root.childNodes, previewNode));
+          bsCountPill.textContent = `${matched.length} 筆符合`;
+          bsJsonOut.textContent = JSON.stringify(method === 'select_one' ? (extracted[0] ?? null) : extracted, null, 2);
+
+          const isRe = method === 'regex_text';
+          const qSafe = q.replace(/"/g, '\\"');
+          const findCode = method === 'select'
+            ? `nodes = soup.select("${qSafe}")`
+            : method === 'select_one'
+              ? `node = soup.select_one("${qSafe}")`
+              : `nodes = [t.parent for t in soup.find_all(string=re.compile(r"${qSafe}"))]`;
+          const exExpr = ex === 'text' ? 'n.get_text(strip=True)' : ex === 'href' ? 'n.get("href")' : 'frozendict({"tag": n.name, **n.attrs})';
+
+          currentBsPyCode = `${isRe ? 'lazy import re\n' : ''}lazy from bs4 import BeautifulSoup\n\nsoup = BeautifulSoup(html, "html.parser")\n${findCode}\n${
+            method === 'select_one'
+              ? `result = ${exExpr.replace(/\bn\b/g, 'node')} if node else None`
+              : `results = [${exExpr} for n in nodes]`
+          }`;
+          bsPyOut.innerHTML = highlightPython(currentBsPyCode);
+        } catch (err) {
+          bsErrMsg.textContent = '語法錯誤：' + err.message;
+          bsErrMsg.classList.remove('hidden');
+        }
+      }
+
+      document.querySelectorAll('.bs-tpl-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.tpl;
+          document.querySelectorAll('.bs-tpl-btn').forEach((b) => b.classList.toggle('active-chip', b.dataset.tpl === key));
+          bsEditor.value = BS_PRESETS[key].html;
+          bsMethod.value = 'select';
+          bsQuery.value = BS_PRESETS[key].query;
+          runBsSandbox();
+        });
+      });
+      [bsEditor, bsMethod, bsQuery, bsExtract].forEach((el) => el.addEventListener('input', runBsSandbox));
+      document.getElementById('btn-copy-bs').addEventListener('click', () => copyToClipboard(currentBsPyCode, 'BeautifulSoup 程式碼'));
+      bsEditor.value = BS_PRESETS.ecommerce.html;
+      runBsSandbox();
+
+      /* =======================================================================
+         TAB 4: re REGEX LAB
+         ======================================================================= */
+      const RE_PRESETS = {
+        stock: {
+          pat: '(?P<currency>NT\\$|\\$)(?P<price>[\\d,]+\\.\\d{2})',
+          txt: '台積電 2330.TW 報價 NT$2,230.00 (+9.85%)\nTSMC ADR (TSM) $363.60 (+14.08%)\nNVIDIA (NVDA) $165.05 (+31.48%)'
+        },
+        env: {
+          pat: '(?P<value>\\d+(?:\\.\\d+)?)\\s*(?P<unit>°C|%|μg/m³|AQI)',
+          txt: '台北市大安區觀測：48 AQI、PM2.5 9.2 μg/m³、目前氣溫 20.5 °C、相對濕度 68 %'
+        },
+        contact: {
+          pat: '(?P<year>\\d{4})-(?P<month>\\d{2})-(?P<day>\\d{2})|(?P<email>[\\w.-]+@[\\w.-]+\\.\\w+)',
+          txt: '發布日期：2026-11-24\n聯絡信箱：dev.team@pylab.tw / alert@moenv.gov.tw'
+        }
+      };
+
+      const rePatIn = document.getElementById('re-pat-input');
+      const reModeSel = document.getElementById('re-mode-select');
+      const reSubWrap = document.getElementById('re-sub-wrap');
+      const reReplIn = document.getElementById('re-repl-input');
+      const reTxtIn = document.getElementById('re-txt-input');
+      const reHlTitle = document.getElementById('re-hl-title');
+      const reHitPill = document.getElementById('re-hit-pill');
+      const reHlOut = document.getElementById('re-hl-out');
+      const reInspector = document.getElementById('re-inspector');
+      const reErrBox = document.getElementById('re-err-box');
+      const rePyOut = document.getElementById('re-py-out');
+
+      const reFlags = new Set(['M']);
+      let currentRePyCode = '';
+
+      function runReLab() {
+        const pat = rePatIn.value;
+        const txt = reTxtIn.value;
+        const mode = reModeSel.value;
+        const repl = reReplIn.value;
+
+        reSubWrap.classList.toggle('hidden', mode !== 'sub');
+        reErrBox.classList.add('hidden');
+
+        const fArr = Array.from(reFlags);
+        const fStr = fArr.length ? `, flags=${fArr.map((f) => 're.' + f).join(' | ')}` : '';
+        const callStr = mode === 'findall'
+          ? `matches = [m.groupdict() or m.group(0) for m in re.finditer(pattern, text${fStr})]`
+          : mode === 'search'
+            ? `m = re.search(pattern, text${fStr})`
+            : mode === 'prefixmatch'
+              ? `# Python 3.15 新增：語意明確的開頭前綴比對\nm = re.prefixmatch(pattern, text${fStr})`
+              : `result = re.sub(pattern, r"${repl.replace(/"/g, '\\"')}", text${fStr})`;
+
+        currentRePyCode = `lazy import re\n\npattern = r"${pat.replace(/"/g, '\\"')}"\n${callStr}`;
+        rePyOut.innerHTML = highlightPython(currentRePyCode);
+
+        if (!pat) {
+          reHlOut.textContent = txt;
+          reHitPill.textContent = '0 筆匹配';
+          reInspector.innerHTML = '';
+          return;
+        }
+
+        try {
+          const jsPat = pyPatternToJs(pat);
+          const jsFlags = (reFlags.has('I') ? 'i' : '') + (reFlags.has('M') ? 'm' : '') + (reFlags.has('S') ? 's' : '');
+          const hits = [];
+
+          if (mode === 'prefixmatch') {
+            const r = new RegExp(jsPat, jsFlags + 'y');
+            r.lastIndex = 0;
+            const m = r.exec(txt);
+            if (m) hits.push(m);
+          } else if (mode === 'search') {
+            const m = new RegExp(jsPat, jsFlags).exec(txt);
+            if (m) hits.push(m);
+          } else {
+            const r = new RegExp(jsPat, jsFlags + 'g');
+            let m;
+            let guard = 0;
+            while ((m = r.exec(txt)) !== null && guard < 300) {
+              hits.push(m);
+              if (m[0].length === 0) r.lastIndex++;
+              guard++;
+            }
+          }
+
+          reHitPill.textContent = `${hits.length} 筆匹配`;
+
+          if (mode === 'sub') {
+            reHlTitle.textContent = '🔁 re.sub() 取代後預覽';
+            const replaced = txt.replace(new RegExp(jsPat, jsFlags + 'g'), pyReplToJs(repl));
+            reHlOut.innerHTML = `<span class="text-emerald">${escapeHtml(replaced)}</span>`;
+          } else {
+            reHlTitle.textContent = '✨ 即時匹配高亮';
+            let html = '';
+            let cur = 0;
+            hits.forEach((m) => {
+              if (m.index > cur) html += escapeHtml(txt.slice(cur, m.index));
+              html += `<span class="hl-re-mark">${escapeHtml(m[0])}</span>`;
+              cur = m.index + m[0].length;
+            });
+            html += escapeHtml(txt.slice(cur));
+            reHlOut.innerHTML = html;
+          }
+
+          if (!hits.length) {
+            reInspector.innerHTML = `<div class="text-xs text-muted">${mode === 'prefixmatch' ? 're.prefixmatch() 僅檢查字串開頭 (index 0)，目前開頭未符合。' : '無符合項目。'}</div>`;
+          } else {
+            reInspector.innerHTML = hits.map((m, idx) => {
+              const gEntries = m.groups ? Object.entries(m.groups).filter(([, v]) => v !== undefined) : [];
+              const gHtml = gEntries.map(([k, v]) => `<span class="badge-pill badge-purple">?P&lt;${escapeHtml(k)}&gt;="${escapeHtml(v)}"</span>`).join(' ');
+              return `
+                <div style="background:#0b1120; border:1px solid var(--border); border-radius:10px; padding:9px 11px;">
+                  <div class="flex-between text-xs mono">
+                    <span class="text-amber font-bold">#${idx + 1}: "${escapeHtml(m[0])}"</span>
+                    <span class="text-muted">span=(${m.index}, ${m.index + m[0].length})</span>
+                  </div>
+                  ${gHtml ? `<div class="flex-row mt-2">${gHtml}</div>` : ''}
+                </div>
+              `;
+            }).join('');
+          }
+        } catch (err) {
+          reErrBox.textContent = '正規表達式語法錯誤：' + err.message;
+          reErrBox.classList.remove('hidden');
+        }
+      }
+
+      document.querySelectorAll('.re-tpl-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.tpl;
+          document.querySelectorAll('.re-tpl-btn').forEach((b) => b.classList.toggle('active-chip', b.dataset.tpl === k));
+          rePatIn.value = RE_PRESETS[k].pat;
+          reTxtIn.value = RE_PRESETS[k].txt;
+          runReLab();
+        });
+      });
+      document.querySelectorAll('.re-flag').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const f = btn.dataset.flag;
+          if (reFlags.has(f)) reFlags.delete(f); else reFlags.add(f);
+          btn.classList.toggle('active-chip', reFlags.has(f));
+          runReLab();
+        });
+      });
+      [rePatIn, reModeSel, reReplIn, reTxtIn].forEach((el) => el.addEventListener('input', runReLab));
+      document.getElementById('btn-copy-re').addEventListener('click', () => copyToClipboard(currentRePyCode, 're 程式碼'));
+      reTxtIn.value = RE_PRESETS.stock.txt;
+      runReLab();
+
+      /* =======================================================================
+         TAB 5: 隨堂測驗 (5 QUESTIONS)
+         ======================================================================= */
+      const QUIZ_DATA = [
+        {
+          q: '1. 在 Python 3.15 (PEP 810) 使用 `lazy from bs4 import BeautifulSoup` 後，何時才會真正載入 `bs4`？',
+          opts: ['檔案開頭執行該行時立即載入', '程式中第一次實際存取或呼叫 BeautifulSoup 時才載入', '必須手動執行 load_lazy() 函式', '只有在發生例外錯誤時才載入'],
+          ans: 1,
+          exp: 'PEP 810 顯式延遲匯入會在啟動時建立輕量代理，直到首次實際使用該名稱時才載入，可大幅減少啟動時間。'
+        },
+        {
+          q: '2. 抓完多個市場股價清單 `tw_quotes` 與 `us_quotes` 後，哪一個是 Python 3.15 (PEP 798) 合法的推導式解包寫法？',
+          opts: ['[*group for group in [tw_quotes, us_quotes]]', '[**group for group in [tw_quotes, us_quotes]]', '[unpack(group) for group in markets]', '[group* for group in markets]'],
+          ans: 0,
+          exp: 'PEP 798 支援在列表/集合/生成器推導式中使用 `*` 攤平可迭代物件，字典推導式則使用 `**`。'
+        },
+        {
+          q: '3. 將解析後的台積電報價封裝為 Python 3.15 原生 `frozendict` 後，若嘗試修改 `quote["price"] = 0` 會發生什麼事？',
+          opts: ['靜默忽略不報錯', '自動複製成一般 dict 並修改', '拋出 TypeError，確保資料不可變且可雜湊', '回傳 None'],
+          ans: 2,
+          exp: 'PEP 814 的 `frozendict` 是不可變映射型別，嘗試修改鍵值會引發 TypeError，非常適合保護爬蟲結果與作為快取鍵。'
+        },
+        {
+          q: '4. 想用 `re` 命名群組從「目前氣溫：20.5 °C」擷取數值並透過 `m["value"]` 存取，正確語法為？',
+          opts: ['(?<value>\\d+\\.\\d+)', '(?P<value>\\d+\\.\\d+)', '(:value:\\d+\\.\\d+)', '(?name=value \\d+\\.\\d+)'],
+          ans: 1,
+          exp: 'Python `re` 模組使用 `(?P<name>...)` 定義命名群組，可透過 `m["name"]` 或 `m.groupdict()` 取得結果。'
+        },
+        {
+          q: '5. Python 3.15 新增的 `re.prefixmatch(r"\\+", pct)` 在股價爬蟲中代表什麼行為？',
+          opts: ['搜尋字串任意位置是否出現 + 號', '僅比對字串「開頭前綴」是否為 + 號', '要求整個字串必須完全等於 + 號', '將字串中所有 + 號替換為空白'],
+          ans: 1,
+          exp: '`re.prefixmatch()` 是 Python 3.15 新增語意更明確的前綴比對函式（對應傳統 `re.match()`），專門檢查字串開頭是否符合。'
+        }
+      ];
+
+      let quizAnswers = new Array(QUIZ_DATA.length).fill(null);
+      const quizListEl = document.getElementById('quiz-list');
+      const quizScoreEl = document.getElementById('quiz-score');
+      const quizBarEl = document.getElementById('quiz-bar');
+
+      function renderQuiz() {
+        const done = quizAnswers.filter((v) => v !== null).length;
+        const score = quizAnswers.reduce((s, a, i) => s + (a === QUIZ_DATA[i].ans ? 1 : 0), 0);
+        quizScoreEl.textContent = String(score);
+        quizBarEl.style.width = `${(done / QUIZ_DATA.length) * 100}%`;
+
+        quizListEl.innerHTML = QUIZ_DATA.map((item, qi) => {
+          const picked = quizAnswers[qi];
+          const answered = picked !== null;
+          const optsHtml = item.opts.map((opt, oi) => {
+            let cls = 'quiz-option';
+            if (answered) {
+              if (oi === item.ans) cls += ' correct';
+              else if (oi === picked) cls += ' wrong';
+            }
+            return `<button class="${cls}" data-q="${qi}" data-o="${oi}" ${answered ? 'disabled' : ''}>
+              <span class="badge-pill badge-cyan">${String.fromCharCode(65 + oi)}</span>
+              <span>${escapeHtml(opt)}</span>
+            </button>`;
+          }).join('');
+
+          const fb = answered
+            ? `<div class="mt-3 text-xs" style="padding:10px 12px; border-radius:10px; background:${picked === item.ans ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)'}; border:1px solid ${picked === item.ans ? 'rgba(16,185,129,0.4)' : 'rgba(244,63,94,0.4)'};">
+                 <strong>${picked === item.ans ? '✅ 答對了！' : '❌ 答錯了！'}</strong> ${escapeHtml(item.exp)}
+               </div>`
+            : '';
+
+          return `
+            <div style="background:rgba(11,17,32,0.75); border:1px solid var(--border); border-radius:14px; padding:16px;">
+              <div style="font-size:14.5px; font-weight:700; color:#f8fafc; margin-bottom:12px;">${escapeHtml(item.q)}</div>
+              <div class="grid-2" style="gap:10px;">${optsHtml}</div>
+              ${fb}
+            </div>
+          `;
+        }).join('');
+
+        quizListEl.querySelectorAll('.quiz-option').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const qi = Number(btn.dataset.q);
+            const oi = Number(btn.dataset.o);
+            if (quizAnswers[qi] !== null) return;
+            quizAnswers[qi] = oi;
+            renderQuiz();
+            if (quizAnswers.every((v) => v !== null)) {
+              const finalScore = quizAnswers.reduce((s, a, i) => s + (a === QUIZ_DATA[i].ans ? 1 : 0), 0);
+              showToast(`測驗完成！你的總分是 ${finalScore} / 5 分`);
+            }
+          });
+        });
+      }
+
+      document.getElementById('btn-quiz-restart').addEventListener('click', () => {
+        quizAnswers = new Array(QUIZ_DATA.length).fill(null);
+        renderQuiz();
+        showToast('測驗已重置！');
+      });
+      renderQuiz();
+
+    })();
+  </script>
+</body>
+</html>
