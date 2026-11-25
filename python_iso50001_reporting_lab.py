@@ -46,6 +46,9 @@ def sheet(*, good_output, cdd, actual_kwh, electric_submeters, gas_nm3,
     # 合成例題：主分表同期間、同邊界，且分表互斥。
     if actual == 0 and raw > 0:
         reasons.append("zero_main_with_positive_submeters")
+    elif actual == raw == 0 and prod > 0:
+        # 此例生產設備由同邊界主表涵蓋；殘差為零仍不證明讀值可信。
+        reasons.append("zero_electricity_with_active_production")
     elif residual < -tolerance:
         reasons.append("submeters_exceed_main_beyond_tolerance")
     eligible = not reasons
@@ -120,24 +123,43 @@ class Tests(unittest.TestCase):
                          ["insufficient_interval_coverage", "zero_main_with_positive_submeters"])
         self.assertIsNone(r["improvement_ratio"])
 
+    def test_zero_electricity_during_production_holds_comparison(self):
+        for meters in ({"製程": 0, "空壓": 0, "冷卻": 0}, {}):
+            with self.subTest(meters=meters):
+                r = example(actual_kwh=0, electric_submeters=meters)
+                self.assertEqual(r["good_output"], D(10000))
+                self.assertEqual(r["coverage"], D(2872) / D(2880))
+                for field in ("electric_actual_kwh", "electric_submeters_kwh",
+                              "electric_balance_residual_kwh"):
+                    self.assertEqual(r[field], D(0))
+                self.assertEqual(r["comparison_hold_reasons"],
+                                 ["zero_electricity_with_active_production"])
+                self.assertEqual(r["normalization_status"], "not_comparable")
+                for field in ("adjusted_electric_baseline_kwh", "delta_kwh",
+                              "improvement_ratio", "absolute_residual_share"):
+                    self.assertIsNone(r[field])
+
     def test_zero_denominator(self):
         r=example(good_output=0, actual_kwh=0, electric_submeters={})
         self.assertIsNone(r["electric_intensity_kwh_per_unit"])
         self.assertIsNone(r["absolute_residual_share"])
+        self.assertEqual(r["comparison_hold_reasons"], ["outside_model_domain"])
 
 
 def main():
     p = ArgumentParser(description=__doc__)
     p.add_argument("--test", action="store_true")
-    p.add_argument("--scenario", choices=("nominal", "mismatch", "zero-main"), default="nominal",
-                   help="切換正常、主分表差額過大或主表為零的教學案例")
+    p.add_argument("--scenario", choices=("nominal", "mismatch", "zero-main", "zero-all"), default="nominal",
+                   help="切換正常、主分表差額過大、僅主表為零或主分表同時為零的教學案例")
     args=p.parse_args()
     if args.test:
         return 0 if unittest.TextTestRunner().run(
             unittest.defaultTestLoader.loadTestsFromTestCase(Tests)).wasSuccessful() else 1
     # Decimal 以明確十進位字串輸出；消費端依 schema 解析，不偷偷轉二進位 float。
     scenario = {"nominal": {}, "mismatch": {"actual_kwh": 70000},
-                "zero-main": {"actual_kwh": 0}}[args.scenario]
+                "zero-main": {"actual_kwh": 0},
+                "zero-all": {"actual_kwh": 0,
+                             "electric_submeters": {"製程": 0, "空壓": 0, "冷卻": 0}}}[args.scenario]
     print(json.dumps(example(**scenario), ensure_ascii=False, default=str, indent=2))
     return 0
 
