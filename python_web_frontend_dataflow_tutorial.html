@@ -31,9 +31,38 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
 .connection-depth figcaption{display:block}
 .connection-depth details summary{cursor:pointer;font-weight:bold}
 @media(max-width:590px){.cd-table table,.cd-table tbody,.cd-table tr{display:block;min-width:0}.cd-table thead{position:absolute;clip-path:inset(50%);height:1px;width:1px;overflow:hidden}.cd-table tbody tr{border:1px solid #aeccdf;border-radius:.5rem;margin:.6rem 0;overflow:hidden}.cd-table th,.cd-table td{display:block;white-space:normal}.cd-table td::before{content:attr(data-label);display:block;color:#14516c;font-weight:bold}}
+
+#dataflow-diagram{--fd-ink:#163750;--fd-line:#b8d0dd;--fd-soft:#eff7fb;--fd-teal:#125f6c;--fd-fg:#203d53;min-width:0}
+#dataflow-diagram .fd-intro{color:#385872;max-width:75ch}
+#dataflow-diagram .fd-figure{margin:1rem 0 1.2rem;min-width:0}
+#dataflow-diagram figcaption{font-weight:800;color:var(--fd-ink);margin:0 0 .65rem}
+#dataflow-diagram .fd-pipeline,#dataflow-diagram .fd-protocols{display:grid;gap:1.28rem;min-width:0}
+#dataflow-diagram .fd-pipeline{grid-template-columns:repeat(5,minmax(0,1fr));padding:0;list-style:none;margin:0}
+#dataflow-diagram .fd-pipeline li,#dataflow-diagram .fd-protocol{position:relative;padding:.82rem;border-radius:.6rem;border:1px solid var(--fd-line);background:var(--fd-soft);min-width:0;overflow-wrap:anywhere}
+#dataflow-diagram .fd-pipeline li:not(:last-child)::after{content:"→";position:absolute;color:var(--fd-teal);font-weight:900;top:44%;right:-1.12rem;font-size:1.05rem}
+#dataflow-diagram .fd-number{background:#d5ecef;color:#145365;border-radius:2rem;padding:.21rem .48rem;font-size:.75rem;font-weight:850}
+#dataflow-diagram h3{color:var(--fd-ink);font-size:1.01rem;line-height:1.35;margin:.53rem 0 .35rem}
+#dataflow-diagram p{margin:.36rem 0}
+#dataflow-diagram .fd-note{color:#466479;font-size:.88rem}
+#dataflow-diagram .fd-protocols{grid-template-columns:repeat(3,minmax(0,1fr));gap:.72rem}
+#dataflow-diagram .fd-protocol{background:#fff;border-block-start:4px solid #1d638c}
+#dataflow-diagram .fd-protocol.sse{border-block-start-color:#126e69}
+#dataflow-diagram .fd-protocol.ws{border-block-start-color:#66528c}
+#dataflow-diagram .fd-protocol ol{padding:0;list-style:none;margin:.6rem 0 0}
+#dataflow-diagram .fd-protocol li{display:grid;grid-template-columns:1.4rem minmax(0,1fr);gap:.43rem;padding:.48rem 0;border-top:1px solid #cbdde5}
+#dataflow-diagram .fd-direction{font-size:1.15rem;font-weight:850;color:#125f6c}
+#dataflow-diagram .fd-protocol code{display:block;margin:.12rem 0;white-space:normal;overflow-wrap:anywhere;color:#185173}
+#dataflow-diagram .fd-protocol li p{font-size:.88rem}
+#dataflow-diagram .fd-callout{border-left:4px solid #347c88;background:#edf5f7;padding:.65rem .82rem;margin:.9rem 0}
+#dataflow-diagram .fd-download{display:inline-block;background:#1c5379;color:#fff;border-radius:.42rem;padding:.42rem .7rem;font-weight:750;text-decoration:none}
+#dataflow-diagram .fd-download:focus-visible{outline:3px solid #184965;outline-offset:3px}
+@media(max-width:850px){
+ #dataflow-diagram .fd-pipeline,#dataflow-diagram .fd-protocols{grid-template-columns:minmax(0,1fr)}
+ #dataflow-diagram .fd-pipeline li:not(:last-child)::after{content:"↓";top:auto;right:calc(50% - .37rem);bottom:-1.26rem}
+}
 </style></head><body><main>
 <header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
-<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
 </header>
 <section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
 <figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
@@ -42,6 +71,15 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
 <li><strong>瀏覽器資料層</strong><small>Fetch 發出請求、檢查狀態與 JSON 欄位，管理載入、取消和錯誤。</small></li>
 <li><strong>畫面與圖表</strong><small>使用 textContent 更新資料；各列保留設備、溫度及時間戳。</small></li></ol></figure>
 <div class="grid"><article class="card"><h3>部署方式</h3><p>同源模式讓同一個網站回傳 HTML 與 /api/v1 資料；前端使用相對路徑。正式部署可用 HTTPS 反向代理，讓 /api 轉到獨立 Python 服務，但對瀏覽器仍是同一來源。靜態 GitHub Pages 不執行 Python，所以這份教材在網站使用刻意標示的瀏覽器模擬，不會向 Pages 的 /api 發送請求。</p></article><article class="card"><h3>工控／機房情境</h3><p>不要讓瀏覽器直接連 PLC、DDC 或現場控制網。由受控閘道採集、限制讀取權限，API 再提供標準化資料。告警處置和控制寫入是不同路徑；本課的門檻預覽不保存設定，也不發出設備命令。</p></article></div>
+</section>
+<section id="dataflow-diagram" class="fd-scope" aria-labelledby="fd-title">
+<h2 id="fd-title">資料流程圖：從來源到畫面</h2>
+<p class="fd-intro">圖 A 是資料處理管線；圖 B 說明瀏覽器與 Python API 之間誰發送、誰接收。</p>
+<figure class="fd-figure"><figcaption>圖 A｜系統資料流與責任邊界</figcaption>
+<ol class="fd-pipeline" aria-label="從資料來源到瀏覽器畫面的五個階段"><li><span class="fd-number">01</span><h3>資料來源</h3><p>PLC／感測器、資料庫或外部 API</p><p class="fd-note">以資料時間和品質表示來源狀態</p></li><li><span class="fd-number">02</span><h3>Python 採集與服務層</h3><p>讀取、驗證、正規化、建立快照</p><p class="fd-note">保留 source_ts、quality 與序號</p></li><li><span class="fd-number">03</span><h3>Python Web API</h3><p>HTTP 快照、SSE 事件、WebSocket 訊息</p><p class="fd-note">驗證權限；定義錯誤、逾時與重連契約</p></li><li><span class="fd-number">04</span><h3>瀏覽器資料層</h3><p>Fetch、EventSource 或 WebSocket</p><p class="fd-note">檢查狀態及結構，處理缺口與新舊序號</p></li><li><span class="fd-number">05</span><h3>畫面與操作</h3><p>狀態卡、趨勢圖、告警與操作介面</p><p class="fd-note">更新畫面；逾時時保留舊值並標示過期</p></li></ol></figure>
+<figure class="fd-figure"><figcaption>圖 B｜三種連線的發送方向</figcaption><div class="fd-protocols"><article class="fd-protocol one"><h3>HTTP／Fetch</h3><p>一次請求、一次回應</p><ol><li><span class="fd-direction" aria-hidden="true">→</span><div><strong>瀏覽器 → API</strong><code>GET /api/snapshot</code><p>向 API 要當下快照；輪詢就是按週期再發一次。</p></div></li><li><span class="fd-direction" aria-hidden="true">←</span><div><strong>API → 瀏覽器</strong><code>HTTP 狀態＋JSON</code><p>先檢查狀態，再解析 JSON；失敗時顯示錯誤或過期。</p></div></li></ol></article><article class="fd-protocol sse"><h3>SSE／EventSource</h3><p>伺服器持續推播；應用資料單向</p><ol><li><span class="fd-direction" aria-hidden="true">→</span><div><strong>瀏覽器 → API</strong><code>GET /api/events</code><p>建立 HTTP 事件串流，不是透過同一 SSE 串流傳命令。</p></div></li><li><span class="fd-direction" aria-hidden="true">←</span><div><strong>API → 瀏覽器</strong><code>text/event-stream</code><p>串流事件可帶 id；斷線續接仍要後端實做重播或補快照。</p></div></li></ol></article><article class="fd-protocol ws"><h3>WebSocket</h3><p>連線建立後，應用訊息雙向</p><ol><li><span class="fd-direction" aria-hidden="true">→</span><div><strong>瀏覽器 → API</strong><code>開啟 WebSocket /api/ws</code><p>瀏覽器開啟連線，服務端接受；正式環境使用 wss://。</p></div></li><li><span class="fd-direction" aria-hidden="true">→</span><div><strong>瀏覽器 → API</strong><code>訂閱／用戶端訊息</code><p>只准已授權且符合協定的訊息；不從瀏覽器直接寫 PLC。</p></div></li><li><span class="fd-direction" aria-hidden="true">←</span><div><strong>API → 瀏覽器</strong><code>遙測／回覆</code><p>應用自訂訊息結構、佇列與重連；連線成功不等於消息已送達。</p></div></li></ol></article></div></figure>
+<div class="fd-callout"><strong>常見錯誤：</strong>HTTP 200 不代表資料一定新鮮；SSE 成功重連不代表缺口已補齊；WebSocket 開啟不代表訊息已被處理。<a href="#connection-depth">看連接方式與失敗處理</a>。</div>
+<p><a class="fd-download" href="python_web_frontend_dataflow_diagrams.drawio" download>下載可編輯 Draw.io 圖檔（2 頁）</a></p>
 </section>
 <section id="workflow"><h2>2. 一次請求，六個清楚步驟</h2><figure class="card"><figcaption>HTTP 請求生命週期</figcaption><ol class="chain flow">
 <li><strong>01 觸發</strong><small>使用者按下更新或輪詢計時到期。</small></li>
