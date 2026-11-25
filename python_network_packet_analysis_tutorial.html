@@ -1,0 +1,238 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Python 網路封包解析：Ethernet II、IPv4、TCP 與 UDP</title><style>
+:root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.65;color:#17263b;background:#edf3fa}*{box-sizing:border-box}body{margin:0}main{width:min(100%,72rem);margin:auto;padding:clamp(.85rem,3vw,2rem);min-width:0}header,.panel{padding:clamp(.85rem,3vw,1.55rem);border:1px solid #c5d4e7;background:#fff;border-radius:14px;margin:0 0 1rem;min-width:0;overflow-wrap:anywhere}header{background:#10243e;color:#eef5ff;border-color:#10243e}header p{max-width:70ch;color:#d8e7fb}header a{color:#cde5ff}h1,h2,h3{line-height:1.2;margin:.5rem 0 .65rem}h1{font-size:clamp(1.9rem,5vw,3.7rem)}h2{font-size:clamp(1.42rem,4vw,2.15rem)}h3{font-size:1.18rem}p{margin:.55rem 0 .85rem}a{color:#154d87;text-underline-offset:.16em}nav{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.85rem}nav a{display:inline-block;padding:.28rem .55rem;border:1px solid #6786a8;border-radius:.4rem}a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #3972ae;outline-offset:2px}.eyebrow{font-weight:850;letter-spacing:.06em;color:#176a75}header .eyebrow{color:#aaddff}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13.3rem),1fr));gap:.65rem;list-style:none;margin:.9rem 0;padding:0;counter-reset:step}.flow li{min-width:0;border:1px solid #91acca;border-left:4px solid #3a729f;border-radius:.55rem;background:#eff6ff;padding:.62rem;counter-increment:step}.flow li::before{content:counter(step,decimal-leading-zero);color:#266575;font-size:.8rem;font-weight:850}.flow strong,.flow span{display:block}.flow span{color:#354d6a;font-size:.92rem}.notice{border-inline-start:4px solid #277286;background:#e8f5f7;padding:.6rem .8rem}.chart-row{margin:.85rem 0}.chart-strip{display:flex;min-height:2.2rem;border:1px solid #7696b7;border-radius:6px;overflow:hidden}.chart-strip span{display:grid;place-items:center;min-width:0;flex:var(--n) 1 0;color:#142842;font-size:.84rem;font-weight:850}.eth{background:#bed9f5}.ip{background:#a5d8d1}.l4{background:#ffdf8e}.data{background:#f2bdd4}.pad{background:#e1e8f4}.chart-key{display:flex;flex-wrap:wrap;gap:.4rem;padding:0;margin:.5rem 0;list-style:none}.chart-key li{padding:.1rem .5rem;border-radius:5px}.local-scroll{overflow:auto;max-width:100%;border:1px solid #cad7e7;border-radius:6px;margin:.7rem 0}table{border-collapse:collapse;width:100%;min-width:42rem}th,td{text-align:left;vertical-align:top;padding:.6rem;border-bottom:1px solid #dbe6f4}thead{background:#e7f0fd}th{white-space:nowrap}pre{padding:.72rem;max-width:100%;overflow:auto;background:#10243e;color:#f3f7ff;border-radius:8px;tab-size:4;font-size:.86rem;line-height:1.5}details{margin:.55rem 0;padding:.6rem;border:1px solid #c5d4e7;border-radius:8px}summary{font-weight:700;cursor:pointer}.panel{scroll-margin-top:.65rem}footer{color:#485d77}
+</style></head><body><main><header id="top"><div class="eyebrow">PYTHON NETWORK ENGINEERING · 離線實驗</div><h1>Python 網路封包解析</h1><p>從一筆 Ethernet II 位元組紀錄，沿著 IPv4 標頭找到 TCP／UDP 區段。用標準函式庫拆欄位、驗證長度並輸出 JSON。本章只讀兩筆內建合成樣本，不需網路、管理權限或外部套件。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="#architecture">分層架構</a><a href="#workflow">解析流程</a><a href="#framing">長度圖表</a><a href="#apis">常見 API</a><a href="#lab">實驗與程式</a><a href="#validation">驗收與限制</a></nav></header><section class="panel" id="architecture"><div class="eyebrow">01 / 資料分層</div><h2>架構圖：從框架到應用資料</h2><ol class="flow"><li><strong>L2｜Ethernet II</strong><span>前 14 bytes：目的 MAC、來源 MAC、EtherType。0x0800 代表 IPv4。</span></li><li><strong>L3｜IPv4</strong><span>依 IHL 決定標頭後的起點；Total Length 限定 IPv4 終點。Protocol 6＝TCP，17＝UDP。</span></li><li><strong>L4｜傳輸層</strong><span>TCP：Data Offset 決定標頭末端；UDP：固定 8 bytes 標頭，Length 含標頭。</span></li><li><strong>應用資料｜單筆示例</strong><span>只輸出 payload 範圍的十六進位。不假設目的埠等於應用協定，也不解讀加密內容。</span></li></ol>
+<p class="notice"><strong>先辨識來源鏈路型別。</strong>本練習直接餵 Ethernet II 位元組；一般 PCAP／PCAPNG 還有外層容器、鏈路型別、時間戳、捕獲長度與原始長度。不能把整個捕獲檔直接當一個 frame，也不能假設所有紀錄都是 Ethernet。</p>
+<p>「frame」、「IPv4 datagram」、「TCP segment／UDP datagram」不是同一個位元組範圍。TCP 是位元組串流，單筆 payload 不代表一則完整應用訊息；需要多筆重組、順序／重傳處理與應用層 framing。UDP 保留 datagram 邊界，但不提供 TCP 式的可靠送達。</p></section><section class="panel" id="workflow"><div class="eyebrow">02 / 解析器資料流</div><h2>流程圖：先驗邊界，再讀欄位</h2><ol class="flow"><li><strong>讀固定標頭</strong><span>最少 14 bytes 才能讀 EtherType；只接受未標記的 IPv4。</span></li><li><strong>建立 IPv4 視窗</strong><span>確認版本、IHL×4、Total Length；擷取不足拒絕；忽略 IPv4 邊界外資料。</span></li><li><strong>分片／協定分流</strong><span>MF=1 或 fragment offset 非 0 拒絕；DF 單獨出現不代表是分片。</span></li><li><strong>建立 L4 視窗</strong><span>UDP 驗至少 8 且 Length 等於 IPv4 payload；TCP 驗至少 20、Data Offset 不越界。</span></li><li><strong>輸出結果</strong><span>成功輸出 JSON；格式、支援範圍或長度有誤時回 ParseError。</span></li></ol>
+<p>每次處理 offset 都先檢查 <code>start + length ≤ len(view)</code>。Python slice 越界會悄悄縮短，所以不能只用切片當成驗證。<code>struct.unpack_from()</code> 也應讀已確認足夠的範圍。</p></section><section class="panel" id="framing"><div class="eyebrow">03 / 位元組對照</div><h2>同一張圖，分清楚捕獲長度與封包長度</h2><figure style="margin:.5rem 0"><figcaption><strong>兩筆內建樣本：每條依自身總長度正規化</strong>（不是同一絕對尺度）</figcaption><div class="chart-row"><strong>UDP：60 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:20">20</span><span class="l4" style="--n:8">8</span><span class="data" style="--n:4"></span><span class="pad" style="--n:14">14</span></div></div><div class="chart-row"><strong>TCP：65 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:24">24</span><span class="l4" style="--n:24">24</span><span class="data" style="--n:3"></span></div></div><ul class="chart-key"><li class="eth">Ethernet 標頭</li><li class="ip">IPv4 標頭</li><li class="l4">傳輸層標頭</li><li class="data">應用資料</li><li class="pad">外層 padding</li></ul></figure><div class="local-scroll" role="region" tabindex="0" aria-label="兩筆樣本位移與長度（可橫移）"><table><thead><tr><th scope="col">範圍（起點含、終點不含）</th><th scope="col">UDP</th><th scope="col">TCP</th></tr></thead><tbody><tr><th scope="row">Ethernet 標頭</th><td>[0, 14)</td><td>[0, 14)</td></tr><tr><th scope="row">IPv4 標頭</th><td>[14, 34)；IHL=5</td><td>[14, 38)；IHL=6</td></tr><tr><th scope="row">IPv4 datagram</th><td>[14, 46)；Total Length=32</td><td>[14, 65)；Total Length=51</td></tr><tr><th scope="row">傳輸層標頭</th><td>[34, 42)；固定 8 bytes</td><td>[38, 62)；Data Offset=6，即 24 bytes</td></tr><tr><th scope="row">Payload</th><td>[42, 46)；4c414221（LAB!）</td><td>[62, 65)；4c4142（LAB）</td></tr><tr><th scope="row">外層尾端</th><td>[46, 60)；14 bytes padding</td><td>空</td></tr></tbody></table></div><p>例：UDP 的 Length=12 → 8 bytes 標頭 + 4 bytes 資料。TCP 沒有同義的 UDP Length 欄位；正常的非分片 IPv4 datagram 中，此例 TCP payload = 51 − 24 − 24 = 3 bytes。外層尾端不會被當作 payload；一般來源可能另含 FCS 或無 padding，本程式不嘗試辨識尾端種類。</p></section><section class="panel" id="apis"><div class="eyebrow">04 / 常見工具</div><h2>API 怎麼選：欄位拆解、離線檔案與資料匯出</h2><div class="local-scroll" role="region" tabindex="0" aria-label="常見 API 比較（可橫移）"><table><thead><tr><th scope="col">API／工具</th><th scope="col">常見用法與適用場景</th><th scope="col">拿到資料後仍要核對</th></tr></thead><tbody><tr><th scope="row">bytes.fromhex</th><td><code>bytes.fromhex("0800")</code>：將固定範例轉成兩個 bytes。</td><td>不是文字編碼轉換；不從外界載入樣本。</td></tr><tr><th scope="row">memoryview</th><td><code>memoryview(frame)[14:]</code>：取得子視圖，不複製所切資料。</td><td>生命週期跟著來源；轉為 bytes 或 hex 表示時會配置輸出。</td></tr><tr><th scope="row">struct</th><td><code>struct.unpack_from("!H", view, 12)</code>：從 offset 12 讀 big-endian 無號 16 位整數。</td><td><code>!</code> 是網路位元組序，<code>calcsize("!H")==2</code>。先驗邊界。</td></tr><tr><th scope="row">ipaddress</th><td><code>str(ipaddress.IPv4Address(b"\xc0\x00\x02\x01"))</code>：將四個位元組轉成 IPv4 字串。</td><td>數值和字串輸入的語意與錯誤處理要區分。</td></tr><tr><th scope="row">Scapy（選用）</th><td><code>scapy.utils.PcapReader</code> 可逐筆讀已授權、脫敏樣本；<code>rdpcap()</code> 適合小檔讀入記憶體。</td><td>核對封裝、截斷與資源用量；不在本次環境執行。</td></tr><tr><th scope="row">TShark（選用）</th><td>讀檔模式 <code>-r</code>；<code>-T fields</code> 配 <code>-e</code> 選欄位，適合離線交叉比對。</td><td>核對欄位定義、空值、加密和 dissector 推斷；本章不擷取即時流量。</td></tr></tbody></table></div>
+<p><code>socket</code> 的 TCP／UDP 端點介面通常拿到應用層資料，不等於 Ethernet frame。接收長度、封裝格式與權限需求應先由輸入資料契約決定。</p></section><section class="panel" id="lab"><div class="eyebrow">05 / Python 實作</div><h2>執行合成樣本、對照偏移與輸出</h2><p>從教材 repo 根目錄執行；本實驗 CLI 只接受 <code>udp</code>、<code>tcp</code>，不接收檔案路徑或位址。</p><pre tabindex="0"><code>cd &#x27;範例程式碼/network_packet_analysis_lab&#x27;
+python3 packet_lab.py udp
+python3 packet_lab.py tcp
+python3 -m unittest -v</code></pre><p><a href="範例程式碼/network_packet_analysis_lab/packet_lab.py">下載解析程式</a> · <a href="範例程式碼/network_packet_analysis_lab/test_packet_lab.py">下載單元測試</a></p><details><summary>UDP 樣本位元組與預期 JSON</summary><pre tabindex="0"><code>02 00 00 00 00 02 02 00 00 00 00 01 08 00 45 00 00 20 00 01 00 00 40 11 8e 95 c0 00 02 01 c6 33 64 02 30 39 1f 90 00 0c 00 00 4c 41 42 21 00 00 00 00 00 00 00 00 00 00 00 00 00 00</code></pre><pre tabindex="0"><code>{
+  &quot;captured_bytes&quot;: 60,
+  &quot;ethernet&quot;: {
+    &quot;source&quot;: &quot;02:00:00:00:00:01&quot;,
+    &quot;destination&quot;: &quot;02:00:00:00:00:02&quot;,
+    &quot;ethertype_hex&quot;: &quot;0800&quot;
+  },
+  &quot;ipv4&quot;: {
+    &quot;source&quot;: &quot;192.0.2.1&quot;,
+    &quot;destination&quot;: &quot;198.51.100.2&quot;,
+    &quot;header_bytes&quot;: 20,
+    &quot;total_length&quot;: 32,
+    &quot;ttl&quot;: 64,
+    &quot;identification&quot;: 1,
+    &quot;protocol&quot;: 17,
+    &quot;dont_fragment&quot;: false
+  },
+  &quot;transport&quot;: {
+    &quot;kind&quot;: &quot;UDP&quot;,
+    &quot;header_bytes&quot;: 8,
+    &quot;length&quot;: 12,
+    &quot;checksum_field&quot;: 0,
+    &quot;source_port&quot;: 12345,
+    &quot;destination_port&quot;: 8080
+  },
+  &quot;payload_length&quot;: 4,
+  &quot;payload_hex&quot;: &quot;4c414221&quot;,
+  &quot;unparsed_ethernet_tail_bytes&quot;: 14
+}</code></pre></details><details><summary>TCP 樣本位元組與預期 JSON</summary><pre tabindex="0"><code>02 00 00 00 00 02 02 00 00 00 00 01 08 00 46 00 00 33 00 02 40 00 40 06 4c 8f c0 00 02 01 c6 33 64 02 01 01 00 00 30 39 01 bb 00 00 00 01 00 00 00 02 60 18 40 00 b2 54 00 00 01 01 00 00 4c 41 42</code></pre><pre tabindex="0"><code>{
+  &quot;captured_bytes&quot;: 65,
+  &quot;ethernet&quot;: {
+    &quot;source&quot;: &quot;02:00:00:00:00:01&quot;,
+    &quot;destination&quot;: &quot;02:00:00:00:00:02&quot;,
+    &quot;ethertype_hex&quot;: &quot;0800&quot;
+  },
+  &quot;ipv4&quot;: {
+    &quot;source&quot;: &quot;192.0.2.1&quot;,
+    &quot;destination&quot;: &quot;198.51.100.2&quot;,
+    &quot;header_bytes&quot;: 24,
+    &quot;total_length&quot;: 51,
+    &quot;ttl&quot;: 64,
+    &quot;identification&quot;: 2,
+    &quot;protocol&quot;: 6,
+    &quot;dont_fragment&quot;: true
+  },
+  &quot;transport&quot;: {
+    &quot;kind&quot;: &quot;TCP&quot;,
+    &quot;header_bytes&quot;: 24,
+    &quot;sequence&quot;: 1,
+    &quot;acknowledgment&quot;: 2,
+    &quot;flags_low8_hex&quot;: &quot;18&quot;,
+    &quot;checksum_field&quot;: 45652,
+    &quot;source_port&quot;: 12345,
+    &quot;destination_port&quot;: 443
+  },
+  &quot;payload_length&quot;: 3,
+  &quot;payload_hex&quot;: &quot;4c4142&quot;,
+  &quot;unparsed_ethernet_tail_bytes&quot;: 0
+}</code></pre></details><details><summary>完整程式：packet_lab.py</summary><pre tabindex="0"><code>&quot;&quot;&quot;Decode only the two built-in documentation fixtures. No file or network input.&quot;&quot;&quot;
+
+import argparse
+import ipaddress
+import json
+import struct
+
+FIXTURES = {
+    &quot;udp&quot;: bytes.fromhex(
+        &quot;0200000000020200000000010800 &quot;
+        &quot;450000200001000040118e95c0000201c6336402 &quot;
+        &quot;30391f90000c0000 4c414221 &quot;
+        &quot;0000000000000000000000000000&quot;  # Ethernet padding, not part of IPv4
+    ),
+    &quot;tcp&quot;: bytes.fromhex(
+        &quot;0200000000020200000000010800 &quot;
+        &quot;460000330002400040064c8bc0000201c6336402 01010000 &quot;
+        &quot;303901bb000000010000000260184000b2540000 01010000 &quot;
+        &quot;4c4142&quot;
+    ),
+}
+
+
+class ParseError(ValueError):
+    &quot;&quot;&quot;Record is incomplete, inconsistent, or intentionally unsupported.&quot;&quot;&quot;
+
+
+def bounded(view: memoryview, start: int, length: int, name: str) -&gt; memoryview:
+    if start &lt; 0 or length &lt; 0 or start + length &gt; len(view):
+        raise ParseError(f&quot;{name}: truncated&quot;)
+    return view[start:start + length]
+
+
+def mac(view: memoryview) -&gt; str:
+    return view.hex(&quot;:&quot;)
+
+
+def parse_frame(frame: bytes) -&gt; dict:
+    captured = memoryview(frame)
+    eth = bounded(captured, 0, 14, &quot;Ethernet II&quot;)
+    ether_type, = struct.unpack_from(&quot;!H&quot;, eth, 12)
+    if ether_type != 0x0800:
+        raise ParseError(&quot;EtherType: only untagged IPv4 (0x0800) is supported&quot;)
+
+    fixed_ip = bounded(captured, 14, 20, &quot;IPv4 minimum header&quot;)
+    version, ihl = fixed_ip[0] &gt;&gt; 4, (fixed_ip[0] &amp; 0xF) * 4
+    if version != 4 or ihl &lt; 20:
+        raise ParseError(&quot;IPv4: invalid version or IHL&quot;)
+    total, identification, frag = struct.unpack_from(&quot;!HHH&quot;, fixed_ip, 2)
+    if total &lt; ihl:
+        raise ParseError(&quot;IPv4: Total Length is smaller than header&quot;)
+    ip = bounded(captured, 14, total, &quot;IPv4 Total Length&quot;)
+    if frag &amp; 0x8000:
+        raise ParseError(&quot;IPv4: reserved fragmentation flag is set&quot;)
+    if frag &amp; 0x3FFF:  # MF (0x2000) or non-zero offset, not DF (0x4000)
+        raise ParseError(&quot;IPv4: fragmented datagrams are unsupported&quot;)
+
+    protocol = fixed_ip[9]
+    segment = ip[ihl:]
+    if protocol == 17:
+        header = bounded(segment, 0, 8, &quot;UDP minimum header&quot;)
+        src_port, dst_port, length, checksum = struct.unpack_from(&quot;!HHHH&quot;, header)
+        if length &lt; 8 or length != len(segment):
+            raise ParseError(&quot;UDP: length differs from IPv4 payload&quot;)
+        payload = segment[8:length]
+        info = {&quot;kind&quot;: &quot;UDP&quot;, &quot;header_bytes&quot;: 8, &quot;length&quot;: length,
+                &quot;checksum_field&quot;: checksum}
+    elif protocol == 6:
+        header = bounded(segment, 0, 20, &quot;TCP minimum header&quot;)
+        src_port, dst_port, seq, ack = struct.unpack_from(&quot;!HHII&quot;, header)
+        offset = (header[12] &gt;&gt; 4) * 4
+        if offset &lt; 20:
+            raise ParseError(&quot;TCP: invalid Data Offset&quot;)
+        bounded(segment, 0, offset, &quot;TCP header including options&quot;)
+        payload = segment[offset:]
+        checksum, = struct.unpack_from(&quot;!H&quot;, header, 16)
+        info = {&quot;kind&quot;: &quot;TCP&quot;, &quot;header_bytes&quot;: offset, &quot;sequence&quot;: seq,
+                &quot;acknowledgment&quot;: ack, &quot;flags_low8_hex&quot;: f&quot;{header[13]:02x}&quot;,
+                &quot;checksum_field&quot;: checksum}
+    else:
+        raise ParseError(&quot;IPv4 Protocol: only TCP (6) and UDP (17) are supported&quot;)
+
+    return {
+        &quot;captured_bytes&quot;: len(captured),
+        &quot;ethernet&quot;: {&quot;source&quot;: mac(eth[6:12]), &quot;destination&quot;: mac(eth[:6]),
+                     &quot;ethertype_hex&quot;: f&quot;{ether_type:04x}&quot;},
+        &quot;ipv4&quot;: {&quot;source&quot;: str(ipaddress.IPv4Address(bytes(fixed_ip[12:16]))),
+                 &quot;destination&quot;: str(ipaddress.IPv4Address(bytes(fixed_ip[16:20]))),
+                 &quot;header_bytes&quot;: ihl, &quot;total_length&quot;: total, &quot;ttl&quot;: fixed_ip[8],
+                 &quot;identification&quot;: identification, &quot;protocol&quot;: protocol,
+                 &quot;dont_fragment&quot;: bool(frag &amp; 0x4000)},
+        &quot;transport&quot;: {**info, &quot;source_port&quot;: src_port, &quot;destination_port&quot;: dst_port},
+        &quot;payload_length&quot;: len(payload), &quot;payload_hex&quot;: payload.hex(),
+        &quot;unparsed_ethernet_tail_bytes&quot;: len(captured) - 14 - total,
+    }
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;fixture&quot;, choices=FIXTURES)
+    args = parser.parse_args()
+    try:
+        result = parse_frame(FIXTURES[args.fixture])
+    except ParseError as exc:
+        parser.exit(1, f&quot;parse error: {exc}\n&quot;)
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()</code></pre></details><details><summary>完整程式：test_packet_lab.py</summary><pre tabindex="0"><code>import unittest
+
+from packet_lab import FIXTURES, ParseError, parse_frame
+
+
+class PacketLabTest(unittest.TestCase):
+    def test_udp_payload_excludes_ethernet_padding(self):
+        p = parse_frame(FIXTURES[&quot;udp&quot;])
+        self.assertEqual(p[&quot;captured_bytes&quot;], 60)
+        self.assertEqual(p[&quot;ipv4&quot;][&quot;source&quot;], &quot;192.0.2.1&quot;)
+        self.assertEqual(p[&quot;ipv4&quot;][&quot;destination&quot;], &quot;198.51.100.2&quot;)
+        self.assertEqual(p[&quot;transport&quot;][&quot;length&quot;], 12)
+        self.assertEqual(p[&quot;transport&quot;][&quot;destination_port&quot;], 8080)
+        self.assertEqual(p[&quot;payload_hex&quot;], &quot;4c414221&quot;)
+        self.assertEqual(p[&quot;unparsed_ethernet_tail_bytes&quot;], 14)
+
+    def test_tcp_ip_ihl_and_data_offset_use_words(self):
+        p = parse_frame(FIXTURES[&quot;tcp&quot;])
+        self.assertEqual(p[&quot;captured_bytes&quot;], 65)
+        self.assertEqual(p[&quot;ipv4&quot;][&quot;header_bytes&quot;], 24)
+        self.assertEqual(p[&quot;transport&quot;][&quot;header_bytes&quot;], 24)
+        self.assertEqual(p[&quot;transport&quot;][&quot;destination_port&quot;], 443)
+        self.assertEqual(p[&quot;transport&quot;][&quot;sequence&quot;], 1)
+        self.assertEqual(p[&quot;transport&quot;][&quot;flags_low8_hex&quot;], &quot;18&quot;)
+        self.assertEqual(p[&quot;payload_hex&quot;], &quot;4c4142&quot;)
+        self.assertTrue(p[&quot;ipv4&quot;][&quot;dont_fragment&quot;])
+
+    def test_truncated_ethernet_header(self):
+        with self.assertRaisesRegex(ParseError, &quot;Ethernet II: truncated&quot;):
+            parse_frame(FIXTURES[&quot;udp&quot;][:13])
+
+    def test_truncated_ipv4_total_length(self):
+        with self.assertRaisesRegex(ParseError, &quot;IPv4 Total Length: truncated&quot;):
+            parse_frame(FIXTURES[&quot;udp&quot;][:45])
+
+    def test_unsupported_ethertype(self):
+        frame = bytearray(FIXTURES[&quot;udp&quot;])
+        frame[12:14] = bytes.fromhex(&quot;86dd&quot;)
+        with self.assertRaisesRegex(ParseError, &quot;EtherType&quot;):
+            parse_frame(bytes(frame))
+
+    def test_fragmentation_is_out_of_scope(self):
+        frame = bytearray(FIXTURES[&quot;udp&quot;])
+        frame[20:22] = bytes.fromhex(&quot;2000&quot;)
+        with self.assertRaisesRegex(ParseError, &quot;fragmented datagrams&quot;):
+            parse_frame(bytes(frame))
+
+    def test_bad_udp_length(self):
+        frame = bytearray(FIXTURES[&quot;udp&quot;])
+        frame[38:40] = bytes.fromhex(&quot;000d&quot;)
+        with self.assertRaisesRegex(ParseError, &quot;UDP: length&quot;):
+            parse_frame(bytes(frame))
+
+    def test_bad_tcp_offset(self):
+        frame = bytearray(FIXTURES[&quot;tcp&quot;])
+        frame[50] = 0xF0
+        with self.assertRaisesRegex(ParseError, &quot;TCP header including options: truncated&quot;):
+            parse_frame(bytes(frame))
+
+
+if __name__ == &quot;__main__&quot;:
+    unittest.main()</code></pre></details></section><section class="panel" id="validation"><div class="eyebrow">06 / 能證明與不能證明的事</div><h2>驗收：把解析正確性限縮到可觀察條件</h2><ul><li>確認 UDP 只輸出 4 bytes payload、尾端 14 bytes 不混入；TCP 兩層選項區各 4 bytes，最後只輸出 3 bytes payload。</li><li>先看錯誤落在哪一道檢查：測試包含 Ethernet 截斷、IPv4 Truncation、非 IPv4、IPv4 分片、UDP 長度不符及 TCP Data Offset 越界。</li><li>欄位 <code>checksum_field</code> 只是讀值；本程式不驗 IP 或傳輸層校驗和。IPv4 UDP checksum 0 代表未提供；TCP checksum 的行為不同。校驗和不是來源身分驗證。</li><li>本實驗不支援 VLAN、IPv6、分片重組、TCP 串流重組、解密、FCS 驗證或任意 PCAP。受控流程分析真實檔案時，先取得使用許可、確認資料留存／遮罩政策，並使用成熟的離線工具處理不同 link type。</li></ul><h3>練習題</h3><ol><li>手算 TCP 範例的應用資料範圍，再與 JSON 的 3 bytes 相互核對。</li><li>查閱單測，解釋為何 DF 不應拒絕、MF 應拒絕；再核對 IPv4 options 與資料起點的關係。</li><li>報告捕獲長度、IP Total Length 與實際 UDP payload 長度，說明為什麼三者不相同。</li></ol><h3>原始規格與文件</h3><ul><li><a href="https://www.rfc-editor.org/rfc/rfc894">RFC 894：Ethernet 承載 IP</a> · <a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791：IPv4</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768：UDP</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293：TCP</a></li><li><a href="https://docs.python.org/3/library/struct.html">Python struct</a> · <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a> · <a href="https://docs.python.org/3/library/ipaddress.html">ipaddress</a></li><li><a href="https://scapy.readthedocs.io/en/latest/api/scapy.utils.html">Scapy utils</a> · <a href="https://www.wireshark.org/docs/man-pages/tshark.html">Wireshark TShark 使用手冊</a></li></ul></section><footer><a href="#top">回到頁首</a> · <a href="index.html">回 Python 教材首頁</a></footer></main></body></html>

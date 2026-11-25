@@ -1,0 +1,199 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 迴歸分析｜Excel 與 HVAC 日耗電預估</title><style>*{box-sizing:border-box}body{margin:0;background:#f3f6fc;color:#17253a;font:1rem/1.72 system-ui,sans-serif}header{padding:clamp(1rem,5vw,3.4rem);background:#142746;color:white}header a{color:#bfe5ff}h1{margin:.25rem 0;font-size:clamp(2rem,6vw,4rem);line-height:1.15}h2,h3{line-height:1.23}main{max-width:72rem;margin:auto;padding:clamp(.6rem,3vw,2rem)}section{margin:.9rem 0;padding:clamp(.7rem,2.4vw,1.2rem);background:#fff;border:1px solid #cedbea;border-radius:.78rem;overflow-wrap:anywhere;min-width:0}nav{display:flex;flex-wrap:wrap;gap:.6rem}a{color:#175c94} .flow{margin:.7rem 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.6rem}.flow li{background:#e8f1ff;border:1px solid #b5cee9;padding:.65rem;border-radius:.55rem}.flow strong{display:block}.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,21rem),1fr));gap:.75rem}.figs figure{min-width:0;padding:.55rem;margin:0;border:1px solid #cbd7e7;border-radius:.55rem}.figs svg{display:block;width:100%;height:auto;overflow:visible}.figs text{font:13px system-ui,sans-serif;fill:#25384f}.grid line{stroke:#dae2ef}.axis{stroke:#667a99;fill:none}.fit{stroke:#234b86;stroke-width:2;fill:none}.training{fill:#2c69a5}.holdout{fill:#be5518}.outside{fill:#fff;stroke:#a32043;stroke-width:2}table{border-collapse:collapse;width:100%;margin:.6rem 0}td,th{border:1px solid #cfd9e8;padding:.45rem;vertical-align:top;text-align:left}th{background:#e9f2ff}pre{padding:.65rem;background:#15283c;color:#e9f4ff;border-radius:.45rem;overflow:auto;font-size:.86rem}.warn{border-inline-start:4px solid #b06d10;background:#fff7dd;padding:.55rem .72rem}.synthetic{color:#ffe1a3}.fine{font-size:.94rem;color:#394d65}a:focus-visible,summary:focus-visible{outline:2px solid #c26d24;outline-offset:3px}@media(max-width:520px){th,td{padding:.22rem;font-size:.87rem}.figs figure{padding:.22rem}}</style></head><body>
+<header><a href="index.html">回教材入口</a>　<a href="python_excel_data_processing_tutorial.html">回 Excel 資料處理與分析</a><p>PYTHON DATA LAB · 迴歸分析</p><h1>從 Excel 到可檢驗的迴歸模型</h1><p>用外氣溫度解釋每日冷房耗電，從資料整理、擬合到保留測試。<strong class="synthetic">示範資料為合成資料，不是實機、節能或節費證據。</strong></p>
+<nav aria-label="章節導覽"><a href="#workflow">流程圖</a><a href="#model">模型與指標</a><a href="#plots">圖解結果</a><a href="#excel">Excel 對照</a><a href="#code">可執行範例</a><a href="#engineering">工程應用</a></nav></header>
+<main><section id="workflow"><h2>01　流程圖：先分時序，再擬合</h2><ol class="flow"><li><strong>1　整理資料</strong>同一時區與取樣週期，補缺／標缺，統一單位。</li><li><strong>2　依時間分割</strong>舊資料訓練，較新資料測試；測試期不回頭挑模型。</li><li><strong>3　建立基準</strong>先來一條訓練平均數，再比單變量迴歸。</li><li><strong>4　檢查殘差</strong>查條件偏差、漂移與超出訓練範圍的點。</li><li><strong>5　再決定用途</strong>能否用於預估、異常篩選或只可作描述。</li></ol>
+<p>每列為同日、同一冷房用電邊界。<code>outdoor_c</code> 是日均室外溫度 °C；<code>cooling_kwh</code> 是每日冷房用電 kWh。若要預估未來一天，應用當時可取得的天氣預報，不能拿事後實測外氣當「即時預報」。</p></section>
+<section id="model"><h2>02　模型、單位與分數</h2><p><code>ŷ = ȳ + b(x − x̄)</code>；<code>b = Σ[(x − x̄)(y − ȳ)] / Σ[(x − x̄)²]</code>。最小平方法使訓練資料誤差平方和較小。係數 <em>b</em> 單位是 <strong>kWh／日／°C</strong>，表示模型關聯斜率，不是因果效應。中心值採訓練平均外氣，而不是把 0°C 當有意義的截距。</p>
+<table><thead><tr><th scope="col">指標</th><th scope="col">如何解讀</th></tr></thead><tbody>
+<tr><th scope="row">MAE</th><td>平均絕對誤差；與每日用電同單位，不會讓正負誤差互相抵銷。</td></tr>
+<tr><th scope="row">平均有號殘差</th><td>實際 − 預測；正值偏低估，負值偏高估。平均接近零不表示誤差小。</td></tr>
+<tr><th scope="row">R²</th><td>1 − SSE / SST；測試 R² 的 SST 以測試實際值平均計算，可能為負。實際耗電全部相同時本例回傳 null，不硬給數字。這個 R² 的數學比較基準不同於以訓練平均產生的可部署預測基準。</td></tr></tbody></table></section>
+<section id="plots"><h2>03　散布、擬合線與殘差</h2>
+<div class="figs"><figure><svg viewBox="0 0 356 246" role="img" aria-labelledby="sc-title sc-desc"><title id="sc-title">訓練與測試散布圖</title><desc id="sc-desc">橫軸為日均室外溫度，縱軸為每日冷房耗電；迴歸線只在 26 到 32 度畫出，33 度外插點另標記。</desc><g class="grid"><line x1="56" x2="332" y1="179.1" y2="179.1"/><text x="50" y="183.1" text-anchor="end">600</text><line x1="56" x2="332" y1="145.3" y2="145.3"/><text x="50" y="149.3" text-anchor="end">700</text><line x1="56" x2="332" y1="111.5" y2="111.5"/><text x="50" y="115.5" text-anchor="end">800</text><line x1="56" x2="332" y1="77.7" y2="77.7"/><text x="50" y="81.7" text-anchor="end">900</text><line x1="56" x2="332" y1="43.900000000000006" y2="43.900000000000006"/><text x="50" y="47.900000000000006" text-anchor="end">1000</text></g><path class="axis" d="M56 24V196H332"/><text x="86.66666666666666" y="215" text-anchor="middle">26</text><text x="148.0" y="215" text-anchor="middle">28</text><text x="209.33333333333334" y="215" text-anchor="middle">30</text><text x="270.66666666666663" y="215" text-anchor="middle">32</text><text x="332.0" y="215" text-anchor="middle">34</text>
+<polyline class="fit" points="86.67,179.02 270.67,61.53"/><circle cx="86.67" cy="182.82" r="4.2" class="training"><title>2026-07-01：26 °C，589 kWh/日</title></circle><circle cx="117.33" cy="155.44" r="4.2" class="training"><title>2026-07-02：27 °C，670 kWh/日</title></circle><circle cx="102.00" cy="170.65" r="4.2" class="training"><title>2026-07-03：26.5 °C，625.0 kWh/日</title></circle><circle cx="178.67" cy="114.88" r="4.2" class="training"><title>2026-07-04：29 °C，790 kWh/日</title></circle><circle cx="148.00" cy="138.54" r="4.2" class="training"><title>2026-07-05：28 °C，720 kWh/日</title></circle><circle cx="132.67" cy="153.07" r="4.2" class="training"><title>2026-07-06：27.5 °C，677.0 kWh/日</title></circle><circle cx="209.33" cy="98.99" r="4.2" class="training"><title>2026-07-07：30 °C，837 kWh/日</title></circle><circle cx="240.00" cy="76.69" r="4.2" class="training"><title>2026-07-08：31 °C，903 kWh/日</title></circle><circle cx="194.00" cy="114.20" r="4.2" class="training"><title>2026-07-09：29.5 °C，792.0 kWh/日</title></circle><circle cx="224.67" cy="88.85" r="4.2" class="training"><title>2026-07-10：30.5 °C，867.0 kWh/日</title></circle><circle cx="163.33" cy="132.12" r="4.2" class="training"><title>2026-07-11：28.5 °C，739.0 kWh/日</title></circle><circle cx="117.33" cy="158.48" r="4.2" class="training"><title>2026-07-12：27 °C，661 kWh/日</title></circle><circle cx="102.00" cy="165.24" r="4.2" class="training"><title>2026-07-13：26.5 °C，641.0 kWh/日</title></circle><circle cx="270.67" cy="60.46" r="4.2" class="training"><title>2026-07-14：32 °C，951 kWh/日</title></circle><circle cx="240.00" cy="88.52" r="4.2" class="training"><title>2026-07-15：31 °C，868 kWh/日</title></circle><circle cx="209.33" cy="100.01" r="4.2" class="training"><title>2026-07-16：30 °C，834 kWh/日</title></circle><circle cx="178.67" cy="125.36" r="4.2" class="training"><title>2026-07-17：29 °C，759 kWh/日</title></circle><circle cx="148.00" cy="137.53" r="4.2" class="training"><title>2026-07-18：28 °C，723 kWh/日</title></circle><circle cx="132.67" cy="150.71" r="4.2" class="training"><title>2026-07-19：27.5 °C，684.0 kWh/日</title></circle><circle cx="209.33" cy="100.68" r="4.2" class="training"><title>2026-07-20：30 °C，832 kWh/日</title></circle><circle cx="194.00" cy="113.53" r="4.2" class="holdout"><title>2026-07-21：29.5 °C，794.0 kWh/日</title></circle><circle cx="240.00" cy="78.71" r="4.2" class="holdout"><title>2026-07-22：31 °C，897 kWh/日</title></circle><circle cx="270.67" cy="63.17" r="4.2" class="holdout"><title>2026-07-23：32 °C，943 kWh/日</title></circle><circle cx="178.67" cy="125.70" r="4.2" class="holdout"><title>2026-07-24：29 °C，758 kWh/日</title></circle><circle cx="132.67" cy="149.02" r="4.2" class="holdout"><title>2026-07-25：27.5 °C，689.0 kWh/日</title></circle><circle cx="209.33" cy="97.98" r="4.2" class="holdout"><title>2026-07-26：30 °C，840 kWh/日</title></circle><circle cx="255.33" cy="77.36" r="4.2" class="holdout"><title>2026-07-27：31.5 °C，901.0 kWh/日</title></circle><circle cx="301.33" cy="40.18" r="4.2" class="outside"><title>2026-07-28：33 °C，1011 kWh/日</title></circle><text x="62" y="19">耗電（kWh/日）</text><text x="330" y="233" text-anchor="end">日均外氣（°C）</text></svg><figcaption>圖 1　藍點＝訓練，橘點＝測試，空心紅點＝外插。擬合線只畫出訓練範圍。</figcaption></figure><figure><svg viewBox="0 0 356 246" role="img" aria-labelledby="r-title r-desc"><title id="r-title">測試區間殘差圖</title><desc id="r-desc">依七月日期畫實際減預測的耗電量；零線以上低估，以下高估。</desc><g class="grid"><line x1="51" x2="339" y1="186.5" y2="186.5"/><text x="44" y="190.5" text-anchor="end">-30</text><line x1="51" x2="339" y1="148.25" y2="148.25"/><text x="44" y="152.25" text-anchor="end">-15</text><line x1="51" x2="339" y1="110.0" y2="110.0"/><text x="44" y="114.0" text-anchor="end">0</text><line x1="51" x2="339" y1="71.75" y2="71.75"/><text x="44" y="75.75" text-anchor="end">15</text><line x1="51" x2="339" y1="33.5" y2="33.5"/><text x="44" y="37.5" text-anchor="end">30</text></g><path class="axis" d="M51 30V190H339M51 110H339"/><line class="axis" x1="58" x2="58" y1="110" y2="132.94888621969855"/><circle class="holdout" cx="58" cy="132.94888621969855" r="5"><title>2026-07-21 殘差 -9.00</title></circle><text x="58" y="207" text-anchor="middle">21</text><line class="axis" x1="97" x2="97" y1="110" y2="91.89995632234098"/><circle class="holdout" cx="97" cy="91.89995632234098" r="5"><title>2026-07-22 殘差 7.10</title></circle><text x="97" y="207" text-anchor="middle">22</text><line class="axis" x1="136" x2="136" y1="110" y2="122.33400305743602"/><circle class="holdout" cx="136" cy="122.33400305743602" r="5"><title>2026-07-23 殘差 -4.84</title></circle><text x="136" y="207" text-anchor="middle">23</text><line class="axis" x1="175" x2="175" y1="110" y2="150.8818628521509"/><circle class="holdout" cx="175" cy="150.8818628521509" r="5"><title>2026-07-24 殘差 -16.03</title></circle><text x="175" y="207" text-anchor="middle">24</text><line class="axis" x1="214" x2="214" y1="110" y2="105.23079274950848"/><circle class="holdout" cx="214" cy="105.23079274950848" r="5"><title>2026-07-25 殘差 1.87</title></circle><text x="214" y="207" text-anchor="middle">25</text><line class="axis" x1="253" x2="253" y1="110" y2="89.51590958724594"/><circle class="holdout" cx="253" cy="89.51590958724594" r="5"><title>2026-07-26 殘差 8.03</title></circle><text x="253" y="207" text-anchor="middle">26</text><line class="axis" x1="292" x2="292" y1="110" y2="155.56697968988834"/><circle class="holdout" cx="292" cy="155.56697968988834" r="5"><title>2026-07-27 殘差 -17.87</title></circle><text x="292" y="207" text-anchor="middle">27</text><line class="axis" x1="331" x2="331" y1="110" y2="96.66804979253106"/><circle class="outside" cx="331" cy="96.66804979253106" r="5"><title>2026-07-28 殘差 5.23</title></circle><text x="331" y="207" text-anchor="middle">28</text><text x="61" y="19">殘差（kWh/日）</text><text x="337" y="233" text-anchor="end">7 月日期（日）</text></svg><figcaption>圖 2　保留測試期每日殘差；7 月 28 日為超出範圍點。點順序是日期，不是溫度排序。</figcaption></figure></div>
+<table><thead><tr><th scope="col">同一測試期（8 日）</th><th scope="col">MAE（kWh/日）</th><th scope="col">偏差（kWh/日）</th><th scope="col">R²</th></tr></thead><tbody>
+<tr><th scope="row">線性迴歸</th><td>8.75</td><td>-3.19</td><td>0.9892</td></tr>
+<tr><th scope="row">訓練平均基準</th><td>113.32</td><td>+96.02</td><td>-0.9597</td></tr></tbody></table>
+<p>訓練 20 日，外氣範圍 26–32°C。外氣每增加 1°C，模型在此案例多預測 57.93 kWh/日。8 筆測試統計包含 1 筆外插；正式驗收請另外分列範圍內與外插績效，少量測試分數不能當成可靠承諾。</p></section>
+<section id="excel"><h2>04　Excel 公式與資料交接</h2><p>假設 A 欄日期、B 欄外氣、C 欄耗電；依日期排好序，資料共 28 日。第 2–21 列為訓練，第 22–29 列為測試。</p><table><thead><tr><th scope="col">儲存格</th><th scope="col">公式／作用</th></tr></thead><tbody>
+<tr><th scope="row">D22</th><td><code>=FORECAST.LINEAR(B22,$C$2:$C$21,$B$2:$B$21)</code>（向下填到 D29）</td></tr>
+<tr><th scope="row">E22</th><td><code>=C22-D22</code>（有號殘差，填到 E29）</td></tr>
+<tr><th scope="row">F22</th><td><code>=ABS(E22)</code>（絕對誤差，填到 F29）</td></tr>
+<tr><th scope="row">MAE</th><td><code>=AVERAGE(F22:F29)</code></td></tr>
+<tr><th scope="row">測試 R²</th><td><code>=IF(DEVSQ(C22:C29)=0,NA(),1-SUMSQ(E22:E29)/DEVSQ(C22:C29))</code>。不要用預測與實際值的相關係數平方冒充這項測試分數。</td></tr></tbody></table><p>另存 UTF-8 CSV，欄名用 <code>date,outdoor_c,cooling_kwh</code>，日期格式 <code>2026-07-01</code>。原始檔留存、清理規則另存；若資料是累積電表讀值，先處理差分、歸零和缺漏，再建日耗電目標。</p></section>
+<section id="code"><h2>05　Python 可重跑範例</h2><p><a href="python_regression_analysis_lab.py" download>下載 Python 範例</a>。只用標準函式庫。直接執行可重算本頁圖表的資料及指標；自己的資料可用保留筆數調整測試期間。</p>
+<pre><code>python3 python_regression_analysis_lab.py
+python3 python_regression_analysis_lab.py --self-test
+python3 python_regression_analysis_lab.py --csv daily_cooling.csv --test-size 8</code></pre>
+<details><summary>展開完整 Python 程式碼</summary><pre><code>&quot;&quot;&quot;以合成 HVAC 日電量示範一元線性迴歸，僅用 Python 標準函式庫。&quot;&quot;&quot;
+from dataclasses import dataclass
+from datetime import date, timedelta
+from math import isfinite, isclose
+from statistics import mean
+import argparse
+import csv
+import json
+import unittest
+
+
+@dataclass(frozen=True)
+class Row:
+    day: date
+    outdoor_c: float
+    cooling_kwh: float
+
+
+def fixture():
+    temperatures = [26, 27, 26.5, 29, 28, 27.5, 30, 31, 29.5, 30.5,
+                    28.5, 27, 26.5, 32, 31, 30, 29, 28, 27.5, 30,
+                    29.5, 31, 32, 29, 27.5, 30, 31.5, 33]
+    noise = [-21, 6, -12, 18, 2, -14, 11, 23, -7, 14, -6, -3,
+             4, 17, -12, 8, -13, 5, -7, 6, -5, 17, 9, -14, -2, 14, -6, 23]
+    start = date(2026, 7, 1)
+    return [Row(start + timedelta(days=i), x, 610 + 54 * (x - 26) + noise[i])
+            for i, x in enumerate(temperatures)]
+
+
+def load_csv(path):
+    rows = []
+    with open(path, encoding=&quot;utf-8-sig&quot;, newline=&quot;&quot;) as file:
+        reader = csv.DictReader(file)
+        required = {&quot;date&quot;, &quot;outdoor_c&quot;, &quot;cooling_kwh&quot;}
+        if not required.issubset(reader.fieldnames or ()):
+            raise ValueError(&quot;CSV 缺少 date、outdoor_c 或 cooling_kwh&quot;)
+        for n, row in enumerate(reader, start=2):
+            try:
+                parsed = Row(date.fromisoformat(row[&quot;date&quot;]),
+                             float(row[&quot;outdoor_c&quot;]), float(row[&quot;cooling_kwh&quot;]))
+                if not all(isfinite(v) for v in (parsed.outdoor_c, parsed.cooling_kwh)):
+                    raise ValueError(&quot;不可為 NaN 或無窮大&quot;)
+                if parsed.cooling_kwh &lt; 0:
+                    raise ValueError(&quot;每日耗電量不可為負&quot;)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f&quot;第 {n} 列格式有誤：{exc}&quot;) from exc
+            rows.append(parsed)
+    return rows
+
+
+@dataclass(frozen=True)
+class Model:
+    x0: float
+    y0: float
+    slope: float
+    xmin: float
+    xmax: float
+
+    def predict(self, x):
+        return self.y0 + self.slope * (x - self.x0)
+
+    def outside_training(self, x):
+        return not self.xmin &lt;= x &lt;= self.xmax
+
+
+def fit(rows):
+    if len(rows) &lt; 2:
+        raise ValueError(&quot;至少需要兩筆訓練資料&quot;)
+    xs = [r.outdoor_c for r in rows]
+    ys = [r.cooling_kwh for r in rows]
+    x0, y0 = mean(xs), mean(ys)
+    sxx = sum((x - x0) ** 2 for x in xs)
+    if not sxx:
+        raise ValueError(&quot;訓練溫度無變異，無法估計斜率&quot;)
+    slope = sum((x - x0) * (y - y0) for x, y in zip(xs, ys)) / sxx
+    return Model(x0, y0, slope, min(xs), max(xs))
+
+
+def time_split(rows, test_size):
+    ranked = sorted(rows, key=lambda r: r.day)
+    if len({r.day for r in ranked}) != len(ranked):
+        raise ValueError(&quot;每日資料須唯一；請先處理重複日期&quot;)
+    if not 2 &lt;= test_size &lt;= len(ranked) - 2:
+        raise ValueError(&quot;訓練與測試區間各至少需要兩筆&quot;)
+    return ranked[:-test_size], ranked[-test_size:]
+
+
+def score(observed, estimated):
+    if not observed or len(observed) != len(estimated):
+        raise ValueError(&quot;兩組資料須非空且同長度&quot;)
+    residuals = [actual - pred for actual, pred in zip(observed, estimated)]
+    center = mean(observed)
+    sst = sum((y - center) ** 2 for y in observed)
+    return {&quot;mae_kwh_per_day&quot;: mean(abs(e) for e in residuals),
+            &quot;bias_actual_minus_prediction&quot;: mean(residuals),
+            &quot;r2&quot;: None if not sst else 1 - sum(e * e for e in residuals) / sst}
+
+
+def evaluate(rows, test_size=8):
+    train, test = time_split(rows, test_size)
+    m = fit(train)
+    actual = [r.cooling_kwh for r in test]
+    predicted = [m.predict(r.outdoor_c) for r in test]
+    return train, test, m, score(actual, predicted), score(actual, [m.y0] * len(test))
+
+
+class Checks(unittest.TestCase):
+    def test_fit_exact_line(self):
+        d = date(2026, 1, 1)
+        m = fit([Row(d, x, 100 + 12 * x) for x in (1, 2, 3)])
+        self.assertTrue(isclose(m.slope, 12.0))
+        self.assertTrue(isclose(m.predict(4), 148.0))
+        self.assertTrue(m.outside_training(4))
+
+    def test_constant_x_rejected(self):
+        d = date(2026, 1, 1)
+        with self.assertRaises(ValueError):
+            fit([Row(d, 30, 10), Row(d, 30, 20)])
+
+    def test_constant_target_r2_undefined(self):
+        self.assertIsNone(score([2.0, 2.0], [2.0, 2.0])[&quot;r2&quot;])
+
+    def test_r2_can_be_negative(self):
+        self.assertLess(score([2.0, 3.0], [1.0, 1.0])[&quot;r2&quot;], 0)
+
+    def test_holdout_and_baseline(self):
+        train, test, m, result, baseline = evaluate(list(reversed(fixture())))
+        self.assertLess(train[-1].day, test[0].day)
+        self.assertEqual((len(train), len(test)), (20, 8))
+        self.assertEqual(sum(m.outside_training(r.outdoor_c) for r in test), 1)
+        self.assertLess(result[&quot;mae_kwh_per_day&quot;], baseline[&quot;mae_kwh_per_day&quot;])
+
+    def test_duplicate_date_rejected(self):
+        rows = fixture()
+        with self.assertRaises(ValueError):
+            time_split(rows + [rows[0]], 8)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--csv&quot;, help=&quot;自有 CSV：date,outdoor_c,cooling_kwh&quot;)
+    parser.add_argument(&quot;--test-size&quot;, type=int, default=8)
+    parser.add_argument(&quot;--self-test&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    if args.self_test:
+        result = unittest.TextTestRunner(verbosity=2).run(
+            unittest.defaultTestLoader.loadTestsFromTestCase(Checks))
+        return int(not result.wasSuccessful())
+    try:
+        train, test, m, metrics, baseline = evaluate(
+            load_csv(args.csv) if args.csv else fixture(), args.test_size)
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
+    print(json.dumps({
+        &quot;source&quot;: &quot;CSV&quot; if args.csv else &quot;合成資料，非場域實測&quot;,
+        &quot;train&quot;: [str(train[0].day), str(train[-1].day), len(train)],
+        &quot;test&quot;: [str(test[0].day), str(test[-1].day), len(test)],
+        &quot;x0_c&quot;: m.x0, &quot;y0_kwh_per_day&quot;: m.y0, &quot;slope_kwh_per_c_per_day&quot;: m.slope,
+        &quot;training_range_c&quot;: [m.xmin, m.xmax],
+        &quot;outside_training&quot;: [str(r.day) for r in test if m.outside_training(r.outdoor_c)],
+        &quot;metrics&quot;: metrics, &quot;baseline&quot;: baseline,
+    }, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == &quot;__main__&quot;:
+    raise SystemExit(main())
+</code></pre></details></section>
+<section id="engineering"><h2>06　工程應用：能用、不能用，與如何校正</h2>
+<ul><li><strong>日預估與異常提示：</strong>以設備和天氣的實際可用資料估計耗電，再用殘差挑值得調查的日期。估計值不是控制指令。</li><li><strong>分段與多變量：</strong>低溫區可能沒有冷房需求，高溫區設備或流量達上限，考慮分段斜率或加入濕度、營運時數、負載、樓層使用與控制模式。先作時間滾動驗證，不以測試期重挑特徵或轉換。</li><li><strong>校正與漂移：</strong>比較季節、尖峰時段與低負載的殘差，不另挑好看的分數。查溫度感測器校正、電表倍率、變更時點與班表，確認結構漂移後才重估。要給區間，應用足夠的獨立保留資料驗證涵蓋率。</li><li><strong>冷量和電量不同：</strong>水側瞬時冷量為 <code>Q̇ ≈ ρ·cₚ·V̇·ΔT</code>（依一致的 SI 單位得 kW），不能只用 ΔT 推算，也不是冷凍機的電力。計算期間電能需對電功率積分；量能效率或節能驗收還需固定量測邊界、可靠基準與干擾因子。</li></ul>
+<p class="warn"><strong>判讀：</strong>相關性不是因果、R² 高不代表部署可用，超出訓練範圍要標記並限制使用。合成例刻意接近線性，不能直接把分數當成實場期望值。</p>
+<p class="fine">延伸來源：<a href="https://itl.nist.gov/div898/handbook/eda/section3/eda3333.htm">NIST 殘差診斷圖</a>、<a href="https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html">scikit-learn 時序切分</a>。<a href="python_excel_data_processing_tutorial.html">返回 Excel 資料處理教材</a>　<a href="index.html">返回教材入口</a></p></section></main></body></html>

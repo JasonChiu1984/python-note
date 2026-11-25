@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-Hant" data-transport="demo">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Python 與網頁前端資料流｜API、Fetch 與即時更新</title>
+<style>
+:root{color:#132438;background:#f1f6f8;--paper:#fff;--line:#cbdce5;--accent:#17624e;--sky:#eaf6ff;--green:#e6f5ed;--warn:#fff5df;font-family:system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.65}
+*{box-sizing:border-box}body{margin:0}main{max-width:78rem;margin:auto;padding:clamp(.9rem,4vw,2.5rem);min-width:0}
+h1,h2,h3,p{margin:.3em 0 .7em}h1{font-size:clamp(2rem,6vw,4rem);line-height:1.08}h2{font-size:clamp(1.45rem,4vw,2.35rem)}p,li,a,h1,h2,h3,label,button,strong,small{overflow-wrap:anywhere}
+header{padding:clamp(1rem,4vw,2.5rem);background:linear-gradient(125deg,#e4f6ec,#eaf5ff);border:1px solid var(--line);border-radius:1rem}
+header>p{max-width:55rem}.eyebrow{color:var(--accent);letter-spacing:.08em;font-weight:800}nav,.actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+a{color:#095979}section{margin-top:2rem;scroll-margin-top:1rem}.card{background:var(--paper);border:1px solid var(--line);border-radius:1rem;padding:clamp(.8rem,3vw,1.4rem);min-width:0;margin-bottom:.8rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:start}.grid .card{height:100%}
+figure{margin:0}figcaption{font-weight:800;margin-bottom:.6rem}.chain{list-style:none;padding:0;margin:0;display:grid;gap:1.5rem;grid-template-columns:repeat(4,minmax(0,1fr))}
+.chain li{position:relative;border:1px solid var(--line);border-left:4px solid #2479a5;border-radius:.65rem;padding:.6rem;background:var(--sky);min-width:0}
+.chain li:nth-child(even){background:var(--green);border-left-color:#258464}.chain li:not(:last-child)::after{content:"";position:absolute;left:calc(100% + .42rem);top:calc(50% - .22rem);width:.46rem;height:.46rem;border-right:2px solid #256451;border-top:2px solid #256451;transform:rotate(45deg)}
+.chain strong,.chain small{display:block}.flow{grid-template-columns:repeat(6,minmax(0,1fr))}
+button,.button{font:inherit;font-weight:750;padding:.42rem .72rem;border:1px solid var(--line);border-radius:.5rem;background:#fff;color:#154d45;cursor:pointer}
+button:hover,.button:hover{background:var(--green)}button[aria-pressed=true]{background:#125845;color:#fff}label{display:inline-block}input{font:inherit;max-width:100%;width:6rem}
+pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:.65rem;padding:.8rem;font-size:.87rem}code{font-family:ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}pre code{overflow-wrap:normal}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:.55rem;max-width:100%}table{border-collapse:collapse;width:100%;min-width:31rem}th,td{text-align:left;border-bottom:1px solid var(--line);padding:.5rem .65rem}th{background:#e9f4f9}
+.status{margin:.8rem 0;padding:.65rem;background:var(--green);border-left:4px solid var(--accent);overflow-wrap:anywhere}.status.error{background:#fff0eb;border-color:#ad382d}.warning{background:var(--warn);border-color:#e2bd61}
+.bars{list-style:none;padding:0;display:grid;gap:.55rem}.bars li{min-width:0;overflow-wrap:anywhere}.bar-track{background:#e6eef2;height:.65rem;border-radius:1rem;overflow:hidden}.bar-track span{display:block;height:100%;background:#277d6a;width:0}.bar-caption{font-size:.92rem}form{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.output{min-height:1.5rem;overflow-wrap:anywhere}summary{cursor:pointer;font-weight:750}
+@media(max-width:1050px){.flow{grid-template-columns:minmax(0,1fr)}.flow li:not(:last-child)::after{left:calc(50% - .23rem);top:calc(100% + .42rem);transform:rotate(135deg)}}
+@media(max-width:760px){.grid,.chain,.flow{grid-template-columns:minmax(0,1fr)}.chain li:not(:last-child)::after{left:calc(50% - .23rem);top:calc(100% + .42rem);transform:rotate(135deg)}}
+</style></head><body><main>
+<header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
+</header>
+<section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
+<figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
+<li><strong>資料來源</strong><small>本課產生三個模擬設備的溫度；正式環境可換資料庫、歷史服務或唯讀閘道。</small></li>
+<li><strong>Python 服務與 API</strong><small>驗證查詢、取得值、建立 JSON 契約並回傳 HTTP 狀態。</small></li>
+<li><strong>瀏覽器資料層</strong><small>Fetch 發出請求、檢查狀態與 JSON 欄位，管理載入、取消和錯誤。</small></li>
+<li><strong>畫面與圖表</strong><small>使用 textContent 更新資料；各列保留設備、溫度及時間戳。</small></li></ol></figure>
+<div class="grid"><article class="card"><h3>部署方式</h3><p>同源模式讓同一個網站回傳 HTML 與 /api/v1 資料；前端使用相對路徑。正式部署可用 HTTPS 反向代理，讓 /api 轉到獨立 Python 服務，但對瀏覽器仍是同一來源。靜態 GitHub Pages 不執行 Python，所以這份教材在網站使用刻意標示的瀏覽器模擬，不會向 Pages 的 /api 發送請求。</p></article><article class="card"><h3>工控／機房情境</h3><p>不要讓瀏覽器直接連 PLC、DDC 或現場控制網。由受控閘道採集、限制讀取權限，API 再提供標準化資料。告警處置和控制寫入是不同路徑；本課的門檻預覽不保存設定，也不發出設備命令。</p></article></div>
+</section>
+<section id="workflow"><h2>2. 一次請求，六個清楚步驟</h2><figure class="card"><figcaption>HTTP 請求生命週期</figcaption><ol class="chain flow">
+<li><strong>01 觸發</strong><small>使用者按下更新或輪詢計時到期。</small></li>
+<li><strong>02 請求</strong><small>Fetch 組 URL、方法和標頭，掛上取消訊號。</small></li>
+<li><strong>03 後端</strong><small>Python 核對路徑、查詢參數與資料型別。</small></li>
+<li><strong>04 回應</strong><small>收到狀態碼與 JSON。4xx、5xx 需由前端主動判斷。</small></li>
+<li><strong>05 驗證</strong><small>解析 JSON 後檢查 schema 版本、欄位及型別。</small></li>
+<li><strong>06 呈現</strong><small>成功更新最新資料；失敗保留上一筆並標記，取消與逾時各有提示。</small></li>
+</ol></figure><p>流程按編號閱讀。從第 03 步換到第 04 步，資料方向改為伺服器回傳瀏覽器。HTTP 成功不代表業務成功，例如 200 回傳缺欄位時，仍不該繪圖。</p></section>
+<section id="lab"><h2>3. 互動實驗：觀察成功、逾時與 HTTP 400</h2>
+<div class="card"><p id="mode"><strong>目前模式：</strong>載入中</p>
+<div class="actions"><button type="button" id="load">讀取三個設備</button><button type="button" id="slow">製造逾時</button><button type="button" id="bad">送出無效查詢</button><button type="button" id="cancel">取消請求</button><button type="button" id="poll" aria-pressed="false">啟用 3 秒輪詢</button></div>
+<div id="status" class="status" role="status" aria-live="polite">尚未讀取</div>
+<figure><figcaption>最新成功取樣 · 溫度條形圖</figcaption><ul id="bars" class="bars"></ul><p class="bar-caption">固定刻度 0–40°C。每列顯示原始數值，圖形不依顏色傳達設備或有效性。</p></figure>
+<div class="table-scroll" tabindex="0" aria-label="設備取樣資料，可左右捲動"><table><thead><tr><th scope="col">設備</th><th scope="col">溫度</th><th scope="col">品質</th><th scope="col">取樣時間</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<div class="card"><h3>POST 練習：預覽溫度門檻</h3><p>送出 JSON，取得達門檻的裝置清單。此預覽不落盤，使用的是送出當下重新取樣的值，可能和畫面上一批資料不同。</p>
+<form id="threshold"><label for="threshold-c">門檻（0–60°C）</label><input id="threshold-c" type="number" min="0" max="60" step="0.1" value="24" required><button type="submit">預覽</button></form><p id="preview" class="output" role="status" aria-live="polite"></p></div>
+</section>
+<section id="api"><h2>4. 常見 API 用法與本課契約</h2>
+<div class="card"><div class="table-scroll" tabindex="0" aria-label="HTTP 方法比較，可左右捲動"><table><thead><tr><th scope="col">方法</th><th scope="col">用途</th><th scope="col">常見狀態與重試</th></tr></thead><tbody>
+<tr><td>GET</td><td>查詢資料或狀態；條件放 query，通常沒有 body。</td><td>200、304、404；讀取可依策略有限重試。</td></tr>
+<tr><td>POST</td><td>建立資源、送命令或執行計算。本課只做預覽。</td><td>201 建立、202 接受處理、200 回傳結果；若有副作用不可盲重送。</td></tr>
+<tr><td>PUT</td><td>以完整資料替換固定 URI 的資源。</td><td>200、204 或建立時 201；相同請求應得到相同預期效果。</td></tr>
+<tr><td>PATCH</td><td>部分修改；先約定格式，例如 JSON Merge Patch。</td><td>200／204，資料衝突 409 或條件失敗 412；不保證冪等。</td></tr>
+<tr><td>DELETE</td><td>刪除指定資源，可用軟刪除保留稽核。</td><td>204；重複請求的預期效果相同，狀態碼未必相同。</td></tr>
+</tbody></table></div>
+<p><strong>本課實作：</strong>GET /api/v1/telemetry?device=AHU-02（可選設備）；POST /api/v1/threshold-preview（JSON body）。PUT、PATCH、DELETE 只是契約示例，實驗未啟用這些方法。</p>
+<pre><code>GET /api/v1/telemetry?device=AHU-02
+200 OK · Content-Type: application/json
+
+{"schema_version":1,"simulated":true,"items":[
+  {"device":"AHU-02","temperature_c":24.3,"unit":"°C",
+   "quality":"good","sampled_at_unix":1760000000}
+]}
+
+POST /api/v1/threshold-preview
+Content-Type: application/json
+{"threshold_c":24.0}
+
+200 OK
+{"threshold_c":24.0,"at_or_above":["AHU-02"],"persisted":false}</code></pre>
+<p>量測時間是 Unix 秒，前端轉為毫秒才能建立 Date。正式 API 應明確定義時區、單位、取樣來源與品質詞彙，分開「量測時間」與「資料收到時間」。支援 list 分頁時約定 cursor、排序與 limit；需要防止同時覆寫時考慮 ETag + If-Match，建立／交易重試可設計伺服器端冪等鍵。</p></div>
+<div class="card"><h3>看懂失敗，再決定怎麼處理</h3><ul>
+<li><strong>400、415：</strong>請求參數或內容格式錯；修正輸入，別無限重試。</li><li><strong>401、403：</strong>確認有效身分或角色權限；前端不靠隱藏按鈕做授權。</li><li><strong>404、409、412：</strong>檢查資源及版本前提；不要靜默覆蓋更新。</li><li><strong>429、503：</strong>服務限制或暫不可用；讀取可以尊重 Retry-After，採指數退避、抖動和上限。</li><li><strong>網路、取消、逾時：</strong>可能尚未收到 HTTP 回應。取消瀏覽器等待不保證伺服器停止，尤其不可把取消解讀成寫入撤銷。</li>
+</ul></div></section>
+<section id="code"><h2>5. 程式拆解：資料如何變成畫面</h2>
+<div class="grid">
+<article class="card"><h3>Python：路由、驗證、契約</h3><p>後端從 URL 分離 path 與 query。先檢查設備白名單及 delay_ms 上限，避免拿任意輸入查設備或拖住工作執行緒。以明確 JSON 回應加入 Content-Type、Content-Length 與狀態碼。</p>
+<pre><code>parsed = urlsplit(self.path)
+params = parse_qs(parsed.query)
+# 完整驗證與邊界處理請見下載程式
+device = params.get("device", [""])[0]
+items = readings(int(time.time()))
+if device:
+    items = [item for item in items if item["device"] == device]
+self.respond(200, {
+    "schema_version": 1,
+    "simulated": True,
+    "items": items,
+})</code></pre><p>正式環境應把資料來源、應用服務和 HTTP handler 分開，這樣能在沒有設備或網路的測試裡替換資料來源。</p></article>
+<article class="card"><h3>JavaScript：先驗狀態，再解析資料</h3><pre><code>const controller = new AbortController();
+const timer = setTimeout(() =&gt; controller.abort(), 1200);
+try {
+  const r = await fetch("/api/v1/telemetry", {
+    signal: controller.signal,
+    credentials: "same-origin"
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  validateTelemetry(data); // 完整函式在本頁原始碼
+  const cell = document.createElement("td");
+  cell.textContent = data.items[0]?.device ?? "無資料";
+} finally {
+  clearTimeout(timer);
+}</code></pre><p>Fetch 在收到 400／500 時仍會完成 Promise；只有像網路錯誤或取消才會 reject。使用 textContent 把資料當文字，避免把設備名稱當 HTML 解譯；圖條寬度則由通過驗證的數值計算並限制範圍。</p></article>
+</div>
+<div class="card"><h3>並行與錯誤狀態的設計</h3><p>新請求會取消舊請求，並用序號讓較早的回應無法蓋掉畫面。輪詢在上一輪結束後才排下一輪，避免 setInterval 遇到慢網路造成並發堆積。錯誤或取消保留最後成功資料，status 清楚說明目前沒有新樣本。在多頁應用也應在元件卸載時取消請求及計時；本單頁依瀏覽器生命週期運作。</p><p>先在 DevTools 的 Network 檢查 URL、方法、狀態碼與 Response，再比對 UI 的 error 文案。若是本功能的 schema 問題，HTTP 200 仍會顯示錯誤。不要將 Token、Cookie、個資放在除錯訊息或 URL。</p></div>
+</section>
+<section id="realtime"><h2>6. 輪詢、SSE、WebSocket 怎麼選</h2>
+<div class="card"><div class="table-scroll" tabindex="0" aria-label="即時通訊方式比較，可左右捲動"><table><thead><tr><th scope="col">方式</th><th scope="col">方向／瀏覽器 API</th><th scope="col">適合</th><th scope="col">工程代價</th></tr></thead><tbody>
+<tr><td>輪詢（本課可操作）</td><td>反覆 HTTP GET / fetch</td><td>儀表板、幾秒更新一次</td><td>每次有請求開銷；成功後排下次、錯誤退避。若後端支援，使用 ETag 降低重傳內容。</td></tr>
+<tr><td>SSE（概念比較）</td><td>伺服器 → 瀏覽器 / EventSource</td><td>狀態、進度、遙測事件</td><td>伺服器使用 text/event-stream；處理 proxy 緩衝、重連、Last-Event-ID 與心跳。原生 EventSource 不支援任意 Authorization 標頭。</td></tr>
+<tr><td>WebSocket（概念比較）</td><td>雙向 / WebSocket</td><td>低延遲雙向協作、時序事件</td><td>自行設計訊息契約、心跳、背壓、重連與權限；校驗 Origin，不能假設 CORS 自動保護握手。</td></tr>
+</tbody></table></div><p>更新頻率與可接受延遲是兩回事。4 個頁籤各每 3 秒查一次，約 80 次請求／分鐘；真正的流量仍取決於回應時間、退避、快取及頁籤節流。若資料只出不進，先比較輪詢和 SSE，再考慮 WebSocket。使用即時通道也要能重建目前狀態，例如先 GET 快照，再收帶事件序號的更新。</p></div>
+</section>
+<section id="origin"><h2>7. 同源、CORS、Cookie 與 API 安全</h2>
+<div class="card"><ul>
+<li><strong>同源：</strong>協定、主機、埠都相同才同源。http://127.0.0.1:8765 和 http://localhost:8765 主機不同；同主機不同埠也是跨來源。請照終端機顯示的位址，以相對路徑存取 API。</li>
+<li><strong>CORS：</strong>跨來源 JSON POST 通常先送 OPTIONS 預檢。伺服器需按受信任來源、方法與標頭放行。CORS 不等於驗證身分，也不是伺服器防火牆；非瀏覽器用戶端不執行這項瀏覽器政策。</li>
+<li><strong>credentials：</strong>fetch 預設 same-origin。跨來源如確需 Cookie 須設定 include，服務端回明確的 Access-Control-Allow-Origin 和 Access-Control-Allow-Credentials: true；不使用 *，且 Cookie 仍受 SameSite 與瀏覽器政策限制。</li>
+<li><strong>安全：</strong>正式服務使用 HTTPS、伺服器端驗證及授權；有 Cookie 的寫入端點另外做 CSRF 防護。API 憑證不要寫入前端原始碼；後端重查每筆 resource 權限。</li>
+</ul><p class="status warning">本課程式只綁 127.0.0.1，不啟用跨域或真實控制。Python http.server 不是正式應用伺服器；不要改綁 0.0.0.0 後將它對外提供服務。</p></div></section>
+<section id="run"><h2>8. 本機執行與重現練習</h2>
+<div class="card"><p>把本 HTML 和 .py 檔放在同一目錄。網站與直接雙擊 HTML 都是靜態模擬；要觀察真正 HTTP，從終端啟動後打開印出的 loopback 網址，不要用 file://。</p>
+<a class="button" href="python_web_frontend_dataflow_lab.py" download>下載 Python API 實驗</a>
+<pre><code>python3 python_web_frontend_dataflow_lab.py
+# 依終端機顯示開啟 http://127.0.0.1:8765/
+# 8765 被占用時：
+python3 python_web_frontend_dataflow_lab.py --port 8766
+
+# 在另一終端測試（以 8765 為例）
+curl -i 'http://127.0.0.1:8765/api/v1/telemetry?device=AHU-02'
+curl -i -H 'Content-Type: application/json' -d '{"threshold_c":24.0}' \
+  http://127.0.0.1:8765/api/v1/threshold-preview
+
+python3 python_web_frontend_dataflow_lab.py --test</code></pre>
+<ol><li>按「讀取三個設備」，用 Network 定位 GET，核對狀態碼與三列資料。</li><li>按「製造逾時」，確認約 1.2 秒停止等待，剛才圖表仍保留。</li><li>按「送出無效查詢」，確認 HTTP 400，而非取樣結果被清空。</li><li>試改 POST 的 Content-Type 或門檻型別，辨認 415 和 400 的差異。</li><li>開啟輪詢後手動更新，再停用，檢查沒有累積舊請求。</li></ol>
+<p>補充資料：<a href="https://developer.mozilla.org/zh-TW/docs/Web/API/Fetch_API/Using_Fetch">MDN Fetch</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">MDN CORS</a> · <a href="https://docs.python.org/3/library/http.server.html">Python http.server</a></p></div>
+</section>
+<a href="#top">回到上方</a></main>
+<script>
+"use strict";
+const live = document.documentElement.dataset.transport === "http";
+const byId = id => document.getElementById(id);
+const status = byId("status");
+let active, requestId = 0, timer, polling = false, previewId = 0;
+byId("mode").textContent = live ? "目前模式：Python 同源 HTTP API（模擬設備資料）" : "目前模式：瀏覽器模擬（不呼叫 Python 或外部 API）";
+const devices = ["AHU-01", "AHU-02", "CH-01"];
+const source = () => {
+  const ts = Math.floor(Date.now()/1000);
+  return devices.map((device,i) => ({device, temperature_c: Math.round((23+i+Math.sin(ts/8+i)*1.8)*10)/10, unit:"°C",quality:"good",sampled_at_unix:ts}));
+};
+function sleep(ms, signal) {
+  return new Promise((resolve,reject) => {
+    if (signal.aborted) { reject(new DOMException("Aborted","AbortError")); return; }
+    const abort = () => {clearTimeout(t); reject(new DOMException("Aborted","AbortError"));};
+    const t = setTimeout(() => {signal.removeEventListener("abort",abort); resolve();},ms);
+    signal.addEventListener("abort",abort,{once:true});
+  });
+}
+async function request(path, options) {
+  if (!live) {
+    const url = new URL(path,"http://127.0.0.1");
+    const delay = Number(url.searchParams.get("delay_ms") ?? 0);
+    if (delay > 3000) { await sleep(80,options.signal); throw new Error("HTTP 400 · invalid_query（模擬）"); }
+    await sleep(80 + Math.max(0,delay),options.signal);
+    if (options.method === "POST") {
+      const {threshold_c} = JSON.parse(options.body);
+      if (!Number.isFinite(threshold_c) || threshold_c < 0 || threshold_c > 60) throw new Error("HTTP 400 · invalid_body（模擬）");
+      return {threshold_c, at_or_above:source().filter(x=>x.temperature_c>=threshold_c).map(x=>x.device),persisted:false};
+    }
+    return {schema_version:1,simulated:true,items:source()};
+  }
+  const res = await fetch(path, {...options,credentials:"same-origin",cache:"no-store"});
+  const json = (res.headers.get("content-type") ?? "").includes("application/json");
+  if (!res.ok) {
+    const err = json ? await res.json().catch(()=>null) : null;
+    const code = err?.error?.code;
+    throw new Error("HTTP "+res.status+(typeof code==="string" ? " · "+code : ""));
+  }
+  if (!json) throw new Error("回應格式不是 JSON");
+  return res.json();
+}
+function validateTelemetry(data) {
+  if (data?.schema_version !== 1 || data.simulated !== true || !Array.isArray(data.items) ||
+      data.items.some(x => x === null || typeof x !== "object" || typeof x.device !== "string" ||
+        !Number.isFinite(x.temperature_c) || x.unit !== "°C" || typeof x.quality !== "string" ||
+        !Number.isSafeInteger(x.sampled_at_unix) || Math.abs(x.sampled_at_unix)>8640000000000)) {
+    throw new Error("資料契約不符，未更新圖表");
+  }
+}
+function node(tag,text) {
+  const el=document.createElement(tag);
+  if (text!==undefined) el.textContent=text;
+  return el;
+}
+function render(items) {
+  byId("bars").replaceChildren(...items.map(x=>{
+    const li=node("li"), label=node("strong",x.device+" · "+x.temperature_c.toFixed(1)+" "+x.unit);
+    const track=node("div"), fill=node("span");
+    track.className="bar-track"; track.setAttribute("aria-hidden","true");
+    fill.style.width=Math.max(0,Math.min(100,x.temperature_c*2.5))+"%";
+    track.append(fill); li.append(label,track); return li;
+  }));
+  byId("rows").replaceChildren(...items.map(x=>{
+    const tr=node("tr");
+    [x.device,x.temperature_c.toFixed(1)+" "+x.unit,x.quality,new Date(x.sampled_at_unix*1000).toLocaleTimeString()].forEach(v=>tr.append(node("td",v)));
+    return tr;
+  }));
+}
+function setStatus(text, error=false) {
+  status.textContent=text; status.classList.toggle("error",error);
+}
+async function load(delay=0) {
+  clearTimeout(timer);
+  active?.abort();
+  active=new AbortController();
+  const controller=active, id=++requestId;
+  let timeout=false;
+  const expiry=setTimeout(()=>{timeout=true; controller.abort();},1200);
+  setStatus("讀取中…");
+  try {
+    const query=new URLSearchParams({delay_ms:String(delay)});
+    const data=await request("/api/v1/telemetry?"+query,{signal:controller.signal});
+    validateTelemetry(data);
+    if(id!==requestId) return;
+    render(data.items);
+    setStatus("更新成功 · "+data.items.length+" 筆 · "+new Date().toLocaleTimeString());
+  } catch(e) {
+    if(id===requestId) setStatus((timeout?"請求逾時（1.2 秒）":e.name==="AbortError"?"已取消請求":e.message)+"；保留上次成功資料。",true);
+  } finally {
+    clearTimeout(expiry);
+    if(id===requestId) {
+      active=undefined;
+      if(polling) timer=setTimeout(()=>load(),3000);
+    }
+  }
+}
+byId("load").onclick=()=>load();
+byId("slow").onclick=()=>load(2600);
+byId("bad").onclick=()=>load(3001);
+byId("cancel").onclick=()=>{if(active) active.abort();};
+byId("poll").onclick=()=>{
+  polling=!polling;
+  byId("poll").setAttribute("aria-pressed",String(polling));
+  byId("poll").textContent=polling?"停用輪詢":"啟用 3 秒輪詢";
+  if(polling) load(); else clearTimeout(timer);
+};
+byId("threshold").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const id=++previewId, output=byId("preview"), controller=new AbortController();
+  const expiry=setTimeout(()=>controller.abort(),1200);
+  output.textContent="預覽中…";
+  try {
+    const data=await request("/api/v1/threshold-preview",{
+      method:"POST",headers:{"Content-Type":"application/json"},signal:controller.signal,
+      body:JSON.stringify({threshold_c:byId("threshold-c").valueAsNumber})
+    });
+    if(data?.persisted!==false || !Number.isFinite(data.threshold_c) || !Array.isArray(data.at_or_above) ||
+       data.at_or_above.some(x=>typeof x!=="string")) throw new Error("預覽回應契約不符");
+    if(id===previewId) output.textContent="≥ "+data.threshold_c+" °C："+(data.at_or_above.join("、")||"無")+"；未保存設定。";
+  } catch(e) {
+    if(id===previewId) output.textContent=e.name==="AbortError"?"預覽逾時":e.message;
+  } finally {clearTimeout(expiry);}
+});
+load();
+</script></body></html>

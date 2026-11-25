@@ -1,0 +1,155 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python Excel 資料處理｜建立表格、框線、讀寫驗證</title>
+<style>
+:root{--ink:#18263a;--sub:#465c74;--blue:#1b5184;--line:#cddbeb;--paper:#f1f6fb}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.7 system-ui,"Noto Sans TC",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:focus-visible,summary:focus-visible{outline:3px solid #267cc0;outline-offset:3px}.wrap{max-width:76rem;margin:auto;padding:clamp(1rem,4vw,3rem);display:grid;grid-template-columns:minmax(11rem,15rem) minmax(0,1fr);gap:clamp(1rem,4vw,2.2rem)}main{min-width:0}nav,section{background:#fff;border:1px solid var(--line);border-radius:10px;padding:1rem}nav{position:sticky;top:1rem;align-self:start}nav ul{padding-inline-start:1.15rem}nav li{margin:.35rem 0}header{background:#163b65;color:white;border-radius:12px;padding:clamp(1.15rem,4vw,2.3rem)}header p{max-width:52ch;margin-bottom:0}.tag{color:#cfe8fb;font-size:.86rem;font-weight:800;letter-spacing:.08em}h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.13;margin:.45rem 0}section{margin-top:1rem;padding:clamp(1rem,3vw,1.6rem);scroll-margin-top:1rem}h2{line-height:1.24;color:#163d66;margin:0 0 .5rem}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8.7rem),1fr));padding:0;gap:.55rem;list-style-position:inside}.flow li{padding:.6rem;background:#eaf3fc;border:1px solid #d0e0f0;border-radius:6px}.flow span{display:block;color:var(--sub);font-size:.88rem}.scroll{overflow:auto}table{width:100%;min-width:30rem;border-collapse:collapse;text-align:left}th,td{padding:.6rem;border:1px solid var(--line);vertical-align:top}th{background:#eaf2fa}.note{background:#edf6ff;border-left:4px solid #2873af;padding:.65rem .9rem}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{padding:.9rem;background:#14263d;color:#edf5ff;border-radius:8px;overflow:auto;font-size:.86rem}pre code{overflow-wrap:normal}summary{cursor:pointer}@media(max-width:760px){.wrap{display:block}nav{position:static;margin-bottom:1rem}nav ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.2rem .8rem}}
+</style></head><body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#workflow">讀寫流程</a></li><li><a href="#schema">欄位與資料型別</a></li><li><a href="#table-border">表格與框線</a></li><li><a href="#lab">實作與驗證</a></li><li><a href="#analysis">資料清理與分析</a></li><li><a href="#safety">安全修改檔案</a></li><li><a href="#references">官方資料</a></li></ul></nav><main>
+<header><span class="tag">PYTHON ENGINEERING · XLSX</span><h1>Python Excel 資料處理</h1><p>用 openpyxl 從零建立設備點表，寫入文字、數字、日期與公式，加上真正的 Excel 表格和框線，存檔後再讀回驗證。</p></header>
+<section id="workflow"><h2>01｜一份點表的讀寫流程</h2><ol class="flow"><li>定義欄位<span>識別碼、設備、讀值、時間</span></li><li>逐列寫入<span>表頭與資料各用 append</span></li><li>建立表格<span>指定 Table 範圍及樣式</span></li><li>套框線<span>指定四邊與凍結表頭</span></li><li>存檔驗收<span>重開 .xlsx，檢查值、型別、公式與格式</span></li></ol><p>不要只看寫入時的記憶體物件。檔案格式、Excel 表格元件與公式都應從存檔結果讀回檢查。</p></section>
+<section id="schema"><h2>02｜欄位與資料型別</h2><div class="scroll" role="region" tabindex="0" aria-label="資料型別示意"><table><thead><tr><th scope="col">欄位</th><th scope="col">寫入值</th><th scope="col">讀取與風險</th></tr></thead><tbody><tr><td>點位 ID</td><td><code>"001"</code></td><td>用字串保存前導零，不要把 ID 當成數值；文字格式不能補回已遺失的零。</td></tr><tr><td>設備</td><td><code>"AHU-01"</code></td><td>驗證欄位長度、允許字元與空白的處理方式。</td></tr><tr><td>讀值</td><td><code>22.5</code></td><td>真正的數值可比較、加總；用欄位或文件定義單位，不把「°C」加進數字儲存格。</td></tr><tr><td>量測時間</td><td><code>datetime(2026, 11, 25, 8, 30)</code></td><td>Excel 不保留時區；若採 UTC，應先轉 UTC，再去掉時區並在欄名或中繼資料表明。</td></tr><tr><td>超過 24°C</td><td><code>=C2&gt;24</code></td><td>使用程式自己產生、可預期的公式。對未知外部文字，不要把具公式語意的輸入當成公式寫入。</td></tr></tbody></table></div><p>讀取時先核對工作表名稱與表頭，再以 <code>iter_rows(min_row=2, values_only=True)</code> 取得列值。需要讀框線、字型、原始型別或公式屬性時，保留 Cell 物件，不使用 <code>values_only=True</code>。</p></section>
+<section id="table-border"><h2>03｜Excel 表格不是一圈框線</h2><p><code>Table(displayName="HvAcReadings", ref="A1:E4")</code> 定義含表頭的範圍，<code>ws.add_table(table)</code> 建立有名稱且可篩選的 Excel 表格。表頭必須是文字；表格名稱必須在活頁簿內唯一。<code>TableStyleInfo</code> 控制條紋外觀，<code>Border</code> 則是儲存格四邊樣式，兩者互不取代。之後若追加列，不要假定 openpyxl 自動延伸既有 <code>Table.ref</code>；更新範圍後應重開驗證。</p><p><code>Side(style="thin", color="FF9AACBF")</code> 定義線條；將同一 <code>Border</code> 指派給目標 Cell，可讓整個範圍有一致的框線。<code>freeze_panes="A2"</code> 讓捲動時仍可看到表頭。</p></section>
+<section id="lab"><h2>04｜實作：合成 HVAC 點表</h2><p><a href="python_excel_data_processing_lab.py" download>下載完整 Python 範例</a>。在自己的空白練習資料夾執行，不用現場資料。</p><pre><code>python -m pip install openpyxl
+python python_excel_data_processing_lab.py hvac_readings.xlsx</code></pre><details><summary>展開完整程式</summary><pre><code id="excel-code">&quot;&quot;&quot;以合成 HVAC 點表示範 .xlsx：寫入、框線、Excel 表格、讀回驗證。&quot;&quot;&quot;
+from argparse import ArgumentParser
+from collections import defaultdict
+from datetime import datetime
+from math import isfinite
+from statistics import mean
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+from openpyxl import Workbook, load_workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.worksheet.table import Table, TableStyleInfo
+
+HEADER = (&quot;點位 ID&quot;, &quot;設備&quot;, &quot;讀值&quot;, &quot;量測時間&quot;, &quot;超過 24°C&quot;)
+ROWS = (
+    (&quot;001&quot;, &quot;AHU-01&quot;, 22.5, datetime(2026, 11, 25, 8, 30)),
+    (&quot;002&quot;, &quot;AHU-02&quot;, 25.2, datetime(2026, 11, 25, 8, 31)),
+    (&quot;003&quot;, &quot;AHU-03&quot;, 23.0, datetime(2026, 11, 25, 8, 32)),
+)
+
+
+def summarize(rows):
+    &quot;&quot;&quot;回傳各設備有效筆數、平均、最大及超門檻次數；另列拒絕筆數。&quot;&quot;&quot;
+    groups = defaultdict(list)
+    rejected = 0
+    for _, equipment, value, measured_at in rows:
+        key = equipment.strip().upper() if isinstance(equipment, str) else &quot;&quot;
+        if (not key or type(value) not in (int, float) or not isfinite(value)
+                or not -40 &lt;= value &lt;= 100 or not isinstance(measured_at, datetime)):
+            rejected += 1
+            continue
+        groups[key].append(value)
+    return [(key, len(vals), round(mean(vals), 2), max(vals),
+             sum(v &gt; 24 for v in vals)) for key, vals in sorted(groups.items())], rejected
+
+
+def write_report(path: Path) -&gt; None:
+    if path.suffix.lower() != &quot;.xlsx&quot;:
+        raise ValueError(&quot;輸出副檔名必須是 .xlsx&quot;)
+    if path.exists():
+        raise FileExistsError(path)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = &quot;HVAC點表&quot;
+    ws.append(HEADER)
+    for n, row in enumerate(ROWS, start=2):
+        ws.append((*row, f&quot;=C{n}&gt;24&quot;))
+        ws[f&quot;A{n}&quot;].number_format = &quot;@&quot;
+        ws[f&quot;C{n}&quot;].number_format = &quot;0.0&quot;
+        ws[f&quot;D{n}&quot;].number_format = &quot;yyyy-mm-dd hh:mm&quot;
+    table = Table(displayName=&quot;HvAcReadings&quot;, ref=f&quot;A1:E{ws.max_row}&quot;)
+    table.tableStyleInfo = TableStyleInfo(
+        name=&quot;TableStyleMedium2&quot;, showRowStripes=True
+    )
+    ws.add_table(table)
+    line = Side(style=&quot;thin&quot;, color=&quot;FF9AACBF&quot;)
+    border = Border(left=line, right=line, top=line, bottom=line)
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.border = border
+            if cell.row == 1:
+                cell.font = Font(bold=True, color=&quot;FFFFFFFF&quot;)
+                cell.fill = PatternFill(&quot;solid&quot;, fgColor=&quot;FF174575&quot;)
+                cell.alignment = Alignment(horizontal=&quot;center&quot;)
+    for column, width in zip(&quot;ABCDE&quot;, (14, 16, 13, 23, 18)):
+        ws.column_dimensions[column].width = width
+    ws.freeze_panes = &quot;A2&quot;
+
+    analysis = wb.create_sheet(&quot;分析摘要&quot;)
+    summary, rejected = summarize(ROWS)
+    analysis.append((&quot;設備&quot;, &quot;有效筆數&quot;, &quot;平均 °C&quot;, &quot;最大 °C&quot;, &quot;超過 24°C 次數&quot;))
+    for row in summary:
+        analysis.append(row)
+    bottom = analysis.max_row
+    summary_table = Table(displayName=&quot;HvAcSummary&quot;, ref=f&quot;A1:E{bottom}&quot;)
+    summary_table.tableStyleInfo = TableStyleInfo(
+        name=&quot;TableStyleMedium2&quot;, showRowStripes=True
+    )
+    analysis.add_table(summary_table)
+    for row in analysis.iter_rows(min_row=2, min_col=3, max_col=4):
+        for cell in row:
+            cell.number_format = &quot;0.00&quot;
+    analysis[&quot;G1&quot;] = &quot;拒絕資料列&quot;
+    analysis[&quot;H1&quot;] = rejected
+    chart = BarChart()
+    chart.title = &quot;各設備平均溫度&quot;
+    chart.y_axis.title = &quot;溫度（°C）&quot;
+    chart.add_data(Reference(analysis, min_col=3, min_row=1, max_row=bottom),
+                   titles_from_data=True)
+    chart.set_categories(Reference(analysis, min_col=1, min_row=2, max_row=bottom))
+    analysis.add_chart(chart, &quot;G3&quot;)
+
+    # 先在同一資料夾寫暫存，再以硬連結發佈；目的檔已存在時不覆蓋。
+    # 若所在檔案系統不支援硬連結，會報錯並清除暫存。
+    with NamedTemporaryFile(dir=path.parent, suffix=&quot;.xlsx&quot;, delete=False) as fp:
+        temp = Path(fp.name)
+    try:
+        wb.save(temp)
+        path.hardlink_to(temp)
+    finally:
+        temp.unlink(missing_ok=True)
+        wb.close()
+
+
+def read_and_check(path: Path) -&gt; list[tuple]:
+    wb = load_workbook(path, data_only=False)
+    try:
+        ws = wb[&quot;HVAC點表&quot;]
+        assert tuple(cell.value for cell in ws[1]) == HEADER
+        actual = list(ws.iter_rows(min_row=2, values_only=True))
+        assert [row[:4] for row in actual] == list(ROWS)
+        assert all(isinstance(row[3], datetime) for row in actual)
+        assert ws[&quot;A2&quot;].data_type == &quot;s&quot; and ws[&quot;A2&quot;].value == &quot;001&quot;
+        assert ws[&quot;C2&quot;].data_type == &quot;n&quot; and ws[&quot;C2&quot;].value == 22.5
+        assert ws[&quot;E2&quot;].data_type == &quot;f&quot; and ws[&quot;E2&quot;].value == &quot;=C2&gt;24&quot;
+        assert ws[&quot;A1&quot;].border.bottom.style == &quot;thin&quot;
+        assert ws[&quot;D3&quot;].border.left.style == &quot;thin&quot;
+        assert ws.tables[&quot;HvAcReadings&quot;].ref == &quot;A1:E4&quot;
+        summary, rejected = summarize(ROWS)
+        analysis = wb[&quot;分析摘要&quot;]
+        assert list(analysis.iter_rows(min_row=2, max_col=5,
+                                       values_only=True)) == summary
+        assert analysis[&quot;H1&quot;].value == rejected == 0
+        assert analysis.tables[&quot;HvAcSummary&quot;].ref == &quot;A1:E4&quot;
+        assert analysis[&quot;C2&quot;].number_format == &quot;0.00&quot;
+        dirty = ((&quot;004&quot;, &quot; ahu-01 &quot;, 24.5, ROWS[0][3]),
+                 (&quot;005&quot;, &quot;AHU-01&quot;, &quot;25.5&quot;, ROWS[0][3]))
+        dirty_summary, dirty_count = summarize((*ROWS, *dirty))
+        assert dirty_summary[0] == (&quot;AHU-01&quot;, 2, 23.5, 24.5, 1)
+        assert dirty_count == 1
+        return actual
+    finally:
+        wb.close()
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;output&quot;, nargs=&quot;?&quot;, type=Path, default=Path(&quot;hvac_readings.xlsx&quot;))
+    args = parser.parse_args()
+    write_report(args.output)
+    print(&quot;讀回驗證通過；資料列（含公式文字）：&quot;)
+    for row in read_and_check(args.output):
+        print(row)</code></pre></details><p>預期輸出三筆設備資料，且驗證「001」仍為文字、22.5 仍為數字、日期讀回為 <code>datetime</code>、表格是 <code>A1:E4</code>、指定框線為 thin，公式文字仍在。</p><p class="note">openpyxl 不會執行 Excel 公式。<code>data_only=False</code> 讀公式，<code>data_only=True</code> 只讀工作簿內既存的快取值；新產生且未經試算表計算的公式通常無快取，不能拿它當零或 False。需要可重現的驗收值時，用 Python 計算業務結果，或明確安排試算表重新計算再存檔。</p></section>
+<section id="analysis"><h2>05｜清理資料、依設備彙整與繪圖</h2><ol class="flow"><li>清理鍵值<span>設備名稱去空白、統一大小寫</span></li><li>驗證型別<span>無效時間、文字數值與非有限值另計</span></li><li>依設備分組<span>有效筆數、平均、最大、超門檻次數</span></li><li>輸出分析摘要<span>數值格式、Excel Table 與平均溫度長條圖</span></li></ol><p>範例以 <code>defaultdict(list)</code> 分組，概念類似 pandas 的 <code>groupby()</code>，不需要額外依賴。缺失或不合理值不補成零。本例不默默把文字轉成數字；若規格允許匯入文字數字，應保留轉換成功／失敗計數與原始資料。</p><p><strong>如何閱讀：</strong>平均溫度用來比較本次樣本，最大值與超門檻次數用來找要追查的設備。每台只有一筆是教學資料；正式比較先對齊時間窗、採樣間隔與樣本數，注意超標次數不等於超標時長。不能用這三筆平均推論趨勢或因果；需要量化關係時見<a href="python_regression_analysis_tutorial.html">迴歸分析與應用</a>。</p></section><section id="safety"><h2>06｜讀入舊檔與避免覆寫</h2><ol><li>從唯讀的原始檔或備份起步，先確認檔名、工作表與欄位，再做修改；保留原始 XLSX 及修改前的可回復副本。</li><li><code>Workbook.save()</code> 本身可以覆寫，因此範例寫到同一資料夾的暫存檔，再以不覆蓋的方式建立新檔名；再次指定相同輸出會報錯。需要支援硬連結的檔案系統。若同步或網路磁碟不支援，先在本機支援的資料夾產生後，確認新檔名再移交；不要用原檔測試。</li><li>含巨集、外部連結、嵌入物件或其他 Excel 特性的檔案，不要假設 openpyxl 可完整往返保存。先做測試複本及檔案層驗收；大量資料只要取值時可考慮 <code>read_only=True</code> 並在完成後關閉工作簿。</li></ol></section>
+<section id="references"><h2>官方資料</h2><ul><li><a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl：建立、儲存、載入工作簿</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html">openpyxl：工作表表格</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/styles.html">openpyxl：儲存格樣式</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/datetime.html">openpyxl：日期及時間</a></li></ul></section></main></div></body></html>

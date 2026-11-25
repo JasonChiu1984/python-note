@@ -173,6 +173,13 @@
     .family-role a span { color:#40546b; font-size:.875rem; line-height:1.4; }
     .family-role a:hover { background:#ecf4fd; }
     .family-role a:focus-visible { outline:2px solid #174684; outline-offset:2px; }
+  
+    .protocol-nav-group { min-width:0; display:grid; gap:.22rem; padding:.45rem 0; border-top:1px solid var(--line); }
+    .protocol-nav-group > strong { padding-inline:.62rem; color:var(--ink); font-size:.9rem; }
+    .protocol-nav-families { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.1rem; }
+    .protocol-nav-families a { min-width:0; padding:.32rem .5rem; overflow-wrap:anywhere; }
+    .tool-panel .quick-links { min-width:0; }
+    @media (min-width:981px) { .tool-panel { grid-template-columns:minmax(10rem,.55fr) minmax(0,1.45fr); } }
   </style>
 </head>
 <body>
@@ -181,19 +188,38 @@
       <a class="brand" href="#top"><span class="logo">PX</span><span><strong>Protocol Compare</strong><br><small>十個協定家族比較與實作</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
-        <a href="#protocol-lab">十個協定家族比較與實作</a>
-        <a href="#protocol-selection">優缺點與場景</a>
-        <a href="#protocol-visual-compare">通訊比較圖</a><a href="#protocol-history">歷史與架構</a><a href="#modbus-tcp-detail">Modbus TCP 專節</a><a href="#protocol-secure-shortlist">安全與可靠選型</a><a href="#protocol-speed-compare">速度快慢比較</a>
-        <a href="#protocol-speed-security">速度與安全性</a>
-        <a href="#overview">四協定基礎卡</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#modbus">Modbus</a>
-        <a href="#opcua">OPC UA</a>
-        <a href="#bacnet">BACnet</a>
-        <a href="#mqtt">MQTT</a>
-        <a href="#comparison">四協定進階比較</a>
-        <a href="#troubleshooting">Troubleshooting</a>
-        <a href="#best-practices">Best Practices</a>
+          <a href="#architecture-scroll">十個協定家族總覽</a>
+          <a href="#eight-matrix">十個協定家族詳細比較</a>
+          <a href="#protocol-visual-compare">互動通訊比較圖</a>
+          <a href="#protocol-selection">優缺點與場景</a>
+          <a href="#protocol-history">十個協定家族歷史與架構</a>
+          <a href="#protocol-speed-compare">速度快慢比較</a>
+          <a href="#protocol-speed-security">速度與安全性</a>
+          <a href="#protocol-secure-shortlist">安全與可靠選型</a>
+          <a href="#lab-setup">八組離線 Python 實作</a>
+        <div class="protocol-nav-group" role="group" aria-label="十個協定家族捷徑">
+          <strong>十個協定家族</strong>
+          <div class="protocol-nav-families">
+          <a href="#modbus-tcp-detail">Modbus（TCP／RTU）</a>
+          <a href="#lab-bacnet">BACnet</a>
+          <a href="#lab-opcua">OPC UA</a>
+          <a href="#lab-mqtt">MQTT</a>
+          <a href="#lab-zigbee">Zigbee</a>
+          <a href="#lab-profinet">PROFINET</a>
+          <a href="#lab-profibus">PROFIBUS</a>
+          <a href="#lab-cclink">CC-Link</a>
+          <a href="#ethernetip-comparison">EtherNet/IP</a>
+          <a href="#ethercat-comparison">EtherCAT</a>
+          </div>
+        </div>
+        <div class="protocol-nav-group" role="group" aria-label="延伸：四協定應用案例">
+          <strong>延伸：四協定應用案例</strong>
+          <a href="#overview">四協定基礎卡：角色</a>
+          <a href="#architecture">四協定案例：資料架構</a>
+          <a href="#comparison">四協定案例：工程與格式比較</a>
+          <a href="#troubleshooting">整合故障排查</a>
+          <a href="#best-practices">整合實務建議</a>
+        </div>
       </nav>
       <div class="progress-box" id="progressSummary">完成 0 / 32</div>
     </aside>
@@ -209,7 +235,7 @@
         <figure class="surface family-map" id="architecture-scroll" aria-labelledby="family-map-title">
           <figcaption><h2 id="family-map-title">十個通訊協定家族的用途地圖</h2><p>按常見用途分組，不表示必須串接、依序轉換或全部採用。同一協定也可能跨用途；選取協定可跳到實作或設計重點。</p><p>深度研究：<a href="python_opcua_deep_dive.html">OPC UA</a> · <a href="python_mqtt_deep_dive.html">MQTT</a></p></figcaption>
           <div class="family-groups">
-            <div class="family-role"><h3>控制器與現場 I/O</h3><p>選依控制器、設備及週期需求；不是所有網路都適用即時運動控制。</p><ul><li><a href="#lab-profinet"><strong>PROFINET</strong><span>工業乙太網路週期 I/O</span></a></li><li><a href="#lab-profibus"><strong>PROFIBUS</strong><span>DP 匯流排；PA 用於製程儀表</span></a></li><li><a href="#lab-cclink"><strong>CC-Link</strong><span>Classic、IE 與 IE TSN 各有規格</span></a></li><li><a href="#ethernetip-comparison"><strong>EtherNet/IP</strong><span>CIP 週期 I/O 與顯式診斷</span></a></li><li><a href="#ethercat-comparison"><strong>EtherCAT</strong><span>邊通過邊處理；可用分散式時鐘</span></a></li></ul></div>
+            <div class="family-role"><h3>控制器與現場 I/O</h3><p>依控制器、設備及週期需求選擇；不是所有網路都適用即時運動控制。</p><ul><li><a href="#lab-profinet"><strong>PROFINET</strong><span>工業乙太網路週期 I/O</span></a></li><li><a href="#lab-profibus"><strong>PROFIBUS</strong><span>DP 匯流排；PA 用於製程儀表</span></a></li><li><a href="#lab-cclink"><strong>CC-Link</strong><span>Classic、IE 與 IE TSN 各有規格</span></a></li><li><a href="#ethernetip-comparison"><strong>EtherNet/IP</strong><span>CIP 週期 I/O 與顯式診斷</span></a></li><li><a href="#ethercat-comparison"><strong>EtherCAT</strong><span>邊通過邊處理；可用分散式時鐘</span></a></li></ul></div>
             <div class="family-role"><h3>設備與無線感測</h3><p>依端點提供的資料模型與承載網路，選擇對應採集方式。</p><ul><li><a href="#modbus-tcp-detail"><strong>Modbus</strong><span>TCP／RTU：暫存器與線圈</span></a></li><li><a href="#lab-zigbee"><strong>Zigbee</strong><span>低功耗網狀感測與閘道</span></a></li></ul></div>
             <div class="family-role"><h3>樓控與監控整合</h3><p>依用途區分樓控物件與跨系統資訊模型，兩者可獨立部署。</p><ul><li><a href="#lab-bacnet"><strong>BACnet</strong><span>樓控物件、屬性與 COV</span></a></li><li><a href="#lab-opcua"><strong>OPC UA</strong><span>資訊模型、讀取與訂閱</span></a></li></ul></div>
             <div class="family-role"><h3>遙測與事件分發</h3><p>用於事件及上行資料，不作為硬即時控制路徑。</p><ul><li><a href="#lab-mqtt"><strong>MQTT</strong><span>經 Broker 以主題發布與訂閱</span></a></li></ul></div>
@@ -218,7 +244,20 @@
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：FC03、NodeId、BBMD、foreign device、QoS、retain、subscription">
-        <div class="quick-links"><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="#mqtt">MQTT</a><a href="#eight-matrix">十個協定家族比較表</a></div>
+        <div class="quick-links" role="group" aria-label="十個協定家族與比較捷徑">
+          <a href="#architecture-scroll">十個協定家族總覽</a>
+          <a href="#eight-matrix">十個協定家族詳細比較</a>
+          <a href="#modbus-tcp-detail">Modbus（TCP／RTU）</a>
+          <a href="#lab-bacnet">BACnet</a>
+          <a href="#lab-opcua">OPC UA</a>
+          <a href="#lab-mqtt">MQTT</a>
+          <a href="#lab-zigbee">Zigbee</a>
+          <a href="#lab-profinet">PROFINET</a>
+          <a href="#lab-profibus">PROFIBUS</a>
+          <a href="#lab-cclink">CC-Link</a>
+          <a href="#ethernetip-comparison">EtherNet/IP</a>
+          <a href="#ethercat-comparison">EtherCAT</a>
+        </div>
       </div>
       <section class="section-block" id="protocol-lab">
         <div class="section-head"><h2>十個協定家族比較與八組 Python 實作</h2></div>
