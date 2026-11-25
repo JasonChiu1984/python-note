@@ -154,7 +154,13 @@
 .pc-phy{margin:.75rem 0;padding:.65rem;border:1px solid #d8e2ec;border-radius:8px;background:white}.pc-phy-list{margin:.5rem 0;padding:0;list-style:none}.pc-phy-list li{display:grid;grid-template-columns:1fr auto;gap:.15rem .35rem;margin:.55rem 0;color:#172033}.pc-track{grid-column:1/-1;position:relative;height:1rem;background:repeating-linear-gradient(90deg,#dee8f3 0 1px,transparent 1px 16.6667%),#f2f6fc;border-radius:3px}.pc-dot,.pc-range{position:absolute;display:block;background:#2f6fbb}.pc-dot{top:.2rem;width:.6rem;height:.6rem;border-radius:50%;transform:translateX(-50%);border:1px solid #123760}.pc-range{top:.43rem;height:.17rem}.pc-axis{height:1.3rem;position:relative}.pc-axis span{position:absolute;transform:translateX(-50%);font-size:.72rem;color:#445873}.pc-axis span:nth-child(1){left:16.6667%}.pc-axis span:nth-child(2){left:50%}.pc-axis span:nth-child(3){left:83.3333%;transform:translateX(-70%)}.pc-axis span:nth-child(4){right:0;transform:none;top:-.75rem}.pc-phy-list li{grid-template-columns:minmax(0,1fr) auto}.pc-track{margin-inline:.35rem}
 .pc-history details{min-width:0;border:1px solid #b6c8d9;border-radius:8px;background:#fff;margin:.5rem 0;padding:.55rem;color:#172033}.pc-history summary{font-weight:700;cursor:pointer}.pc-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:.35rem;list-style:none;padding:0;margin:.65rem 0;align-items:stretch}.pc-flow li{display:grid;align-items:center;text-align:center;min-width:0;overflow-wrap:anywhere;background:#e7f0fb;border:1px solid #9ab7d4;padding:.45rem;border-radius:6px}.pc-flow .pc-arrow{background:none;border:0;padding:0;font-weight:bold}@media(max-width:520px){.pc-flow{grid-template-columns:1fr}.pc-flow .pc-arrow{transform:rotate(90deg);justify-self:center}}
 #architecture-zoom{margin:.4rem;border:1px solid #7590ad;border-radius:6px;background:white;color:#174684;padding:.35rem .5rem}#architecture-scroll[data-full] svg{min-width:900px}
-</style>
+
+    .modbus-transport-table { max-width:100%; }
+    .modbus-transport-table table { table-layout:fixed; min-width:36rem; }
+    .modbus-transport-table th:first-child { width:4.6rem; white-space:nowrap; }
+    .modbus-transport-table thead th { white-space:nowrap; }
+    .modbus-transport-table td { overflow-wrap:anywhere; }
+  </style>
 </head>
 <body>
   <div class="layout">
@@ -423,7 +429,7 @@ python read_live.py modbus /dev/ttyUSB0 --serial --unit 7 --baudrate 9600 --pari
 <section class="protocol-compare" id="modbus-tcp-detail" aria-labelledby="modbus-tcp-heading">
 <h3 id="modbus-tcp-heading">Modbus TCP：封包、架構與只讀驗收</h3>
 <p>Modbus TCP 與 RTU 都使用 Modbus 功能碼及暫存器模型，但承載方式不同。1979 年 Modicon 推出 Modbus；2006 年 Modbus Organization 的 TCP/IP 實作指南 V1.0b 記載 MBAP 封裝及網路閘道模式；2018 年 10 月公布獨立的 Modbus Security 選項。2006 是該指南版本日期，不是 TCP 版本的首發年份。</p>
-<div class="lab-table" role="region" tabindex="0" aria-label="Modbus TCP 與 RTU 逐項比較"><table><thead><tr><th scope="col">項目</th><th scope="col">Modbus TCP</th><th scope="col">Modbus RTU</th></tr></thead><tbody>
+<div class="lab-table modbus-transport-table" role="region" tabindex="0" aria-label="Modbus TCP 與 RTU 逐項比較"><table><thead><tr><th scope="col">項目</th><th scope="col">Modbus TCP</th><th scope="col">Modbus RTU</th></tr></thead><tbody>
 <tr><th scope="row">承載</th><td>TCP/IP；傳統服務通常使用 TCP 502。線速依網路埠，與上位更新無直接等號。</td><td>常見 RS-485 多站匯流排；鮑率、同位元與停止位元需一致。</td></tr>
 <tr><th scope="row">分幀</th><td>MBAP＋PDU；依 Length 讀完整訊息。一次 TCP read 可能拿到半包或多包。</td><td>站號＋PDU＋CRC；依序列幀與靜默間隔辨識。</td></tr>
 <tr><th scope="row">地址</th><td>IP／埠選端點。Unit ID 無意義時，TCP 指南對直連伺服器建議 0xFF；實際以設備設定為準。透過閘道常用它選下游 RTU 站。</td><td>站號選擇序列裝置；功能碼和位址選資料區或暫存器。</td></tr>

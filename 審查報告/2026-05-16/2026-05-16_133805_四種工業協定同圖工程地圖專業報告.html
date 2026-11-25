@@ -247,9 +247,30 @@
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       aside { position: static; height: auto; }
-      .hero, .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .hero, .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
       h1 { max-width: 14ch; }
       table { min-width: 36rem; }
+    }
+  
+    .readable-diagram { min-width: 0; padding: clamp(.75rem, 2vw, 1.2rem); container-type: inline-size; }
+    .readable-flow, .readable-branches { display:grid; gap:.45rem; align-items:stretch; min-width:0; }
+    .readable-step { display:grid; align-content:center; gap:.28rem; min-width:0; padding:.65rem; border:2px solid var(--node-line,#2f6fbb); border-radius:.7rem; background:var(--node-fill,#e7f0fb); text-align:center; overflow-wrap:anywhere; }
+    .readable-step strong { color:#172033; font-size:1.06rem; line-height:1.25; }
+    .readable-step small { color:#445873; font-size:.875rem; line-height:1.35; }
+    .readable-step b { color:#263951; font-size:.875rem; line-height:1.35; }
+    .readable-arrow { align-self:center; justify-self:center; font-size:1.35rem; line-height:1; color:#23674f; transform:rotate(90deg); }
+    .readable-note { margin:.8rem 0 0; padding:.75rem; color:#344964; background:#fff; border:1px solid #d8e2ec; border-radius:.6rem; overflow-wrap:anywhere; }
+    .tone-green { --node-line:#2d8a69; --node-fill:#e6f5ef; }
+    .tone-amber { --node-line:#b7791f; --node-fill:#fff4cf; }
+    .tone-red { --node-line:#c34848; --node-fill:#fae8e8; }
+    .tone-teal { --node-line:#0f8794; --node-fill:#eef8f9; }
+
+    .engineering-readable { grid-column:1/-1; }
+    .engineering-readable .readable-branches { border-inline-start:2px solid #d8e2ec; padding-inline-start:.45rem; }
+    @container (min-width: 46rem) {
+      .engineering-readable > .readable-flow { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1.55fr); }
+      .engineering-readable .branch-route { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); }
+      .engineering-readable .readable-arrow { transform:none; }
     }
   </style>
 </head>
@@ -296,50 +317,9 @@
             <span>3 張比較表</span>
           </div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 940 420" role="img" aria-label="四種工業協定工程地圖總覽">
-            <defs>
-              <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0.7 0.7l5.3 2.8-5.3 2.8z" fill="#2d8a69"></path>
-              </marker>
-            </defs>
-            <rect x="22" y="24" width="896" height="332" rx="20" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-family="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif" text-anchor="middle">
-              <rect x="48" y="96" width="170" height="90" rx="14" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
-              <text x="133" y="129" font-size="23" font-weight="900" fill="#172033">Modbus</text>
-              <text x="133" y="156" font-size="14" fill="#5d6b7d">Field Device / PLC / RTU</text>
-              <text x="133" y="176" font-size="14" fill="#5d6b7d">FC01..FC16 / register / coil</text>
-
-              <path d="M220 141h76" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="304" y="96" width="182" height="90" rx="14" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
-              <text x="395" y="129" font-size="23" font-weight="900" fill="#172033">Python Gateway</text>
-              <text x="395" y="156" font-size="14" fill="#5d6b7d">decode / normalize / quality</text>
-              <text x="395" y="176" font-size="14" fill="#5d6b7d">alarm / fail-safe / report</text>
-
-              <path d="M488 116h74" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="570" y="70" width="158" height="78" rx="14" fill="#eef5fd" stroke="#2f6fbb" stroke-width="4"></rect>
-              <text x="649" y="103" font-size="21" font-weight="900" fill="#172033">OPC UA</text>
-              <text x="649" y="126" font-size="14" fill="#5d6b7d">NodeId / namespace</text>
-
-              <path d="M488 164h74" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="570" y="156" width="158" height="78" rx="14" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
-              <text x="649" y="189" font-size="21" font-weight="900" fill="#172033">BACnet</text>
-              <text x="649" y="212" font-size="14" fill="#5d6b7d">object / property / routing</text>
-
-              <path d="M730 103h72" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="808" y="70" width="88" height="78" rx="14" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
-              <text x="852" y="104" font-size="21" font-weight="900" fill="#172033">SCADA</text>
-              <text x="852" y="126" font-size="13" fill="#5d6b7d">Historian / MES</text>
-
-              <path d="M730 195h72" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="808" y="156" width="88" height="78" rx="14" fill="#eef8f9" stroke="#0f8794" stroke-width="4"></rect>
-              <text x="852" y="189" font-size="21" font-weight="900" fill="#172033">MQTT</text>
-              <text x="852" y="212" font-size="13" fill="#5d6b7d">Broker / Cloud</text>
-            </g>
-            <rect x="548" y="258" width="318" height="62" rx="12" fill="#ffffff" stroke="#d8e2ec"></rect>
-            <text x="707" y="284" text-anchor="middle" font-size="14" font-weight="900" fill="#172033">BACnet 補充：BBMD / Foreign Device / Routing / BACnet SC</text>
-            <text x="707" y="305" text-anchor="middle" font-size="13" fill="#5d6b7d">樓控整合成敗常由網路拓樸與安全邊界決定，而不只看 object 名稱</text>
-          </svg>
+        <div class="surface readable-diagram engineering-readable">
+          <div class="readable-flow" role="group" aria-label="四種工業協定工程地圖總覽"><div class="readable-step "><strong>Modbus</strong><small>Field Device / PLC / RTU<br>FC01–FC16 / register / coil</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-green"><strong>Python Gateway</strong><small>decode / normalize / quality<br>alarm / fail-safe / report</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-branches" role="group" aria-label="兩條整合支線"><div class="readable-flow branch-route" role="group" aria-label="OPC UA 到 SCADA"><div class="readable-step "><strong>OPC UA</strong><small>NodeId / namespace</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-red"><strong>SCADA</strong><small>Historian / MES</small></div></div><div class="readable-flow branch-route" role="group" aria-label="BACnet 到 MQTT"><div class="readable-step tone-amber"><strong>BACnet</strong><small>object / property / routing</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-teal"><strong>MQTT</strong><small>Broker / Cloud</small></div></div></div></div>
+          <p class="readable-note"><strong>BACnet 補充：BBMD / Foreign Device / Routing / BACnet/SC</strong><br>樓控整合成敗常由網路拓樸與安全邊界決定，而不只看 object 名稱。</p>
         </div>
       </section>
 

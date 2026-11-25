@@ -72,6 +72,24 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+  
+    .readable-diagram { min-width: 0; padding: clamp(.75rem, 2vw, 1.2rem); container-type: inline-size; }
+    .readable-flow, .readable-branches { display:grid; gap:.45rem; align-items:stretch; min-width:0; }
+    .readable-step { display:grid; align-content:center; gap:.28rem; min-width:0; padding:.65rem; border:2px solid var(--node-line,#2f6fbb); border-radius:.7rem; background:var(--node-fill,#e7f0fb); text-align:center; overflow-wrap:anywhere; }
+    .readable-step strong { color:#172033; font-size:1.06rem; line-height:1.25; }
+    .readable-step small { color:#445873; font-size:.875rem; line-height:1.35; }
+    .readable-step b { color:#263951; font-size:.875rem; line-height:1.35; }
+    .readable-arrow { align-self:center; justify-self:center; font-size:1.35rem; line-height:1; color:#23674f; transform:rotate(90deg); }
+    .readable-note { margin:.8rem 0 0; padding:.75rem; color:#344964; background:#fff; border:1px solid #d8e2ec; border-radius:.6rem; overflow-wrap:anywhere; }
+    .tone-green { --node-line:#2d8a69; --node-fill:#e6f5ef; }
+    .tone-amber { --node-line:#b7791f; --node-fill:#fff4cf; }
+    .tone-red { --node-line:#c34848; --node-fill:#fae8e8; }
+    .tone-teal { --node-line:#0f8794; --node-fill:#eef8f9; }
+
+    @container (min-width: 42rem) {
+      .overview-readable .readable-flow { grid-template-columns:repeat(3,minmax(0,1fr) auto) minmax(0,1fr); }
+      .overview-readable .readable-arrow { transform:none; }
+    }
   </style>
 </head>
 <body>
@@ -129,35 +147,9 @@
             <p>現場資料流常同時經過設備層、語意模型層、樓控物件層與上雲發布層。先建立全局心智圖，後續再深入 Modbus、OPC UA、BACnet 與 MQTT 的個別細節。</p>
           </div>
         </div>
-        <div class="surface" style="margin-bottom:1rem;">
-          <svg viewBox="0 0 880 360" role="img" aria-label="四協定在工業資料閘道中的角色分工">
-            <defs><marker id="overview-arrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0.8 0.8l5.2 2.7-5.2 2.7z" fill="#2d8a69"></path></marker></defs>
-            <rect x="26" y="22" width="828" height="302" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="56" y="102" width="152" height="82" rx="14" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
-              <text x="132" y="133" font-size="18" fill="#172033">Modbus</text>
-              <text x="132" y="159" font-size="14" fill="#5d6b7d">設備 / Register 層</text>
-              <path d="M210 143h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#overview-arrow)"></path>
-              <rect x="278" y="102" width="152" height="82" rx="14" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
-              <text x="354" y="133" font-size="18" fill="#172033">OPC UA</text>
-              <text x="354" y="159" font-size="14" fill="#5d6b7d">語意模型 / 訂閱層</text>
-              <path d="M430 143h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#overview-arrow)"></path>
-              <rect x="498" y="102" width="152" height="82" rx="14" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect>
-              <text x="574" y="133" font-size="18" fill="#172033">BACnet</text>
-              <text x="574" y="159" font-size="14" fill="#5d6b7d">樓控物件 / Routing 層</text>
-              <path d="M650 143h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#overview-arrow)"></path>
-              <rect x="718" y="102" width="108" height="82" rx="14" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect>
-              <text x="772" y="133" font-size="18" fill="#172033">MQTT</text>
-              <text x="772" y="159" font-size="14" fill="#5d6b7d">上雲 / 訊息層</text>
-            </g>
-            <g font-weight="800">
-              <text x="132" y="234" text-anchor="middle" fill="#2f6fbb">FC03 / FC16 / 40001</text>
-              <text x="354" y="234" text-anchor="middle" fill="#2d8a69">NodeId / Subscription</text>
-              <text x="574" y="234" text-anchor="middle" fill="#b7791f">Object / BBMD / FD</text>
-              <text x="772" y="234" text-anchor="middle" fill="#c34848">Topic / QoS / Retain</text>
-            </g>
-            <text x="440" y="286" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">Industrial Gateway 常同時承接設備輪詢、語意建模、樓控整合與雲端資料發布</text>
-          </svg>
+        <div class="surface readable-diagram overview-readable" style="margin-bottom:1rem;">
+          <div class="readable-flow" role="group" aria-label="四協定在工業資料閘道中的角色分工"><div class="readable-step "><strong>Modbus</strong><small>設備 / Register 層</small><b>FC03 / FC16 / 40001</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-green"><strong>OPC UA</strong><small>語意模型 / 訂閱層</small><b>NodeId / Subscription</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-amber"><strong>BACnet</strong><small>樓控物件 / Routing 層</small><b>Object / BBMD / FD</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-red"><strong>MQTT</strong><small>上雲 / 訊息層</small><b>Topic / QoS / Retain</b></div></div>
+          <p class="readable-note">工業資料閘道常同時承接設備輪詢、語意建模、樓控整合與雲端資料發布。</p>
         </div>
         <div class="cards"></div>
         <div class="surface" style="margin-top:1rem;">
