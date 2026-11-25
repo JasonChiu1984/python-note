@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 密碼學與加密深度研究</title>
+<style>
+:root{color-scheme:light;--bg:#edf3fb;--ink:#122742;--muted:#36516c;--line:#b7cadc;--blue:#075c8a;--green:#107053;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.65}
+*{box-sizing:border-box}body{margin:0}main{width:min(100%,90rem);margin:auto;padding:clamp(.8rem,2.5vw,2.25rem)}article,header{min-width:0;background:#fff;border:1px solid var(--line);border-radius:1rem;padding:clamp(.78rem,2.6vw,2rem);margin-block:1rem;overflow-wrap:anywhere}
+header{background:#133356;color:#f3f8ff}header p{color:#dbeafd}header a{color:#b7e7ff}a{color:var(--blue)}a:focus-visible,summary:focus-visible,.table-zone:focus-visible,pre:focus-visible{outline:3px solid #c26000;outline-offset:2px}h1{font-size:clamp(1.7rem,4vw,3rem);line-height:1.18;margin:.35rem 0 .7rem}h2{line-height:1.3}nav{display:flex;flex-wrap:wrap;gap:.55rem 1rem}nav a{display:inline-block}figure{margin:1rem 0}figcaption{font-weight:700}.diagram{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.65rem}.diagram li{position:relative;min-width:0;border:1px solid #8daac5;border-radius:.6rem;background:#f3f8ff;padding:.6rem;overflow-wrap:anywhere}.diagram li:not(:last-child)::after{content:"→";position:absolute;inset-inline-start:calc(100% + .33rem);top:32%;color:var(--blue);font-weight:900}.diagram small{display:block;color:var(--muted)}.table-zone{overflow:auto;margin-block:1rem;border:1px solid var(--line);border-radius:.6rem}table{width:100%;border-collapse:collapse;min-width:35rem}th,td{text-align:start;vertical-align:top;padding:.55rem;border-bottom:1px solid var(--line)}thead{background:#e8f4fe}tbody th{color:var(--blue)}.tip{border-inline-start:.25rem solid var(--green);padding:.25rem .8rem;background:#e8f8f0}.warn{border-inline-start:.25rem solid #a74c00;padding:.25rem .8rem;background:#fff1df}
+code{font-family:ui-monospace,monospace}pre{overflow:auto;white-space:pre;background:#102238;color:#eff7ff;padding:1rem;border-radius:.7rem}summary{cursor:pointer;font-weight:700}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.75rem}.card{border:1px solid var(--line);padding:.8rem;border-radius:.65rem;background:#f8fbff}.card h3{margin-top:0}.eyebrow{letter-spacing:.12em;font-size:.8rem;font-weight:750}footer{color:var(--muted)}
+@media(max-width:710px){.diagram{grid-template-columns:1fr;gap:1.35rem}.diagram li:not(:last-child)::after{content:"↓";top:calc(100% + .02rem);left:calc(50% - .3rem)}}
+</style></head><body><main>
+<header id="top"><a href="index.html">回 Python 教材首頁</a><p class="eyebrow">PYTHON SECURITY ENGINEERING</p><h1>密碼學與加密深度研究</h1><p>從安全目標選原語，再定義金鑰邊界、封包格式、拒絕路徑及驗收方式。範例為本機合成資料，不建議直接拿去替換現成協定。</p><nav aria-label="本頁章節"><a href="#primitives">原語比較</a><a href="#architecture">金鑰架構</a><a href="#flow">加解密流程</a><a href="#lab">Python 實作</a><a href="#review">上線驗收</a><a href="#sources">原始資料</a></nav></header>
+<article id="primitives"><h2>01｜先問要防的是讀取、竄改，還是冒用</h2><div class="table-zone" tabindex="0" role="region" aria-label="密碼學原語比較表"><table><thead><tr><th scope="col">目標／工具</th><th scope="col">機密性</th><th scope="col">完整性／來源</th><th scope="col">工程用法及限制</th></tr></thead><tbody>
+<tr><th scope="row">SHA-256 雜湊</th><td>不提供</td><td>僅在摘要另有可信來源時可核對內容</td><td><code>hashlib.sha256</code>。不加密，不能用單次雜湊存密碼。Base64 只是編碼。</td></tr>
+<tr><th scope="row">HMAC-SHA-256</th><td>不提供</td><td>共用密鑰持有人可算與驗，無法區分是哪一位持有人</td><td><code>hmac.digest</code>、<code>hmac.compare_digest</code>。可保護訊息完整性；須另外約定時效與重放控制。</td></tr>
+<tr><th scope="row">Argon2id 密碼 KDF</th><td>不是資料加密</td><td>以成本較高的推導檢查密碼</td><td>每個密碼用獨立隨機 salt，保存參數及雜湊；按環境量測調整成本，不用硬編廣泛通用的數值。</td></tr>
+<tr><th scope="row">AES-GCM（AEAD）</th><td>保護明文</td><td>密文與 AAD 驗證是針對密鑰持有人</td><td>用 <code>AESGCM</code>；同一密鑰不可重複 nonce。AAD 不保密；重放要由應用處理。</td></tr>
+<tr><th scope="row">Ed25519 數位簽章</th><td>不提供</td><td>私鑰簽署、可信公鑰驗證</td><td>交付檔案與更新聲明；公鑰要獨立建立信任，另驗版本與部署時間窗。</td></tr>
+<tr><th scope="row">TLS 1.3</th><td>保護傳輸連線</td><td>驗證憑證與主機名；必要時加雙向 TLS</td><td>沿用平台 TLS，不自製握手。終止於代理後，仍須檢查後段信任邊界與應用授權。</td></tr>
+</tbody></table></div><p class="tip">要防竄改但不需要保密，例如公開 release：優先簽章。要把跨信任邊界的資料變成只有持鑰服務能讀的密文：用 AEAD。兩者都不能替代使用者、角色或設備授權。</p></article>
+<article id="architecture"><h2>02｜架構圖：將資料與金鑰的責任分開</h2><figure><figcaption>資料面：寫入加密內容；經授權且標籤通過後才輸出明文</figcaption><ol class="diagram"><li><strong>業務服務</strong><small>驗證身份、角色及記錄範圍</small></li><li><strong>加解密層</strong><small>套用版本、AAD、大小與 nonce 政策</small></li><li><strong>儲存層</strong><small>存封包、包裝後的 DEK；不存明文金鑰</small></li><li><strong>消費端</strong><small>受控服務先驗證標籤才可處理明文</small></li></ol></figure>
+<div class="grid"><section class="card"><h3>資料金鑰 DEK</h3>加密資料的金鑰。解包後僅在獲准的程序邊界短暫使用；不寫進 log、網址、程式碼或共用設定檔。</section><section class="card"><h3>金鑰加密金鑰 KEK</h3>由 KMS／HSM 保管，授權的服務用它包裝或解包 DEK。把誰可解包、記錄與配額一起設計。</section><section class="card"><h3>輪替與復原</h3>新寫用新版本；舊版本僅作限期讀取。依威脅、保存期限和復原計畫重包裝或重加密；若 DEK 疑似外洩，單換 KEK 不會使既有密文重新安全。</section></div>
+<p><a href="python_cryptography_deep_dive.drawio" download>下載可編輯的 Draw.io 架構與流程</a>。此正式架構是設計示意；下方 lab 沒有 KMS、也不把臨時金鑰持久化。</p></article>
+<article id="flow"><h2>03｜流程圖：從封裝到拒絕</h2><figure><figcaption>寫入：建立有版本的 AEAD 封包</figcaption><ol class="diagram"><li><strong>檢查明文</strong><small>確認資料大小與權限，固定欄位</small></li><li><strong>金鑰與 nonce</strong><small>選受控金鑰版本，分配同鑰唯一值</small></li><li><strong>加密與驗證標籤</strong><small>encrypt(nonce, plaintext, aad)</small></li><li><strong>寫入封包</strong><small>保存 v、kid、nonce、密文與標籤</small></li></ol></figure>
+<figure><figcaption>讀取：任何驗證錯誤都不輸出明文</figcaption><ol class="diagram"><li><strong>限制並解析格式</strong><small>限制輸入大小、版本；未知版本拒絕</small></li><li><strong>重建預期 AAD</strong><small>採應用請求的已驗證記錄範圍</small></li><li><strong>取鑰並驗證</strong><small>依受控 kid 映射執行 decrypt</small></li><li><strong>成功或拒絕</strong><small>成功才交資料；錯誤僅回拒絕</small></li></ol></figure>
+<ul><li><strong>Nonce：</strong>不是祕密，但同一把金鑰不可重複。96 位元是 GCM 推薦長度。隨機有碰撞機率；正式大量、多程序寫入需依規範設計用量上界、輪替與唯一值分配，並涵蓋重啟、備份還原及多實例，不能照抄教具的低用量策略。</li><li><strong>AAD：</strong>可綁定版本、金鑰識別與記錄上下文。要由接收端依請求的可信上下文重建，不能單靠收到的記錄 ID 判定歸屬；序列化須固定。AAD 不會因此變祕密。</li><li><strong>標籤與重放：</strong>PyCA <code>AESGCM</code> 使用 16 位元組標籤並附在密文尾端。有效封包本身仍可能被重送；若是事件或控制資料，另核對事件序號／允許時間窗及重複處理規則。</li></ul>
+</article>
+<article id="lab"><h2>04｜本機 Python 實作：AES-GCM round-trip</h2>
+<p>在你自己的虛擬環境安裝受信任版本的 <code>cryptography</code>，再下載 <a href="python_cryptography_deep_dive_lab.py" download>完整 Python 檔</a>。教具不連線、不讀取個資、金鑰不寫入檔案；安裝套件的命令若未有本機套件快取則需網路。</p>
+<pre tabindex="0" aria-label="Python AES-GCM 實驗命令"><code>python -m pip install cryptography
+python python_cryptography_deep_dive_lab.py
+python python_cryptography_deep_dive_lab.py --test</code></pre>
+<pre tabindex="0" aria-label="AES-GCM 核心示例"><code>from secrets import token_bytes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+key = AESGCM.generate_key(bit_length=256)
+nonce = token_bytes(12)  # 低用量教具；正式系統須設計同鑰唯一。
+aad = b'["record-v1","demo-kid","record-1"]'
+sealed = AESGCM(key).encrypt(nonce, b"HVAC demo", aad)
+assert AESGCM(key).decrypt(nonce, sealed, aad) == b"HVAC demo"</code></pre>
+<details><summary>看「加密成功」與「拒絕」的差別</summary><p>預設輸出 JSON 封包、明文 <code>HVAC demo</code> 以及錯誤 AAD 的拒絕訊息。每次執行都生成全新密鑰與 nonce，密文不固定。測試同時檢查合法明文、錯誤 AAD、竄改 tag、不支援版本／金鑰識別及大小限制；不對未驗證資料做解析或業務處理。</p></details>
+<p class="warn">AES-GCM 不是密碼儲存方式，也不會讓執行程序看不到本身解出的明文。交付程式的簽發、封裝與信任鏈另見 <a href="python_code_protection_deep_dive.html">Python 程式碼保護</a>。</p></article>
+<article id="review"><h2>05｜上線驗收與常見失誤</h2><div class="grid">
+<section class="card"><h3>輸入與失敗</h3><p>測試破損、超大小、未知版本、換 record ID、缺金鑰、標籤一位元變動。對外用統一錯誤，不將底層例外、金鑰或明文寫進 log。</p></section>
+<section class="card"><h3>執行與重啟</h3><p>測並行、重啟或備份回復時 nonce 不重用；驗證拒絕不導致明文下落、重送有自己的政策、權限撤銷後不可再解包。</p></section>
+<section class="card"><h3>輪替與災備</h3><p>量測新舊金鑰的讀寫覆蓋，測新寫只走新版、舊讀限期且有稽核，確認備份和回復與金鑰保留期限一致。</p></section>
+<section class="card"><h3>觀測與責任</h3><p>記版本、拒絕計數與輪替覆蓋；不得用單一密鑰橫跨租戶和用途。P99 量測包含 KMS 等待，分開評估吞吐與安全邊界。</p></section></div></article>
+<article id="sources"><h2>官方參考資料</h2><ul>
+<li><a href="https://csrc.nist.gov/pubs/sp/800/38/d/final">NIST SP 800-38D：GCM</a></li>
+<li><a href="https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final">NIST SP 800-57 Part 1 Rev. 5：金鑰管理</a></li>
+<li><a href="https://cryptography.io/en/stable/hazmat/primitives/aead/">PyCA：AEAD API</a> · <a href="https://docs.python.org/3/library/secrets.html">Python secrets</a> · <a href="https://docs.python.org/3/library/hmac.html">Python hmac</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9106">RFC 9106：Argon2</a> · <a href="https://www.rfc-editor.org/rfc/rfc8032">RFC 8032：EdDSA</a> · <a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446：TLS 1.3</a></li></ul></article>
+<footer><a href="#top">回頁首</a></footer></main></body></html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>工廠碳排放量計算｜Python 實作與盤查資料流</title>
+<style>
+:root{color-scheme:light;--ink:#163045;--muted:#405975;--line:#c3d9e1;--accent:#005f68;--paper:#eaf5f4;--panel:#fff}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.65 system-ui,"Noto Sans TC",sans-serif}a{color:var(--accent);text-underline-offset:.2em;overflow-wrap:anywhere}main,header,footer{padding:clamp(.8rem,2.3vw,2.6rem);width:100%;max-width:100rem;margin-inline:auto}header{background:#13394a;color:white}header a{color:#baf1f1}h1,h2,h3{line-height:1.32;overflow-wrap:anywhere}h1{font-size:clamp(1.65rem,4vw,3.2rem)}nav ul{display:flex;flex-wrap:wrap;gap:.6rem 1.25rem;list-style:none;padding:0}.kicker{font-size:.78rem;letter-spacing:.1em;font-weight:750}section{padding:clamp(.85rem,2.15vw,2rem);margin-bottom:1rem;background:var(--panel);border:1px solid var(--line);border-radius:1rem;min-width:0;scroll-margin-top:.8rem}section>p,header>p,li{max-width:84ch}figure{margin:1rem 0;min-width:0}figcaption{font-weight:700}.diagram{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.4rem;margin:.7rem 0}.diagram li{display:grid;align-content:start;gap:.4rem;min-width:0;padding:.7rem;border:1px solid #8fc1c6;border-radius:.5rem;background:#effafa;position:relative;overflow-wrap:anywhere}.diagram li + li::before{content:"→";position:absolute;left:-1.18rem;top:calc(50% - .8rem);color:#005960;font-weight:900}.diagram span{display:block;font-size:.9rem;color:var(--muted)}.table{overflow-x:auto}.table:focus-visible,:focus-visible{outline:2px solid #008696;outline-offset:3px}table{border-collapse:collapse;width:100%;min-width:38rem}th,td{padding:.55rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}thead,tbody th{background:#e7f3f3}pre{max-width:100%;overflow:auto;background:#132a3c;color:#e2f8fb;border-radius:.5rem;padding:.85rem;tab-size:4}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}.note{padding:.65rem .9rem;border-inline-start:4px solid #00767c;background:#e8f7f6}.kpis,.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.65rem}.kpi{padding:.65rem;border-radius:.6rem;background:#e7f3f3;border:1px solid var(--line)}.kpi strong{display:block;font-size:1.2rem;overflow-wrap:anywhere}.fields label{display:grid;gap:.35rem;min-width:0;font-weight:700}.fields input{width:100%;min-width:0;padding:.5rem;font:inherit;border:1px solid #66878c;border-radius:.4rem}button{font:inherit;background:#005f68;color:white;border:0;border-radius:.5rem;padding:.45rem .75rem;margin:.8rem .5rem .6rem 0;cursor:pointer}.bars{padding:0;list-style:none;display:grid;gap:.7rem}.bars li{max-width:none;display:grid;grid-template-columns:minmax(7rem,13rem) minmax(0,1fr);gap:.2rem .6rem;align-items:center}.bar-copy{font-weight:700;min-width:0;overflow-wrap:anywhere}.track{width:100%;height:1.05rem;background:#e2eef0;border-radius:.25rem;overflow:hidden}.track span{display:block;height:100%;background:#007480}.bars .alternative span{background:#9b4c16}.chart-scale{color:var(--muted)}.error{color:#a21e26;font-weight:700}.muted{color:var(--muted)}@media(max-width:720px){.diagram{grid-template-columns:minmax(0,1fr);gap:1.25rem}.diagram li + li::before{left:calc(50% - .5em);top:-1.3rem;content:"↓"}.bars li{grid-template-columns:minmax(0,1fr)}}
+</style></head>
+<body><header><p class="kicker">PYTHON × FACTORY OPERATIONS</p><h1>工廠碳排放量：從活動量到可追溯的 tCO₂e</h1><p>一組柴油、冷媒、外購電力與契約的合成月資料，算出範疇一，以及外購電力的所在地法與市場法。界線、係數與資料品質先確定，才談減碳。</p>
+<nav aria-label="教材段落"><ul><li><a href="index.html#facility-metrics">回設施教材</a></li><li><a href="python_factory_energy_metrics_tutorial.html">工廠能效指標</a></li><li><a href="#architecture">資料架構</a></li><li><a href="#formula">公式與算例</a></li><li><a href="#calculator">計算器與圖表</a></li><li><a href="#api">Python／API</a></li><li><a href="#review">驗收</a></li></ul></nav></header>
+<main>
+<section id="architecture"><h2>01｜資料架構與計算流程</h2>
+<figure aria-labelledby="arch-cap"><figcaption id="arch-cap">架構圖：量測、係數與盤查結果分層保存</figcaption>
+<ol class="diagram"><li><strong>證據來源</strong><span>電表／帳單、燃料交易與庫存、冷媒維修工單</span></li><li><strong>活動量庫</strong><span>場址、期間、設備、單位、來源文件與品質狀態</span></li><li><strong>係數登錄</strong><span>排放源、地區、年度、版本、分母、GWP 版本</span></li><li><strong>計算與覆核</strong><span>分類、配對、換算、缺證據停止彙總</span></li><li><strong>證據與 API</strong><span>盤查明細、方法分列、核准版本、JSON 查詢</span></li></ol></figure>
+<figure aria-labelledby="flow-cap"><figcaption id="flow-cap">流程圖：每筆活動量如何得到可查核的結果</figcaption>
+<ol class="diagram"><li><strong>① 定邊界</strong><span>確認控制口徑、場址、排放源與期間</span></li><li><strong>② 對資料</strong><span>去重、標記空值、帳單與表計對帳</span></li><li><strong>③ 配係數</strong><span>確認年度、燃料品項、地域與單位</span></li><li><strong>④ 計算</strong><span>逐筆相乘，換為 kgCO₂e，兩種電力方法分列</span></li><li><strong>⑤ 核准</strong><span>另人覆核、凍結版本；缺證據先回補</span></li></ol></figure>
+<p><a href="python_carbon_emissions_calculation.drawio" download>下載可編輯的 Draw.io 架構圖與流程圖</a></p>
+<p class="note">三個常見落點：自家控制的備用發電機燃料是直接排放；向電網購入的電力是能源間接排放；外包物流、原料等價值鏈排放要另外做範疇三判定，本例不含。若有自發自用，不能把同一筆電量既算外購又算燃料；先按組織盤查邊界核對。</p>
+</section>
+<section id="formula"><h2>02｜公式與同一組月資料</h2>
+<p>排放量 <strong>kgCO₂e＝活動量 × 相容的排放係數</strong>；換成 tCO₂e 再 ÷ 1,000。若係數是各氣體的質量而非已折算的 CO₂e，要先分別計算 CO₂、CH₄、N₂O，再乘適用的 GWP100 求和。已是 CO₂e 的係數<strong>不要再乘 GWP</strong>。</p>
+<div class="table" role="region" aria-label="碳排放量公式與代入" tabindex="0"><table>
+<thead><tr><th scope="col">排放來源</th><th scope="col">公式與代入（係數皆為教學假設）</th><th scope="col">結果</th></tr></thead>
+<tbody>
+<tr><th scope="row">範疇一｜柴油</th><td>800 L × 2.70 kgCO₂e/L</td><td>2,160 kgCO₂e</td></tr>
+<tr><th scope="row">範疇一｜冷媒逸散</th><td>2.5 kg 實際逸散量 × 1,000 kgCO₂e/kg</td><td>2,500 kgCO₂e</td></tr>
+<tr><th scope="row">範疇二｜所在地法</th><td>120,000 kWh × 0.45 kgCO₂e/kWh</td><td>54,000 kgCO₂e</td></tr>
+<tr><th scope="row">範疇二｜市場法</th><td>40,000 kWh × 0.05 ＋ 80,000 kWh × 0.55（契約與未覆蓋電量，各自乘對應係數）</td><td>46,000 kgCO₂e</td></tr>
+<tr><th scope="row">合計｜選一種方法</th><td>範疇一 4,660 kgCO₂e 加上其中一個範疇二值</td><td>所在地法：58.66 tCO₂e；市場法：50.66 tCO₂e</td></tr>
+</tbody></table></div>
+<h3>活動量須能回到原始證據</h3>
+<ul><li><strong>燃料：</strong>採用實際消耗量，採購、退料與庫存需對帳。若係數以 kg/GJ 為分母，先用適用的低位熱值把燃料換成 GJ，再逐氣體計算；不要直接乘公升。</li><li><strong>冷媒：</strong>使用按適用方法確認的逸散量，不把設備額定充填量或每張補充紀錄一律當成泄漏。台帳應區分新裝、回收、報廢與維修，辨識冷媒或混合物及對應 GWP 版本。</li><li><strong>外購電：</strong>所在地依法使用適用地理電網的平均資料；市場法按合格契約工具的證據配置，未覆蓋部分依所採指引的係數階層處理。核對時空適用、環境屬性權益和不得重複宣稱等條件。尚未確認可用係數或屬性證據時，先標待核，不自動填零。</li><li><strong>合計：</strong>兩種範疇二方法是對同一批電力的平行呈現，不是兩筆要相加的排放。市場法與所在地法的差額也不等於現場用電減少。</li></ul>
+<p class="note">台灣係數示例（非本頁計算參數）：<a href="https://www.moeaea.gov.tw/ECW/populace/news/News.aspx?kind=1&amp;menu_id=41&amp;news_id=34473">經濟部能源署 114 年度公告</a>把公用售電業電力排碳係數列為 0.467 kgCO₂e/kWh，並區分全國電力排放係數口徑。不可依「數字最新」就套用；須確認盤查年度、適用口徑及申報制度。所在地法或法定申報應使用適合該邊界的規則。</p>
+</section>
+<section id="calculator"><h2>03｜離線計算器：只換活動量，係數保持教學假設</h2>
+<form id="carbon-form">
+<div class="fields">
+<label>柴油（L）<input id="diesel" type="number" min="0" max="1000000000" step="any" value="800" required></label>
+<label>冷媒逸散（kg）<input id="refrigerant" type="number" min="0" max="1000000000" step="any" value="2.5" required></label>
+<label>外購電力（kWh）<input id="electricity" type="number" min="0" max="1000000000" step="any" value="120000" required></label>
+<label>已核對契約（kWh，可留白）<input id="contract" type="number" min="0" max="1000000000" step="any" value="40000" aria-describedby="contract-help"></label></div>
+<p id="contract-help" class="muted">留白＝證據待補。已確認全部屬未覆蓋且剩餘係數適用時，可輸入 0。</p>
+<button type="submit">重算排放</button><button type="reset">恢復合成資料</button>
+<p id="calc-message" role="status" aria-live="polite"></p></form>
+<div id="carbon-results" aria-label="碳排放結果">
+<div class="kpis"><div class="kpi">範疇一<strong id="k-s1">4.66 tCO₂e</strong></div><div class="kpi">範疇一＋二（所在地法）<strong id="k-location">58.66 tCO₂e</strong></div><div class="kpi">範疇一＋二（市場法）<strong id="k-market">50.66 tCO₂e</strong></div></div>
+<figure aria-labelledby="carbon-chart-title"><figcaption id="carbon-chart-title">排放來源圖｜kgCO₂e，由零起算，兩種範疇二不加總</figcaption>
+<p class="chart-scale">同一比例尺：0 至 <span id="chart-max">54,000</span> kgCO₂e</p>
+<ul class="bars">
+<li><span class="bar-copy">柴油：<span id="v-fuel">2,160</span></span><div class="track" aria-hidden="true"><span id="b-fuel" style="width:4%"></span></div></li>
+<li><span class="bar-copy">冷媒：<span id="v-refrigerant">2,500</span></span><div class="track" aria-hidden="true"><span id="b-refrigerant" style="width:4.63%"></span></div></li>
+<li><span class="bar-copy">外購電（所在地法）：<span id="v-location">54,000</span></span><div class="track" aria-hidden="true"><span id="b-location" style="width:100%"></span></div></li>
+<li><span class="bar-copy">外購電（市場法）：<span id="v-market">46,000</span></span><div class="track alternative" aria-hidden="true"><span id="b-market" style="width:85.19%"></span></div></li>
+</ul></figure></div>
+<noscript><p>未啟用 JavaScript，目前顯示固定合成範例。可下載 Python 工具運算。</p></noscript>
+</section>
+<section id="api"><h2>04｜Python 實作與 API 邊界</h2>
+<p>此教材只有合成資料，不抓真實電表、不呼叫外部服務。用 Python 3.9+ 標準函式庫即可執行。<a href="python_carbon_emissions_calculation_lab.py" download>下載完整 Python 程式</a></p>
+<pre tabindex="0"><code>python python_carbon_emissions_calculation_lab.py --self-test
+python python_carbon_emissions_calculation_lab.py --demo
+python python_carbon_emissions_calculation_lab.py --diesel-l 800 --leaked-kg 2.5 --electricity-kwh 120000 --contracted-kwh 40000</code></pre>
+<h3>程式內呼叫：先檢核，再由 Decimal 計算</h3>
+<pre tabindex="0"><code>from python_carbon_emissions_calculation_lab import calculate, as_json
+
+report = calculate(diesel_l="800", leaked_kg="2.5",
+                   electricity_kwh="120000", contracted_kwh="40000")
+print(as_json(report))
+# contracted_kwh=None 時，market 欄位為 null，合計也不估填。</code></pre>
+<h3>HTTP 查詢契約例（不是已部署的路由）</h3>
+<p>上游可以是具授權的唯讀電表閘道、MES 或核准的批次檔。服務查詢需以場址和期間作權限與篩選；先在內部配對已核准的係數，不讓外部呼叫者任意覆寫。若資料未齊，查詢可照常回報已知資料與 <code>pending_evidence</code>；不要把未計算與 0 混在一起。請求格式錯誤可以回 400，查無場址／期間回 404，未授權需由服務的認證授權層拒絕。</p>
+<pre tabindex="0"><code>GET /v1/sites/demo-factory/carbon?period=2025-10
+
+{
+  "site_id": "demo-factory",
+  "period": "2025-10",
+  "synthetic": true,
+  "unit": "kgCO2e",
+  "scope1": "4660.00",
+  "scope2_location": "54000.00",
+  "scope2_market": null,
+  "scope2_market_status": "pending_evidence",
+  "total_location": "58660.00",
+  "total_market": null,
+  "factor_set": "DEMO-2025-v1"
+}</code></pre>
+<p>金額或盤查小數不用二進位浮點當權威。範例 CLI 用 <code>argparse</code>、<code>Decimal</code>、<code>json.dumps()</code> 和 <code>unittest</code>；輸出用小數字串，圖表計算只用 JS 作教學預覽。正式 API 還應回傳組織邊界、資料覆蓋率、查詢快照 ID、係數版號、缺漏原因，以及該使用者有權調閱的證據索引。</p>
+</section>
+<section id="review"><h2>05｜覆核清單與原始資料</h2>
+<ol><li>每筆保留場址、期間、排放源、來源憑證、活動量與單位，活動資料變更要有原因。</li><li>每筆係數保留來源、版本、適用地區、活動量分母、涵蓋氣體、係數年度、GWP 報告版本及使用的方法；不要因為網站出新版就覆蓋歷史成果。基線重算要有已核准規則。</li><li>核對 1 MWh＝1,000 kWh、1 t＝1,000 kg，空值不得轉為 0。用對帳差異檢查多表重複或漏表；完整性不足時不要出聲稱完成的合計。</li><li>對同月份現場查兩種範疇二的用電分配，合格契約 kWh ＋ 未覆蓋 kWh 必須等於同站同期間的外購 kWh；先檢查重複憑證，再看排放差異。</li></ol>
+<p>此頁是組織營運排放的工程教學，不是碳足跡查證、法規適用認定或申報憑證。範疇三、抵換額度、產品生命週期與申報對象均不在算例內。</p>
+<ul><li><a href="https://ghgprotocol.org/corporate-standard">GHG Protocol Corporate Standard</a></li><li><a href="https://ghgprotocol.org/scope-2-guidance">GHG Protocol Scope 2 Guidance</a></li><li><a href="https://ghgregistry.moenv.gov.tw/epa_ghg/Downloads/FileDownloads.aspx?Type_ID=6">環境部事業溫室氣體平台：盤查、公告係數與作業資料</a></li><li><a href="https://www.moeaea.gov.tw/ECW/populace/news/News.aspx?kind=1&amp;menu_id=41&amp;news_id=34473">經濟部能源署：114 年度電力排碳係數公告</a></li></ul>
+</section></main>
+<footer><a href="index.html#facility-metrics">回設施教材</a> · <a href="python_factory_energy_metrics_tutorial.html">延伸：工廠能效指標</a></footer>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const form = $('carbon-form');
+const f = new Intl.NumberFormat('zh-TW', {maximumFractionDigits:2});
+const tonnes = n => new Intl.NumberFormat('zh-TW', {minimumFractionDigits:2,maximumFractionDigits:2}).format(n/1000)+' tCO₂e';
+function recalc(){
+  const raw = ['diesel','refrigerant','electricity','contract'].map(id => $(id).value);
+  const value = raw.map(x => x === '' ? null : Number(x));
+  const valid = value.slice(0,3).every(n => n !== null && Number.isFinite(n) && n>=0 && n<=1e9);
+  const [diesel, leaked, power, contract] = value;
+  const error = !valid ? '請補正必填活動量，不能把空白當作零。' : contract!==null && (!Number.isFinite(contract) || contract<0 || contract>power) ? '已核對的契約電量不可超過同期間的外購電力。' : '';
+  $('calc-message').classList.toggle('error',Boolean(error));
+  $('carbon-results').hidden = Boolean(error);
+  if(error){$('calc-message').textContent=error;return;}
+  const fuel=diesel*2.70, refr=leaked*1000, location=power*0.45, market=contract===null ? null : contract*0.05 +(power-contract)*0.55;
+  const max=Math.max(fuel,refr,location,market===null?0:market);
+  $('chart-max').textContent=f.format(max);
+  $('k-s1').textContent=tonnes(fuel+refr);
+  $('k-location').textContent=tonnes(fuel+refr+location);
+  $('k-market').textContent=market===null?'證據待補':tonnes(fuel+refr+market);
+  for(const [key,n] of Object.entries({fuel,refrigerant:refr,location,market})){
+    $('v-'+key).textContent=n===null?'待補':f.format(n);
+    $('b-'+key).style.width=n===null||!max?'0%':(n/max*100)+'%';
+  }
+  $('calc-message').textContent=market===null?'已重算；市場法仍待補證據。':'已重算（係數皆為教學假設）。';
+}
+form.addEventListener('submit',event=>{event.preventDefault();recalc();});
+form.addEventListener('input',recalc);
+form.addEventListener('reset',()=>setTimeout(recalc,0));
+</script>
+</body></html>

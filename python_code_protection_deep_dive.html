@@ -1,0 +1,106 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 加密與程式碼保護深度研究</title>
+<style>
+:root{color-scheme:light;--ink:#172e47;--muted:#42617b;--line:#b8cadb;--blue:#154e7d;--page:#edf4fb;font:1rem/1.65 system-ui,"PingFang TC","Microsoft JhengHei",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink)}main{max-width:none;padding:clamp(.75rem,2.25vw,3rem);margin:auto;min-width:0}header,section{margin:0 0 1rem;padding:clamp(.9rem,2vw,1.5rem);border:1px solid var(--line);border-radius:1rem;background:#fff;overflow-wrap:anywhere}header{background:#183857;color:white}header a{color:#d6eaff}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-block:1rem}nav a{padding:.3rem .7rem;border:1px solid #83a3bd;border-radius:.4rem}a{color:var(--blue);text-underline-offset:3px}h1,h2,h3{line-height:1.25;margin:.2em 0 .55em}h1{font-size:clamp(1.7rem,4vw,3.1rem)}h2{font-size:clamp(1.4rem,2.7vw,2rem)}p{max-width:84ch}.notice{border-inline-start:4px solid #3c6c92;padding:.5rem .75rem;background:#eaf5ff}.diagram{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));list-style:none;gap:1.55rem;padding:0;margin:.8rem 0}.diagram li{position:relative;padding:.7rem;border:1px solid #8daecb;border-radius:.65rem;background:#ecf5fc;min-width:0}.diagram strong,.diagram span{display:block}.diagram li:not(:last-child)::after{content:"→";position:absolute;inset-inline-end:-1.32rem;top:calc(50% - .85rem);color:#356488;font-weight:bold}.matrix{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}.matrix article{border:1px solid var(--line);border-radius:.55rem;padding:.75rem;min-width:0}.matrix article p{margin:.4rem 0}pre{max-width:100%;overflow:auto;padding:.8rem;background:#152e43;color:#eef7ff;border-radius:.55rem}details{border:1px solid var(--line);padding:.55rem .7rem;border-radius:.55rem}summary{cursor:pointer}code{font-family:ui-monospace,monospace}figure{margin:0 0 1rem}.quiet{color:var(--muted)}
+@media(max-width:780px){.matrix{grid-template-columns:repeat(2,minmax(0,1fr))}.diagram{grid-template-columns:minmax(0,1fr)}.diagram li:not(:last-child)::after{content:"↓";inset-inline-end:auto;top:auto;bottom:-1.55rem;left:50%}}@media(max-width:480px){.matrix{grid-template-columns:minmax(0,1fr)}}
+</style></head><body><main>
+<header><a href="index.html">回 Python 教材</a><h1>Python 加密與程式碼保護深度研究</h1><p>真正不能交付的邏輯與金鑰留在服務端。必須交付的程式則優先保護更新真偽、資料機密性並管理授權；封裝不能保證客戶端看不到可執行內容。</p><nav aria-label="章節導覽"><a href="#goals">保護目標</a><a href="#architecture">架構圖</a><a href="#flow">驗證流程</a><a href="#choices">比較圖表</a><a href="#lab">離線實作</a><a href="#operations">上線清單</a></nav></header>
+<section id="goals"><h2>01｜先分清楚保護目標</h2><dl><dt><strong>原始碼與商業邏輯</strong></dt><dd>以原始碼存取權限、未公開倉庫及服務端運算為主要邊界；交給客戶執行的程式不能視為完全保密。</dd><dt><strong>授權與離線政策</strong></dt><dd>服務端每次檢查帳號／租戶權限。離線授權可用獨立簽章金鑰發布限期授權聲明，檢查產品、功能、到期日；在使用者掌控的裝置上，不等於不可繞過的強制邊界。時鐘回撥與撤銷延遲須納入設計。</dd><dt><strong>靜態檔案機密性</strong></dt><dd>儲存時的機密資料可用認證加密（AEAD，例如 AES-GCM），保存 I/O 格式版本、nonce、密文與驗證標籤；同一把金鑰不可重用 nonce，AAD 可綁定租戶或資料用途。部署時由 KMS 或受控服務授權取用，不把共用解密金鑰硬編在安裝檔。應用有權解密時，明文仍可能出現在該信任域。</dd><dt><strong>發布完整性與來源</strong></dt><dd>以私鑰簽署精確 manifest 位元組，再以 manifest 中的 SHA-256 綁定成品。SHA-256 單獨不驗證發布人；簽章也不提供保密。受信任公鑰必須來自不同於不受信任下載檔的信任來源。</dd></dl></section>
+<section id="architecture"><h2>02｜架構圖：分開建置、簽署與發布</h2><figure><figcaption>供應鏈方向圖。私鑰留在簽署信任域；下載區與客戶端均不持有私鑰。</figcaption><ol class="diagram"><li><strong>原始碼倉庫與 CI</strong><span>原始碼不進公開更新區</span></li><li><strong>簽署服務與私鑰</strong><span>建置後簽署 manifest；私鑰不交付</span></li><li><strong>更新伺服器／發布區</strong><span>只放成品、manifest、簽章</span></li><li><strong>驗證用戶端</strong><span>從獨立信任來源取得公鑰</span></li></ol></figure><p>部署時先把公鑰或信任根隨可信安裝管道發放；不能使用和檔案一起由同一不可信位置提供、且未經驗證的新公鑰。真正機密的模型、規則與明文資料留在獨立服務和權限邊界，離線工控要另規劃故障行為，不能讓授權查詢導致基本控制或安全功能停擺。</p><p><a href="python_code_protection_diagrams.drawio" download>下載兩張可編輯 Draw.io 圖</a></p></section>
+<section id="flow"><h2>03｜流程圖：先驗證再解析與啟用</h2><figure><figcaption>正常流程；每個節點的失敗分支都是拒絕、稽核、保留現行版本。</figcaption><ol class="diagram"><li><strong>載入與驗章</strong><span>驗證 manifest 原始位元組</span></li><li><strong>檢查發行契約</strong><span>核對目標、版本下限與時效</span></li><li><strong>核對成品</strong><span>位元組與 SHA-256 驗證</span></li><li><strong>確認後才啟用</strong><span>任一步失敗就拒絕，不覆蓋目前版本</span></li></ol></figure><p>驗章時使用收到的原始 manifest 位元組，不先把 JSON 格式化重存；同一份資料必須先驗章再解析。正式版另限制結構與大小，指定發布通道、平台、目標檔、簽署金鑰 ID、到期與可接受的最小版本。安裝程式應使用同一份已驗證位元組或妥善保護的暫存成品，不要驗完後再打開可被替換的路徑。</p><p><strong>回退與金鑰輪替：</strong>保存可信的版本下限與支援通道；不能僅因舊包有簽章就回退。正式輪替先用既有信任根或獨立受控管道分發新版信任集，再妥善撤銷老金鑰。允許的緊急回退應有獨立授權、期限、理由和稽核紀錄；客戶端只信任可管理的預先信任資料。</p></section>
+<section id="choices"><h2>04｜比較圖表：各方法該用在哪裡</h2><div class="matrix">
+<article><h3>.py / .pyc</h3><p><b>作用：</b>原始碼或 CPython bytecode；利於部署與載入。</p><p><b>邊界：</b>不是加密；bytecode 與直譯器版本相關，具可分析性。</p></article>
+<article><h3>PyInstaller</h3><p><b>作用：</b>打包程式、直譯器與相依項目以簡化交付。</p><p><b>邊界：</b>不是保密工具；單檔執行也通常會解出內容到暫存位置。需測目標 OS、權限與實際執行模式。</p></article>
+<article><h3>Nuitka / Cython</h3><p><b>作用：</b>編譯程式或擴充模組，改變交付方式，可能提高分析成本。</p><p><b>邊界：</b>不是密碼學保證；需要管理平台、Python ABI、建置及測試矩陣，不保證任意場景更快。</p></article>
+<article><h3>服務端 API</h3><p><b>作用：</b>不把受保護的實作交給用戶端。</p><p><b>邊界：</b>增加可用性、離線、身分授權與維運要求；客戶端仍只送必要資料。</p></article>
+<article><h3>AES-GCM</h3><p><b>作用：</b>保護獲准解密之前的靜態資料，並驗證資料。</p><p><b>邊界：</b>不能保證執行中的明文不可見。不要自製演算法，也不要在現有金鑰下重用 nonce。</p></article>
+<article><h3>簽章＋雜湊</h3><p><b>作用：</b>驗證可信發布者與實際下載位元組。</p><p><b>邊界：</b>不保密。版本、目標與可接受信任根需額外驗證，不只檢查簽章成功。</p></article>
+</div></section>
+<section id="lab"><h2>05｜離線實作：簽署並驗證合成發行檔</h2>
+<p>需要 Python 3.10+ 與安裝好的 OpenSSL 3.x；不連網，不執行發行成品。私鑰只在暫存資料夾生成，執行結束即清理。臨時用戶端公鑰是用來示範預先配置的信任根，不是從更新區下載的資料。</p>
+<p><a href="python_code_protection_lab.py" download>下載完整 Python 實驗</a></p>
+<pre tabindex="0"><code>openssl version
+python3 python_code_protection_lab.py</code></pre>
+<p>預期四項測試：正常檔通過；舊版但原簽章有效仍被拒絕；成品遭修改被雜湊拒絕；manifest 改寫後被驗章拒絕。</p>
+<details><summary>展開原始碼</summary><pre tabindex="0"><code>&quot;&quot;&quot;Offline synthetic release verification; Python 3.10+ and OpenSSL 3.x.&quot;&quot;&quot;
+from __future__ import annotations
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+from tempfile import TemporaryDirectory
+
+def ssl(*args: str, verify_only: bool = False) -&gt; bytes:
+    result = subprocess.run([&quot;openssl&quot;, *args], check=False, capture_output=True, timeout=10)
+    if result.returncode:
+        if verify_only:
+            raise ValueError(&quot;驗章失敗：拒絕發布資料&quot;)
+        raise RuntimeError(result.stderr.decode(errors=&quot;replace&quot;))
+    return result.stdout
+
+def verify(root: Path, pinned_key: Path, floor: int, expected_product: str) -&gt; bytes:
+    # Verify the exact bytes held in memory; do not parse until verified.
+    manifest = (root / &quot;manifest.json&quot;).read_bytes()
+    signature = (root / &quot;manifest.sig&quot;).read_bytes()
+    with TemporaryDirectory() as tmp:
+        data, sig = (Path(tmp) / name for name in (&quot;manifest&quot;, &quot;signature&quot;))
+        data.write_bytes(manifest)
+        sig.write_bytes(signature)
+        ssl(&quot;pkeyutl&quot;, &quot;-verify&quot;, &quot;-pubin&quot;, &quot;-inkey&quot;, str(pinned_key), &quot;-rawin&quot;,
+            &quot;-in&quot;, str(data), &quot;-sigfile&quot;, str(sig), verify_only=True)
+    meta = json.loads(manifest)
+    if (meta[&quot;product&quot;] != expected_product or meta[&quot;file&quot;] != &quot;example.bin&quot;
+            or type(meta[&quot;version&quot;]) is not int or meta[&quot;version&quot;] &lt; floor):
+        raise ValueError(&quot;發行目標或版本不符：拒絕發布資料&quot;)
+    payload = (root / &quot;example.bin&quot;).read_bytes()
+    if hashlib.sha256(payload).hexdigest() != meta[&quot;sha256&quot;]:
+        raise ValueError(&quot;檔案雜湊不符：拒絕發布資料&quot;)
+    return payload  # In production install precisely these verified bytes, not a reopened file.
+
+def demo() -&gt; None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        publisher, client, release = (root / name for name in (&quot;publisher&quot;, &quot;client&quot;, &quot;release&quot;))
+        for folder in (publisher, client, release):
+            folder.mkdir()
+        private, pinned = publisher / &quot;key.pem&quot;, client / &quot;trusted.pem&quot;
+        ssl(&quot;genpkey&quot;, &quot;-algorithm&quot;, &quot;ED25519&quot;, &quot;-out&quot;, str(private))
+        ssl(&quot;pkey&quot;, &quot;-in&quot;, str(private), &quot;-pubout&quot;, &quot;-out&quot;, str(pinned))
+        payload = release / &quot;example.bin&quot;
+        payload.write_bytes(b&quot;synthetic release example\n&quot;)
+        manifest, sig = release / &quot;manifest.json&quot;, release / &quot;manifest.sig&quot;
+        meta = {&quot;product&quot;: &quot;tutorial&quot;, &quot;file&quot;: &quot;example.bin&quot;, &quot;version&quot;: 2,
+                &quot;sha256&quot;: hashlib.sha256(payload.read_bytes()).hexdigest()}
+        manifest.write_text(json.dumps(meta, sort_keys=True), encoding=&quot;utf-8&quot;)
+        ssl(&quot;pkeyutl&quot;, &quot;-sign&quot;, &quot;-inkey&quot;, str(private), &quot;-rawin&quot;, &quot;-in&quot;, str(manifest), &quot;-out&quot;, str(sig))
+        assert verify(release, pinned, 2, &quot;tutorial&quot;) == payload.read_bytes()
+        print(&quot;PASS: 正常發行物通過驗章、版本與雜湊&quot;)
+
+        def rejects(floor: int, expected: str) -&gt; None:
+            try:
+                verify(release, pinned, floor, &quot;tutorial&quot;)
+            except ValueError as exc:
+                if expected not in str(exc):
+                    raise
+                print(&quot;PASS:&quot;, str(exc))
+                return
+            raise AssertionError(&quot;錯誤檔案被接受&quot;)
+
+        rejects(3, &quot;版本不符&quot;)
+        payload.write_bytes(b&quot;edited release example\n&quot;)
+        rejects(2, &quot;雜湊不符&quot;)
+        payload.write_bytes(b&quot;synthetic release example\n&quot;)
+        manifest.write_text(json.dumps({**meta, &quot;version&quot;: 3}), encoding=&quot;utf-8&quot;)
+        rejects(2, &quot;驗章失敗&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.parse_args()
+    demo()
+</code></pre></details>
+<p class="notice">教學範例不包含持久版本狀態、簽章門檻、金鑰輪替、並行安裝、檔案大小限制或交易式啟用。正式產品宜優先採用成熟更新機制（如 TUF、作業系統簽章與套件管理器）。</p></section>
+<section id="operations"><h2>06｜上線驗收清單</h2>
+<ol><li>盤點要保護的資料與攻擊者位置；用原始碼祕密掃描與最小權限，避免配置與憑證進入任何發布品。</li><li>分離部署金鑰、更新簽署金鑰及授權簽署用途；規劃離線信任根、簽署審核、版本下限與紀錄保存。</li><li>以乾淨目的平台試裝，對未信任金鑰、破損檔、過期資料、舊版、錯平台做拒絕測試。</li><li>在預備環境演練撤銷、輪替、更新中斷與安全回退；以實際部署結果驗收，而非只看封裝成功。</li></ol>
+<p class="quiet">原始參考：<a href="https://docs.python.org/3/library/dis.html">Python bytecode／dis</a>、<a href="https://pyinstaller.org/en/stable/operating-mode.html">PyInstaller 運作方式</a>、<a href="https://nuitka.net/user-documentation/user-manual.html">Nuitka 使用手冊</a>、<a href="https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html">Cython 建置流程</a>、<a href="https://docs.openssl.org/3.0/man1/openssl-pkeyutl/">OpenSSL pkeyutl</a>、<a href="https://cryptography.io/en/latest/hazmat/primitives/aead/">cryptography AEAD 文件</a>、<a href="https://theupdateframework.io/">The Update Framework</a>。</p></section>
+</main></body></html>

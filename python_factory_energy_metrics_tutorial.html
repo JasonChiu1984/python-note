@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工廠能效指標｜電表、產量與需量的 Python 實作</title>
+<style>
+:root{font:1rem/1.68 system-ui,"Noto Sans TC",sans-serif;color:#172b42;background:#eef4f9;--blue:#174c7e;--soft:#eaf2fa;--line:#c4d5e5}
+*{box-sizing:border-box}body{margin:0}main{padding:clamp(.7rem,2.2vw,2.6rem)}a{color:#174c7e;text-underline-offset:.16em}a:focus-visible,summary:focus-visible{outline:3px solid #174c7e;outline-offset:3px}p{max-width:75ch}header,section{background:white;border:1px solid var(--line);border-radius:1rem;padding:clamp(.9rem,2vw,1.8rem);margin-bottom:1rem;min-width:0;overflow-wrap:anywhere}
+h1{font-size:clamp(1.65rem,3vw,3rem);line-height:1.2;margin:.4em 0}h2{line-height:1.3;margin:.25rem 0 .7rem}h3{margin:.65rem 0 .3rem}.tag{color:#174c7e;background:var(--soft);display:inline-block;padding:.2rem .55rem;font-weight:700;border-radius:.3rem}.links{display:flex;gap:.5rem;flex-wrap:wrap;margin:.65rem 0}.links a{border:1px solid var(--line);border-radius:.45rem;background:var(--soft);padding:.35rem .65rem;font-weight:650}.links a:hover{background:#d8e9f8}
+figure{margin:.6rem 0 1.2rem}figcaption{font-weight:750;margin:.45rem 0}.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.45rem}.flow li{position:relative;background:var(--soft);border:1px solid var(--line);border-radius:.65rem;padding:.65rem;min-width:0;overflow-wrap:anywhere}.flow li:not(:last-child)::after{position:absolute;content:"→";font-weight:800;color:var(--blue);top:calc(50% - .7em);right:-1.22rem}.flow strong,.flow span{display:block}.flow span{font-size:.94rem}
+@media(max-width:740px){.flow{grid-template-columns:1fr;gap:1.4rem}.flow li:not(:last-child)::after{content:"↓";top:auto;right:calc(50% - .4em);bottom:-1.45rem}}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:.6rem}.tablebox:focus-visible{outline:3px solid #174c7e}table{width:100%;border-collapse:collapse;min-width:36rem}th,td{border-bottom:1px solid var(--line);text-align:left;padding:.55rem;vertical-align:top}thead th{background:var(--soft)}tbody tr:last-child>*{border:0}.note{border-left:4px solid #28719d;padding:.5rem .75rem;background:var(--soft)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.7rem}.card{border:1px solid var(--line);border-radius:.55rem;padding:.55rem .7rem;background:#f7fafc;min-width:0}.card b{display:block;color:var(--blue);font-size:1.25rem}
+.barlist{list-style:none;padding:0;margin:.6rem 0}.barlist li{display:grid;grid-template-columns:3.6rem minmax(1rem,36rem) minmax(4.4rem,max-content);align-items:center;gap:.5rem;margin:.38rem 0;font-variant-numeric:tabular-nums}.track{height:.8rem;background:#e6eef6;border-radius:.4rem;overflow:hidden}.fill{display:block;height:100%;background:#28729f;width:var(--value)}.barlist .peak .fill{background:#174c7e}
+pre{background:#102a42;color:#f1f7ff;border-radius:.5rem;padding:.8rem;overflow:auto;max-width:100%;font-size:.88rem}p code,li code,table code{overflow-wrap:anywhere;color:#1b4669}summary{cursor:pointer;font-weight:700}
+</style></head><body><main id="top">
+<header><span class="tag">FACTORY / ENERGY PERFORMANCE</span><h1>工廠能效指標：從分電表到單位良品能耗</h1><p>用一條產線、兩種產品和四個 15 分鐘區間，從原始資料算出用電、需量、負載率、耗電強度與相同產品組合的基準偏差。全部數值為合成教學資料。</p>
+<nav class="links" aria-label="章節導覽"><a href="index.html#facility-metrics">回機房與 HVAC 指標</a><a href="#architecture">架構與流程</a><a href="#metrics">公式與算例</a><a href="#apis">API 與實作</a><a href="#acceptance">驗收</a></nav></header>
+<section id="architecture"><h2>1｜先劃計量邊界，再串資料</h2>
+<figure><figcaption>圖一｜從 OT 資料到能效報表的架構</figcaption><ol class="flow"><li><strong>電力與產量來源</strong><span>產線分電表、PLC/MES 良品數、產品型號。廠總表另外對帳。</span></li><li><strong>邊緣唯讀採集</strong><span>閘道保留時間、表號、CT/PT 倍率、品質和累積值。</span></li><li><strong>歷史庫與批次計算</strong><span>固定同窗校驗，保存相同設備邊界的 kWh 與組合產量。</span></li><li><strong>報表與唯讀 API</strong><span>回傳 KPI、邊界、版本與缺值；不可從報表回寫控制。</span></li></ol></figure>
+<figure><figcaption>圖二｜一筆資料如何變成可發布的指標</figcaption><ol class="flow"><li><strong>校正與對齊</strong><span>換成 kWh，時間含時區，區間使用左閉右開。</span></li><li><strong>先把異常分流</strong><span>缺筆、重複、換表重設或異常倍率進待查，不補零。</span></li><li><strong>先加總再算比率</strong><span>以合計用電、良品數與完整區間計算；無產量不算 SEC。</span></li><li><strong>以同條件基準比對</strong><span>納入產品組合、工時等因素；記錄基準與公式版本。</span></li></ol></figure>
+<p><a href="python_factory_energy_metrics.drawio" download>下載可編輯架構圖與流程圖</a> · <a href="python_industrial_protocol_comparison_tutorial.html">工業通訊選型</a></p>
+<p class="note">例題邊界是單一產線。公用冰水、空壓、排氣若不在分表下，需另列排除，或用可核對的分攤量；不能把已含在總表中的分表再次加回。電表正向輸入與出口、太陽光電自用須分列，不拿淨購電冒充總耗能。</p></section>
+<section id="metrics"><h2>2｜八個常用指標與同一套算例</h2>
+<p>四區間覆蓋 08:00–09:00（UTC+08:00）；<strong>產出是良品數</strong>，報廢與返工用電仍會反映在分表能耗。製品 A 與 B 的難度不同，原始每件指標必須連產品組合一起看。</p>
+<div class="tablebox" role="region" tabindex="0" aria-label="能效算例輸入"><table><thead><tr><th scope="col">區間起點</th><th scope="col">分表用電 kWh</th><th scope="col">A 良品</th><th scope="col">B 良品</th><th scope="col">平均需量 kW</th></tr></thead><tbody><tr><th scope="row">08:00</th><td>51</td><td>60</td><td>20</td><td>204</td></tr><tr><th scope="row">08:15</th><td>65</td><td>40</td><td>60</td><td>260</td></tr><tr><th scope="row">08:30</th><td>55</td><td>80</td><td>20</td><td>220</td></tr><tr><th scope="row">08:45</th><td>39</td><td>0</td><td>0</td><td>156</td></tr></tbody></table></div>
+<div class="cards" aria-label="算例主要結果"><div class="card"><b>210 kWh</b>一小時用電</div><div class="card"><b>0.75 kWh／件</b>單位良品能耗</div><div class="card"><b>260 kW</b>15 分鐘尖峰需量</div><div class="card"><b>80.77%</b>本時窗負載率</div></div>
+<div class="tablebox" role="region" tabindex="0" aria-label="工廠能效公式"><table><thead><tr><th scope="col">指標</th><th scope="col">公式與代入</th><th scope="col">判讀與限制</th></tr></thead><tbody>
+<tr><th scope="row">總用電量</th><td>Σ 各區間用電 = 51+65+55+39 = 210 kWh</td><td>累積電表以相鄰兩次讀值相減；換表、重設與方向倒讀另處理。</td></tr>
+<tr><th scope="row">單位良品能耗 SEC</th><td>210 kWh ÷ (180+100) 良品 = 0.75 kWh／件</td><td>質量製程也可用 kWh／噸；勿平均各班 SEC。無良品時標未定義，仍保留電量。</td></tr>
+<tr><th scope="row">區間需量</th><td>65 kWh ÷ 0.25 h = 260 kW（08:15）</td><td>屬區間平均功率，不是瞬間電流或峰值。台電契約及帳單依實際用戶條件與計量窗口。</td></tr>
+<tr><th scope="row">尖峰需量</th><td>max(204, 260, 220, 156) = 260 kW</td><td>以同一表與完整期間比；不同設備峰值通常不同時，勿直接相加。</td></tr>
+<tr><th scope="row">平均功率</th><td>210 kWh ÷ 1 h = 210 kW</td><td>24 小時報表要分母一致；缺窗不能冒充完整期間。</td></tr>
+<tr><th scope="row">負載率</th><td>210 kW ÷ 260 kW × 100% = 80.77%</td><td>非容量利用率，也非 OEE。沒有正的尖峰時標未定義；高負載率不代表耗電低。</td></tr>
+<tr><th scope="row">零產出窗耗電</th><td>39 kWh，占本窗 39 ÷ 210 ≈ 18.57%</td><td>可能是待機、暖機或保護運轉；不等於可全削減，須看機況。</td></tr>
+<tr><th scope="row">同組合基準差</th><td>基準 25 × 4 + 0.25 × 180 + 0.50 × 100 = 195 kWh；195 − 210 = −15 kWh（−7.69%）</td><td>正值表示實際低於基準；負值表示用電較高。係數是合成設定，不是用本期資料擬合，也不是節能保證。</td></tr>
+</tbody></table></div>
+<figure><figcaption>圖三｜15 分鐘平均需量（共同尺度 0–300 kW）</figcaption>
+<ol class="barlist"><li><span>08:00</span><span class="track" aria-hidden="true"><span class="fill" style="--value:68%"></span></span><strong>204 kW</strong></li><li class="peak"><span>08:15</span><span class="track" aria-hidden="true"><span class="fill" style="--value:86.6667%"></span></span><strong>260 kW</strong></li><li><span>08:30</span><span class="track" aria-hidden="true"><span class="fill" style="--value:73.3333%"></span></span><strong>220 kW</strong></li><li><span>08:45</span><span class="track" aria-hidden="true"><span class="fill" style="--value:52%"></span></span><strong>156 kW</strong></li></ol>
+<p>本案例先排查 08:15 是否有設備同時啟動，再查 08:45 沒有良品但仍耗電的原因。兩者回答不同問題；不要為了壓需量犧牲製程安全。</p></figure>
+<p><strong>實際基準怎麼做：</strong>用改善前的代表性資料建立基準，先選產品組合、運轉工時、溫度等相關變數；以不同時段驗證誤差、檢查資料超出模型範圍，廠線或計量變更時記錄重設規則。耗電強度、總用電、成本與排放是不同指標。見 <a href="https://www.iso.org/standard/79367.html">ISO 50006:2023</a> 與 <a href="https://service.taipower.com.tw/ebpps2/web-content/about-us">台電電子帳單用語</a>。</p></section>
+<section id="apis"><h2>3｜Python API 與實作：CSV、JSON、批次檢算</h2>
+<p>只需 Python 3.10+ 標準函式庫，不連 PLC、MES 或其他網路。可下載 <a href="python_factory_energy_metrics_lab.py" download>完整程式及 6 項自測</a>、<a href="python_factory_energy_metrics_sample.csv" download>四區間合成 CSV</a>。</p>
+<pre><code>python python_factory_energy_metrics_lab.py
+python python_factory_energy_metrics_lab.py --test
+python python_factory_energy_metrics_lab.py --csv python_factory_energy_metrics_sample.csv \
+  --start 2026-11-25T08:00:00+08:00 --periods 4</code></pre>
+<div class="tablebox" role="region" tabindex="0" aria-label="常見 API 與回傳值"><table><thead><tr><th scope="col">API</th><th scope="col">輸入 → 結果</th><th scope="col">為何這樣用</th></tr></thead><tbody>
+<tr><th scope="row"><code>csv.DictReader(handle)</code></th><td>表頭與資料列 → 具名稱欄位</td><td>不要靠欄位順序；UTF-8 讀取，以 <code>newline=""</code> 交給 CSV 模組處理換行。</td></tr>
+<tr><th scope="row"><code>datetime.fromisoformat()</code></th><td>帶時區的 ISO 8601 → 時間物件</td><td>比較前轉 UTC，報表可再以台灣時區顯示；拒絕沒時區的值。</td></tr>
+<tr><th scope="row"><code>difference_kwh(prev, now)</code></th><td>同一表相鄰累積讀值 → 區間電量</td><td>負差先隔離；自己的輸入是區間表時別再相減。</td></tr>
+<tr><th scope="row"><code>from_records(items)</code>／<code>summarize(rows, start, periods)</code></th><td>CSV 或 JSON 物件列 → 內部區間 → KPI 字典</td><td>預期筆數由報表需求提供；禁止拿收到的筆數冒充完整。</td></tr>
+<tr><th scope="row"><code>json.loads()</code>／<code>json.dumps(…, allow_nan=False)</code></th><td>JSON 字串 ↔ Python 物件</td><td>未定義比率是 <code>null</code>，不是零；不是用戶可任意提交的現場控制命令。</td></tr>
+</tbody></table></div>
+<details><summary>展開：同一份 JSON 如何重用計算函式</summary><pre><code>import json
+from datetime import datetime
+from python_factory_energy_metrics_lab import from_records, summarize
+
+payload = '''[{"start":"2026-11-25T08:00:00+08:00","energy_kwh":51,
+               "good_a":60,"good_b":20}]'''
+rows = from_records(json.loads(payload))
+start = datetime.fromisoformat("2026-11-25T08:00:00+08:00")
+report = summarize(rows, start, periods=1)
+assert report["peak_interval_kw"] == 204
+assert report["sec_kwh_per_good"] == 51 / 80</code></pre></details>
+<details><summary>展開：唯讀 HTTP API 契約示意（本教程未啟動服務）</summary>
+<pre><code>GET /v1/energy/lines/line-a?start=2026-11-25T00:00:00Z&amp;intervals=4
+
+{
+  "line_id": "line-a",
+  "measurement_boundary": "line-submeter-and-mes",
+  "window_start": "2026-11-25T00:00:00Z",
+  "interval_minutes": 15,
+  "periods": 4,
+  "coverage": 1.0,
+  "formula_version": "demo-v1",
+  "energy_kwh": 210,
+  "sec_kwh_per_good": 0.75
+}</code></pre><p>後端驗證讀取範圍、時間與計量邊界；查無完整資料就回傳具機器可讀錯誤的回應，不沿用上一期值，也不自動修改現場資料。現有 CLI 實作的是可重用計算函式，而非此 HTTP 服務。</p></details></section>
+<section id="acceptance"><h2>4｜交付驗收：查數字，也查資料從哪來</h2><ol><li>用短期間比對電表、產量與時間戳；驗 CT/PT、單位、設備歸屬、反向值與重設紀錄。</li><li>刻意少一筆、複製一筆、歸零、更換時區表示或送空產量，確認異常有理由，不轉成漂亮數字。</li><li>保存原始切片、區間定義、來源品質、分攤法、基準版號與報表輸出；同輸入應可重跑。班次交接或公用設備調度要另標。</li><li>用帳單／主表做獨立對帳；跨日、需量窗口和損失口徑要一致。人工調整後保留原版與原因。</li></ol>
+<p><a href="python_datacenter_efficiency_tutorial.html#formula-sheet">機房能效公式</a> · <a href="python_equipment_utilization_tutorial.html">設備稼動率</a> · <a href="python_taiwan_electricity_billing_tutorial.html">台灣電費</a> · <a href="python_carbon_emissions_calculation_tutorial.html">碳排放量計算</a></p></section></main></body></html>
