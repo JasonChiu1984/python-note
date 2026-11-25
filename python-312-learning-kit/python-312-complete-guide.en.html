@@ -1,14 +1,263 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 3.12 Learning Guide</title><style>*{box-sizing:border-box}html{color-scheme:light}body{margin:0;background:#f0f5fa;color:#183049;font:1rem/1.65 system-ui,sans-serif}main{padding:clamp(.7rem,2.4vw,2rem);margin:auto;max-width:90rem}header,section,footer{background:white;border:1px solid #c5d7e6;border-radius:.8rem;padding:clamp(.85rem,2.2vw,1.6rem);margin-bottom:.75rem;min-width:0;overflow-wrap:anywhere}header{border-top:.4rem solid #285b85}h1,h2{line-height:1.25;margin:.25rem 0 .65rem}h1{font-size:clamp(1.65rem,4vw,3rem)}p{max-width:80ch}a{color:#1e4d76;text-underline-offset:.16em}a:focus-visible{outline:3px solid #214e76;outline-offset:2px}nav{display:flex;flex-wrap:wrap;gap:.4rem}nav a{display:inline-block;background:#e9f2fa;border:1px solid #bacfe1;border-radius:.4rem;padding:.3rem .6rem}pre{padding:.65rem .8rem;background:#142f48;color:#fff;border-radius:.45rem;max-width:100%;overflow:auto}footer ul{padding-inline-start:1.2rem}code{font-size:.93em}li{margin-block:.2rem}.status{background:#e9f2fa;border-inline-start:.25rem solid #285b85;padding:.4rem .7rem}</style></head><body><main><header><h1>Python 3.12 Learning Guide</h1><p>Last updated：<time datetime="2026-11-25">2026-11-25</time></p><p>Use an AHU temperature example to learn the language changes, then check porting issues in a clean environment. The lab needs neither third-party packages nor network access.</p><p class="status">Python 3.12.0 shipped on 2023-10-02. PEP 693 schedules source-only security releases as needed until about October 2028. The lab was tested on CPython 3.12.14; that is the test version, not a claim that it is the newest patch. Check the official schedule before deployment.</p><nav aria-label="Guide links"><a href="../../index.html#python-releases-title">Learning hub</a> <a lang="zh-Hant" hreflang="zh-Hant" href="python-312-complete-guide.html">繁體中文</a> <a href="python-312-lab.py" download>Download lab</a></nav><nav aria-label="Chapters"><a href="#topic-0">Moving from 3.11 to 3.12</a><a href="#topic-1">Type parameters and aliases</a><a href="#topic-2">f-strings</a><a href="#topic-3">Comprehensions</a><a href="#topic-4">Standard-library exercises</a><a href="#topic-5">Porting and validation</a></nav></header><section id="topic-0"><h2>1. Moving from 3.11 to 3.12</h2><p>Start with three changes: new generic syntax needs a 3.12 parser, f-string quoting rules are less restrictive, and CPython inlines list, set, and dictionary comprehensions. Check for hidden dependencies on distutils and packaging tools before deployment.</p></section><section id="topic-1"><h2>2. Type parameters and aliases | PEP 695</h2><p><code>def first[T]</code> declares the parameter on the function that uses it. A static checker can preserve the input list’s element type in the return value. <code>type Reading</code> declares a type alias; it neither validates telemetry nor supplies a class for <code>isinstance()</code>. For 3.11 compatibility use <code>TypeVar</code> and <code>TypeAlias</code>. Hiding the new syntax in a version check cannot avoid a parse error.</p><pre><code>type Reading = tuple[str, float]
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 3.12 complete language and upgrade guide</title><style>*{box-sizing:border-box}body{margin:0;color:#183149;background:#eff5fa;font:1rem/1.7 system-ui,sans-serif}main{margin:auto;padding:clamp(.7rem,2.3vw,2rem);max-width:90rem}header,section,footer{background:white;border:1px solid #c5d7e6;border-radius:.85rem;padding:clamp(.75rem,2.2vw,1.6rem);margin-block-end:1rem;overflow-wrap:anywhere}header{border-top:.4rem solid #265b85}h1,h2,h3{line-height:1.25;margin:.3rem 0 .75rem}h1{font-size:clamp(1.62rem,4vw,3.15rem)}h3{font-size:1.2rem}a{color:#164d78;text-underline-offset:.18em}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #164d78;outline-offset:2px}p{max-width:82ch}nav{display:flex;gap:.45rem;flex-wrap:wrap;margin-block:.65rem}nav a,.badge{display:inline-block;background:#e9f2fa;border:1px solid #bdd2e4;border-radius:.4rem;padding:.26rem .6rem}pre{max-width:100%;overflow:auto;background:#122f49;color:#f6f9fc;border-radius:.45rem;padding:.7rem;font: .88rem/1.5 ui-monospace,monospace}article{margin:1rem 0;border-top:1px solid #cfdeeb;padding-top:1rem}summary{cursor:pointer;color:#184f7b;font-weight:650}figure{margin:1.15rem 0}figcaption{font-weight:750;margin-bottom:.5rem}.flow{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.4rem;padding:0}.flow li{min-width:0;position:relative;border:1px solid #b3cce0;background:#edf5fb;border-radius:.5rem;padding:.55rem}.flow li:not(:last-child):after{position:absolute;content:'→';right:-1.16rem;top:calc(50% - .8em);color:#184f7b;font-weight:bold}.table-wrap{overflow:auto;border:1px solid #bfd2e3;border-radius:.45rem}table{border-collapse:collapse;width:100%;min-width:25rem}td,th{padding:.47rem .62rem;border-bottom:1px solid #cfdeeb;text-align:left;vertical-align:top}thead{background:#edf5fb}li{margin-block:.2rem}@media(max-width:42rem){.flow{grid-template-columns:1fr}.flow li:not(:last-child):after{content:'↓';right:50%;top:auto;bottom:-1.42rem}}
+/* Aligned with the 3.15 learning portal: ink blue, teal rule, and desktop TOC. */
+:root{color-scheme:light;--ink:#17243a;--muted:#536c84;--line:#d6e3ed;--teal:#116e73;--paper:#f0f5f9;--accent:#285b8d}
+*{box-sizing:border-box}html{scroll-padding-top:1rem}
+body{margin:0;max-width:none;padding:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.72}
+a{color:#215b8b;text-underline-offset:.15em}a:focus-visible,summary:focus-visible{outline:3px solid #1a6d79;outline-offset:3px}
+.vg-topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;background:#fff;border-bottom:1px solid var(--line);padding:.6rem clamp(.85rem,3vw,3rem);color:var(--muted);font-size:.88rem}
+.vg-topbar a{text-decoration:none;font-weight:800}
+.vg-hero{max-width:none;margin:0;border:0;border-radius:0;background:linear-gradient(125deg,#152840,#214967);color:#fff;border-bottom:6px solid #60b5af;padding:clamp(1.15rem,3vw,2.8rem) clamp(.85rem,3vw,3rem);box-shadow:none}
+.vg-hero p{color:#dce9f5;max-width:82ch}.vg-hero h1{color:#fff;font-size:clamp(1.9rem,4vw,3.05rem);margin:.38em 0 .45em;line-height:1.24;letter-spacing:-.025em}
+.vg-hero .vg-eyebrow{font-size:.8rem;letter-spacing:.1em;color:#a8e3dc;font-weight:800;margin:0}
+.vg-hero .vg-resources{display:flex;flex-wrap:wrap;gap:.55rem;margin:.5rem 0 .65rem}
+.vg-hero .vg-resources a,.vg-hero .vg-hero-nav a{background:#285477;color:#fff;border:1px solid #82a9c4;border-radius:.42rem;padding:.35rem .66rem;text-decoration:none;font-weight:700}
+.vg-hero .vg-resources a:hover,.vg-hero .vg-hero-nav a:hover{background:#346582}
+.vg-hero a{color:#bce7ff}.vg-hero .badge,.vg-hero .date{background:#25465f;color:#eef7fe;border:1px solid #6f96b1;border-radius:.38rem;padding:.28rem .55rem;max-width:max-content}
+.vg-body{display:grid;grid-template-columns:minmax(12rem,16rem) minmax(0,1fr);gap:clamp(.75rem,2.25vw,2rem);max-width:96rem;margin:auto;padding:clamp(.75rem,2vw,2rem)}
+.vg-toc{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;border:1px solid var(--line);border-radius:.75rem;background:#fff;min-width:0;padding:.7rem;box-shadow:0 .4rem 1.2rem #19314d0a}
+.vg-toc h2{font-size:1.05rem;margin:.15rem 0 .4rem}.vg-toc p{font-size:.82rem;margin:.15rem 0 .5rem;color:var(--muted)}
+.vg-toc nav{display:block;margin:0;padding:0}.vg-toc nav a{display:block;text-decoration:none;font-size:.83rem;line-height:1.4;border-radius:.35rem;overflow-wrap:anywhere;padding:.27rem .38rem;color:#244e70}
+.vg-toc nav a.vg-part{background:#e4eff7;font-weight:780;margin-top:.28rem}.vg-toc nav a.vg-core{padding-inline-start:.9rem;color:#3d5c73}.vg-toc nav a:hover,.vg-toc nav a:focus-visible{background:#d6eceb;color:#124c50}
+.vg-body main{margin:0;padding:0;max-width:none;min-width:0;background:none;border:0;box-shadow:none}
+.vg-body main>section{margin:0 0 1rem;padding:clamp(.8rem,2.25vw,2.15rem);border:1px solid var(--line);border-radius:.85rem;background:#fff;min-width:0;overflow-wrap:anywhere;box-shadow:0 .4rem 1.2rem #19314d0a}
+.vg-body main>section>h2{font-size:clamp(1.3rem,2.45vw,1.9rem);font-weight:800;color:#193b57;line-height:1.35;border-bottom:2px solid #9ccac8;padding:0 0 .65rem;margin:.1rem 0 1rem}
+.vg-body main>section article[id^="c"]{margin:.85rem 0;padding:.8rem clamp(.6rem,1.4vw,1.1rem);border:1px solid #d9e6ef;border-left:3px solid #4d9c9e;border-radius:.5rem;background:#f8fbfd;min-width:0}
+.vg-body main h3{color:#21616d;font-size:clamp(1.12rem,1.85vw,1.38rem);margin:.1rem 0 .55rem;line-height:1.4}.vg-body main li,.vg-body main p{max-width:88ch}
+.vg-body main pre{background:#edf4f9;color:#173751;border:1px solid #cfdfea;max-width:100%;overflow:auto;border-radius:.5rem;line-height:1.55;margin:.7rem 0}
+.vg-body main pre code{color:inherit;background:transparent;white-space:pre}.vg-body main table{max-width:100%}.vg-body main th{background:#ebf5f3;color:#1e555a}
+.vg-body main details{border:1px solid #d4e4ee;background:#fff;padding:.5rem .65rem;border-radius:.45rem;margin:.55rem 0}.vg-body main summary{cursor:pointer;color:#20516e;font-weight:720}
+.vg-body main figure{margin:.9rem 0;min-width:0}
+@media(max-width:870px){.vg-body{display:block}.vg-toc{position:static;max-height:16.2rem;margin:0 0 .75rem}.vg-toc nav{display:grid;grid-template-columns:1fr 1fr;gap:.15rem}.vg-toc nav a.vg-part{grid-column:1/-1}.vg-toc nav a.vg-core{padding-inline-start:.5rem}}
+@media(max-width:350px){.vg-toc nav a{font-size:.79rem}}
+@media print{.vg-topbar,.vg-toc,.vg-resources,.vg-hero-nav{display:none!important}.vg-body{display:block}.vg-hero,.vg-body main>section{box-shadow:none;background:white;color:#17243a}.vg-hero h1,.vg-hero p,.vg-hero a{color:#17243a}}
+</style></head><body><div class="vg-topbar"><a href="../index.html#version-312">Learning portal</a><span>Rebuilt against Python 3.15</span></div><header class="vg-hero"><p class="vg-eyebrow">PYTHON LEARNING NOTES · 2026 EDITION</p><h1>Python 3.12 complete language and upgrade guide</h1><span class="badge">Last updated <time datetime="2026-11-25">2026-11-25</time></span><p>Follows the six parts and C01–C16 of the 3.15 guide, with syntax and APIs appropriate to CPython 3.12. HVAC values and delays are synthetic.</p><p>3.12.0 was released on 2023-10-02. PEP 693 schedules source-only security updates through about October 2028. CPython 3.12.14 was the test runtime, not a claim about the latest patch.</p><nav class="vg-hero-nav" aria-label="Guide links"><a href="../index.html#version-312">Versions</a><a href="python-312-complete-guide.html" hreflang="zh-Hant" lang="zh-Hant">繁體中文</a><a href="../python-312-learning-kit.zip" download>Download ZIP</a></nav><div class="vg-resources"><a href="#part-1">Start with core syntax</a><a href="#part-5">Engineering diagrams</a><a href="../python-312-learning-kit.zip" download>Offline ZIP</a></div></header><div class="vg-body"><aside class="vg-toc"><h2>Contents</h2><p>Six parts and 16 core chapters</p><nav aria-label="Contents"><a class="vg-part" href="#part-1">1. Core syntax and the standard library</a><a class="vg-core" href="#c01">C01｜Blocks and names</a><a class="vg-core" href="#c02">C02｜Numbers, strings, f-strings, and bytes</a><a class="vg-core" href="#c03">C03｜Binding, mutability, and copies</a><a class="vg-core" href="#c04">C04｜Operators and precedence</a><a class="vg-core" href="#c05">C05｜Containers, slices, unpacking, and comprehensions</a><a class="vg-core" href="#c06">C06｜if, match, loops, and loop else</a><a class="vg-core" href="#c07">C07｜Function parameters and variadic arguments</a><a class="vg-core" href="#c08">C08｜LEGB, closures, and decorators</a><a class="vg-core" href="#c09">C09｜Classes, dataclasses, and object protocols</a><a class="vg-core" href="#c10">C10｜Iterators, yield, and yield from</a><a class="vg-core" href="#c11">C11｜Exceptions, cause chains, and ExceptionGroup</a><a class="vg-core" href="#c12">C12｜with and contextmanager</a><a class="vg-core" href="#c13">C13｜Typing as a data contract</a><a class="vg-core" href="#c14">C14｜Modules, imports, entry points, and environments</a><a class="vg-core" href="#c15">C15｜Files, JSON, and the standard library</a><a class="vg-core" href="#c16">C16｜Async syntax and TaskGroup</a><a class="vg-part" href="#part-2">2. Python 3.12 changes and upgrades</a><a class="vg-part" href="#part-3">3. Async, parallelism, and runtimes</a><a class="vg-part" href="#part-4">4. Engineering practice, evolution, and exercises</a><a class="vg-part" href="#part-5">5. Engineering diagrams: CLI and service delivery</a><a class="vg-part" href="#part-6">6. Verification and learning kit</a></nav></aside><main id="guide-content"><section id="part-1"><h2>1. Core syntax and the standard library</h2><pre tabindex="0"><code>python3.12 --version
+python3.12 -m venv .venv
+# macOS / Linux: .venv/bin/python
+# Windows PowerShell: .venv\Scripts\python.exe</code></pre><nav aria-label="C01–C16"><a href="#c01">C01</a><a href="#c02">C02</a><a href="#c03">C03</a><a href="#c04">C04</a><a href="#c05">C05</a><a href="#c06">C06</a><a href="#c07">C07</a><a href="#c08">C08</a><a href="#c09">C09</a><a href="#c10">C10</a><a href="#c11">C11</a><a href="#c12">C12</a><a href="#c13">C13</a><a href="#c14">C14</a><a href="#c15">C15</a><a href="#c16">C16</a></nav><article id="c01"><h3>C01｜Blocks and names</h3><p>Colons introduce blocks; indentation decides branch membership. An if block has no separate lexical scope, but a name assigned only in an untaken branch is unavailable. Both branches assign a value; 28 yields high.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c01():
+    value = 28
+    if value &gt;= 28:
+        state = &quot;high&quot;
+    else:
+        state = &quot;normal&quot;
+    return state == &quot;high&quot;</code></pre></details></article><article id="c02"><h3>C02｜Numbers, strings, f-strings, and bytes</h3><p>Float uses approximations; display precision does not change the value. str is text and bytes are octets. Encode explicitly at an I/O boundary; the UTF-8 round trip reconstructs 溫度=27.5.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c02():
+    sensor = &quot;溫度&quot;
+    value = 27.5
+    wire = f&quot;{sensor}={value:.1f}&quot;.encode(&quot;utf-8&quot;)
+    return isinstance(wire, bytes) and wire.decode(&quot;utf-8&quot;) == &quot;溫度=27.5&quot;</code></pre></details></article><article id="c03"><h3>C03｜Binding, mutability, and copies</h3><p>Assignment is not copying. list.copy() keeps nested objects shared. After appending AHU-02, the shallow copy sees it while the deep copy does not. Do not use deepcopy as a substitute for managing live resources.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c03():
+    original = [[&quot;AHU-01&quot;]]
+    alias = original
+    shallow = original.copy()
+    deep = deepcopy(original)
+    alias[0].append(&quot;AHU-02&quot;)
+    return shallow[0] == [&quot;AHU-01&quot;, &quot;AHU-02&quot;] and deep[0] == [&quot;AHU-01&quot;]</code></pre></details></article><article id="c04"><h3>C04｜Operators and precedence</h3><p>Multiplication precedes addition. Floor division rounds down, not toward zero. 0 &lt; x &lt;= 4 evaluates the middle expression once. The results are 11, 3, 1 and True; use parentheses for mixed boolean logic.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c04():
+    return (5 + 2 * 3, 7 // 2, 7 % 2, 0 &lt; 4 &lt;= 4) == (11, 3, 1, True)</code></pre></details></article><article id="c05"><h3>C05｜Containers, slices, unpacking, and comprehensions</h3><p>Lists retain order, sets remove duplicates, and dictionaries map keys to values. Do not assume sets are sorted. The slice stop is exclusive, and the starred target gathers the remainder. The result has first=24, last=28, with [28] selected.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c05():
+    head, *rest = [24, 26, 24, 28]
+    unique = set(rest)
+    row = {&quot;first&quot;: head, &quot;last&quot;: rest[-1]}
+    return (row, len(unique), [n for n in rest[1:] if n &gt;= 25]) == (
+        {&quot;first&quot;: 24, &quot;last&quot;: 28}, 3, [28]
+    )</code></pre></details></article><article id="c06"><h3>C06｜if, match, loops, and loop else</h3><p>match checks structure, not just equality; a bare name captures rather than compares. Finding a high reading uses break, so loop else does not run. Normal exhaustion triggers else.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c06():
+    events = []
+    for reading in [(&quot;offline&quot;, 0), (&quot;ok&quot;, 28)]:
+        match reading:
+            case (&quot;ok&quot;, value) if value &gt;= 28:
+                events.append(&quot;high&quot;)
+                break
+            case _:
+                continue
+    else:
+        events.append(&quot;no alarm&quot;)
+    return events == [&quot;high&quot;]</code></pre></details></article><article id="c07"><h3>C07｜Function parameters and variadic arguments</h3><p>Parameters before / are positional-only, *offsets collects extra positional values, factor is keyword-only, and **tags captures extra keywords. The result is (23, &#x27;PLC&#x27;). Avoid mutable list defaults shared across calls.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c07():
+    def scale(value, /, *offsets, factor=1, **tags):
+        return value * factor + sum(offsets), tags[&quot;source&quot;]
+    return scale(10, 1, 2, factor=2, source=&quot;PLC&quot;) == (23, &quot;PLC&quot;)</code></pre></details></article><article id="c08"><h3>C08｜LEGB, closures, and decorators</h3><p>Lookup proceeds through local, enclosing, global, and builtins. nonlocal rebinds the enclosing counter. Decoration replaces the function at definition time; wraps preserves its name. Calls return (1, 28) and (2, 28); this simple counter is not a thread synchronization mechanism.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c08():
+    def counter():
+        calls = 0
+        def decorate(fn):
+            @wraps(fn)
+            def wrapped(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                return calls, fn(*args, **kwargs)
+            return wrapped
+        return decorate
+    @counter()
+    def read():
+        return 28
+    return read() == (1, 28) and read() == (2, 28) and read.__name__ == &quot;read&quot;</code></pre></details></article><article id="c09"><h3>C09｜Classes, dataclasses, and object protocols</h3><p>dataclass can generate initialization and equality. __str__ supplies the display, yielding AHU-01=27.0. frozen prevents ordinary field assignment; it does not deeply freeze nested mutable values.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c09():
+    @dataclass(frozen=True)
+    class Sample:
+        point: str
+        value: float
+        def __str__(self):
+            return f&quot;{self.point}={self.value:.1f}&quot;
+    return str(Sample(&quot;AHU-01&quot;, 27)) == &quot;AHU-01=27.0&quot;</code></pre></details></article><article id="c10"><h3>C10｜Iterators, yield, and yield from</h3><p>next consumes one item; yield suspends the function and yield from delegates. The successive results are 25, [26, 27], and []. Create a new iterator instead of reusing an exhausted generator.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c10():
+    def samples():
+        yield 25
+        yield from (26, 27)
+    iterator = samples()
+    return next(iterator) == 25 and list(iterator) == [26, 27] and list(iterator) == []</code></pre></details></article><article id="c11"><h3>C11｜Exceptions, cause chains, and ExceptionGroup</h3><p>raise … from exc preserves the original fault. except* handles matching subgroups; the example handles input and timeout, while unmatched errors propagate. Do not make infrastructure faults look like valid readings.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c11():
+    try:
+        try:
+            float(&quot;offline&quot;)
+        except ValueError as exc:
+            raise RuntimeError(&quot;bad sensor data&quot;) from exc
+    except RuntimeError as exc:
+        chained = isinstance(exc.__cause__, ValueError)
+    labels = []
+    try:
+        raise ExceptionGroup(&quot;polling&quot;, [ValueError(&quot;bad input&quot;), TimeoutError(&quot;late&quot;)])
+    except* ValueError:
+        labels.append(&quot;input&quot;)
+    except* TimeoutError:
+        labels.append(&quot;timeout&quot;)
+    return chained and labels == [&quot;input&quot;, &quot;timeout&quot;]</code></pre></details></article><article id="c12"><h3>C12｜with and contextmanager</h3><p>with structures acquisition and cleanup. A contextmanager acquires before yield and cleans up in finally. Expect open, 27.5, close even though exceptional exits also run cleanup. Do not infer transaction commit semantics without checking the context manager.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c12():
+    events = []
+    @contextmanager
+    def stream():
+        events.append(&quot;open&quot;)
+        try:
+            yield 27.5
+        finally:
+            events.append(&quot;close&quot;)
+    with stream() as value:
+        events.append(value)
+    return events == [&quot;open&quot;, 27.5, &quot;close&quot;]</code></pre></details></article><article id="c13"><h3>C13｜Typing as a data contract</h3><p>TypedDict gives static key-and-value checks; the example reads celsius=27.5. It does not reject malformed inbound data at runtime, so validate schema, range, and units separately.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c13():
+    class Reading(TypedDict):
+        point: str
+        celsius: float
+    row: Reading = {&quot;point&quot;: &quot;AHU-01&quot;, &quot;celsius&quot;: 27.5}
+    return row[&quot;celsius&quot;] == 27.5</code></pre></details></article><article id="c14"><h3>C14｜Modules, imports, entry points, and environments</h3><p>Import loads a module and normally executes its top level once. Guard the script entry point with __name__ so imports do not start polling. The example loads 27 through json; sys.executable helps identify the active environment.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c14():
+    library = importlib.import_module(&quot;json&quot;)
+    return library.loads(&quot;27&quot;) == 27 and bool(sys.executable)</code></pre></details></article><article id="c15"><h3>C15｜Files, JSON, and the standard library</h3><p>Path uses explicit UTF-8 here. JSON is a data format, not Python code. Reading back gives the dictionary with 設備. Never use eval to parse JSON; production code also needs input-size and write-failure checks.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>def c15():
+    with TemporaryDirectory() as temp:
+        path = Path(temp) / &quot;report.json&quot;
+        path.write_text(json.dumps({&quot;設備&quot;: &quot;AHU-01&quot;}, ensure_ascii=False), encoding=&quot;utf-8&quot;)
+        return json.loads(path.read_text(encoding=&quot;utf-8&quot;)) == {&quot;設備&quot;: &quot;AHU-01&quot;}</code></pre></details></article><article id="c16"><h3>C16｜Async syntax and TaskGroup</h3><p>Calling async code creates a coroutine; await suspends until its awaitable finishes. TaskGroup waits on exit, and a non-cancellation failure cancels siblings and is grouped. The example returns 25 and 26. Move blocking I/O off the event loop.</p><details open><summary>Runnable example</summary><pre tabindex="0"><code>async def c16():
+    async def read(value):
+        await asyncio.sleep(0)
+        return value
+    async with asyncio.TaskGroup() as group:
+        a = group.create_task(read(25))
+        b = group.create_task(read(26))
+    return (a.result(), b.result()) == (25, 26)</code></pre></details></article><div id="boundary-checks"><h3>Ten additional boundary checks</h3><p>Run each example independently. The assertions are the expected outcomes; exceptions are intentional. <a href="python-312-boundary-checks.py" download>Download ten checks</a>。</p><details><summary>C01 / C03 | Names and identity</summary><p>Names reference objects. A mutable default persists across calls; use a None default and create a fresh container when required.</p><pre tabindex="0"><code>def add(value, items=None):
+    if items is None:
+        items = []
+    items.append(value)
+    return items
+assert add(2) == [2] and add(3) == [3]</code></pre></details><details><summary>C02 | Character count and byte count</summary><p>Protocol and file sizes are often in bytes; a Chinese character is not one UTF-8 byte. Choose encoding at the input boundary.</p><pre tabindex="0"><code>text = &#x27;冰水&#x27;
+wire = text.encode(&#x27;utf-8&#x27;)
+assert (len(text), len(wire), wire.decode(&#x27;utf-8&#x27;)) == (2, 6, text)</code></pre></details><details><summary>C04 | Short circuit and meaningful zero</summary><p>Do not use or to mean missing. A zero flow reading is valid and must not be replaced by a default.</p><pre tabindex="0"><code>def configured(value, fallback):
+    return fallback if value is None else value
+assert configured(0, 100) == 0
+assert configured(None, 100) == 100</code></pre></details><details><summary>C05 | Slices and nested aliases</summary><p>A list slice copies the outer list, not nested referents. Decide explicitly which levels a retained snapshot will copy.</p><pre tabindex="0"><code>points = [[&#x27;T01&#x27;, 24], [&#x27;T02&#x27;, 26]]
+copy = points[:]
+copy[0][1] = 25
+assert copy is not points and points[0][1] == 25</code></pre></details><details><summary>C06 | for…else and search exhaustion</summary><p>A loop else belongs to the loop, not its last if. It runs on normal exhaustion but not after break.</p><pre tabindex="0"><code>def find_alarm(points):
+    for name, value in points:
+        if value &gt;= 30:
+            break
+    else:
+        return None
+    return name
+assert find_alarm([(&#x27;T01&#x27;, 20)]) is None
+assert find_alarm([(&#x27;T02&#x27;, 31)]) == &#x27;T02&#x27;</code></pre></details><details><summary>C07 / C13 | Annotation is not validation</summary><p>Validate JSON/API data at runtime even with annotations. bool subclasses int; exclude booleans from strict sensor fields.</p><pre tabindex="0"><code>def samples(n: int) -&gt; int:
+    if type(n) is not int or n &lt; 0:
+        raise ValueError(&#x27;invalid sample count&#x27;)
+    return n
+assert samples(0) == 0
+try:
+    samples(True)
+except ValueError:
+    pass
+else:
+    raise AssertionError(&#x27;accepted boolean&#x27;)</code></pre></details><details><summary>C08 | Late binding in closures</summary><p>A lambda looks up free variables later. Capture the current value through a default argument or a factory to avoid every callback reading the final item.</p><pre tabindex="0"><code>broken = [lambda: n for n in range(3)]
+fixed = [lambda n=n: n for n in range(3)]
+assert [f() for f in broken] == [2, 2, 2]
+assert [f() for f in fixed] == [0, 1, 2]</code></pre></details><details><summary>C09 | Dataclass default factory</summary><p>Mutable fields need a per-instance factory. frozen limits field reassignment; it is not deep immutability.</p><pre tabindex="0"><code>from dataclasses import dataclass, field
+@dataclass
+class Batch:
+    values: list[int] = field(default_factory=list)
+a, b = Batch(), Batch()
+a.values.append(2)
+assert b.values == []</code></pre></details><details><summary>C10 | Consuming an iterator twice</summary><p>After sum exhausts an iterator, list will see nothing. Rebuild the source or materialize it if the size is acceptable.</p><pre tabindex="0"><code>rows = iter([10, 20])
+assert sum(rows) == 30
+assert list(rows) == []</code></pre></details><details><summary>C11 / C12 | Cleanup on failure</summary><p>Put cleanup in finally, and propagate the error. Suppressing it can make callers report success.</p><pre tabindex="0"><code>from contextlib import contextmanager
+state = []
+@contextmanager
+def resource():
+    try:
+        yield
+    finally:
+        state.append(&#x27;closed&#x27;)
+try:
+    with resource():
+        raise OSError(&#x27;simulated&#x27;)
+except OSError:
+    assert state == [&#x27;closed&#x27;]</code></pre></details></div></section><section id="part-2"><h2>2. Python 3.12 changes and upgrades</h2><article id="change-1"><h3>PEP 695: Generics and aliases</h3><p>A type alias can be evaluated lazily; it is not a class. first[T] preserves static element types, not runtime validation. Use TypeVar / TypeAlias for 3.11 because a version check cannot hide syntax from its parser.</p><pre tabindex="0"><code>type Reading = tuple[str, float]
 
 def first[T](items: list[T]) -&gt; T:
     return items[0]
 
-assert first([(&quot;AHU-01&quot;, 25.2)])[0] == &quot;AHU-01&quot;</code></pre></section><section id="topic-2"><h2>3. f-strings | PEP 701</h2><p>Replacement fields can reuse the outer quote style and contain backslashes where normal expressions permit them, such as a newline string passed to join. Format specifications such as <code>:.1f</code> work as before. If a tool still parses 3.11 grammar, assign dictionary fields to temporary variables before formatting.</p><pre><code>record = {&quot;zone&quot;: &quot;AHU-01&quot;, &quot;temperature&quot;: 25.25}
-print(f&quot;{record[&quot;zone&quot;]}: {record[&quot;temperature&quot;]:.1f} °C&quot;)</code></pre></section><section id="topic-3"><h2>4. Comprehensions | PEP 709</h2><p>CPython inlines list, dict, and set comprehensions into the surrounding function rather than using a separate comprehension frame. Iteration variables still do not leak; <code>locals()</code> inside a comprehension can see outer locals, and tracing and traceback structure can differ. Generator expressions are not inlined by this change. Benchmark your own workload.</p><pre><code>outer = 99
-assert [outer * 2 for outer in range(3)] == [0, 2, 4]
-assert outer == 99  # no variable leakage</code></pre></section><section id="topic-4"><h2>5. Standard-library exercises</h2><p><code>typing.override</code> helps a static checker detect a misspelled override; it does not enforce overrides at runtime. <code>Path.walk()</code> walks a local log tree and does not follow symbolic links by default. <code>sys.monitoring</code> offers a low-impact event API for tooling, not a guarantee of application speedups.</p><pre><code>from pathlib import Path
+assert first([(&quot;AHU-01&quot;, 25.2)])[0] == &quot;AHU-01&quot;</code></pre></article><article id="change-2"><h3>PEP 701: f-string grammar</h3><p>Replacement fields can reuse outer quotes and contain backslashes where normal Python expressions permit them. The example prints AHU-01: 25.2; use temporary variables for a 3.11-compatible path.</p><pre tabindex="0"><code>row = {&quot;name&quot;: &quot;AHU-01&quot;, &quot;value&quot;: 25.25}
+print(f&quot;{row[&quot;name&quot;]}: {row[&quot;value&quot;]:.1f}&quot;)</code></pre></article><article id="change-3"><h3>PEP 709: Comprehension inlining</h3><p>List, set, and dict comprehensions no longer need an extra frame. Iteration variables still do not leak, but locals() can now see outer names and traces can differ. Generator expressions are excluded. The example prints True.</p><pre tabindex="0"><code>def has_outer():
+    outer = 42
+    return [&quot;outer&quot; in locals() for item in (0,)][0]
 
-for directory, folders, names in Path(&quot;.&quot;).walk():
-    print(directory, len(names))</code></pre></section><section id="topic-5"><h2>6. Porting and validation</h2><p>Python 3.12 removes <code>distutils</code> from the standard library. Use <code>pyproject.toml</code> and a maintained build backend. New <code>venv</code> environments no longer preinstall <code>setuptools</code>; declare it explicitly when legacy tooling needs it. Invalid backslash escapes now emit <code>SyntaxWarning</code>; use raw strings for regex patterns. For native extensions, check wheel availability for your OS, CPU, and ABI, then retest in a clean environment.</p><pre><code>python3.12 -m venv .venv
+print(has_outer())</code></pre></article><article id="change-4"><h3>Tooling and standard-library APIs</h3><p>typing.override requires a static checker for signature checking. Path.walk does not follow symlinks by default. sys.monitoring is an event API, not a performance guarantee. The example checks the walk root.</p><pre tabindex="0"><code>from pathlib import Path
+
+root, directories, filenames = next(Path(&quot;.&quot;).walk())
+assert root == Path(&quot;.&quot;)</code></pre></article><article id="change-5"><h3>Removals and deprecations</h3><p>distutils is removed from the standard library, and clean venvs no longer preinstall setuptools. Check your pyproject.toml backend. Invalid backslash escapes now emit SyntaxWarning; use raw strings for regexes. A globally installed setuptools is not evidence that fresh builds work.</p><pre tabindex="0"><code>import re
+assert re.fullmatch(r&quot;AHU-\d{2}&quot;, &quot;AHU-01&quot;)</code></pre></article><h3 id="migration">3.15 → 3.12 compatibility matrix</h3><div class="table-wrap" tabindex="0" role="region" aria-label="3.15 / 3.12"><table><thead><tr><th scope="col">3.15</th><th scope="col">3.12 implementation</th></tr></thead><tbody><tr><th scope="row">lazy import</th><td>Regular imports or local imports; do not assume equivalent execution timing or side effects.</td></tr><tr><th scope="row">推導式解包 / comprehension unpacking</th><td>Use nested for clauses for one-level flattening. 3.12 inlining does not implement unpacking syntax.</td></tr><tr><th scope="row">frozendict / sentinel</th><td>MappingProxyType is a read-only view, not an immutable snapshot. Compare a private object() marker with is.</td></tr><tr><th scope="row">UTF-8 預設 / default encoding</th><td>Specify encoding=&#x27;utf-8&#x27; explicitly; do not rely on the 3.12 locale.</td></tr><tr><th scope="row">Closed TypedDict / TypeForm</th><td>Use TypedDict for a static contract and explicit validation to reject extra fields.</td></tr><tr><th scope="row">Tachyon / startup config</th><td>Use cProfile and an explicit entry point with tests; do not port 3.15 monitoring or startup APIs verbatim.</td></tr><tr><th scope="row">free-threading / iterator synchronization</th><td>Standard CPython 3.12 has a GIL. Use Queue, Lock or process isolation for shared state; do not use 3.15-specific synchronization APIs.</td></tr><tr><th scope="row">新標準庫與 C 擴充 / libraries and C extensions</th><td>Check wheels, ABI, standard-library APIs, and dependencies on 3.12. Do not assume later methods exist.</td></tr></tbody></table></div></section><section id="part-3"><h2>3. Async, parallelism, and runtimes</h2><p>The GIL is not an application lock, and async does not imply parallelism. Measure correctness, latency, throughput, and cancellation. Do not treat a toy timing as a hardware conclusion.</p><div class="table-wrap" tabindex="0" role="region" aria-label="Concurrency"><table><thead><tr><th scope="col">Mode</th><th scope="col">Use and boundary</th></tr></thead><tbody><tr><th scope="row">asyncio</th><td>Concurrent I/O waits; replace or offload blocking APIs.</td></tr><tr><th scope="row">threads</th><td>Blocking I/O or extensions that release the GIL; protect shared state with queues or locks.</td></tr><tr><th scope="row">processes</th><td>Multiprocess execution can help Python CPU work; account for serialization and startup.</td></tr><tr><th scope="row">subinterpreters</th><td>PEP 684’s per-interpreter GIL is a C API change. 3.12 does not expose the Python-level interpreter interface described by the 3.15 guide.</td></tr></tbody></table></div><pre tabindex="0"><code>&quot;&quot;&quot;Compare task modes on CPython 3.12. Correctness demonstration, not a benchmark.&quot;&quot;&quot;
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import sys
+
+
+def squares(n):
+    return sum(i * i for i in range(n))
+
+
+async def two_reads():
+    async def read(v):
+        await asyncio.sleep(0.002)
+        return v
+    async with asyncio.TaskGroup() as tasks:
+        a, b = (tasks.create_task(read(n)) for n in (25, 26))
+    return [a.result(), b.result()]
+
+
+def main():
+    expected = [30, 55]
+    inp = [5, 6]
+    assert [squares(n) for n in inp] == expected
+    assert asyncio.run(two_reads()) == [25, 26]
+    with ThreadPoolExecutor(2) as pool:
+        assert list(pool.map(squares, inp)) == expected
+    with ProcessPoolExecutor(2) as pool:
+        assert list(pool.map(squares, inp)) == expected
+    print(f&quot;CPython {sys.version.split()[0]}: serial, asyncio, thread, process OK&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></section><section id="part-4"><h2>4. Engineering practice, evolution, and exercises</h2><p>Eight-point collector: TaskGroup owns task lifetime, each point has its own timeout, invalid/time-out rows are not turned into zeros, and output preserves point order. Expect eight rows, six valid readings, mean 26.65 °C, and alarms on AHU-02 and AHU-06.</p><p>Boundary checks cover missing fields, None, NaN, infinity, bool, strings and out-of-range values. bool is a subclass of int, but True is not 1 °C. The simulated 20 ms timeout is not a production SLA.</p><pre tabindex="0"><code>def normalize(row):
+    if &quot;celsius&quot; not in row:
+        return &quot;missing&quot;, None
+    value = row[&quot;celsius&quot;]
+    if type(value) not in (int, float) or not -40 &lt;= value &lt;= 90 or not math.isfinite(value):
+        return &quot;invalid&quot;, None
+    return &quot;valid&quot;, value
+
+async def sample(point, value, delay):
+    try:
+        async with asyncio.timeout(0.020):
+            await asyncio.sleep(delay)
+    except TimeoutError:
+        return {&quot;point&quot;: point, &quot;quality&quot;: &quot;timeout&quot;, &quot;celsius&quot;: None}
+    quality, reading = normalize({&quot;celsius&quot;: value})
+    return {&quot;point&quot;: point, &quot;quality&quot;: quality, &quot;celsius&quot;: reading}</code></pre><pre tabindex="0"><code>python3.12 hvac_report_312.py --self-test
+python3.12 hvac_report_312.py --output report.json</code></pre><h3>Version evolution and safe upgrade order</h3><p>3.10 already has match. 3.11 already has TaskGroup, ExceptionGroup, and tomllib. 3.12 adds generic syntax, the new f-string grammar and comprehension inlining. Establish a baseline, switch to a clean 3.12 environment, then adopt features incrementally so dependency and language changes can be rolled back separately.</p><h3>Exercises and self-check</h3><ol><li>Remove all valid readings; the mean should be null, not a division by zero.</li><li>Set the threshold to 29 °C. Only AHU-06 should alarm; quality must be unchanged.</li><li>Write to the same path twice. The second write must fail without overwriting the first report.</li><li>Add a hex bytes field. Report the source and field when decoding fails.</li></ol></section><section id="part-5"><h2>5. Engineering diagrams: CLI and service delivery</h2><figure><figcaption>Production notes-cli</figcaption><ol class="flow"><li>Parse args and output path</li><li>Collect eight points and tag quality</li><li>Encode JSON and refuse overwrite</li><li>Run tests and validate delivery</li></ol></figure><figure><figcaption>Delivery Blueprint</figcaption><ol class="flow"><li>Device or input boundary</li><li>Validation and event loop</li><li>Output/service and logs</li><li>Reports, versions, and failure evidence</li></ol></figure><p>A CLI output-path conflict must stop rather than report success. Service delivery additionally needs health, timeouts, recovery, retention, and pinning checks. No service is deployed by this guide.</p></section><section id="part-6"><h2>6. Verification and learning kit</h2><p>Executed on CPython 3.12.14: C01–C16, five new-feature checks, four concurrency modes, and the eight-point HVAC report passed. Concurrency is correctness-only, not a speed benchmark.</p><pre tabindex="0"><code>python3.12 -W error::SyntaxWarning core_examples.py
 python3.12 -W error::SyntaxWarning python-312-lab.py --test
-python3.12 python-312-lab.py</code></pre></section><footer><h2>Official references</h2><ul><li><a href="https://docs.python.org/3.12/whatsnew/3.12.html">What’s New in Python 3.12</a></li><li><a href="https://peps.python.org/pep-0693/">PEP 693</a></li><li><a href="https://peps.python.org/pep-0695/">PEP 695</a></li><li><a href="https://peps.python.org/pep-0701/">PEP 701</a></li><li><a href="https://peps.python.org/pep-0709/">PEP 709</a></li></ul></footer></main></body></html>
+python3.12 concurrency_312.py
+python3.12 hvac_report_312.py --self-test</code></pre><ul><li><a href="core_examples.py" download>core_examples.py</a></li><li><a href="python-312-lab.py" download>python-312-lab.py</a></li><li><a href="concurrency_312.py" download>concurrency_312.py</a></li><li><a href="hvac_report_312.py" download>hvac_report_312.py</a></li></ul></section><footer><h2>References</h2><ul><li><a href="../python-315-learning-kit/python-315-complete-guide.en.html">Python 3.15 reference curriculum</a></li><li><a href="https://docs.python.org/3.12/whatsnew/3.12.html">What’s New in Python 3.12</a></li><li><a href="https://docs.python.org/3.12/reference/">Python 3.12 language reference</a></li><li><a href="https://docs.python.org/3.12/library/">Python 3.12 library reference</a></li><li><a href="https://peps.python.org/pep-0693/">PEP 693</a></li><li><a href="https://peps.python.org/pep-0695/">PEP 695</a></li><li><a href="https://peps.python.org/pep-0701/">PEP 701</a></li><li><a href="https://peps.python.org/pep-0709/">PEP 709</a></li><li><a href="https://peps.python.org/pep-0684/">PEP 684</a></li><li><a href="https://peps.python.org/pep-0669/">PEP 669</a></li><li><a href="https://peps.python.org/pep-0632/">PEP 632</a></li></ul></footer></main></div></body></html>

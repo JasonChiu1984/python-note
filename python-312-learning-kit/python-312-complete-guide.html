@@ -1,14 +1,263 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 3.12 完整教材</title><style>*{box-sizing:border-box}html{color-scheme:light}body{margin:0;background:#f0f5fa;color:#183049;font:1rem/1.65 system-ui,sans-serif}main{padding:clamp(.7rem,2.4vw,2rem);margin:auto;max-width:90rem}header,section,footer{background:white;border:1px solid #c5d7e6;border-radius:.8rem;padding:clamp(.85rem,2.2vw,1.6rem);margin-bottom:.75rem;min-width:0;overflow-wrap:anywhere}header{border-top:.4rem solid #285b85}h1,h2{line-height:1.25;margin:.25rem 0 .65rem}h1{font-size:clamp(1.65rem,4vw,3rem)}p{max-width:80ch}a{color:#1e4d76;text-underline-offset:.16em}a:focus-visible{outline:3px solid #214e76;outline-offset:2px}nav{display:flex;flex-wrap:wrap;gap:.4rem}nav a{display:inline-block;background:#e9f2fa;border:1px solid #bacfe1;border-radius:.4rem;padding:.3rem .6rem}pre{padding:.65rem .8rem;background:#142f48;color:#fff;border-radius:.45rem;max-width:100%;overflow:auto}footer ul{padding-inline-start:1.2rem}code{font-size:.93em}li{margin-block:.2rem}.status{background:#e9f2fa;border-inline-start:.25rem solid #285b85;padding:.4rem .7rem}</style></head><body><main><header><h1>Python 3.12 完整教材</h1><p>最後更新：<time datetime="2026-11-25">2026-11-25</time></p><p>用 AHU 溫度資料學語法差異，最後用乾淨環境排查移植問題。以下 lab 不需第三方套件或連網。</p><p class="status">Python 3.12.0 於 2023-10-02 發布；依 PEP 693，目前僅不定期釋出安全修正原始碼，預計支援至 2028 年 10 月。教材範例實測於 CPython 3.12.14，不表示這是最新修正版。使用部署前請查官方發布頁。</p><nav aria-label="教材連結"><a href="../../index.html#python-releases-title">教材入口</a> <a lang="en" hreflang="en" href="python-312-complete-guide.en.html">English</a> <a href="python-312-lab.py" download>下載實作</a></nav><nav aria-label="章節"><a href="#topic-0">從 3.11 升到 3.12</a><a href="#topic-1">型別參數與別名</a><a href="#topic-2">f-string</a><a href="#topic-3">推導式</a><a href="#topic-4">標準函式庫可以直接練什麼</a><a href="#topic-5">移植與驗收</a></nav></header><section id="topic-0"><h2>1. 從 3.11 升到 3.12</h2><p>這一版最先看三件事：新泛型語法只在 3.12 起可解析；f-string 的引號規則放寬；列表、集合和字典推導式在 CPython 3.12 改為內嵌。部署時另查 distutils 和建置工具是否被暗中依賴。</p></section><section id="topic-1"><h2>2. 型別參數與別名｜PEP 695</h2><p><code>def first[T]</code> 把型別參數放在使用它的函式上；型別檢查器據此保留輸入清單的元素型別。<code>type Reading</code> 建立型別別名，不會驗證 PLC 資料，也不是可傳入 <code>isinstance()</code> 的類別。需要支援 3.11 時，改用 <code>TypeVar</code> 與 <code>TypeAlias</code>；用 <code>if sys.version_info</code> 包住新語法也無法解決解析錯誤。</p><pre><code>type Reading = tuple[str, float]
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 3.12 語法與新特性完整學習教材</title><style>*{box-sizing:border-box}body{margin:0;color:#183149;background:#eff5fa;font:1rem/1.7 system-ui,sans-serif}main{margin:auto;padding:clamp(.7rem,2.3vw,2rem);max-width:90rem}header,section,footer{background:white;border:1px solid #c5d7e6;border-radius:.85rem;padding:clamp(.75rem,2.2vw,1.6rem);margin-block-end:1rem;overflow-wrap:anywhere}header{border-top:.4rem solid #265b85}h1,h2,h3{line-height:1.25;margin:.3rem 0 .75rem}h1{font-size:clamp(1.62rem,4vw,3.15rem)}h3{font-size:1.2rem}a{color:#164d78;text-underline-offset:.18em}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #164d78;outline-offset:2px}p{max-width:82ch}nav{display:flex;gap:.45rem;flex-wrap:wrap;margin-block:.65rem}nav a,.badge{display:inline-block;background:#e9f2fa;border:1px solid #bdd2e4;border-radius:.4rem;padding:.26rem .6rem}pre{max-width:100%;overflow:auto;background:#122f49;color:#f6f9fc;border-radius:.45rem;padding:.7rem;font: .88rem/1.5 ui-monospace,monospace}article{margin:1rem 0;border-top:1px solid #cfdeeb;padding-top:1rem}summary{cursor:pointer;color:#184f7b;font-weight:650}figure{margin:1.15rem 0}figcaption{font-weight:750;margin-bottom:.5rem}.flow{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.4rem;padding:0}.flow li{min-width:0;position:relative;border:1px solid #b3cce0;background:#edf5fb;border-radius:.5rem;padding:.55rem}.flow li:not(:last-child):after{position:absolute;content:'→';right:-1.16rem;top:calc(50% - .8em);color:#184f7b;font-weight:bold}.table-wrap{overflow:auto;border:1px solid #bfd2e3;border-radius:.45rem}table{border-collapse:collapse;width:100%;min-width:25rem}td,th{padding:.47rem .62rem;border-bottom:1px solid #cfdeeb;text-align:left;vertical-align:top}thead{background:#edf5fb}li{margin-block:.2rem}@media(max-width:42rem){.flow{grid-template-columns:1fr}.flow li:not(:last-child):after{content:'↓';right:50%;top:auto;bottom:-1.42rem}}
+/* Aligned with the 3.15 learning portal: ink blue, teal rule, and desktop TOC. */
+:root{color-scheme:light;--ink:#17243a;--muted:#536c84;--line:#d6e3ed;--teal:#116e73;--paper:#f0f5f9;--accent:#285b8d}
+*{box-sizing:border-box}html{scroll-padding-top:1rem}
+body{margin:0;max-width:none;padding:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.72}
+a{color:#215b8b;text-underline-offset:.15em}a:focus-visible,summary:focus-visible{outline:3px solid #1a6d79;outline-offset:3px}
+.vg-topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;background:#fff;border-bottom:1px solid var(--line);padding:.6rem clamp(.85rem,3vw,3rem);color:var(--muted);font-size:.88rem}
+.vg-topbar a{text-decoration:none;font-weight:800}
+.vg-hero{max-width:none;margin:0;border:0;border-radius:0;background:linear-gradient(125deg,#152840,#214967);color:#fff;border-bottom:6px solid #60b5af;padding:clamp(1.15rem,3vw,2.8rem) clamp(.85rem,3vw,3rem);box-shadow:none}
+.vg-hero p{color:#dce9f5;max-width:82ch}.vg-hero h1{color:#fff;font-size:clamp(1.9rem,4vw,3.05rem);margin:.38em 0 .45em;line-height:1.24;letter-spacing:-.025em}
+.vg-hero .vg-eyebrow{font-size:.8rem;letter-spacing:.1em;color:#a8e3dc;font-weight:800;margin:0}
+.vg-hero .vg-resources{display:flex;flex-wrap:wrap;gap:.55rem;margin:.5rem 0 .65rem}
+.vg-hero .vg-resources a,.vg-hero .vg-hero-nav a{background:#285477;color:#fff;border:1px solid #82a9c4;border-radius:.42rem;padding:.35rem .66rem;text-decoration:none;font-weight:700}
+.vg-hero .vg-resources a:hover,.vg-hero .vg-hero-nav a:hover{background:#346582}
+.vg-hero a{color:#bce7ff}.vg-hero .badge,.vg-hero .date{background:#25465f;color:#eef7fe;border:1px solid #6f96b1;border-radius:.38rem;padding:.28rem .55rem;max-width:max-content}
+.vg-body{display:grid;grid-template-columns:minmax(12rem,16rem) minmax(0,1fr);gap:clamp(.75rem,2.25vw,2rem);max-width:96rem;margin:auto;padding:clamp(.75rem,2vw,2rem)}
+.vg-toc{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;border:1px solid var(--line);border-radius:.75rem;background:#fff;min-width:0;padding:.7rem;box-shadow:0 .4rem 1.2rem #19314d0a}
+.vg-toc h2{font-size:1.05rem;margin:.15rem 0 .4rem}.vg-toc p{font-size:.82rem;margin:.15rem 0 .5rem;color:var(--muted)}
+.vg-toc nav{display:block;margin:0;padding:0}.vg-toc nav a{display:block;text-decoration:none;font-size:.83rem;line-height:1.4;border-radius:.35rem;overflow-wrap:anywhere;padding:.27rem .38rem;color:#244e70}
+.vg-toc nav a.vg-part{background:#e4eff7;font-weight:780;margin-top:.28rem}.vg-toc nav a.vg-core{padding-inline-start:.9rem;color:#3d5c73}.vg-toc nav a:hover,.vg-toc nav a:focus-visible{background:#d6eceb;color:#124c50}
+.vg-body main{margin:0;padding:0;max-width:none;min-width:0;background:none;border:0;box-shadow:none}
+.vg-body main>section{margin:0 0 1rem;padding:clamp(.8rem,2.25vw,2.15rem);border:1px solid var(--line);border-radius:.85rem;background:#fff;min-width:0;overflow-wrap:anywhere;box-shadow:0 .4rem 1.2rem #19314d0a}
+.vg-body main>section>h2{font-size:clamp(1.3rem,2.45vw,1.9rem);font-weight:800;color:#193b57;line-height:1.35;border-bottom:2px solid #9ccac8;padding:0 0 .65rem;margin:.1rem 0 1rem}
+.vg-body main>section article[id^="c"]{margin:.85rem 0;padding:.8rem clamp(.6rem,1.4vw,1.1rem);border:1px solid #d9e6ef;border-left:3px solid #4d9c9e;border-radius:.5rem;background:#f8fbfd;min-width:0}
+.vg-body main h3{color:#21616d;font-size:clamp(1.12rem,1.85vw,1.38rem);margin:.1rem 0 .55rem;line-height:1.4}.vg-body main li,.vg-body main p{max-width:88ch}
+.vg-body main pre{background:#edf4f9;color:#173751;border:1px solid #cfdfea;max-width:100%;overflow:auto;border-radius:.5rem;line-height:1.55;margin:.7rem 0}
+.vg-body main pre code{color:inherit;background:transparent;white-space:pre}.vg-body main table{max-width:100%}.vg-body main th{background:#ebf5f3;color:#1e555a}
+.vg-body main details{border:1px solid #d4e4ee;background:#fff;padding:.5rem .65rem;border-radius:.45rem;margin:.55rem 0}.vg-body main summary{cursor:pointer;color:#20516e;font-weight:720}
+.vg-body main figure{margin:.9rem 0;min-width:0}
+@media(max-width:870px){.vg-body{display:block}.vg-toc{position:static;max-height:16.2rem;margin:0 0 .75rem}.vg-toc nav{display:grid;grid-template-columns:1fr 1fr;gap:.15rem}.vg-toc nav a.vg-part{grid-column:1/-1}.vg-toc nav a.vg-core{padding-inline-start:.5rem}}
+@media(max-width:350px){.vg-toc nav a{font-size:.79rem}}
+@media print{.vg-topbar,.vg-toc,.vg-resources,.vg-hero-nav{display:none!important}.vg-body{display:block}.vg-hero,.vg-body main>section{box-shadow:none;background:white;color:#17243a}.vg-hero h1,.vg-hero p,.vg-hero a{color:#17243a}}
+</style></head><body><div class="vg-topbar"><a href="../index.html#version-312">Python 教材入口</a><span>依 Python 3.15 教材重編</span></div><header class="vg-hero"><p class="vg-eyebrow">PYTHON LEARNING NOTES · 2026 EDITION</p><h1>Python 3.12 語法與新特性完整學習教材</h1><span class="badge">最後更新 <time datetime="2026-11-25">2026-11-25</time></span><p>依 3.15 教材的六部分與 C01–C16 編排，改用 CPython 3.12 真正支援的語法與 API。以設備溫度為案例，所有數值與延遲都是合成資料。</p><p>3.12.0 於 2023-10-02 發布；依 PEP 693，安全修正只發布原始碼，預計至 2028-10。教材實測 3.12.14，不表示是最新修正版。</p><nav class="vg-hero-nav" aria-label="教材連結"><a href="../index.html#version-312">版本入口</a><a href="python-312-complete-guide.en.html" hreflang="en" lang="en">English</a><a href="../python-312-learning-kit.zip" download>下載 ZIP</a></nav><div class="vg-resources"><a href="#part-1">從核心語法開始</a><a href="#part-5">瀏覽工程架構圖</a><a href="../python-312-learning-kit.zip" download>離線 ZIP</a></div></header><div class="vg-body"><aside class="vg-toc"><h2>章節目錄</h2><p>六大部 · 16 個核心章節</p><nav aria-label="章節目錄"><a class="vg-part" href="#part-1">1. 核心語法與標準函式庫</a><a class="vg-core" href="#c01">C01｜程式區塊與名稱</a><a class="vg-core" href="#c02">C02｜數值、字串、f-string 與 bytes</a><a class="vg-core" href="#c03">C03｜名稱繫結、可變性與複製</a><a class="vg-core" href="#c04">C04｜運算子與優先序</a><a class="vg-core" href="#c05">C05｜容器、切片、解包與推導式</a><a class="vg-core" href="#c06">C06｜if、match、迴圈與迴圈 else</a><a class="vg-core" href="#c07">C07｜函式參數：位置、關鍵字、可變引數</a><a class="vg-core" href="#c08">C08｜LEGB、閉包與裝飾器</a><a class="vg-core" href="#c09">C09｜class、dataclass 與物件協定</a><a class="vg-core" href="#c10">C10｜迭代器、yield 與 yield from</a><a class="vg-core" href="#c11">C11｜例外、原因鏈與 ExceptionGroup</a><a class="vg-core" href="#c12">C12｜with 與 contextmanager</a><a class="vg-core" href="#c13">C13｜typing：資料契約</a><a class="vg-core" href="#c14">C14｜模組、import、入口與環境</a><a class="vg-core" href="#c15">C15｜檔案、JSON 與標準庫</a><a class="vg-core" href="#c16">C16｜async 語法與 TaskGroup</a><a class="vg-part" href="#part-2">2. Python 3.12 新增與升級變更</a><a class="vg-part" href="#part-3">3. 非同步、平行與執行環境</a><a class="vg-part" href="#part-4">4. 工程實務、版本沿革與學習練習</a><a class="vg-part" href="#part-5">5. 工程圖：CLI 與服務交付</a><a class="vg-part" href="#part-6">6. 驗證紀錄與資料包</a></nav></aside><main id="guide-content"><section id="part-1"><h2>1. 核心語法與標準函式庫</h2><pre tabindex="0"><code>python3.12 --version
+python3.12 -m venv .venv
+# macOS / Linux: .venv/bin/python
+# Windows PowerShell: .venv\Scripts\python.exe</code></pre><nav aria-label="C01–C16"><a href="#c01">C01</a><a href="#c02">C02</a><a href="#c03">C03</a><a href="#c04">C04</a><a href="#c05">C05</a><a href="#c06">C06</a><a href="#c07">C07</a><a href="#c08">C08</a><a href="#c09">C09</a><a href="#c10">C10</a><a href="#c11">C11</a><a href="#c12">C12</a><a href="#c13">C13</a><a href="#c14">C14</a><a href="#c15">C15</a><a href="#c16">C16</a></nav><article id="c01"><h3>C01｜程式區塊與名稱</h3><p>冒號開始區塊，縮排決定哪些敘述在同一分支。if 不另建詞法作用域；但如果只在未執行分支賦值，使用名稱會失敗。兩分支均賦值後，28 對應 high。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c01():
+    value = 28
+    if value &gt;= 28:
+        state = &quot;high&quot;
+    else:
+        state = &quot;normal&quot;
+    return state == &quot;high&quot;</code></pre></details></article><article id="c02"><h3>C02｜數值、字串、f-string 與 bytes</h3><p>float 的十進位表示可能有近似誤差，格式的位數不會改寫原數值。str 是文字，bytes 是八位元資料；只在通訊／儲存邊界用明確編碼轉換。UTF-8 往返應還原 溫度=27.5。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c02():
+    sensor = &quot;溫度&quot;
+    value = 27.5
+    wire = f&quot;{sensor}={value:.1f}&quot;.encode(&quot;utf-8&quot;)
+    return isinstance(wire, bytes) and wire.decode(&quot;utf-8&quot;) == &quot;溫度=27.5&quot;</code></pre></details></article><article id="c03"><h3>C03｜名稱繫結、可變性與複製</h3><p>指定不是複製；外層 list.copy() 仍共用內層。新增 AHU-02 後淺拷貝也看得到，deepcopy 的獨立巢狀資料不變。不要用 deepcopy 取代連線或其他資源的生命週期設計。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c03():
+    original = [[&quot;AHU-01&quot;]]
+    alias = original
+    shallow = original.copy()
+    deep = deepcopy(original)
+    alias[0].append(&quot;AHU-02&quot;)
+    return shallow[0] == [&quot;AHU-01&quot;, &quot;AHU-02&quot;] and deep[0] == [&quot;AHU-01&quot;]</code></pre></details></article><article id="c04"><h3>C04｜運算子與優先序</h3><p>乘法先於加法；// 是向下取整，不是向零截斷。比較鏈 0 &lt; x &lt;= 4 會只求值一次中間運算式。案例得到 11、3、1、True；遇混合布林最好加括號。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c04():
+    return (5 + 2 * 3, 7 // 2, 7 % 2, 0 &lt; 4 &lt;= 4) == (11, 3, 1, True)</code></pre></details></article><article id="c05"><h3>C05｜容器、切片、解包與推導式</h3><p>list 有順序、set 去重、dict 是鍵值表；不能把 set 當有排序的輸出。切片右界不含，星號接住剩餘元素。範例輸出 first=24、last=28，篩選剩 [28]。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c05():
+    head, *rest = [24, 26, 24, 28]
+    unique = set(rest)
+    row = {&quot;first&quot;: head, &quot;last&quot;: rest[-1]}
+    return (row, len(unique), [n for n in rest[1:] if n &gt;= 25]) == (
+        {&quot;first&quot;: 24, &quot;last&quot;: 28}, 3, [28]
+    )</code></pre></details></article><article id="c06"><h3>C06｜if、match、迴圈與迴圈 else</h3><p>match 是結構比對，不是等號串列；裸名稱圖樣會捕捉，不等於比較常數。搜尋找到 high 就 break，因此 for 的 else 不執行；正常耗盡才執行。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c06():
+    events = []
+    for reading in [(&quot;offline&quot;, 0), (&quot;ok&quot;, 28)]:
+        match reading:
+            case (&quot;ok&quot;, value) if value &gt;= 28:
+                events.append(&quot;high&quot;)
+                break
+            case _:
+                continue
+    else:
+        events.append(&quot;no alarm&quot;)
+    return events == [&quot;high&quot;]</code></pre></details></article><article id="c07"><h3>C07｜函式參數：位置、關鍵字、可變引數</h3><p>/ 左側為僅限位置，*offsets 收集多餘位置值，factor 只能用關鍵字，**tags 收集多餘命名值。結果是 (23, &#x27;PLC&#x27;)。避免以可變 list 當預設值造成跨呼叫共用。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c07():
+    def scale(value, /, *offsets, factor=1, **tags):
+        return value * factor + sum(offsets), tags[&quot;source&quot;]
+    return scale(10, 1, 2, factor=2, source=&quot;PLC&quot;) == (23, &quot;PLC&quot;)</code></pre></details></article><article id="c08"><h3>C08｜LEGB、閉包與裝飾器</h3><p>名稱查找由 local、enclosing、global 到 builtins；nonlocal 可重新繫結外層 calls。裝飾時就替換函式，wraps 保留名稱。兩次呼叫回傳 (1, 28)、(2, 28)；這個簡單計數不是執行緒同步實作。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c08():
+    def counter():
+        calls = 0
+        def decorate(fn):
+            @wraps(fn)
+            def wrapped(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                return calls, fn(*args, **kwargs)
+            return wrapped
+        return decorate
+    @counter()
+    def read():
+        return 28
+    return read() == (1, 28) and read() == (2, 28) and read.__name__ == &quot;read&quot;</code></pre></details></article><article id="c09"><h3>C09｜class、dataclass 與物件協定</h3><p>dataclass 可代建初始化與比較；__str__ 控制 str() 顯示，輸出 AHU-01=27.0。frozen 阻止正常欄位指定，不會把巢狀可變物件深度凍結。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c09():
+    @dataclass(frozen=True)
+    class Sample:
+        point: str
+        value: float
+        def __str__(self):
+            return f&quot;{self.point}={self.value:.1f}&quot;
+    return str(Sample(&quot;AHU-01&quot;, 27)) == &quot;AHU-01=27.0&quot;</code></pre></details></article><article id="c10"><h3>C10｜迭代器、yield 與 yield from</h3><p>next 消耗下一筆；yield 暫停函式，yield from 委派序列。依序取到 25、[26, 27]、[]；需要重跑就建立新 iterator，而不是重用已耗盡的生成器。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c10():
+    def samples():
+        yield 25
+        yield from (26, 27)
+    iterator = samples()
+    return next(iterator) == 25 and list(iterator) == [26, 27] and list(iterator) == []</code></pre></details></article><article id="c11"><h3>C11｜例外、原因鏈與 ExceptionGroup</h3><p>raise … from exc 保存原始失敗，便於定位資料格式。except* 各自處理群組中的相符子樹，例題處理 input 與 timeout；未相符項會繼續傳播。不要用無區別 except 把系統錯誤變成正常讀值。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c11():
+    try:
+        try:
+            float(&quot;offline&quot;)
+        except ValueError as exc:
+            raise RuntimeError(&quot;bad sensor data&quot;) from exc
+    except RuntimeError as exc:
+        chained = isinstance(exc.__cause__, ValueError)
+    labels = []
+    try:
+        raise ExceptionGroup(&quot;polling&quot;, [ValueError(&quot;bad input&quot;), TimeoutError(&quot;late&quot;)])
+    except* ValueError:
+        labels.append(&quot;input&quot;)
+    except* TimeoutError:
+        labels.append(&quot;timeout&quot;)
+    return chained and labels == [&quot;input&quot;, &quot;timeout&quot;]</code></pre></details></article><article id="c12"><h3>C12｜with 與 contextmanager</h3><p>with 管理取得與清理；contextmanager 在 yield 前取得資源，finally 在離開時清理。預期順序 open、27.5、close，正常與例外都走清理。不能假設 with 都會提交交易，仍要看 context manager 的契約。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c12():
+    events = []
+    @contextmanager
+    def stream():
+        events.append(&quot;open&quot;)
+        try:
+            yield 27.5
+        finally:
+            events.append(&quot;close&quot;)
+    with stream() as value:
+        events.append(value)
+    return events == [&quot;open&quot;, 27.5, &quot;close&quot;]</code></pre></details></article><article id="c13"><h3>C13｜typing：資料契約</h3><p>TypedDict 補上鍵和值的靜態契約；範例查到 celsius=27.5。它不會在執行期拒絕外部錯誤資料，仍需驗證 schema、範圍與單位。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c13():
+    class Reading(TypedDict):
+        point: str
+        celsius: float
+    row: Reading = {&quot;point&quot;: &quot;AHU-01&quot;, &quot;celsius&quot;: 27.5}
+    return row[&quot;celsius&quot;] == 27.5</code></pre></details></article><article id="c14"><h3>C14｜模組、import、入口與環境</h3><p>import 載入模組且通常只執行一次模組頂層程式。用 __name__ 判斷腳本入口，避免 import 時啟動採集。範例從 json 載入 27；sys.executable 可確認啟動的是哪個環境。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c14():
+    library = importlib.import_module(&quot;json&quot;)
+    return library.loads(&quot;27&quot;) == 27 and bool(sys.executable)</code></pre></details></article><article id="c15"><h3>C15｜檔案、JSON 與標準庫</h3><p>Path 以明確 UTF-8 編碼讀寫；JSON 是資料格式，不是 Python 程式。讀回應是含「設備」的字典。不要用 eval 解讀 JSON，生產版也要考慮檔案大小與寫入失敗。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>def c15():
+    with TemporaryDirectory() as temp:
+        path = Path(temp) / &quot;report.json&quot;
+        path.write_text(json.dumps({&quot;設備&quot;: &quot;AHU-01&quot;}, ensure_ascii=False), encoding=&quot;utf-8&quot;)
+        return json.loads(path.read_text(encoding=&quot;utf-8&quot;)) == {&quot;設備&quot;: &quot;AHU-01&quot;}</code></pre></details></article><article id="c16"><h3>C16｜async 語法與 TaskGroup</h3><p>呼叫 async 函式會產生 coroutine，不會自行執行；await 讓出控制直到 awaitable 完成。TaskGroup 在離開時等待子任務，非取消錯誤會取消同組其他任務並彙總。範例取得 25、26；勿在事件迴圈內直接執行阻塞 I/O。</p><details open><summary>可執行範例</summary><pre tabindex="0"><code>async def c16():
+    async def read(value):
+        await asyncio.sleep(0)
+        return value
+    async with asyncio.TaskGroup() as group:
+        a = group.create_task(read(25))
+        b = group.create_task(read(26))
+    return (a.result(), b.result()) == (25, 26)</code></pre></details></article><div id="boundary-checks"><h3>十個容易誤判的語法邊界</h3><p>每段可獨立執行；assert 寫出預期結果，例外皆為刻意測試。 <a href="python-312-boundary-checks.py" download>下載十項邊界實驗</a>。</p><details><summary>C01 / C03｜名稱與同一物件</summary><p>名稱指向物件；用可變預設引數會跨呼叫累積。若每次都應該是新資料，使用 None 佔位再建容器。</p><pre tabindex="0"><code>def add(value, items=None):
+    if items is None:
+        items = []
+    items.append(value)
+    return items
+assert add(2) == [2] and add(3) == [3]</code></pre></details><details><summary>C02｜字元與位元組長度</summary><p>網路長度與儲存格式往往以 bytes 計；中文不是每字一 byte。錯誤編碼應在輸入邊界被發現。</p><pre tabindex="0"><code>text = &#x27;冰水&#x27;
+wire = text.encode(&#x27;utf-8&#x27;)
+assert (len(text), len(wire), wire.decode(&#x27;utf-8&#x27;)) == (2, 6, text)</code></pre></details><details><summary>C04｜短路與有意義的 0</summary><p>不能以 or 代替『缺值』判斷。零流量是有效量測，不應被預設流量覆蓋。</p><pre tabindex="0"><code>def configured(value, fallback):
+    return fallback if value is None else value
+assert configured(0, 100) == 0
+assert configured(None, 100) == 100</code></pre></details><details><summary>C05｜切片與深層別名</summary><p>列表切片建立新外層但保留內層參考。若要保存可稽核快照，明確決定是否複製內層。</p><pre tabindex="0"><code>points = [[&#x27;T01&#x27;, 24], [&#x27;T02&#x27;, 26]]
+copy = points[:]
+copy[0][1] = 25
+assert copy is not points and points[0][1] == 25</code></pre></details><details><summary>C06｜for…else 尋找失敗</summary><p>迴圈的 else 不是最後一次 if 的 else。正常走完才執行，遇到 break 則跳過。</p><pre tabindex="0"><code>def find_alarm(points):
+    for name, value in points:
+        if value &gt;= 30:
+            break
+    else:
+        return None
+    return name
+assert find_alarm([(&#x27;T01&#x27;, 20)]) is None
+assert find_alarm([(&#x27;T02&#x27;, 31)]) == &#x27;T02&#x27;</code></pre></details><details><summary>C07 / C13｜驗證不是型別註記</summary><p>從 JSON/API 進來的資料仍要做 runtime 驗證。Python 的 bool 是 int 子類，嚴格點表欄位應把它排除。</p><pre tabindex="0"><code>def samples(n: int) -&gt; int:
+    if type(n) is not int or n &lt; 0:
+        raise ValueError(&#x27;invalid sample count&#x27;)
+    return n
+assert samples(0) == 0
+try:
+    samples(True)
+except ValueError:
+    pass
+else:
+    raise AssertionError(&#x27;accepted boolean&#x27;)</code></pre></details><details><summary>C08｜閉包的晚期查找</summary><p>lambda 讀取的是之後查到的名稱。讓目前值成為預設引數，或寫工廠函式，以免每筆回呼都指向最後一項。</p><pre tabindex="0"><code>broken = [lambda: n for n in range(3)]
+fixed = [lambda n=n: n for n in range(3)]
+assert [f() for f in broken] == [2, 2, 2]
+assert [f() for f in fixed] == [0, 1, 2]</code></pre></details><details><summary>C09｜dataclass 預設工廠</summary><p>可變的欄位要由每個實例各自建立。frozen 限制欄位重新指派，不是深層不可變。</p><pre tabindex="0"><code>from dataclasses import dataclass, field
+@dataclass
+class Batch:
+    values: list[int] = field(default_factory=list)
+a, b = Batch(), Batch()
+a.values.append(2)
+assert b.values == []</code></pre></details><details><summary>C10｜迭代器重複消費</summary><p>先做 sum 再轉 list，第二次會是空。若需要重讀，重新建立來源或在資料量可接受時物化。</p><pre tabindex="0"><code>rows = iter([10, 20])
+assert sum(rows) == 30
+assert list(rows) == []</code></pre></details><details><summary>C11 / C12｜失敗也要釋放資源</summary><p>釋放設在 finally，例外仍應上傳給呼叫端。若吞下例外，後續服務會誤判成功。</p><pre tabindex="0"><code>from contextlib import contextmanager
+state = []
+@contextmanager
+def resource():
+    try:
+        yield
+    finally:
+        state.append(&#x27;closed&#x27;)
+try:
+    with resource():
+        raise OSError(&#x27;simulated&#x27;)
+except OSError:
+    assert state == [&#x27;closed&#x27;]</code></pre></details></div></section><section id="part-2"><h2>2. Python 3.12 新增與升級變更</h2><article id="change-1"><h3>PEP 695：泛型與 type 別名</h3><p>type 宣告可以延後求值；它不是 class。first[T] 讓型別檢查保留元素型別，不會驗證內容。3.11 必須改用 TypeVar / TypeAlias，版本條件無法保護舊解析器。</p><pre tabindex="0"><code>type Reading = tuple[str, float]
 
 def first[T](items: list[T]) -&gt; T:
     return items[0]
 
-assert first([(&quot;AHU-01&quot;, 25.2)])[0] == &quot;AHU-01&quot;</code></pre></section><section id="topic-2"><h2>3. f-string｜PEP 701</h2><p>現在可在替換欄位內重複使用外層引號，也可放在一般運算式中合法使用的反斜線，例如 join 的換行字串。格式規格 <code>:.1f</code> 不變；若工具鏈仍解析 3.11，先把字典取值拆出，再格式化。</p><pre><code>record = {&quot;zone&quot;: &quot;AHU-01&quot;, &quot;temperature&quot;: 25.25}
-print(f&quot;{record[&quot;zone&quot;]}: {record[&quot;temperature&quot;]:.1f} °C&quot;)</code></pre></section><section id="topic-3"><h2>4. 推導式｜PEP 709</h2><p>CPython 將列表、字典和集合推導式內嵌到外層函式，不再需要獨立的推導式程式框。迭代變數依舊不會洩漏到外層；但推導式內的 <code>locals()</code> 能看到外層區域變數，追蹤器及 traceback 也可能不同。產生器運算式不在此次內嵌範圍；速度以實際資料驗證。</p><pre><code>outer = 99
-assert [outer * 2 for outer in range(3)] == [0, 2, 4]
-assert outer == 99  # no variable leakage</code></pre></section><section id="topic-4"><h2>5. 標準函式庫可以直接練什麼</h2><p><code>typing.override</code> 讓靜態檢查器找出拼錯的覆寫方法，不提供執行期保證。<code>Path.walk()</code> 適合巡覽本機紀錄檔；預設不追蹤符號連結。<code>sys.monitoring</code> 是提供給工具的低影響事件 API，並非行程效能必然改善。</p><pre><code>from pathlib import Path
+assert first([(&quot;AHU-01&quot;, 25.2)])[0] == &quot;AHU-01&quot;</code></pre></article><article id="change-2"><h3>PEP 701：f-string 文法</h3><p>替換欄能重複外層引號，也能含一般運算式允許的反斜線。以下印出 AHU-01: 25.2；3.11 路徑改用暫存變數。</p><pre tabindex="0"><code>row = {&quot;name&quot;: &quot;AHU-01&quot;, &quot;value&quot;: 25.25}
+print(f&quot;{row[&quot;name&quot;]}: {row[&quot;value&quot;]:.1f}&quot;)</code></pre></article><article id="change-3"><h3>PEP 709：推導式內嵌</h3><p>list、set、dict 推導式移除額外 frame；不影響外層 iter 變數，但 locals() 可看到外層名稱，追蹤結果也可能變。產生器運算式不包含在這次變更。範例顯示 True。</p><pre tabindex="0"><code>def has_outer():
+    outer = 42
+    return [&quot;outer&quot; in locals() for item in (0,)][0]
 
-for directory, folders, names in Path(&quot;.&quot;).walk():
-    print(directory, len(names))</code></pre></section><section id="topic-5"><h2>6. 移植與驗收</h2><p>Python 3.12 標準函式庫移除了 <code>distutils</code>；建置流程改用 <code>pyproject.toml</code> 與維護中的建置後端。新建 <code>venv</code> 不再預先裝入 <code>setuptools</code>；舊工具若仍需要，明確列為建置或執行依賴。無效反斜線跳脫改發 <code>SyntaxWarning</code>；regex 改用 raw 字串。若含原生擴充，核對作業系統、CPU 架構及 ABI 的 wheel，再從乾淨環境重跑測試。</p><pre><code>python3.12 -m venv .venv
+print(has_outer())</code></pre></article><article id="change-4"><h3>工具與標準庫 API</h3><p>typing.override 不會自動檢查方法簽名；需配合靜態工具。Path.walk 預設不跟隨 symlink。sys.monitoring 是低開銷監測介面，不是效能保證。以下對同一路徑走訪並核對根目錄。</p><pre tabindex="0"><code>from pathlib import Path
+
+root, directories, filenames = next(Path(&quot;.&quot;).walk())
+assert root == Path(&quot;.&quot;)</code></pre></article><article id="change-5"><h3>移除與棄用</h3><p>distutils 移出標準庫，乾淨 venv 不再預裝 setuptools；檢查 pyproject.toml 的建置後端。無效反斜線跳脫從 DeprecationWarning 提升為 SyntaxWarning；regex 使用 raw 字串。不要以系統碰巧裝了 setuptools 判定所有主機都能建置。</p><pre tabindex="0"><code>import re
+assert re.fullmatch(r&quot;AHU-\d{2}&quot;, &quot;AHU-01&quot;)</code></pre></article><h3 id="migration">3.15 → 3.12 對照與退路</h3><div class="table-wrap" tabindex="0" role="region" aria-label="3.15 / 3.12"><table><thead><tr><th scope="col">3.15</th><th scope="col">3.12 的實作決策</th></tr></thead><tbody><tr><th scope="row">lazy import</th><td>普通 import／在函式內延遲 import；別把相同副作用或時機當保證。</td></tr><tr><th scope="row">推導式解包 / comprehension unpacking</th><td>雙層 for 逐層展開；3.12 的內嵌最佳化不是此語法。</td></tr><tr><th scope="row">frozendict / sentinel</th><td>MappingProxyType 是唯讀檢視而非不可變快照；私有 object() 要用 is 比對。</td></tr><tr><th scope="row">UTF-8 預設 / default encoding</th><td>對檔案明寫 encoding=&#x27;utf-8&#x27;；不要假定 3.12 的 locale 編碼。</td></tr><tr><th scope="row">Closed TypedDict / TypeForm</th><td>TypedDict 提供靜態契約；需要強制拒絕額外欄位就另外驗證。</td></tr><tr><th scope="row">Tachyon / startup config</th><td>用 cProfile、明確入口與測試；不把 3.15 的監測與啟動 API 移植到 3.12。</td></tr><tr><th scope="row">free-threading / iterator synchronization</th><td>普通 CPython 3.12 有 GIL；以 Queue、Lock 或程序隔離保護共享狀態，不使用 3.15 專用同步 API。</td></tr><tr><th scope="row">新標準庫與 C 擴充 / libraries and C extensions</th><td>在 3.12 環境確認 wheel/ABI、標準庫 API 與套件依賴；不假定新方法存在。</td></tr></tbody></table></div></section><section id="part-3"><h2>3. 非同步、平行與執行環境</h2><p>GIL 不是業務鎖，async 也不代表平行。可觀察的是正確性、延遲、吞吐和取消，不要把固定範例或秒數當硬體結論。</p><div class="table-wrap" tabindex="0" role="region" aria-label="Concurrency"><table><thead><tr><th scope="col">方式</th><th scope="col">適用與邊界</th></tr></thead><tbody><tr><th scope="row">asyncio</th><td>I/O 多路等待；阻塞 API 要改成非阻塞或卸載。</td></tr><tr><th scope="row">threads</th><td>阻塞 I/O 或會釋出 GIL 的擴充；用 queue/lock 保護共享狀態。</td></tr><tr><th scope="row">processes</th><td>純 Python CPU 密集工作可用多程序；要算序列化與啟動成本。</td></tr><tr><th scope="row">subinterpreters</th><td>PEP 684 的每直譯器 GIL 是 C API 成果；3.12 不提供 3.15 教材的 Python 直譯器介面。</td></tr></tbody></table></div><pre tabindex="0"><code>&quot;&quot;&quot;Compare task modes on CPython 3.12. Correctness demonstration, not a benchmark.&quot;&quot;&quot;
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import sys
+
+
+def squares(n):
+    return sum(i * i for i in range(n))
+
+
+async def two_reads():
+    async def read(v):
+        await asyncio.sleep(0.002)
+        return v
+    async with asyncio.TaskGroup() as tasks:
+        a, b = (tasks.create_task(read(n)) for n in (25, 26))
+    return [a.result(), b.result()]
+
+
+def main():
+    expected = [30, 55]
+    inp = [5, 6]
+    assert [squares(n) for n in inp] == expected
+    assert asyncio.run(two_reads()) == [25, 26]
+    with ThreadPoolExecutor(2) as pool:
+        assert list(pool.map(squares, inp)) == expected
+    with ProcessPoolExecutor(2) as pool:
+        assert list(pool.map(squares, inp)) == expected
+    print(f&quot;CPython {sys.version.split()[0]}: serial, asyncio, thread, process OK&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></section><section id="part-4"><h2>4. 工程實務、版本沿革與學習練習</h2><p>八點採集：TaskGroup 保留結構化生命週期；每點獨立 timeout；缺值與逾時不編成 0、不列進平均；結果依輸入點序。範例應產出 8 列、6 有效、平均 26.65 °C，AHU-02 與 AHU-06 告警。</p><p>資料品質另測缺欄、None、NaN、無限值、布林、字串及超範圍；不要因為 bool 是 int 的子類別就把 True 當 1 °C。20 ms 逾時是合成演練，不是現場 SLA。</p><pre tabindex="0"><code>def normalize(row):
+    if &quot;celsius&quot; not in row:
+        return &quot;missing&quot;, None
+    value = row[&quot;celsius&quot;]
+    if type(value) not in (int, float) or not -40 &lt;= value &lt;= 90 or not math.isfinite(value):
+        return &quot;invalid&quot;, None
+    return &quot;valid&quot;, value
+
+async def sample(point, value, delay):
+    try:
+        async with asyncio.timeout(0.020):
+            await asyncio.sleep(delay)
+    except TimeoutError:
+        return {&quot;point&quot;: point, &quot;quality&quot;: &quot;timeout&quot;, &quot;celsius&quot;: None}
+    quality, reading = normalize({&quot;celsius&quot;: value})
+    return {&quot;point&quot;: point, &quot;quality&quot;: quality, &quot;celsius&quot;: reading}</code></pre><pre tabindex="0"><code>python3.12 hvac_report_312.py --self-test
+python3.12 hvac_report_312.py --output report.json</code></pre><h3>版本沿革與實作順序</h3><p>3.10 已有 match；3.11 已有 TaskGroup、ExceptionGroup 及 tomllib；3.12 新增泛型語法、f-string 文法完善與推導式內嵌。先重現舊環境測試，切換乾淨 3.12，再逐步採用特性，勿把語法更新與依賴重整混成一次不可回退的變更。</p><h3>實作練習與自我檢查</h3><ol><li>移除所有有效讀值；總平均應成為 null，而不是除以零。</li><li>將門檻改成 29 °C，預期僅 AHU-06 告警；確認不改動資料品質。</li><li>重複向同一路徑輸出；第二次應拒絕覆寫，第一份報告仍能讀取。</li><li>加入十六進位位元組欄位，解碼失敗要能對應到來源與欄位。</li></ol></section><section id="part-5"><h2>5. 工程圖：CLI 與服務交付</h2><figure><figcaption>Production notes-cli</figcaption><ol class="flow"><li>解析參數、輸出路徑</li><li>採集八點與標記品質</li><li>編碼 JSON 並拒絕覆寫</li><li>執行自測與驗收</li></ol></figure><figure><figcaption>Delivery Blueprint</figcaption><ol class="flow"><li>設備或資料入口</li><li>驗證與事件迴圈</li><li>輸出／服務與日誌</li><li>報告、版本與故障證據</li></ol></figure><p>圖說：CLI 的輸出路徑衝突應中止，勿回報成功；服務交付另需驗收健康檢查、逾時、復原、資料留存與版本鎖定。本教程不是已上線的服務。</p></section><section id="part-6"><h2>6. 驗證紀錄與資料包</h2><p>CPython 3.12.14 實跑；核心 C01–C16、新功能五項、並行四模式、HVAC 八點報表均通過。下列並行範例只驗結果，不宣稱效能加速。</p><pre tabindex="0"><code>python3.12 -W error::SyntaxWarning core_examples.py
 python3.12 -W error::SyntaxWarning python-312-lab.py --test
-python3.12 python-312-lab.py</code></pre></section><footer><h2>官方資料</h2><ul><li><a href="https://docs.python.org/3.12/whatsnew/3.12.html">What’s New in Python 3.12</a></li><li><a href="https://peps.python.org/pep-0693/">PEP 693</a></li><li><a href="https://peps.python.org/pep-0695/">PEP 695</a></li><li><a href="https://peps.python.org/pep-0701/">PEP 701</a></li><li><a href="https://peps.python.org/pep-0709/">PEP 709</a></li></ul></footer></main></body></html>
+python3.12 concurrency_312.py
+python3.12 hvac_report_312.py --self-test</code></pre><ul><li><a href="core_examples.py" download>core_examples.py</a></li><li><a href="python-312-lab.py" download>python-312-lab.py</a></li><li><a href="concurrency_312.py" download>concurrency_312.py</a></li><li><a href="hvac_report_312.py" download>hvac_report_312.py</a></li></ul></section><footer><h2>核對資料</h2><ul><li><a href="../python-315-learning-kit/python-315-complete-guide.html">Python 3.15 reference curriculum</a></li><li><a href="https://docs.python.org/3.12/whatsnew/3.12.html">What’s New in Python 3.12</a></li><li><a href="https://docs.python.org/3.12/reference/">Python 3.12 language reference</a></li><li><a href="https://docs.python.org/3.12/library/">Python 3.12 library reference</a></li><li><a href="https://peps.python.org/pep-0693/">PEP 693</a></li><li><a href="https://peps.python.org/pep-0695/">PEP 695</a></li><li><a href="https://peps.python.org/pep-0701/">PEP 701</a></li><li><a href="https://peps.python.org/pep-0709/">PEP 709</a></li><li><a href="https://peps.python.org/pep-0684/">PEP 684</a></li><li><a href="https://peps.python.org/pep-0669/">PEP 669</a></li><li><a href="https://peps.python.org/pep-0632/">PEP 632</a></li></ul></footer></main></div></body></html>
