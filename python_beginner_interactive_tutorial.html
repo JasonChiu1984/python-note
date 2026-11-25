@@ -1008,6 +1008,7 @@
     .exercise-card, .engineering-card, .capstone-card, .exercise-meta > * { min-width: 0; }
     :is(.exercise-card, .engineering-card, .capstone-card) :is(h3, p, li, .mini-box) { overflow-wrap: anywhere; }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <nav class="mobile-nav" aria-label="行動版章節導覽">
@@ -1591,7 +1592,314 @@ recent: [25.5, 26.0]</code></pre></details>
             <p><a href="python_intermediate_engineering_tutorial.html#architecture">接著閱讀中級教材的大型專案架構</a></p>
           </article>
         </div>
-      </section>
+      
+<div class="course-example" id="example-python-oop-structure">
+<h3>範例程式碼 · 類別與 HVAC 監測</h3>
+<p>執行類別範例，對照 SmartProbe 的方法解析順序，再以三筆 AHU 讀值觀察告警與最近兩筆歷史。</p>
+<p><a href="python_3_15_oop_classes.html">開啟 Python 3.15 物件導向互動實驗室</a></p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/python_oop_structure
+python3 classes_lab.py
+python3 -m hvac_monitor</code></pre>
+<!-- example-source: python_oop_structure -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>classes_lab.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/classes_lab.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Python 3.15 官方 Classes 教程的可攜式補充範例。"""
+
+
+def scope_demo():
+    def make_probe():
+        tag = "zone"
+
+        class Probe:
+            tag = "class"
+
+            def labels(self):
+                return tag, self.tag
+
+        return Probe()
+
+    probe = make_probe()
+    print(probe.labels())
+    probe.tag = "instance"
+    print(probe.labels())
+
+
+def binding_demo():
+    class Probe:
+        unit = "C"
+
+        def __init__(self, offset):
+            self.__offset = offset
+
+        def calibrate(self, value):
+            return value + self.__offset
+
+    probe = Probe(0.5)
+    read = probe.calibrate
+    print(read(24.0), Probe.calibrate(probe, 24.0))
+    print(read.__self__ is probe)
+    print(read.__func__ is Probe.calibrate)
+    print("_Probe__offset" in vars(probe))
+    probe.unit = "degC"
+    print(Probe.unit, probe.unit)
+
+
+def inheritance_demo():
+    class Probe:
+        def describe(self):
+            return ["probe"]
+
+    class TaggedProbe(Probe):
+        def describe(self):
+            return ["tagged", *super().describe()]
+
+    class CalibratedProbe(Probe):
+        def describe(self):
+            return ["calibrated", *super().describe()]
+
+    class SmartProbe(TaggedProbe, CalibratedProbe):
+        pass
+
+    probe = SmartProbe()
+    print([cls.__name__ for cls in SmartProbe.__mro__])
+    print(probe.describe())
+    print(isinstance(probe, Probe), issubclass(SmartProbe, Probe))
+
+
+def iterator_demo():
+    class ReadingCursor:
+        def __init__(self, values):
+            self._values = iter(values)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return next(self._values)
+
+    class Trend:
+        def __init__(self, values):
+            self._values = tuple(values)
+
+        def __iter__(self):
+            return ReadingCursor(self._values)
+
+    trend = Trend([24.0, 25.5])
+    cursor = iter(trend)
+    print(next(cursor), list(cursor), list(cursor))
+    print(list(trend), list(trend))
+
+
+def generator_demo():
+    def high_values(values, limit):
+        for value in values:
+            if value &gt;= limit:
+                yield value
+
+    highs = high_values([24.0, 25.5, 26.0], 25.0)
+    print(next(highs), list(highs), list(highs))
+
+    batches = [[23.5, 25.5], [], [26.0]]
+    merged = (value for batch in batches for value in batch)
+    print(list(merged))
+
+
+def main():
+    for demo in (scope_demo, binding_demo, inheritance_demo,
+                 iterator_demo, generator_demo):
+        print(f"\n{demo.__name__}")
+        demo()
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>hvac_monitor/__main__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/hvac_monitor/__main__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .model import Reading
+from .service import Monitor, is_high
+from .sources import ReplaySource
+
+
+def main() -&gt; None:
+    samples = [
+        Reading("AHU-01", 23.5),
+        Reading("AHU-02", 25.5),
+        Reading("AHU-01", 26.0),
+    ]
+    monitor = Monitor(ReplaySource(samples), history_size=2)
+    for _ in samples:
+        reading = monitor.poll()
+        status = "HIGH" if is_high(reading, limit_c=25.0) else "OK"
+        print(f"{reading.sensor_id} {reading.celsius:.1f} C {status}")
+
+    recent = [reading.celsius for reading in monitor.recent()]
+    print(f"recent: {recent}")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>hvac_monitor/model.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/hvac_monitor/model.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from dataclasses import dataclass
+from math import isfinite
+
+
+@dataclass(frozen=True)
+class Reading:
+    sensor_id: str
+    celsius: float
+
+    def __post_init__(self) -&gt; None:
+        if not self.sensor_id.strip():
+            raise ValueError("sensor_id must not be blank")
+        if not isfinite(self.celsius):
+            raise ValueError("celsius must be finite")
+</code></pre></details>
+<details class="example-file"><summary><code>hvac_monitor/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/hvac_monitor/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from collections import deque
+from typing import Protocol
+
+from .model import Reading
+
+
+class ReadingSource(Protocol):
+    def read(self) -&gt; Reading: ...
+
+
+def is_high(reading: Reading, limit_c: float) -&gt; bool:
+    return reading.celsius &gt;= limit_c
+
+
+class Monitor:
+    def __init__(self, source: ReadingSource, history_size: int = 3) -&gt; None:
+        if history_size &lt; 1:
+            raise ValueError("history_size must be positive")
+        self._source = source
+        self._latest: dict[str, Reading] = {}
+        self._recent: deque[Reading] = deque(maxlen=history_size)
+
+    def poll(self) -&gt; Reading:
+        reading = self._source.read()
+        self._latest[reading.sensor_id] = reading
+        self._recent.append(reading)
+        return reading
+
+    def latest(self, sensor_id: str) -&gt; Reading | None:
+        return self._latest.get(sensor_id)
+
+    def recent(self) -&gt; tuple[Reading, ...]:
+        return tuple(self._recent)
+</code></pre></details>
+<details class="example-file"><summary><code>hvac_monitor/sources.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/hvac_monitor/sources.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from collections.abc import Iterable
+
+from .model import Reading
+
+
+class ReplaySource:
+    def __init__(self, readings: Iterable[Reading]) -&gt; None:
+        self._readings = iter(readings)
+
+    def read(self) -&gt; Reading:
+        return next(self._readings)
+</code></pre></details>
+<details class="example-file"><summary><code>service_nodes_csv.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/service_nodes_csv.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Parse the CSV exported by the OOP lab. Run with Python 3.11 or newer."""
+from __future__ import annotations
+
+import argparse
+import builtins
+import csv
+from collections import Counter
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from types import MappingProxyType
+
+
+# On older interpreters an Enum member supplies identity, and a read-only
+# mapping is enough for this exercise. The example never hashes the mapping.
+class Missing(Enum):
+    UNSET = "UNSET"
+
+
+if hasattr(builtins, "sentinel"):
+    UNSET = builtins.sentinel("UNSET")
+    Port = int | UNSET
+    freeze_tags = builtins.frozendict
+else:
+    UNSET = Missing.UNSET
+    Port = int | Missing
+    freeze_tags = MappingProxyType
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceNode:
+    name: str
+    role: str
+    port: Port
+    tags: Mapping[str, str]
+
+    @classmethod
+    def from_row(cls, row: dict[str, str]) -&gt; ServiceNode:
+        name = row["name"].strip()
+        if not name:
+            raise ValueError("missing name")
+        raw = row["port"].strip()
+        if raw and not (raw.isascii() and raw.isdecimal() and 1 &lt;= int(raw) &lt;= 65535):
+            raise ValueError(f"invalid port {raw!r}")
+        tags = {}
+        for part in row["tags"].split(";"):
+            if part.strip():
+                key, _, value = part.partition("=")
+                tags[key.strip()] = value.strip() or "true"
+        return cls(name, row["role"].strip() or "worker",
+                   int(raw) if raw else UNSET, freeze_tags(tags))
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("csv_path", nargs="?", type=Path,
+                        default=Path(__file__).with_name("service_nodes.csv"))
+    args = parser.parse_args()
+    counts = Counter()
+    with args.csv_path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        if reader.fieldnames != ["name", "role", "port", "tags"]:
+            parser.error("expected header: name,role,port,tags")
+        for row in reader:
+            try:
+                if None in row or None in row.values():
+                    raise ValueError("expected four fields")
+                node = ServiceNode.from_row(row)
+            except ValueError as error:
+                counts["error"] += 1
+                print(f"line {reader.line_num}: {error}")
+                continue
+            status = "unset" if node.port is UNSET else "valid"
+            counts[status] += 1
+            print(node.name, node.role, "UNSET" if node.port is UNSET else node.port,
+                  dict(node.tags))
+    print(f"valid={counts['valid']} unset={counts['unset']} error={counts['error']}")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>hvac_monitor/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_oop_structure/hvac_monitor/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""空調溫度監測教學範例。"""
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <section id="project" class="section">
         <div class="section-head">

@@ -74,6 +74,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -133,7 +134,466 @@
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Deployment Runtime Service 範例專案</h2><p>`範例程式碼/deployment_runtime_service/` 示範標準庫 HTTP health/readiness、config、log 與部署檔契約驗證。 <a href="範例程式碼/deployment_runtime_service/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/deployment_runtime_service
 python3 -m py_compile src/deployment_runtime_service/*.py scripts/run_deployment_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_deployment_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_deployment_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-deployment-runtime-service">
+<h3>範例程式碼 · 部署與服務健康檢查</h3>
+<p>對照設定載入、健康檢查與服務關閉流程，使用本機 smoke 程式查看結果。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/deployment_runtime_service
+PYTHONPATH=src python3 scripts/run_deployment_smoke.py</code></pre>
+<!-- example-source: deployment_runtime_service -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_deployment_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/scripts/run_deployment_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>#!/usr/bin/env python3
+"""Run a local deployment-runtime smoke check without requiring Docker."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC = PROJECT_ROOT / "src"
+sys.path.insert(0, str(SRC))
+
+from deployment_runtime_service.config import load_config
+from deployment_runtime_service.deployment_contract import validate_deployment_files
+from deployment_runtime_service.health import RuntimeState, health_report, readiness_report
+from deployment_runtime_service.logging_utils import log_json
+
+
+def main() -&gt; int:
+    config = load_config({
+        "APP_NAME": "deployment-runtime-service",
+        "APP_HOST": "127.0.0.1",
+        "APP_PORT": "8080",
+        "APP_ENV": "smoke",
+        "DEPENDENCY_STATUS": "healthy",
+        "SHUTDOWN_TIMEOUT_SECONDS": "10",
+    })
+    state = RuntimeState.started_now()
+    health_code, health_payload = health_report(config, state)
+    ready_code, ready_payload = readiness_report(config, state)
+    missing = validate_deployment_files(PROJECT_ROOT)
+
+    if health_code != 200 or ready_code != 200:
+        print(json.dumps({"health": health_payload, "ready": ready_payload}, ensure_ascii=False))
+        return 1
+    if any(missing.values()):
+        print(json.dumps(missing, ensure_ascii=False, indent=2))
+        return 1
+
+    log_json("deployment_smoke", service=config.app_name, environment=config.environment, token="redacted-by-helper")
+    print("deployment runtime smoke passed: config + health + readiness + deployment files")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/config.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/config.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Runtime configuration loaded from environment variables."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import os
+
+
+class ConfigError(ValueError):
+    """Raised when runtime configuration is invalid."""
+
+
+@dataclass(frozen=True)
+class RuntimeConfig:
+    app_name: str
+    host: str
+    port: int
+    environment: str
+    dependency_status: str
+    shutdown_timeout_seconds: float
+
+
+def _read_int(env: dict[str, str], key: str, default: str) -&gt; int:
+    raw = env.get(key, default)
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ConfigError(f"{key} must be an integer") from exc
+
+
+def _read_float(env: dict[str, str], key: str, default: str) -&gt; float:
+    raw = env.get(key, default)
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ConfigError(f"{key} must be a number") from exc
+
+
+def load_config(env: dict[str, str] | None = None) -&gt; RuntimeConfig:
+    values = os.environ if env is None else env
+    app_name = values.get("APP_NAME", "deployment-runtime-service").strip()
+    host = values.get("APP_HOST", "0.0.0.0").strip()
+    environment = values.get("APP_ENV", "local").strip()
+    dependency_status = values.get("DEPENDENCY_STATUS", "healthy").strip().lower()
+    port = _read_int(values, "APP_PORT", "8080")
+    shutdown_timeout = _read_float(values, "SHUTDOWN_TIMEOUT_SECONDS", "10")
+
+    if not app_name:
+        raise ConfigError("APP_NAME is required")
+    if not host:
+        raise ConfigError("APP_HOST is required")
+    if not (1 &lt;= port &lt;= 65535):
+        raise ConfigError("APP_PORT must be between 1 and 65535")
+    if dependency_status not in {"healthy", "degraded", "down"}:
+        raise ConfigError("DEPENDENCY_STATUS must be healthy, degraded, or down")
+    if shutdown_timeout &lt;= 0:
+        raise ConfigError("SHUTDOWN_TIMEOUT_SECONDS must be greater than zero")
+
+    return RuntimeConfig(
+        app_name=app_name,
+        host=host,
+        port=port,
+        environment=environment,
+        dependency_status=dependency_status,
+        shutdown_timeout_seconds=shutdown_timeout,
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/deployment_contract.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/deployment_contract.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Static checks for deployment files used by the tutorial."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+
+REQUIRED_DOCKERFILE_TOKENS = [
+    "FROM python:3.14-slim",
+    "PYTHONUNBUFFERED=1",
+    "useradd --create-home",
+    "USER appuser",
+    "HEALTHCHECK",
+    "CMD [\"python\", \"-m\", \"deployment_runtime_service.server\"]",
+]
+
+REQUIRED_COMPOSE_TOKENS = [
+    "services:",
+    "deployment-runtime-service:",
+    "APP_PORT:",
+    "restart: unless-stopped",
+    "healthcheck:",
+    "resources:",
+]
+
+REQUIRED_DOCKERIGNORE_TOKENS = [
+    ".venv",
+    "__pycache__",
+    ".env",
+    "secrets",
+]
+
+
+def assert_contains(path: Path, tokens: list[str]) -&gt; list[str]:
+    content = path.read_text(encoding="utf-8")
+    return [token for token in tokens if token not in content]
+
+
+def validate_deployment_files(project_root: Path) -&gt; dict[str, list[str]]:
+    checks = {
+        "Dockerfile": assert_contains(project_root / "Dockerfile", REQUIRED_DOCKERFILE_TOKENS),
+        "compose.yaml": assert_contains(project_root / "compose.yaml", REQUIRED_COMPOSE_TOKENS),
+        ".dockerignore": assert_contains(project_root / ".dockerignore", REQUIRED_DOCKERIGNORE_TOKENS),
+    }
+    return checks
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/health.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/health.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Health and readiness contracts for the sample service."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import time
+
+from .config import RuntimeConfig
+
+
+@dataclass
+class RuntimeState:
+    started_at: float
+    draining: bool = False
+
+    @classmethod
+    def started_now(cls) -&gt; "RuntimeState":
+        return cls(started_at=time.time())
+
+    def mark_draining(self) -&gt; None:
+        self.draining = True
+
+
+def health_report(config: RuntimeConfig, state: RuntimeState) -&gt; tuple[int, dict[str, object]]:
+    status = "draining" if state.draining else "ok"
+    return 200, {
+        "status": status,
+        "service": config.app_name,
+        "environment": config.environment,
+        "uptime_seconds": max(0, round(time.time() - state.started_at, 3)),
+    }
+
+
+def readiness_report(config: RuntimeConfig, state: RuntimeState) -&gt; tuple[int, dict[str, object]]:
+    if state.draining:
+        return 503, {
+            "status": "not_ready",
+            "reason": "service is draining",
+            "dependency_status": config.dependency_status,
+        }
+    if config.dependency_status != "healthy":
+        return 503, {
+            "status": "not_ready",
+            "reason": "dependency is not healthy",
+            "dependency_status": config.dependency_status,
+        }
+    return 200, {
+        "status": "ready",
+        "dependency_status": config.dependency_status,
+    }
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/healthcheck.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/healthcheck.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Container healthcheck command."""
+
+from __future__ import annotations
+
+from .config import ConfigError, load_config
+from .health import RuntimeState, health_report
+
+
+def main() -&gt; int:
+    try:
+        config = load_config()
+    except ConfigError:
+        return 2
+    status_code, _payload = health_report(config, RuntimeState.started_now())
+    return 0 if status_code == 200 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/logging_utils.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/logging_utils.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Structured log helpers for container stdout."""
+
+from __future__ import annotations
+
+import json
+import sys
+import time
+from typing import Any
+
+
+SENSITIVE_KEYS = {"password", "secret", "token", "api_key"}
+
+
+def redact(payload: dict[str, Any]) -&gt; dict[str, Any]:
+    redacted: dict[str, Any] = {}
+    for key, value in payload.items():
+        if key.lower() in SENSITIVE_KEYS:
+            redacted[key] = "***"
+        else:
+            redacted[key] = value
+    return redacted
+
+
+def log_json(event: str, **fields: Any) -&gt; str:
+    record = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "event": event,
+        **redact(fields),
+    }
+    line = json.dumps(record, ensure_ascii=False, sort_keys=True)
+    print(line, file=sys.stdout, flush=True)
+    return line
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/server.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/server.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Small HTTP service exposing health and readiness endpoints."""
+
+from __future__ import annotations
+
+import json
+import signal
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+
+from .config import ConfigError, RuntimeConfig, load_config
+from .health import RuntimeState, health_report, readiness_report
+from .logging_utils import log_json
+
+
+class RuntimeHandler(BaseHTTPRequestHandler):
+    config: RuntimeConfig
+    state: RuntimeState
+
+    def log_message(self, format: str, *args: Any) -&gt; None:
+        log_json("http_access", path=self.path, client=self.client_address[0], message=format % args)
+
+    def _send_json(self, status_code: int, payload: dict[str, object]) -&gt; None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -&gt; None:
+        if self.path == "/healthz":
+            status_code, payload = health_report(self.config, self.state)
+        elif self.path == "/readyz":
+            status_code, payload = readiness_report(self.config, self.state)
+        else:
+            status_code, payload = 404, {"status": "not_found", "path": self.path}
+        self._send_json(status_code, payload)
+
+
+def build_server(config: RuntimeConfig, state: RuntimeState) -&gt; ThreadingHTTPServer:
+    RuntimeHandler.config = config
+    RuntimeHandler.state = state
+    return ThreadingHTTPServer((config.host, config.port), RuntimeHandler)
+
+
+def install_signal_handlers(server: ThreadingHTTPServer, state: RuntimeState) -&gt; None:
+    def handle_signal(signum: int, _frame: object) -&gt; None:
+        state.mark_draining()
+        log_json("shutdown_requested", signal=signum)
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
+
+def main() -&gt; int:
+    try:
+        config = load_config()
+    except ConfigError as exc:
+        log_json("config_error", error=str(exc))
+        return 2
+
+    state = RuntimeState.started_now()
+    server = build_server(config, state)
+    install_signal_handlers(server, state)
+    log_json("service_started", service=config.app_name, port=config.port, environment=config.environment)
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+        log_json("service_stopped", service=config.app_name)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/deployment_runtime_service/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/src/deployment_runtime_service/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Deployment runtime service teaching sample."""
+
+__version__ = "0.1.0"
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_runtime_service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/tests/test_runtime_service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from pathlib import Path
+import json
+import unittest
+
+from deployment_runtime_service.config import ConfigError, load_config
+from deployment_runtime_service.deployment_contract import validate_deployment_files
+from deployment_runtime_service.health import RuntimeState, health_report, readiness_report
+from deployment_runtime_service.logging_utils import log_json, redact
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+class RuntimeConfigTests(unittest.TestCase):
+    def test_load_config_from_environment_mapping(self) -&gt; None:
+        config = load_config({
+            "APP_NAME": "runtime-demo",
+            "APP_HOST": "127.0.0.1",
+            "APP_PORT": "8090",
+            "APP_ENV": "test",
+            "DEPENDENCY_STATUS": "healthy",
+            "SHUTDOWN_TIMEOUT_SECONDS": "5",
+        })
+
+        self.assertEqual(config.app_name, "runtime-demo")
+        self.assertEqual(config.host, "127.0.0.1")
+        self.assertEqual(config.port, 8090)
+        self.assertEqual(config.environment, "test")
+
+    def test_invalid_port_is_rejected(self) -&gt; None:
+        with self.assertRaises(ConfigError):
+            load_config({"APP_PORT": "70000"})
+
+
+class HealthContractTests(unittest.TestCase):
+    def test_health_stays_ok_when_dependency_is_degraded(self) -&gt; None:
+        config = load_config({"DEPENDENCY_STATUS": "degraded"})
+        status_code, payload = health_report(config, RuntimeState.started_now())
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["status"], "ok")
+
+    def test_readiness_fails_when_dependency_is_degraded(self) -&gt; None:
+        config = load_config({"DEPENDENCY_STATUS": "degraded"})
+        status_code, payload = readiness_report(config, RuntimeState.started_now())
+
+        self.assertEqual(status_code, 503)
+        self.assertEqual(payload["status"], "not_ready")
+
+    def test_readiness_fails_while_draining(self) -&gt; None:
+        config = load_config({"DEPENDENCY_STATUS": "healthy"})
+        state = RuntimeState.started_now()
+        state.mark_draining()
+
+        status_code, payload = readiness_report(config, state)
+
+        self.assertEqual(status_code, 503)
+        self.assertEqual(payload["reason"], "service is draining")
+
+
+class LoggingTests(unittest.TestCase):
+    def test_redact_sensitive_values(self) -&gt; None:
+        payload = redact({"user": "operator", "token": "plain-secret"})
+
+        self.assertEqual(payload["user"], "operator")
+        self.assertEqual(payload["token"], "***")
+
+    def test_log_json_returns_parseable_json(self) -&gt; None:
+        line = log_json("test_event", token="plain-secret", request_id="abc")
+        payload = json.loads(line)
+
+        self.assertEqual(payload["event"], "test_event")
+        self.assertEqual(payload["token"], "***")
+
+
+class DeploymentContractTests(unittest.TestCase):
+    def test_deployment_files_contain_required_runtime_contracts(self) -&gt; None:
+        missing = validate_deployment_files(PROJECT_ROOT)
+
+        self.assertEqual(missing, {"Dockerfile": [], "compose.yaml": [], ".dockerignore": []})
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

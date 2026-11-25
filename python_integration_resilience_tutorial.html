@@ -97,6 +97,7 @@
     .api-read em { color:#765119; }
     @media(max-width:510px){ .api-table th,.api-table td{padding:.3rem;font-size:.9rem} }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -400,7 +401,526 @@ Idempotency-Key: demo-key-001
 Content-Length: 30
 
 {"client_order_id":"demo-001"}</code></pre>
-<p><code>api.example.invalid</code> 不是真實端點。寫入範例中的冪等標頭只有在 API 契約定義其語義時有效。REST 常以 JSON 轉換成內部資料型別，應驗證必要欄位、型別、單位與版本，另外限制回應與批次大小。</p></article><div class="cards"></div></section>
+<p><code>api.example.invalid</code> 不是真實端點。寫入範例中的冪等標頭只有在 API 契約定義其語義時有效。REST 常以 JSON 轉換成內部資料型別，應驗證必要欄位、型別、單位與版本，另外限制回應與批次大小。</p></article><div class="cards"></div>
+<div class="course-example" id="example-integration-resilience">
+<h3>範例程式碼 · API 逾時與重試</h3>
+<p>從 client 追到 retry policy，觀察冪等條件與斷路器如何影響下一次呼叫。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/integration_resilience
+PYTHONPATH=src python3 scripts/run_integration_resilience_smoke.py</code></pre>
+<!-- example-source: integration_resilience -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_integration_resilience_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/scripts/run_integration_resilience_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from integration_resilience.client import ResilientIntegrationClient  # noqa: E402
+from integration_resilience.models import IntegrationRequest, IntegrationResponse, Method  # noqa: E402
+from integration_resilience.policies import CircuitBreaker, FixedWindowRateLimiter, RetryPolicy  # noqa: E402
+from integration_resilience.report import IntegrationReport, write_integration_report  # noqa: E402
+from integration_resilience.testing import FakeTransport  # noqa: E402
+
+
+def main() -&gt; int:
+    transport = FakeTransport(
+        responses=[
+            IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=1),
+            IntegrationResponse(status_code=200, data={"status": "ok", "payload": {"temperature_c": 23.8}}, attempt_count=2),
+        ]
+    )
+    client = ResilientIntegrationClient(
+        transport=transport,
+        retry_policy=RetryPolicy(max_attempts=3),
+        circuit_breaker=CircuitBreaker(failure_threshold=3),
+        rate_limiter=FixedWindowRateLimiter(limit=10),
+    )
+    request = IntegrationRequest(method=Method.POST, path="/gateway/readings", idempotency_key="poll-1778677200")
+    response = client.call(request, now_epoch=1778677200)
+
+    breaker = CircuitBreaker(failure_threshold=1)
+    blocked_client = ResilientIntegrationClient(
+        transport=FakeTransport(responses=[]),
+        retry_policy=RetryPolicy(max_attempts=1),
+        circuit_breaker=breaker,
+        rate_limiter=FixedWindowRateLimiter(limit=10),
+    )
+    try:
+        blocked_client.call(IntegrationRequest(method=Method.GET, path="/gateway/down"), now_epoch=1778677201)
+        blocked_client.call(IntegrationRequest(method=Method.GET, path="/gateway/down"), now_epoch=1778677202)
+    except Exception:
+        pass
+
+    report = IntegrationReport(
+        policy_version="1.0",
+        timeout_seconds=client.timeout_seconds,
+        max_attempts=client.retry_policy.max_attempts,
+        idempotency_checked=bool(request.idempotency_key),
+        circuit_breaker_checked=breaker.opened,
+        schema_validation_checked=response.ok,
+        metrics=client.metrics,
+    )
+    write_integration_report(ROOT / "integration_resilience_report.json", report)
+    if response.ok and client.metrics and client.metrics.retries == 1 and breaker.opened:
+        print("integration resilience smoke passed: retry + idempotency + circuit + schema + evidence")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/client.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/client.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable
+
+from .models import (
+    CircuitOpenError,
+    HttpTransport,
+    IntegrationRequest,
+    IntegrationResponse,
+    RateLimitExceededError,
+    ResponseValidationError,
+    RetryNotAllowedError,
+)
+from .policies import CircuitBreaker, FixedWindowRateLimiter, IntegrationMetrics, RetryPolicy, validate_response
+
+
+def no_sleep(seconds: float) -&gt; None:
+    """Default sleep hook for examples; tests keep it as a no-op."""
+
+
+@dataclass
+class ResilientIntegrationClient:
+    transport: HttpTransport
+    retry_policy: RetryPolicy
+    circuit_breaker: CircuitBreaker
+    rate_limiter: FixedWindowRateLimiter
+    timeout_seconds: float = 2.0
+    metrics: IntegrationMetrics | None = None
+    sleep: Callable[[float], None] = no_sleep
+
+    def __post_init__(self) -&gt; None:
+        if self.metrics is None:
+            self.metrics = IntegrationMetrics()
+
+    def call(self, request: IntegrationRequest, now_epoch: int) -&gt; IntegrationResponse:
+        assert self.metrics is not None
+        try:
+            self.rate_limiter.allow(now_epoch)
+            self.circuit_breaker.before_call()
+        except (CircuitOpenError, RateLimitExceededError) as exc:
+            self.metrics.blocked += 1
+            self.metrics.events.append(type(exc).__name__)
+            raise
+
+        last_response: IntegrationResponse | None = None
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            self.metrics.attempts += 1
+            response = self.transport.send(request, timeout_seconds=self.timeout_seconds)
+            last_response = IntegrationResponse(status_code=response.status_code, data=response.data, attempt_count=attempt)
+            if last_response.ok:
+                try:
+                    validate_response(last_response)
+                except ResponseValidationError:
+                    self.metrics.schema_errors += 1
+                    self.circuit_breaker.record_failure()
+                    self.metrics.events.append("schema_error")
+                    raise
+                self.metrics.successes += 1
+                self.circuit_breaker.record_success()
+                self.metrics.events.append("success")
+                return last_response
+
+            self.circuit_breaker.record_failure()
+            self.metrics.failures += 1
+            if not self.retry_policy.should_retry(last_response, attempt):
+                self.metrics.events.append(f"failed_status_{last_response.status_code}")
+                return last_response
+            if not request.can_retry():
+                self.metrics.events.append("retry_not_allowed")
+                raise RetryNotAllowedError("request cannot be retried without idempotency")
+            self.metrics.retries += 1
+            self.metrics.events.append(f"retry_{attempt}")
+            self.sleep(self.retry_policy.backoff_seconds * attempt)
+
+        assert last_response is not None
+        return last_response
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/models.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/models.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Protocol, TypedDict
+
+
+class IntegrationError(RuntimeError):
+    """Base error for integration policy failures."""
+
+
+class RetryNotAllowedError(IntegrationError):
+    """Raised when a non-idempotent request would otherwise be retried."""
+
+
+class CircuitOpenError(IntegrationError):
+    """Raised when circuit breaker blocks an external dependency."""
+
+
+class RateLimitExceededError(IntegrationError):
+    """Raised when the local caller exceeds the configured call budget."""
+
+
+class ResponseValidationError(IntegrationError):
+    """Raised when the external service response does not match the contract."""
+
+
+class Method(str, Enum):
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+
+
+class ResponsePayload(TypedDict):
+    status: str
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class IntegrationRequest:
+    method: Method
+    path: str
+    body: dict[str, Any] = field(default_factory=dict)
+    idempotency_key: str | None = None
+
+    def can_retry(self) -&gt; bool:
+        if self.method in {Method.GET, Method.PUT, Method.DELETE}:
+            return True
+        return bool(self.idempotency_key)
+
+
+@dataclass(frozen=True)
+class IntegrationResponse:
+    status_code: int
+    data: ResponsePayload
+    attempt_count: int
+
+    @property
+    def ok(self) -&gt; bool:
+        return 200 &lt;= self.status_code &lt; 300
+
+
+class HttpTransport(Protocol):
+    def send(self, request: IntegrationRequest, timeout_seconds: float) -&gt; IntegrationResponse:
+        """Send a request to an external API, device gateway, or service."""
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/policies.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/policies.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from .models import CircuitOpenError, IntegrationResponse, RateLimitExceededError, ResponseValidationError
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    max_attempts: int = 3
+    backoff_seconds: float = 0.2
+    retry_statuses: tuple[int, ...] = (408, 429, 500, 502, 503, 504)
+
+    def should_retry(self, response: IntegrationResponse, attempt: int) -&gt; bool:
+        return attempt &lt; self.max_attempts and response.status_code in self.retry_statuses
+
+
+@dataclass
+class CircuitBreaker:
+    failure_threshold: int = 2
+    failure_count: int = 0
+    opened: bool = False
+
+    def before_call(self) -&gt; None:
+        if self.opened:
+            raise CircuitOpenError("external dependency circuit is open")
+
+    def record_success(self) -&gt; None:
+        self.failure_count = 0
+        self.opened = False
+
+    def record_failure(self) -&gt; None:
+        self.failure_count += 1
+        if self.failure_count &gt;= self.failure_threshold:
+            self.opened = True
+
+
+@dataclass
+class FixedWindowRateLimiter:
+    limit: int
+    window_seconds: int = 60
+    _window_start: int | None = None
+    _count: int = 0
+
+    def allow(self, now_epoch: int) -&gt; None:
+        if self._window_start is None or now_epoch - self._window_start &gt;= self.window_seconds:
+            self._window_start = now_epoch
+            self._count = 0
+        if self._count &gt;= self.limit:
+            raise RateLimitExceededError("external dependency rate limit exceeded")
+        self._count += 1
+
+
+@dataclass
+class IntegrationMetrics:
+    attempts: int = 0
+    retries: int = 0
+    successes: int = 0
+    failures: int = 0
+    blocked: int = 0
+    schema_errors: int = 0
+    events: list[str] = field(default_factory=list)
+
+
+def validate_response(response: IntegrationResponse) -&gt; None:
+    data = response.data
+    if not isinstance(data, dict):
+        raise ResponseValidationError("response data must be a dict")
+    if data.get("status") not in {"ok", "accepted", "degraded"}:
+        raise ResponseValidationError("response status must be ok, accepted, or degraded")
+    if not isinstance(data.get("payload"), dict):
+        raise ResponseValidationError("response payload must be a dict")
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/report.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/report.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+from .policies import IntegrationMetrics
+
+
+@dataclass(frozen=True)
+class IntegrationReport:
+    policy_version: str
+    timeout_seconds: float
+    max_attempts: int
+    idempotency_checked: bool
+    circuit_breaker_checked: bool
+    schema_validation_checked: bool
+    metrics: IntegrationMetrics
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return {
+            "policy_version": self.policy_version,
+            "timeout_seconds": self.timeout_seconds,
+            "max_attempts": self.max_attempts,
+            "idempotency_checked": self.idempotency_checked,
+            "circuit_breaker_checked": self.circuit_breaker_checked,
+            "schema_validation_checked": self.schema_validation_checked,
+            "metrics": {
+                "attempts": self.metrics.attempts,
+                "retries": self.metrics.retries,
+                "successes": self.metrics.successes,
+                "failures": self.metrics.failures,
+                "blocked": self.metrics.blocked,
+                "schema_errors": self.metrics.schema_errors,
+                "events": list(self.metrics.events),
+            },
+        }
+
+
+def write_integration_report(path: Path, report: IntegrationReport) -&gt; None:
+    path.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/testing.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/testing.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from .models import IntegrationRequest, IntegrationResponse
+
+
+@dataclass
+class FakeTransport:
+    responses: list[IntegrationResponse]
+    calls: list[IntegrationRequest] = field(default_factory=list)
+
+    def send(self, request: IntegrationRequest, timeout_seconds: float) -&gt; IntegrationResponse:
+        self.calls.append(request)
+        if not self.responses:
+            return IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=len(self.calls))
+        response = self.responses.pop(0)
+        return IntegrationResponse(status_code=response.status_code, data=response.data, attempt_count=len(self.calls))
+</code></pre></details>
+<details class="example-file"><summary><code>src/integration_resilience/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/src/integration_resilience/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Integration resilience sample package."""
+
+from .client import ResilientIntegrationClient
+from .models import (
+    CircuitOpenError,
+    IntegrationRequest,
+    IntegrationResponse,
+    Method,
+    RateLimitExceededError,
+    RetryNotAllowedError,
+)
+from .policies import CircuitBreaker, FixedWindowRateLimiter, IntegrationMetrics, RetryPolicy
+from .report import IntegrationReport, write_integration_report
+from .testing import FakeTransport
+
+__all__ = [
+    "CircuitBreaker",
+    "CircuitOpenError",
+    "FakeTransport",
+    "FixedWindowRateLimiter",
+    "IntegrationMetrics",
+    "IntegrationReport",
+    "IntegrationRequest",
+    "IntegrationResponse",
+    "Method",
+    "RateLimitExceededError",
+    "ResilientIntegrationClient",
+    "RetryNotAllowedError",
+    "RetryPolicy",
+    "write_integration_report",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_integration_resilience.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/integration_resilience/tests/test_integration_resilience.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import tempfile
+import unittest
+
+from integration_resilience.client import ResilientIntegrationClient
+from integration_resilience.models import (
+    CircuitOpenError,
+    IntegrationRequest,
+    IntegrationResponse,
+    Method,
+    RateLimitExceededError,
+    ResponseValidationError,
+    RetryNotAllowedError,
+)
+from integration_resilience.policies import CircuitBreaker, FixedWindowRateLimiter, RetryPolicy
+from integration_resilience.report import IntegrationReport, write_integration_report
+from integration_resilience.testing import FakeTransport
+
+
+def make_client(responses: list[IntegrationResponse], max_attempts: int = 3) -&gt; ResilientIntegrationClient:
+    return ResilientIntegrationClient(
+        transport=FakeTransport(responses=responses),
+        retry_policy=RetryPolicy(max_attempts=max_attempts),
+        circuit_breaker=CircuitBreaker(failure_threshold=5),
+        rate_limiter=FixedWindowRateLimiter(limit=10),
+    )
+
+
+class IntegrationResilienceTests(unittest.TestCase):
+    def test_retry_succeeds_for_idempotent_post(self) -&gt; None:
+        client = make_client(
+            [
+                IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=1),
+                IntegrationResponse(status_code=200, data={"status": "ok", "payload": {"value": 1}}, attempt_count=2),
+            ]
+        )
+        request = IntegrationRequest(method=Method.POST, path="/api/write", idempotency_key="write-1")
+        response = client.call(request, now_epoch=1778677200)
+        self.assertTrue(response.ok)
+        self.assertEqual(response.attempt_count, 2)
+        self.assertEqual(client.metrics.retries, 1)
+
+    def test_post_without_idempotency_is_not_retried(self) -&gt; None:
+        client = make_client(
+            [IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=1)]
+        )
+        request = IntegrationRequest(method=Method.POST, path="/api/write")
+        with self.assertRaises(RetryNotAllowedError):
+            client.call(request, now_epoch=1778677200)
+
+    def test_circuit_breaker_blocks_after_threshold(self) -&gt; None:
+        transport = FakeTransport(
+            responses=[
+                IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=1),
+                IntegrationResponse(status_code=503, data={"status": "degraded", "payload": {}}, attempt_count=2),
+            ]
+        )
+        client = ResilientIntegrationClient(
+            transport=transport,
+            retry_policy=RetryPolicy(max_attempts=1),
+            circuit_breaker=CircuitBreaker(failure_threshold=2),
+            rate_limiter=FixedWindowRateLimiter(limit=10),
+        )
+        request = IntegrationRequest(method=Method.GET, path="/api/status")
+        client.call(request, now_epoch=1778677200)
+        client.call(request, now_epoch=1778677201)
+        with self.assertRaises(CircuitOpenError):
+            client.call(request, now_epoch=1778677202)
+
+    def test_rate_limiter_blocks_excess_calls(self) -&gt; None:
+        client = ResilientIntegrationClient(
+            transport=FakeTransport(
+                responses=[
+                    IntegrationResponse(status_code=200, data={"status": "ok", "payload": {}}, attempt_count=1),
+                    IntegrationResponse(status_code=200, data={"status": "ok", "payload": {}}, attempt_count=1),
+                ]
+            ),
+            retry_policy=RetryPolicy(max_attempts=1),
+            circuit_breaker=CircuitBreaker(failure_threshold=5),
+            rate_limiter=FixedWindowRateLimiter(limit=1),
+        )
+        request = IntegrationRequest(method=Method.GET, path="/api/status")
+        client.call(request, now_epoch=1778677200)
+        with self.assertRaises(RateLimitExceededError):
+            client.call(request, now_epoch=1778677201)
+
+    def test_response_schema_validation_blocks_bad_payload(self) -&gt; None:
+        client = make_client([IntegrationResponse(status_code=200, data={"status": "ok"}, attempt_count=1)], max_attempts=1)
+        with self.assertRaises(ResponseValidationError):
+            client.call(IntegrationRequest(method=Method.GET, path="/api/status"), now_epoch=1778677200)
+        self.assertEqual(client.metrics.schema_errors, 1)
+
+    def test_integration_report_is_written_as_json(self) -&gt; None:
+        metrics = make_client(
+            [IntegrationResponse(status_code=200, data={"status": "ok", "payload": {}}, attempt_count=1)],
+            max_attempts=1,
+        ).metrics
+        report = IntegrationReport(
+            policy_version="1.0",
+            timeout_seconds=2.0,
+            max_attempts=3,
+            idempotency_checked=True,
+            circuit_breaker_checked=True,
+            schema_validation_checked=True,
+            metrics=metrics,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "integration_resilience_report.json"
+            write_integration_report(path, report)
+            text = path.read_text(encoding="utf-8")
+        self.assertIn('"policy_version": "1.0"', text)
+        self.assertIn('"schema_validation_checked": true', text)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要覆蓋成功與失敗控制面</h2><p>只測 happy path 無法證明外部整合能上線。</p></div></div><article class="surface api-read"><h3>證據圖：240 ms 虛擬預算如何用掉？</h3>
 <div class="api-budget" role="img" aria-label="第一次 503 用 40 毫秒、退避 25 毫秒、第二次成功 55 毫秒，剩餘 120 毫秒；都是虛擬時間">
 <span style="--w:40;--c:#aa4242"></span><span style="--w:25;--c:#ba790f"></span><span style="--w:55;--c:#2d8a69"></span><span style="--w:120;--c:#e5edf5"></span></div>

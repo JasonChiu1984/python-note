@@ -76,6 +76,7 @@
     .table-scroll { max-width: 100%; overflow-x: auto; }
     .table-scroll:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -246,7 +247,253 @@ report = service.run_cycle([
 ])
 print(report.processed_count, report.alarm_count, outbox.events[0]["kind"])</pre></div>
         <div class="lesson-grid" id="exampleLessons"></div>
-      </section>
+      
+<div class="course-example" id="example-project-delivery-blueprint">
+<h3>範例程式碼 · 整合式專案交付</h3>
+<p>沿著 config、domain 和 service 追蹤一次資料處理與交付驗證。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/project_delivery_blueprint
+PYTHONPATH=src python3 scripts/run_project_delivery_smoke.py</code></pre>
+<!-- example-source: project_delivery_blueprint -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_project_delivery_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/scripts/run_project_delivery_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from project_delivery_blueprint.config import ServiceConfig
+from project_delivery_blueprint.domain import Snapshot
+from project_delivery_blueprint.service import DeliveryCoordinator, MemoryOutbox, build_release_evidence
+
+
+def main() -&gt; None:
+    config = ServiceConfig.from_mapping(
+        {
+            "site_name": "plant-a",
+            "poll_interval_seconds": "15",
+            "temperature_alarm_c": "41.5",
+            "max_batch_size": "4",
+        }
+    )
+    outbox = MemoryOutbox()
+    service = DeliveryCoordinator(config=config, outbox=outbox)
+    report = service.run_cycle(
+        [
+            Snapshot(device_id="ahu-01", message_id="m-001", temperature_c=36.2, status="ok"),
+            Snapshot(device_id="ahu-01", message_id="m-001", temperature_c=36.2, status="ok"),
+            Snapshot(device_id="oven-02", message_id="m-002", temperature_c=46.8, status="warning"),
+        ]
+    )
+    evidence = build_release_evidence(report)
+
+    assert report.processed_count == 2
+    assert report.duplicate_count == 1
+    assert report.alarm_count == 1
+    assert outbox.events[0]["kind"] == "device.snapshot.accepted"
+    assert evidence["release_gate"] == "pass"
+    print("project delivery smoke passed: config + dedup + alarm + release evidence")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/project_delivery_blueprint/config.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/src/project_delivery_blueprint/config.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Mapping
+
+
+@dataclass(frozen=True)
+class ServiceConfig:
+    site_name: str
+    poll_interval_seconds: int = 15
+    temperature_alarm_c: float = 45.0
+    max_batch_size: int = 50
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, str]) -&gt; "ServiceConfig":
+        site_name = values.get("site_name", "").strip()
+        if not site_name:
+            raise ValueError("site_name is required")
+
+        poll_interval = int(values.get("poll_interval_seconds", "15"))
+        if poll_interval &lt; 1:
+            raise ValueError("poll_interval_seconds must be &gt;= 1")
+
+        alarm_c = float(values.get("temperature_alarm_c", "45.0"))
+        max_batch_size = int(values.get("max_batch_size", "50"))
+        if max_batch_size &lt; 1:
+            raise ValueError("max_batch_size must be &gt;= 1")
+
+        return cls(
+            site_name=site_name,
+            poll_interval_seconds=poll_interval,
+            temperature_alarm_c=alarm_c,
+            max_batch_size=max_batch_size,
+        )
+</code></pre></details>
+<details class="example-file"><summary><code>src/project_delivery_blueprint/domain.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/src/project_delivery_blueprint/domain.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    device_id: str
+    message_id: str
+    temperature_c: float
+    status: str
+
+
+@dataclass(frozen=True)
+class CycleReport:
+    site_name: str
+    processed_count: int
+    duplicate_count: int
+    alarm_count: int
+    fail_safe_devices: tuple[str, ...] = field(default_factory=tuple)
+</code></pre></details>
+<details class="example-file"><summary><code>src/project_delivery_blueprint/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/src/project_delivery_blueprint/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import asdict
+from typing import Iterable
+
+from .config import ServiceConfig
+from .domain import CycleReport, Snapshot
+
+
+class MemoryOutbox:
+    def __init__(self) -&gt; None:
+        self.events: list[dict[str, object]] = []
+
+    def publish(self, payload: dict[str, object]) -&gt; None:
+        self.events.append(payload)
+
+
+class DeliveryCoordinator:
+    def __init__(self, config: ServiceConfig, outbox: MemoryOutbox) -&gt; None:
+        self.config = config
+        self.outbox = outbox
+        self._processed_ids: set[str] = set()
+
+    def run_cycle(self, snapshots: Iterable[Snapshot]) -&gt; CycleReport:
+        processed_count = 0
+        duplicate_count = 0
+        alarm_count = 0
+        fail_safe_devices: list[str] = []
+
+        for snapshot in list(snapshots)[: self.config.max_batch_size]:
+            if snapshot.message_id in self._processed_ids:
+                duplicate_count += 1
+                continue
+            self._processed_ids.add(snapshot.message_id)
+            processed_count += 1
+
+            in_alarm = snapshot.temperature_c &gt;= self.config.temperature_alarm_c
+            if in_alarm:
+                alarm_count += 1
+                fail_safe_devices.append(snapshot.device_id)
+
+            self.outbox.publish(
+                {
+                    "kind": "device.snapshot.accepted",
+                    "site_name": self.config.site_name,
+                    "device_id": snapshot.device_id,
+                    "message_id": snapshot.message_id,
+                    "temperature_c": snapshot.temperature_c,
+                    "status": snapshot.status,
+                    "alarm": in_alarm,
+                }
+            )
+
+        return CycleReport(
+            site_name=self.config.site_name,
+            processed_count=processed_count,
+            duplicate_count=duplicate_count,
+            alarm_count=alarm_count,
+            fail_safe_devices=tuple(fail_safe_devices),
+        )
+
+
+def build_release_evidence(report: CycleReport) -&gt; dict[str, object]:
+    evidence = asdict(report)
+    evidence["release_gate"] = "pass" if report.processed_count &gt;= 1 else "hold"
+    evidence["operator_action"] = (
+        "notify_and_hold_high_temperature_devices"
+        if report.fail_safe_devices
+        else "continue_monitoring"
+    )
+    return evidence
+</code></pre></details>
+<details class="example-file"><summary><code>src/project_delivery_blueprint/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/src/project_delivery_blueprint/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .config import ServiceConfig
+from .domain import CycleReport, Snapshot
+from .service import DeliveryCoordinator, MemoryOutbox, build_release_evidence
+
+__all__ = [
+    "CycleReport",
+    "DeliveryCoordinator",
+    "MemoryOutbox",
+    "ServiceConfig",
+    "Snapshot",
+    "build_release_evidence",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_project_delivery_blueprint.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/project_delivery_blueprint/tests/test_project_delivery_blueprint.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from project_delivery_blueprint.config import ServiceConfig
+from project_delivery_blueprint.domain import Snapshot
+from project_delivery_blueprint.service import DeliveryCoordinator, MemoryOutbox, build_release_evidence
+
+
+class ProjectDeliveryBlueprintTest(unittest.TestCase):
+    def test_config_requires_site_name(self) -&gt; None:
+        with self.assertRaises(ValueError):
+            ServiceConfig.from_mapping({})
+
+    def test_duplicate_snapshot_is_skipped(self) -&gt; None:
+        config = ServiceConfig.from_mapping({"site_name": "plant-a"})
+        outbox = MemoryOutbox()
+        service = DeliveryCoordinator(config=config, outbox=outbox)
+        snapshots = [
+            Snapshot(device_id="ahu-01", message_id="m-1", temperature_c=36.2, status="ok"),
+            Snapshot(device_id="ahu-01", message_id="m-1", temperature_c=36.2, status="ok"),
+        ]
+        report = service.run_cycle(snapshots)
+        self.assertEqual(report.processed_count, 1)
+        self.assertEqual(report.duplicate_count, 1)
+        self.assertEqual(len(outbox.events), 1)
+
+    def test_alarm_snapshot_emits_fail_safe_evidence(self) -&gt; None:
+        config = ServiceConfig.from_mapping(
+            {"site_name": "plant-a", "temperature_alarm_c": "40.0"}
+        )
+        outbox = MemoryOutbox()
+        service = DeliveryCoordinator(config=config, outbox=outbox)
+        report = service.run_cycle(
+            [Snapshot(device_id="boiler-01", message_id="m-2", temperature_c=48.5, status="warning")]
+        )
+        evidence = build_release_evidence(report)
+        self.assertEqual(report.alarm_count, 1)
+        self.assertIn("boiler-01", report.fail_safe_devices)
+        self.assertEqual(evidence["operator_action"], "notify_and_hold_high_temperature_devices")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <section id="verification" class="section">
         <h2>Verification</h2>

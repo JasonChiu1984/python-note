@@ -70,6 +70,7 @@
       h1 { max-width: 15ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -130,7 +131,243 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>transition、timeout 與補償要同時建模</h2><p>只做 happy path 的流程，在真實專案裡通常撐不久。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗工作流治理</h2><p>先在本機把狀態轉移、逾時與 audit 跑順，再談 BPM 或外部 orchestrator。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 transition table 與 handoff 契約寫成明文</h2><p>from_state、event、to_state、operator、reason 都不能只放在腦中。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 engine 模擬真實流程</h2><p>範例專案集中展示 guard、timeout、manual review 與 compensation evidence。 <a href="範例程式碼/workflow_state_machine_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 engine 模擬真實流程</h2><p>範例專案集中展示 guard、timeout、manual review 與 compensation evidence。 <a href="範例程式碼/workflow_state_machine_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-workflow-state-machine-engineering">
+<h3>範例程式碼 · 工作流狀態機</h3>
+<p>沿著 engine.py 找到允許的狀態轉移，對照測試如何拒絕非法轉移。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/workflow_state_machine_engineering
+PYTHONPATH=src python3 scripts/run_workflow_state_machine_smoke.py</code></pre>
+<!-- example-source: workflow_state_machine_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/workflow_state_machine_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_workflow_state_machine_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/workflow_state_machine_engineering/scripts/run_workflow_state_machine_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from workflow_state_machine_engineering.engine import WorkflowConfig, WorkflowEngine
+
+
+def main() -&gt; None:
+    engine = WorkflowEngine(WorkflowConfig(name="device-approval", timeout_step=2))
+
+    success = engine.start("wf-success", payload_ready=True)
+    engine.apply(success, "validate", operator="qa")
+    engine.apply(success, "approve", operator="lead")
+    engine.apply(success, "execute_success", operator="runner")
+
+    failed = engine.start("wf-failure", payload_ready=True)
+    engine.apply(failed, "validate", operator="qa")
+    engine.apply(failed, "approve", operator="lead")
+    engine.apply(failed, "execute_fail", operator="runner", reason="device busy")
+    engine.apply(failed, "compensate", operator="ops", reason="revert reservation")
+
+    delayed = engine.start("wf-delay", payload_ready=True)
+    engine.apply(delayed, "validate", operator="qa")
+    engine.apply(delayed, "approve", operator="lead")
+    engine.enforce_timeout(delayed, operator="system", reason="deadline exceeded")
+
+    completed = engine.audit_report(success)
+    compensated = engine.audit_report(failed)
+    expired = engine.audit_report(delayed)
+    assert completed["state"] == "completed"
+    assert compensated["state"] == "compensated"
+    assert expired["state"] == "expired"
+    print("workflow state machine smoke passed: transition + compensation + timeout + audit")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/workflow_state_machine_engineering/engine.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/workflow_state_machine_engineering/src/workflow_state_machine_engineering/engine.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+
+
+class InvalidTransitionError(RuntimeError):
+    """Raised when an event is not allowed from the current state."""
+
+
+class WorkflowTimeoutError(RuntimeError):
+    """Raised when a workflow is already expired before the requested event."""
+
+
+@dataclass(frozen=True)
+class WorkflowConfig:
+    name: str
+    timeout_step: int = 3
+
+
+@dataclass
+class TransitionRecord:
+    event: str
+    from_state: str
+    to_state: str
+    operator: str
+    reason: str
+
+
+@dataclass
+class WorkflowInstance:
+    workflow_id: str
+    state: str = "draft"
+    step: int = 0
+    payload_ready: bool = False
+    history: list[TransitionRecord] = field(default_factory=list)
+    manual_review_reason: str | None = None
+    compensation_count: int = 0
+
+
+class WorkflowEngine:
+    def __init__(self, config: WorkflowConfig) -&gt; None:
+        self.config = config
+        self._rules: dict[tuple[str, str], str] = {
+            ("draft", "validate"): "validated",
+            ("validated", "approve"): "approved",
+            ("validated", "reject"): "manual_review",
+            ("approved", "execute_success"): "completed",
+            ("approved", "execute_fail"): "failed",
+            ("failed", "compensate"): "compensated",
+            ("expired", "manual_review"): "manual_review",
+        }
+
+    def start(self, workflow_id: str, *, payload_ready: bool = False) -&gt; WorkflowInstance:
+        return WorkflowInstance(workflow_id=workflow_id, payload_ready=payload_ready)
+
+    def apply(
+        self,
+        instance: WorkflowInstance,
+        event: str,
+        *,
+        operator: str,
+        reason: str = "",
+        step_increment: int = 1,
+    ) -&gt; WorkflowInstance:
+        if instance.state == "expired":
+            raise WorkflowTimeoutError(f"workflow {instance.workflow_id} already expired")
+        if event == "approve" and not instance.payload_ready:
+            raise InvalidTransitionError("payload is not ready for approval")
+
+        target = self._rules.get((instance.state, event))
+        if target is None:
+            raise InvalidTransitionError(f"event {event} is not allowed from {instance.state}")
+
+        old_state = instance.state
+        instance.state = target
+        instance.step += step_increment
+        if target == "manual_review":
+            instance.manual_review_reason = reason or event
+        if event == "compensate":
+            instance.compensation_count += 1
+        instance.history.append(
+            TransitionRecord(
+                event=event,
+                from_state=old_state,
+                to_state=target,
+                operator=operator,
+                reason=reason or event,
+            )
+        )
+        return instance
+
+    def enforce_timeout(self, instance: WorkflowInstance, *, operator: str, reason: str) -&gt; WorkflowInstance:
+        if instance.state in {"completed", "compensated", "manual_review"}:
+            return instance
+        if instance.step &lt; self.config.timeout_step:
+            return instance
+        old_state = instance.state
+        instance.state = "expired"
+        instance.manual_review_reason = reason
+        instance.history.append(
+            TransitionRecord(
+                event="timeout",
+                from_state=old_state,
+                to_state="expired",
+                operator=operator,
+                reason=reason,
+            )
+        )
+        return instance
+
+    def audit_report(self, instance: WorkflowInstance) -&gt; dict[str, object]:
+        return {
+            "workflow_name": self.config.name,
+            "workflow_id": instance.workflow_id,
+            "state": instance.state,
+            "step": instance.step,
+            "payload_ready": instance.payload_ready,
+            "manual_review_reason": instance.manual_review_reason,
+            "compensation_count": instance.compensation_count,
+            "history": [asdict(record) for record in instance.history],
+        }
+</code></pre></details>
+<details class="example-file"><summary><code>src/workflow_state_machine_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/workflow_state_machine_engineering/src/workflow_state_machine_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .engine import InvalidTransitionError, WorkflowConfig, WorkflowEngine, WorkflowTimeoutError
+
+__all__ = ["InvalidTransitionError", "WorkflowConfig", "WorkflowEngine", "WorkflowTimeoutError"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_workflow_state_machine_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/workflow_state_machine_engineering/tests/test_workflow_state_machine_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from workflow_state_machine_engineering.engine import InvalidTransitionError, WorkflowConfig, WorkflowEngine, WorkflowTimeoutError
+
+
+class WorkflowStateMachineEngineeringTests(unittest.TestCase):
+    def setUp(self) -&gt; None:
+        self.engine = WorkflowEngine(WorkflowConfig(name="device-approval", timeout_step=2))
+
+    def test_happy_path_reaches_completed(self) -&gt; None:
+        flow = self.engine.start("wf-001", payload_ready=True)
+        self.engine.apply(flow, "validate", operator="qa")
+        self.engine.apply(flow, "approve", operator="lead")
+        self.engine.apply(flow, "execute_success", operator="runner")
+        report = self.engine.audit_report(flow)
+        self.assertEqual(report["state"], "completed")
+        self.assertEqual(len(report["history"]), 3)
+
+    def test_guard_blocks_approve_without_payload(self) -&gt; None:
+        flow = self.engine.start("wf-002", payload_ready=False)
+        self.engine.apply(flow, "validate", operator="qa")
+        with self.assertRaises(InvalidTransitionError):
+            self.engine.apply(flow, "approve", operator="lead")
+
+    def test_invalid_transition_is_rejected(self) -&gt; None:
+        flow = self.engine.start("wf-003", payload_ready=True)
+        with self.assertRaises(InvalidTransitionError):
+            self.engine.apply(flow, "execute_success", operator="runner")
+
+    def test_failure_then_compensation_is_recorded(self) -&gt; None:
+        flow = self.engine.start("wf-004", payload_ready=True)
+        self.engine.apply(flow, "validate", operator="qa")
+        self.engine.apply(flow, "approve", operator="lead")
+        self.engine.apply(flow, "execute_fail", operator="runner", reason="downstream rejected")
+        self.engine.apply(flow, "compensate", operator="ops", reason="rollback side effect")
+        report = self.engine.audit_report(flow)
+        self.assertEqual(report["state"], "compensated")
+        self.assertEqual(report["compensation_count"], 1)
+        self.assertEqual(report["history"][-1]["event"], "compensate")
+
+    def test_timeout_then_manual_review_handoff(self) -&gt; None:
+        flow = self.engine.start("wf-005", payload_ready=True)
+        self.engine.apply(flow, "validate", operator="qa")
+        self.engine.apply(flow, "approve", operator="lead")
+        self.engine.enforce_timeout(flow, operator="system", reason="awaiting execution too long")
+        report = self.engine.audit_report(flow)
+        self.assertEqual(report["state"], "expired")
+        with self.assertRaises(WorkflowTimeoutError):
+            self.engine.apply(flow, "execute_success", operator="runner")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、異常與教材頁面</h2><p>不只跑成功路徑，還要驗 guard、非法轉移、逾時與補償。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>流程失控時先看 transition history</h2><p>多數問題來自狀態規則不集中、逾時缺位或人工交接不清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓 audit evidence 進更新紀錄與 release note</h2><p>下一位工程師要能從記錄知道流程怎麼走、在哪裡失敗、怎麼補償。</p></div></div><div class="cards"></div></section>

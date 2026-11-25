@@ -73,6 +73,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -131,7 +132,401 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把寫入、派送、消費與重放拆成可驗證元件</h2><p>資料庫交易、outbox 派送器、broker、consumer、DLQ 與 replay command 都應有清楚責任邊界。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>先用標準庫做 deterministic 範例</h2><p>以 in-memory event store、fake broker 與 unittest 把可靠性行為做成可本機重現的最小專案。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>重試、順序、DLQ 門檻都要明確設定</h2><p>沒有可見的門檻與 runbook，事件管線只會變成難以排錯的黑盒子。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>範例專案示範 outbox 到 replay 的完整閉環</h2><p>範例包含 domain event、outbox dispatcher、idempotent consumer、poison message 隔離與 replay evidence。 <a href="範例程式碼/event_reliability/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>範例專案示範 outbox 到 replay 的完整閉環</h2><p>範例包含 domain event、outbox dispatcher、idempotent consumer、poison message 隔離與 replay evidence。 <a href="範例程式碼/event_reliability/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-event-reliability">
+<h3>範例程式碼 · 事件重送與去重</h3>
+<p>追蹤 outbox 的事件，對照重複投遞與失敗訊息的處理流程。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/event_reliability
+PYTHONPATH=src python3 scripts/run_event_reliability_smoke.py</code></pre>
+<!-- example-source: event_reliability -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_event_reliability_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/scripts/run_event_reliability_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+
+from event_reliability.pipeline import EventPipeline, FakeBroker, IdempotentConsumer
+from event_reliability.report import write_reliability_report
+from event_reliability.testing import make_event
+
+
+def build_handler() -&gt; tuple[IdempotentConsumer, dict[str, int]]:
+    state = {"calls": 0}
+
+    def handler(envelope) -&gt; None:
+        state["calls"] += 1
+        if envelope.payload.get("should_fail"):
+            raise RuntimeError("poison payload")
+
+    return IdempotentConsumer(handler), state
+
+
+def main() -&gt; None:
+    consumer, state = build_handler()
+    pipeline = EventPipeline(FakeBroker([False, True]), consumer, max_delivery_attempts=2)
+    pipeline.enqueue_change(make_event("evt-1"))
+    pipeline.dispatch_pending()
+    pipeline.dispatch_pending()
+    consumer.consume(pipeline.broker.published[0])
+
+    poison_consumer, _ = build_handler()
+    poison_pipeline = EventPipeline(FakeBroker(), poison_consumer, max_delivery_attempts=2)
+    poison_pipeline.enqueue_change(make_event("evt-2", payload={"should_fail": True}))
+    poison_pipeline.dispatch_pending()
+    poison_pipeline.dispatch_pending()
+    poison_consumer.handler = lambda envelope: None
+    poison_pipeline.replay_dlq(0, "fixed handler")
+
+    report_path = Path(__file__).resolve().parents[1] / "event_reliability_report.json"
+    write_reliability_report(report_path, poison_pipeline)
+    assert state["calls"] == 1
+    assert poison_pipeline.report.replayed == 1
+    print("event reliability smoke passed: outbox + dedup + dlq + replay + evidence")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/event_reliability/models.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/src/event_reliability/models.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(frozen=True)
+class DomainEvent:
+    event_id: str
+    stream_key: str
+    event_type: str
+    version: int
+    payload: dict[str, Any]
+    occurred_at: str
+
+
+@dataclass
+class OutboxEntry:
+    event: DomainEvent
+    delivery_attempts: int = 0
+    last_error: str | None = None
+    replay_count: int = 0
+
+
+@dataclass(frozen=True)
+class EventEnvelope:
+    event_id: str
+    stream_key: str
+    event_type: str
+    version: int
+    payload: dict[str, Any]
+
+
+@dataclass
+class ReliabilityReport:
+    dispatched: int = 0
+    publish_failures: int = 0
+    processed: int = 0
+    duplicate_skips: int = 0
+    dlq_count: int = 0
+    replayed: int = 0
+    replay_failures: int = 0
+    last_replay_reason: str | None = None
+    processed_event_ids: list[str] = field(default_factory=list)
+</code></pre></details>
+<details class="example-file"><summary><code>src/event_reliability/pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/src/event_reliability/pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from collections import deque
+from dataclasses import asdict
+from typing import Callable
+
+from .models import DomainEvent, EventEnvelope, OutboxEntry, ReliabilityReport
+
+
+class FakeBroker:
+    def __init__(self, publish_results: list[bool] | None = None) -&gt; None:
+        self.publish_results = deque(publish_results or [])
+        self.published: list[EventEnvelope] = []
+
+    def publish(self, envelope: EventEnvelope) -&gt; None:
+        result = self.publish_results.popleft() if self.publish_results else True
+        if not result:
+            raise RuntimeError("broker publish failed")
+        self.published.append(envelope)
+
+
+class IdempotentConsumer:
+    def __init__(self, handler: Callable[[EventEnvelope], None]) -&gt; None:
+        self.handler = handler
+        self.processed_event_ids: set[str] = set()
+        self.handled: list[str] = []
+        self.duplicate_skips = 0
+
+    def consume(self, envelope: EventEnvelope) -&gt; bool:
+        if envelope.event_id in self.processed_event_ids:
+            self.duplicate_skips += 1
+            return False
+        self.handler(envelope)
+        self.processed_event_ids.add(envelope.event_id)
+        self.handled.append(envelope.event_id)
+        return True
+
+
+class InMemoryEventStore:
+    def __init__(self) -&gt; None:
+        self.pending: list[OutboxEntry] = []
+        self.dlq: list[OutboxEntry] = []
+
+    def record_change(self, event: DomainEvent) -&gt; None:
+        self.pending.append(OutboxEntry(event=event))
+
+
+class EventPipeline:
+    def __init__(
+        self,
+        broker: FakeBroker,
+        consumer: IdempotentConsumer,
+        *,
+        max_delivery_attempts: int = 3,
+        dispatch_batch_size: int = 50,
+    ) -&gt; None:
+        self.store = InMemoryEventStore()
+        self.broker = broker
+        self.consumer = consumer
+        self.max_delivery_attempts = max_delivery_attempts
+        self.dispatch_batch_size = dispatch_batch_size
+        self.report = ReliabilityReport()
+
+    def enqueue_change(self, event: DomainEvent) -&gt; None:
+        self.store.record_change(event)
+
+    def _to_envelope(self, event: DomainEvent) -&gt; EventEnvelope:
+        return EventEnvelope(
+            event_id=event.event_id,
+            stream_key=event.stream_key,
+            event_type=event.event_type,
+            version=event.version,
+            payload=event.payload,
+        )
+
+    def dispatch_pending(self) -&gt; None:
+        remaining: list[OutboxEntry] = []
+        for entry in self.store.pending[: self.dispatch_batch_size]:
+            envelope = self._to_envelope(entry.event)
+            try:
+                self.broker.publish(envelope)
+                self.report.dispatched += 1
+                if self._consume_entry(entry, envelope):
+                    remaining.append(entry)
+            except RuntimeError as exc:
+                entry.delivery_attempts += 1
+                entry.last_error = str(exc)
+                self.report.publish_failures += 1
+                if entry.delivery_attempts &gt;= self.max_delivery_attempts:
+                    self.store.dlq.append(entry)
+                    self.report.dlq_count = len(self.store.dlq)
+                else:
+                    remaining.append(entry)
+        remaining.extend(self.store.pending[self.dispatch_batch_size :])
+        self.store.pending = remaining
+        self.report.processed_event_ids = sorted(self.consumer.processed_event_ids)
+
+    def _consume_entry(self, entry: OutboxEntry, envelope: EventEnvelope) -&gt; bool:
+        try:
+            consumed = self.consumer.consume(envelope)
+        except RuntimeError as exc:
+            entry.delivery_attempts += 1
+            entry.last_error = str(exc)
+            if entry.delivery_attempts &gt;= self.max_delivery_attempts:
+                self.store.dlq.append(entry)
+                self.report.dlq_count = len(self.store.dlq)
+            else:
+                return True
+            return False
+        if consumed:
+            self.report.processed += 1
+        else:
+            self.report.duplicate_skips = self.consumer.duplicate_skips
+        return False
+
+    def replay_dlq(self, index: int, replay_reason: str) -&gt; None:
+        entry = self.store.dlq.pop(index)
+        entry.replay_count += 1
+        entry.last_error = None
+        entry.delivery_attempts = 0
+        envelope = self._to_envelope(entry.event)
+        try:
+            self.consumer.consume(envelope)
+        except RuntimeError as exc:
+            entry.last_error = str(exc)
+            self.store.dlq.append(entry)
+            self.report.replay_failures += 1
+            self.report.dlq_count = len(self.store.dlq)
+            self.report.last_replay_reason = replay_reason
+            return
+        self.report.replayed += 1
+        self.report.processed += 1
+        self.report.dlq_count = len(self.store.dlq)
+        self.report.last_replay_reason = replay_reason
+        self.report.processed_event_ids = sorted(self.consumer.processed_event_ids)
+
+    def snapshot_report(self) -&gt; dict[str, object]:
+        data = asdict(self.report)
+        data["pending_count"] = len(self.store.pending)
+        data["dlq_count"] = len(self.store.dlq)
+        data["handled_order"] = list(self.consumer.handled)
+        return data
+</code></pre></details>
+<details class="example-file"><summary><code>src/event_reliability/report.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/src/event_reliability/report.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from .pipeline import EventPipeline
+
+
+def write_reliability_report(path: str | Path, pipeline: EventPipeline) -&gt; Path:
+    target = Path(path)
+    target.write_text(
+        json.dumps(pipeline.snapshot_report(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return target
+</code></pre></details>
+<details class="example-file"><summary><code>src/event_reliability/testing.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/src/event_reliability/testing.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from .models import DomainEvent
+
+
+def make_event(event_id: str, *, payload: dict[str, object] | None = None, stream_key: str = "order-1001") -&gt; DomainEvent:
+    return DomainEvent(
+        event_id=event_id,
+        stream_key=stream_key,
+        event_type="OrderCreated",
+        version=1,
+        payload=payload or {"order_id": stream_key, "status": "created"},
+        occurred_at="2026-05-14T15:07:40+08:00",
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/event_reliability/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/src/event_reliability/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .models import DomainEvent, EventEnvelope, OutboxEntry, ReliabilityReport
+from .pipeline import EventPipeline, FakeBroker, IdempotentConsumer
+
+__all__ = [
+    "DomainEvent",
+    "EventEnvelope",
+    "OutboxEntry",
+    "ReliabilityReport",
+    "EventPipeline",
+    "FakeBroker",
+    "IdempotentConsumer",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_event_reliability.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/event_reliability/tests/test_event_reliability.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from event_reliability.pipeline import EventPipeline, FakeBroker, IdempotentConsumer
+from event_reliability.report import write_reliability_report
+from event_reliability.testing import make_event
+
+
+class EventReliabilityTests(unittest.TestCase):
+    def test_dispatch_retry_then_success(self) -&gt; None:
+        calls: list[str] = []
+
+        def handler(envelope) -&gt; None:
+            calls.append(envelope.event_id)
+
+        pipeline = EventPipeline(FakeBroker([False, True]), IdempotentConsumer(handler), max_delivery_attempts=3)
+        pipeline.enqueue_change(make_event("evt-1"))
+        pipeline.dispatch_pending()
+        self.assertEqual(len(pipeline.store.pending), 1)
+        pipeline.dispatch_pending()
+        self.assertEqual(calls, ["evt-1"])
+        self.assertEqual(pipeline.report.dispatched, 1)
+
+    def test_duplicate_event_is_skipped(self) -&gt; None:
+        calls: list[str] = []
+
+        def handler(envelope) -&gt; None:
+            calls.append(envelope.event_id)
+
+        consumer = IdempotentConsumer(handler)
+        event = make_event("evt-2")
+        self.assertTrue(consumer.consume(EventPipeline(FakeBroker(), consumer)._to_envelope(event)))
+        self.assertFalse(consumer.consume(EventPipeline(FakeBroker(), consumer)._to_envelope(event)))
+        self.assertEqual(calls, ["evt-2"])
+        self.assertEqual(consumer.duplicate_skips, 1)
+
+    def test_poison_message_moves_to_dlq(self) -&gt; None:
+        def handler(envelope) -&gt; None:
+            raise RuntimeError("broken payload")
+
+        pipeline = EventPipeline(FakeBroker(), IdempotentConsumer(handler), max_delivery_attempts=2)
+        pipeline.enqueue_change(make_event("evt-3", payload={"should_fail": True}))
+        pipeline.dispatch_pending()
+        pipeline.dispatch_pending()
+        self.assertEqual(len(pipeline.store.dlq), 1)
+        self.assertEqual(pipeline.report.dlq_count, 1)
+
+    def test_replay_after_fix_succeeds(self) -&gt; None:
+        def failing_handler(envelope) -&gt; None:
+            raise RuntimeError("still broken")
+
+        consumer = IdempotentConsumer(failing_handler)
+        pipeline = EventPipeline(FakeBroker(), consumer, max_delivery_attempts=1)
+        pipeline.enqueue_change(make_event("evt-4"))
+        pipeline.dispatch_pending()
+        self.assertEqual(len(pipeline.store.dlq), 1)
+        consumer.handler = lambda envelope: None
+        pipeline.replay_dlq(0, "fixed handler")
+        self.assertEqual(pipeline.report.replayed, 1)
+        self.assertEqual(len(pipeline.store.dlq), 0)
+
+    def test_order_is_preserved_by_handled_sequence(self) -&gt; None:
+        handled: list[str] = []
+
+        def handler(envelope) -&gt; None:
+            handled.append(envelope.event_id)
+
+        pipeline = EventPipeline(FakeBroker([True, True]), IdempotentConsumer(handler))
+        pipeline.enqueue_change(make_event("evt-5", stream_key="line-1"))
+        pipeline.enqueue_change(make_event("evt-6", stream_key="line-1"))
+        pipeline.dispatch_pending()
+        self.assertEqual(handled, ["evt-5", "evt-6"])
+
+    def test_report_is_written(self) -&gt; None:
+        pipeline = EventPipeline(FakeBroker(), IdempotentConsumer(lambda envelope: None))
+        pipeline.enqueue_change(make_event("evt-7"))
+        pipeline.dispatch_pending()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir) / "report.json"
+            write_reliability_report(target, pipeline)
+            payload = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual(payload["processed"], 1)
+        self.assertEqual(payload["dlq_count"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋重試、重複、壞訊息與重放</h2><p>可靠性不是 happy path 測一次而已，要驗證 delivery、dedup、DLQ、replay 與報告輸出。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>故障要能被定位，不要讓 queue 默默卡死</h2><p>queue lag、DLQ 堆積、重複事件與順序錯亂都需要清楚的診斷步驟與保守處理。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>可靠性結論必須來自證據，不是口頭保證</h2><p>事件驅動設計應產生可追溯的交付證據，能被 release note、營運 runbook 與事故檢討直接引用。</p></div></div><div class="cards"></div></section>

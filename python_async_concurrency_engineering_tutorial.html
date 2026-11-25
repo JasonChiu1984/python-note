@@ -74,6 +74,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -134,7 +135,390 @@
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Async Concurrency Engineering 範例專案</h2><p>`範例程式碼/async_concurrency_engineering/` 示範 bounded queue、worker pool、timeout、retry、metrics 與 async tests。 <a href="範例程式碼/async_concurrency_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/async_concurrency_engineering
 python3 -m py_compile src/async_concurrency_engineering/*.py scripts/run_async_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_async_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_async_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-async-concurrency-engineering">
+<h3>範例程式碼 · 非同步工作佇列</h3>
+<p>追蹤一個項目從佇列進入 worker，再觀察逾時、重試與結果計數。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/async_concurrency_engineering
+PYTHONPATH=src python3 scripts/run_async_smoke.py</code></pre>
+<!-- example-source: async_concurrency_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_async_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/scripts/run_async_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>#!/usr/bin/env python3
+from __future__ import annotations
+
+import asyncio
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from async_concurrency_engineering import RetryableJobError, WorkItem, run_pipeline
+
+
+async def handler(item: WorkItem) -&gt; int:
+    await asyncio.sleep(0.005)
+    if item.payload == 7:
+        raise RetryableJobError("retryable smoke failure")
+    return item.payload * 3
+
+
+async def main() -&gt; None:
+    attempts: dict[str, int] = {}
+
+    async def smoke_handler(item: WorkItem) -&gt; int:
+        attempts[item.item_id] = attempts.get(item.item_id, 0) + 1
+        if attempts[item.item_id] == 1 and item.payload == 7:
+            raise RetryableJobError("dependency busy")
+        return await handler(WorkItem(item.item_id, 8 if item.payload == 7 else item.payload, item.idempotency_key))
+
+    items = [
+        WorkItem("a", 2, "a"),
+        WorkItem("b", 7, "b"),
+        WorkItem("c", 5, "c"),
+    ]
+    results, metrics = await run_pipeline(items, smoke_handler, worker_count=2, max_attempts=2)
+    if metrics.submitted != 3 or metrics.succeeded != 3 or metrics.retried != 1:
+        raise SystemExit(f"unexpected metrics: {metrics}")
+    if sorted(result.value for result in results) != [6, 15, 24]:
+        raise SystemExit(f"unexpected results: {results}")
+    print("async smoke passed: bounded workers + retry + metrics")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/async_concurrency_engineering/demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/src/async_concurrency_engineering/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Demo command for the async worker pipeline sample."""
+
+from __future__ import annotations
+
+import asyncio
+
+from .pipeline import RetryableJobError, WorkItem, run_pipeline
+
+
+async def demo_handler(item: WorkItem) -&gt; int:
+    await asyncio.sleep(0.01)
+    if item.payload == 13 and not item.idempotency_key.endswith(":retried"):
+        raise RetryableJobError("upstream busy")
+    return item.payload * 2
+
+
+async def main() -&gt; None:
+    items = [
+        WorkItem("job-1", 10, "job-1"),
+        WorkItem("job-2", 13, "job-2:retried"),
+        WorkItem("job-3", 21, "job-3"),
+    ]
+    results, metrics = await run_pipeline(items, demo_handler, worker_count=2)
+    print({"results": [result.status for result in results], "submitted": metrics.submitted, "succeeded": metrics.succeeded})
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/async_concurrency_engineering/pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/src/async_concurrency_engineering/pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Bounded asyncio worker pipeline used by the tutorial."""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import dataclass
+
+
+class RetryableJobError(Exception):
+    """Raised when a job can be retried safely."""
+
+
+class PermanentJobError(Exception):
+    """Raised when retrying would not fix the job."""
+
+
+@dataclass(frozen=True)
+class WorkItem:
+    item_id: str
+    payload: int
+    idempotency_key: str
+
+
+@dataclass(frozen=True)
+class JobResult:
+    item_id: str
+    status: str
+    attempts: int
+    value: int | None = None
+    error: str | None = None
+    duration_ms: float = 0.0
+
+
+@dataclass
+class AsyncPipelineMetrics:
+    submitted: int = 0
+    succeeded: int = 0
+    failed: int = 0
+    timed_out: int = 0
+    retried: int = 0
+    cancelled: int = 0
+
+
+Handler = Callable[[WorkItem], Awaitable[int]]
+
+
+class AsyncWorkerPipeline:
+    def __init__(
+        self,
+        handler: Handler,
+        *,
+        worker_count: int = 3,
+        max_queue_size: int = 8,
+        per_item_timeout: float = 0.25,
+        max_attempts: int = 2,
+    ) -&gt; None:
+        if worker_count &lt; 1:
+            raise ValueError("worker_count must be &gt;= 1")
+        if max_queue_size &lt; 1:
+            raise ValueError("max_queue_size must be &gt;= 1")
+        if per_item_timeout &lt;= 0:
+            raise ValueError("per_item_timeout must be positive")
+        if max_attempts &lt; 1:
+            raise ValueError("max_attempts must be &gt;= 1")
+        self._handler = handler
+        self._worker_count = worker_count
+        self._queue: asyncio.Queue[WorkItem | None] = asyncio.Queue(maxsize=max_queue_size)
+        self._per_item_timeout = per_item_timeout
+        self._max_attempts = max_attempts
+        self._workers: list[asyncio.Task[None]] = []
+        self._accepting = True
+        self.metrics = AsyncPipelineMetrics()
+        self.results: list[JobResult] = []
+
+    async def start(self) -&gt; None:
+        if self._workers:
+            return
+        self._workers = [
+            asyncio.create_task(self._worker_loop(worker_id), name=f"async-worker-{worker_id}")
+            for worker_id in range(self._worker_count)
+        ]
+
+    async def submit(self, item: WorkItem) -&gt; None:
+        if not self._workers:
+            raise RuntimeError("pipeline must be started before submit")
+        if not self._accepting:
+            raise RuntimeError("pipeline is closed for new submissions")
+        await self._queue.put(item)
+        self.metrics.submitted += 1
+
+    async def close(self) -&gt; None:
+        self._accepting = False
+        await self._queue.join()
+        for _ in self._workers:
+            await self._queue.put(None)
+        if self._workers:
+            await asyncio.gather(*self._workers)
+
+    async def _worker_loop(self, worker_id: int) -&gt; None:
+        while True:
+            item = await self._queue.get()
+            try:
+                if item is None:
+                    return
+                result = await self._handle_with_retry(item)
+                self.results.append(result)
+            finally:
+                self._queue.task_done()
+
+    async def _handle_with_retry(self, item: WorkItem) -&gt; JobResult:
+        started = time.perf_counter()
+        attempts = 0
+        while attempts &lt; self._max_attempts:
+            attempts += 1
+            try:
+                value = await asyncio.wait_for(self._handler(item), timeout=self._per_item_timeout)
+                self.metrics.succeeded += 1
+                return JobResult(
+                    item_id=item.item_id,
+                    status="succeeded",
+                    attempts=attempts,
+                    value=value,
+                    duration_ms=_elapsed_ms(started),
+                )
+            except asyncio.TimeoutError:
+                self.metrics.timed_out += 1
+                if attempts &gt;= self._max_attempts:
+                    self.metrics.failed += 1
+                    return JobResult(item.item_id, "timed_out", attempts, error="timeout", duration_ms=_elapsed_ms(started))
+                self.metrics.retried += 1
+            except RetryableJobError as exc:
+                if attempts &gt;= self._max_attempts:
+                    self.metrics.failed += 1
+                    return JobResult(item.item_id, "failed", attempts, error=str(exc), duration_ms=_elapsed_ms(started))
+                self.metrics.retried += 1
+            except PermanentJobError as exc:
+                self.metrics.failed += 1
+                return JobResult(item.item_id, "failed", attempts, error=str(exc), duration_ms=_elapsed_ms(started))
+            except asyncio.CancelledError:
+                self.metrics.cancelled += 1
+                raise
+        self.metrics.failed += 1
+        return JobResult(item.item_id, "failed", attempts, error="max attempts reached", duration_ms=_elapsed_ms(started))
+
+
+async def run_pipeline(
+    items: Iterable[WorkItem],
+    handler: Handler,
+    *,
+    worker_count: int = 3,
+    max_queue_size: int = 8,
+    per_item_timeout: float = 0.25,
+    max_attempts: int = 2,
+) -&gt; tuple[list[JobResult], AsyncPipelineMetrics]:
+    pipeline = AsyncWorkerPipeline(
+        handler,
+        worker_count=worker_count,
+        max_queue_size=max_queue_size,
+        per_item_timeout=per_item_timeout,
+        max_attempts=max_attempts,
+    )
+    await pipeline.start()
+    for item in items:
+        await pipeline.submit(item)
+    await pipeline.close()
+    return pipeline.results, pipeline.metrics
+
+
+def _elapsed_ms(started: float) -&gt; float:
+    return round((time.perf_counter() - started) * 1000, 3)
+</code></pre></details>
+<details class="example-file"><summary><code>src/async_concurrency_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/src/async_concurrency_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Async concurrency engineering sample package."""
+
+from .pipeline import (
+    AsyncPipelineMetrics,
+    AsyncWorkerPipeline,
+    JobResult,
+    PermanentJobError,
+    RetryableJobError,
+    WorkItem,
+    run_pipeline,
+)
+
+__all__ = [
+    "AsyncPipelineMetrics",
+    "AsyncWorkerPipeline",
+    "JobResult",
+    "PermanentJobError",
+    "RetryableJobError",
+    "WorkItem",
+    "run_pipeline",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_async_concurrency_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/tests/test_async_concurrency_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import asyncio
+import unittest
+
+from async_concurrency_engineering import AsyncWorkerPipeline, RetryableJobError, WorkItem, run_pipeline
+
+
+class AsyncWorkerPipelineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_processes_items_with_bounded_workers(self) -&gt; None:
+        async def handler(item: WorkItem) -&gt; int:
+            await asyncio.sleep(0)
+            return item.payload * 10
+
+        items = [WorkItem(f"job-{index}", index, f"key-{index}") for index in range(5)]
+        results, metrics = await run_pipeline(items, handler, worker_count=2)
+
+        self.assertEqual(metrics.submitted, 5)
+        self.assertEqual(metrics.succeeded, 5)
+        self.assertEqual(sorted(result.value for result in results), [0, 10, 20, 30, 40])
+
+    async def test_retries_retryable_error(self) -&gt; None:
+        calls: dict[str, int] = {}
+
+        async def handler(item: WorkItem) -&gt; int:
+            calls[item.item_id] = calls.get(item.item_id, 0) + 1
+            if calls[item.item_id] == 1:
+                raise RetryableJobError("temporary dependency failure")
+            return item.payload + 1
+
+        results, metrics = await run_pipeline([WorkItem("retry", 41, "retry-key")], handler, max_attempts=2)
+
+        self.assertEqual(results[0].status, "succeeded")
+        self.assertEqual(results[0].attempts, 2)
+        self.assertEqual(results[0].value, 42)
+        self.assertEqual(metrics.retried, 1)
+
+    async def test_timeout_is_classified(self) -&gt; None:
+        async def slow_handler(item: WorkItem) -&gt; int:
+            await asyncio.sleep(0.05)
+            return item.payload
+
+        results, metrics = await run_pipeline(
+            [WorkItem("slow", 1, "slow-key")],
+            slow_handler,
+            per_item_timeout=0.001,
+            max_attempts=1,
+        )
+
+        self.assertEqual(results[0].status, "timed_out")
+        self.assertEqual(metrics.timed_out, 1)
+        self.assertEqual(metrics.failed, 1)
+
+    async def test_queue_maxsize_creates_backpressure(self) -&gt; None:
+        release_worker = asyncio.Event()
+
+        async def handler(item: WorkItem) -&gt; int:
+            await release_worker.wait()
+            return item.payload
+
+        pipeline = AsyncWorkerPipeline(handler, worker_count=1, max_queue_size=1)
+        await pipeline.start()
+        await pipeline.submit(WorkItem("first", 1, "first"))
+        await asyncio.sleep(0)
+        await pipeline.submit(WorkItem("second", 2, "second"))
+
+        second_submit = asyncio.create_task(pipeline.submit(WorkItem("third", 3, "third")))
+        await asyncio.sleep(0.01)
+
+        self.assertFalse(second_submit.done())
+        second_submit.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await second_submit
+        release_worker.set()
+        await pipeline.close()
+
+    async def test_close_drains_queue_and_stops_workers(self) -&gt; None:
+        async def handler(item: WorkItem) -&gt; int:
+            await asyncio.sleep(0)
+            return item.payload
+
+        pipeline = AsyncWorkerPipeline(handler, worker_count=2)
+        await pipeline.start()
+        await pipeline.submit(WorkItem("one", 1, "one"))
+        await pipeline.submit(WorkItem("two", 2, "two"))
+        await pipeline.close()
+
+        self.assertEqual(len(pipeline.results), 2)
+        self.assertTrue(all(worker.done() for worker in pipeline._workers))
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

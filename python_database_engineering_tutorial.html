@@ -178,6 +178,7 @@
     .db-fit-fallback a{display:block;background:#fff;color:#174d75;border:1px solid #638a9f;border-radius:.35rem;padding:.22rem .4rem;text-decoration:underline}
     .db-fit-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -343,7 +344,257 @@ python python_database_common_errors_lab.py --test</code></pre>
       <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>交付時要保留資料庫證據</h2><p>release note 應包含 migration、seed、backup、restore drill、query plan 與 rollback 限制。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>SQLite Unit of Work 範例專案</h2><p>`範例程式碼/database_unit_of_work/` 示範如何用標準庫 sqlite3 建立 schema、repository、transaction boundary 與 unittest。 <a href="範例程式碼/database_unit_of_work/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/database_unit_of_work
 PYTHONPATH=src python3 -m database_unit_of_work.demo
-PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="cards"></div></section>
+PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="cards"></div>
+<div class="course-example" id="example-database-unit-of-work">
+<h3>範例程式碼 · SQLite 交易與回滾</h3>
+<p>沿著 service、repository 和 uow 追蹤同一筆新增，查看失敗時哪一層撤銷交易。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/database_unit_of_work
+PYTHONPATH=src python3 -m database_unit_of_work.demo</code></pre>
+<!-- example-source: database_unit_of_work -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>src/database_unit_of_work/demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import tempfile
+
+from .service import NoteService
+
+
+def main() -&gt; None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        database_path = Path(tmpdir) / "notes.db"
+        service = NoteService(database_path)
+        service.create_note("write migration checklist")
+        service.create_note("review rollback plan")
+        for note in service.list_open_notes():
+            print(f"{note.id}: {note.title} [{note.status}]")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/database_unit_of_work/repository.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/repository.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+import sqlite3
+
+
+@dataclass(frozen=True)
+class Note:
+    id: int
+    title: str
+    status: str
+
+
+class NoteRepository:
+    def __init__(self, conn: sqlite3.Connection) -&gt; None:
+        self._conn = conn
+
+    def add(self, title: str, status: str = "open") -&gt; Note:
+        cursor = self._conn.execute(
+            "INSERT INTO notes(title, status) VALUES (?, ?)",
+            (title, status),
+        )
+        return Note(id=int(cursor.lastrowid), title=title, status=status)
+
+    def list_by_status(self, status: str = "open") -&gt; list[Note]:
+        rows = self._conn.execute(
+            "SELECT id, title, status FROM notes WHERE status = ? ORDER BY id",
+            (status,),
+        ).fetchall()
+        return [self._map_row(row) for row in rows]
+
+    def mark_done(self, note_id: int) -&gt; None:
+        self._conn.execute(
+            "UPDATE notes SET status = 'done' WHERE id = ?",
+            (note_id,),
+        )
+
+    @staticmethod
+    def _map_row(row: sqlite3.Row) -&gt; Note:
+        return Note(id=int(row["id"]), title=str(row["title"]), status=str(row["status"]))
+</code></pre></details>
+<details class="example-file"><summary><code>src/database_unit_of_work/schema.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/schema.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import sqlite3
+
+SCHEMA_VERSION = "20260513_001"
+
+
+def initialize_database(conn: sqlite3.Connection) -&gt; None:
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'open',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (length(trim(title)) &gt; 0),
+            CHECK (status IN ('open', 'done', 'archived'))
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status)")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?)",
+        (SCHEMA_VERSION,),
+    )
+    conn.commit()
+</code></pre></details>
+<details class="example-file"><summary><code>src/database_unit_of_work/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+
+from .repository import Note
+from .uow import UnitOfWork
+
+
+class NoteService:
+    def __init__(self, database_path: str | Path) -&gt; None:
+        self._database_path = database_path
+
+    def create_note(self, title: str) -&gt; Note:
+        normalized_title = title.strip()
+        if not normalized_title:
+            raise ValueError("title must not be blank")
+
+        with UnitOfWork.open(self._database_path) as uow:
+            note = uow.notes.add(normalized_title)
+            uow.commit()
+            return note
+
+    def create_then_fail(self, title: str) -&gt; None:
+        with UnitOfWork.open(self._database_path) as uow:
+            uow.notes.add(title.strip())
+            raise RuntimeError("simulated failure before commit")
+
+    def list_open_notes(self) -&gt; list[Note]:
+        with UnitOfWork.open(self._database_path) as uow:
+            notes = uow.notes.list_by_status("open")
+            uow.commit()
+            return notes
+</code></pre></details>
+<details class="example-file"><summary><code>src/database_unit_of_work/uow.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/uow.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import sqlite3
+from types import TracebackType
+
+from .repository import NoteRepository
+from .schema import initialize_database
+
+
+class UnitOfWork:
+    def __init__(self, conn: sqlite3.Connection) -&gt; None:
+        self._conn = conn
+        self.notes = NoteRepository(conn)
+        self._committed = False
+
+    @classmethod
+    def open(cls, database_path: str | Path) -&gt; "UnitOfWork":
+        conn = sqlite3.connect(str(database_path))
+        conn.row_factory = sqlite3.Row
+        initialize_database(conn)
+        return cls(conn)
+
+    def __enter__(self) -&gt; "UnitOfWork":
+        self._conn.execute("BEGIN")
+        return self
+
+    def commit(self) -&gt; None:
+        self._conn.commit()
+        self._committed = True
+
+    def rollback(self) -&gt; None:
+        self._conn.rollback()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -&gt; None:
+        if exc_type is not None or not self._committed:
+            self.rollback()
+        self._conn.close()
+</code></pre></details>
+<details class="example-file"><summary><code>src/database_unit_of_work/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/src/database_unit_of_work/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""SQLite repository and unit-of-work teaching sample."""
+
+from .service import NoteService
+from .uow import UnitOfWork
+
+__all__ = ["NoteService", "UnitOfWork"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_database_unit_of_work.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/database_unit_of_work/tests/test_database_unit_of_work.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import sqlite3
+import tempfile
+import unittest
+
+from database_unit_of_work.service import NoteService
+
+
+class DatabaseUnitOfWorkTest(unittest.TestCase):
+    def setUp(self) -&gt; None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.database_path = Path(self._tmpdir.name) / "notes.db"
+        self.service = NoteService(self.database_path)
+
+    def tearDown(self) -&gt; None:
+        self._tmpdir.cleanup()
+
+    def test_create_and_list_open_notes(self) -&gt; None:
+        self.service.create_note("first")
+        self.service.create_note("second")
+
+        notes = self.service.list_open_notes()
+
+        self.assertEqual([note.title for note in notes], ["first", "second"])
+        self.assertEqual({note.status for note in notes}, {"open"})
+
+    def test_unique_title_constraint_is_enforced(self) -&gt; None:
+        self.service.create_note("same")
+
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.service.create_note("same")
+
+    def test_rollback_discards_uncommitted_note(self) -&gt; None:
+        with self.assertRaises(RuntimeError):
+            self.service.create_then_fail("should rollback")
+
+        self.assertEqual(self.service.list_open_notes(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <section class="section-block deep-reading" id="runnable-lab">
         <div class="section-head"><div><span class="eyebrow">Run · Observe · Explain</span><h2>完整實驗：筆記與稽核一起寫入</h2><p>Python 3.10 以上，僅用 sqlite3、tempfile、unittest 與 pathlib。每個測試建立獨立暫存資料庫並自動清理，不會連到你的正式資料庫。瀏覽器只展示教材，真正的交易在下載的 Python 程式執行。</p></div></div>

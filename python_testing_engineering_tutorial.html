@@ -89,6 +89,7 @@
 .quality-loop-deep details summary{font-weight:700;cursor:pointer}
 @media(max-width:540px){.ql-flow li:not(:last-child)::after{content:"↓"}}
 </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -207,7 +208,317 @@ def test_alarm_boundary(value, quality, expected):
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Testing Quality Gate 範例專案</h2><p>`範例程式碼/testing_quality_gate/` 示範一個可測 order service、fake repository、unittest 與標準庫 quality gate。 <a href="範例程式碼/testing_quality_gate/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/testing_quality_gate
 PYTHONPATH=src python3 -m testing_quality_gate.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_quality_gate.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_quality_gate.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-testing-quality-gate">
+<h3>範例程式碼 · 訂單服務測試</h3>
+<p>對照訂單服務、記憶體 repository 和測試，找出重複請求如何被處理。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/testing_quality_gate
+PYTHONPATH=src python3 scripts/run_quality_gate.py</code></pre>
+<!-- example-source: testing_quality_gate -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_quality_gate.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/scripts/run_quality_gate.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import os
+from pathlib import Path
+import py_compile
+import subprocess
+import sys
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def iter_python_files() -&gt; list[Path]:
+    roots = [ROOT / "src", ROOT / "tests", ROOT / "scripts"]
+    return sorted(path for root in roots for path in root.rglob("*.py"))
+
+
+def compile_all() -&gt; None:
+    for path in iter_python_files():
+        py_compile.compile(str(path), doraise=True)
+
+
+def run_unittest() -&gt; None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    subprocess.run(
+        [sys.executable, "-m", "unittest", "discover", "-s", str(ROOT / "tests"), "-v"],
+        cwd=ROOT,
+        env=env,
+        check=True,
+    )
+
+
+def main() -&gt; None:
+    compile_all()
+    run_unittest()
+    print("quality gate passed: py_compile + unittest")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/testing_quality_gate/demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/src/testing_quality_gate/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from .domain import OrderLine
+from .repository import InMemoryOrderRepository
+from .service import OrderService
+
+
+def main() -&gt; None:
+    service = OrderService(InMemoryOrderRepository())
+    order = service.place_order(
+        customer_id="plant-a",
+        idempotency_key="demo-order-001",
+        lines=[
+            OrderLine(sku="SENSOR-TEMP", quantity=2, unit_price_cents=1250),
+            OrderLine(sku="GATEWAY-IO", quantity=1, unit_price_cents=8900),
+        ],
+    )
+    print(f"order={order.id} total_cents={order.total_cents}")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/testing_quality_gate/domain.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/src/testing_quality_gate/domain.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+class OrderValidationError(ValueError):
+    """Raised when an order violates a business rule."""
+
+
+@dataclass(frozen=True)
+class OrderLine:
+    sku: str
+    quantity: int
+    unit_price_cents: int
+
+    def total_cents(self) -&gt; int:
+        return self.quantity * self.unit_price_cents
+
+
+@dataclass(frozen=True)
+class Order:
+    id: int
+    customer_id: str
+    lines: tuple[OrderLine, ...]
+    idempotency_key: str
+
+    @property
+    def total_cents(self) -&gt; int:
+        return sum(line.total_cents() for line in self.lines)
+</code></pre></details>
+<details class="example-file"><summary><code>src/testing_quality_gate/repository.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/src/testing_quality_gate/repository.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from .domain import Order
+
+
+class InMemoryOrderRepository:
+    def __init__(self) -&gt; None:
+        self._orders: dict[int, Order] = {}
+        self._idempotency_index: dict[str, int] = {}
+        self._next_id = 1
+
+    def next_id(self) -&gt; int:
+        order_id = self._next_id
+        self._next_id += 1
+        return order_id
+
+    def save(self, order: Order) -&gt; None:
+        self._orders[order.id] = order
+        self._idempotency_index[order.idempotency_key] = order.id
+
+    def find_by_idempotency_key(self, key: str) -&gt; Order | None:
+        order_id = self._idempotency_index.get(key)
+        if order_id is None:
+            return None
+        return self._orders[order_id]
+
+    def all_orders(self) -&gt; list[Order]:
+        return [self._orders[key] for key in sorted(self._orders)]
+</code></pre></details>
+<details class="example-file"><summary><code>src/testing_quality_gate/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/src/testing_quality_gate/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from collections.abc import Sequence
+
+from .domain import Order, OrderLine, OrderValidationError
+from .repository import InMemoryOrderRepository
+
+
+class OrderService:
+    def __init__(self, repository: InMemoryOrderRepository) -&gt; None:
+        self._repository = repository
+
+    def place_order(
+        self,
+        customer_id: str,
+        lines: Sequence[OrderLine],
+        idempotency_key: str,
+    ) -&gt; Order:
+        normalized_customer = customer_id.strip()
+        normalized_key = idempotency_key.strip()
+        if not normalized_customer:
+            raise OrderValidationError("customer_id must not be blank")
+        if not normalized_key:
+            raise OrderValidationError("idempotency_key must not be blank")
+
+        existing = self._repository.find_by_idempotency_key(normalized_key)
+        if existing is not None:
+            return existing
+
+        order_lines = tuple(lines)
+        self._validate_lines(order_lines)
+        order = Order(
+            id=self._repository.next_id(),
+            customer_id=normalized_customer,
+            lines=order_lines,
+            idempotency_key=normalized_key,
+        )
+        self._repository.save(order)
+        return order
+
+    @staticmethod
+    def _validate_lines(lines: tuple[OrderLine, ...]) -&gt; None:
+        if not lines:
+            raise OrderValidationError("order must contain at least one line")
+        for line in lines:
+            if not line.sku.strip():
+                raise OrderValidationError("sku must not be blank")
+            if line.quantity &lt;= 0:
+                raise OrderValidationError("quantity must be positive")
+            if line.unit_price_cents &lt;= 0:
+                raise OrderValidationError("unit_price_cents must be positive")
+</code></pre></details>
+<details class="example-file"><summary><code>src/testing_quality_gate/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/src/testing_quality_gate/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Testing quality gate teaching sample."""
+
+from .domain import Order, OrderLine
+from .repository import InMemoryOrderRepository
+from .service import OrderService
+
+__all__ = ["InMemoryOrderRepository", "Order", "OrderLine", "OrderService"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_order_service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/tests/test_order_service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from testing_quality_gate.domain import OrderLine, OrderValidationError
+from testing_quality_gate.repository import InMemoryOrderRepository
+from testing_quality_gate.service import OrderService
+
+
+class OrderServiceTest(unittest.TestCase):
+    def setUp(self) -&gt; None:
+        self.repository = InMemoryOrderRepository()
+        self.service = OrderService(self.repository)
+
+    def test_place_order_calculates_total(self) -&gt; None:
+        order = self.service.place_order(
+            customer_id="plant-a",
+            idempotency_key="req-001",
+            lines=[
+                OrderLine(sku="sensor", quantity=2, unit_price_cents=100),
+                OrderLine(sku="gateway", quantity=1, unit_price_cents=900),
+            ],
+        )
+
+        self.assertEqual(order.total_cents, 1100)
+        self.assertEqual(order.customer_id, "plant-a")
+
+    def test_duplicate_idempotency_key_returns_existing_order(self) -&gt; None:
+        first = self.service.place_order(
+            customer_id="plant-a",
+            idempotency_key="req-001",
+            lines=[OrderLine(sku="sensor", quantity=1, unit_price_cents=100)],
+        )
+        second = self.service.place_order(
+            customer_id="plant-a",
+            idempotency_key="req-001",
+            lines=[OrderLine(sku="sensor", quantity=99, unit_price_cents=100)],
+        )
+
+        self.assertEqual(first, second)
+        self.assertEqual(len(self.repository.all_orders()), 1)
+
+    def test_rejects_empty_order_lines(self) -&gt; None:
+        with self.assertRaises(OrderValidationError):
+            self.service.place_order("plant-a", [], "req-empty")
+
+    def test_rejects_invalid_line_values(self) -&gt; None:
+        invalid_lines = [
+            OrderLine(sku="", quantity=1, unit_price_cents=100),
+            OrderLine(sku="sensor", quantity=0, unit_price_cents=100),
+            OrderLine(sku="sensor", quantity=1, unit_price_cents=0),
+        ]
+        for line in invalid_lines:
+            with self.subTest(line=line):
+                with self.assertRaises(OrderValidationError):
+                    self.service.place_order("plant-a", [line], f"req-{line!r}")
+
+    def test_rejects_blank_customer_and_key(self) -&gt; None:
+        line = OrderLine(sku="sensor", quantity=1, unit_price_cents=100)
+        with self.assertRaises(OrderValidationError):
+            self.service.place_order("", [line], "req-blank-customer")
+        with self.assertRaises(OrderValidationError):
+            self.service.place_order("plant-a", [line], "")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_quality_gate.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/tests/test_quality_gate.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+import unittest
+
+
+def load_gate_module():
+    script = Path(__file__).resolve().parents[1] / "scripts" / "run_quality_gate.py"
+    spec = importlib.util.spec_from_file_location("run_quality_gate", script)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load quality gate script")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class QualityGateTest(unittest.TestCase):
+    def test_quality_gate_finds_python_files(self) -&gt; None:
+        gate = load_gate_module()
+        files = [path.name for path in gate.iter_python_files()]
+        self.assertIn("service.py", files)
+        self.assertIn("test_order_service.py", files)
+
+    def test_quality_gate_compile_step_passes(self) -&gt; None:
+        gate = load_gate_module()
+        gate.compile_all()
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

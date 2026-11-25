@@ -74,6 +74,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -134,7 +135,360 @@
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Observability Operations 範例專案</h2><p>`範例程式碼/observability_operations/` 示範 request simulation、JSON logs、metrics snapshot、health report 與 SLO evaluation。 <a href="範例程式碼/observability_operations/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/observability_operations
 PYTHONPATH=src python3 -m observability_operations.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_observability_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_observability_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-observability-operations">
+<h3>範例程式碼 · 日誌、追蹤與健康狀態</h3>
+<p>追蹤單次請求產生的日誌與指標，再檢查健康狀態與 SLO 結果。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/observability_operations
+PYTHONPATH=src python3 scripts/run_observability_smoke.py</code></pre>
+<!-- example-source: observability_operations -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_observability_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/scripts/run_observability_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+TESTS = ROOT / "tests"
+
+
+def run(command: list[str]) -&gt; None:
+    subprocess.run(command, cwd=ROOT, check=True)
+
+
+def main() -&gt; int:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(SRC)
+    py_files = [str(path) for path in SRC.rglob("*.py")]
+    py_files += [str(path) for path in TESTS.rglob("*.py")]
+    py_files.append(str(pathlib.Path(__file__).resolve()))
+    run([sys.executable, "-m", "py_compile", *py_files])
+    subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(TESTS), "-v"], cwd=ROOT, env=env, check=True)
+    output = subprocess.check_output(
+        [sys.executable, "-m", "observability_operations.demo"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+    )
+    payload = json.loads(output)
+    assert payload["metrics"]["requests_total"] == 2
+    assert payload["health"]["live"] == "ok"
+    assert "slo" in payload
+    print("observability smoke passed: logs + metrics + health + SLO")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/observability_operations/demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/src/observability_operations/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+from .service import ObservedService
+from .telemetry import TelemetryCollector
+
+
+def main() -&gt; int:
+    collector = TelemetryCollector()
+    service = ObservedService(collector)
+    service.handle_request("/orders", trace_id="demo-trace-1", dependency_latency_ms=42)
+    service.handle_request("/orders", trace_id="demo-trace-2", dependency_latency_ms=135)
+    health = service.health_report(dependency_latency_ms=135, dependency_ok=True)
+    result = {
+        "logs": collector.logs,
+        "spans": collector.spans,
+        "metrics": collector.metrics_snapshot(),
+        "health": health,
+        "slo": collector.evaluate_slo(max_error_rate=0.6, max_average_latency_ms=200),
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/observability_operations/health.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/src/observability_operations/health.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class DependencyState:
+    name: str
+    ok: bool
+    latency_ms: float
+    timeout_ms: float = 100.0
+
+    @property
+    def timed_out(self) -&gt; bool:
+        return self.latency_ms &gt; self.timeout_ms
+
+
+def build_health_report(dependencies: list[DependencyState]) -&gt; dict[str, object]:
+    failed = [item for item in dependencies if not item.ok or item.timed_out]
+    degraded = [item for item in dependencies if item.ok and item.latency_ms &gt; item.timeout_ms * 0.75]
+    return {
+        "live": "ok",
+        "ready": "fail" if failed else "ok",
+        "status": "degraded" if failed or degraded else "ok",
+        "dependencies": [
+            {
+                "name": item.name,
+                "ok": item.ok,
+                "latency_ms": item.latency_ms,
+                "timed_out": item.timed_out,
+            }
+            for item in dependencies
+        ],
+    }
+</code></pre></details>
+<details class="example-file"><summary><code>src/observability_operations/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/src/observability_operations/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+from time import perf_counter
+from typing import Any
+
+from .health import DependencyState, build_health_report
+from .telemetry import TelemetryCollector, new_trace_id
+
+
+@dataclass
+class ObservedService:
+    telemetry: TelemetryCollector
+    version: str = "v2.1.0"
+
+    def handle_request(
+        self,
+        route: str,
+        *,
+        trace_id: str | None = None,
+        dependency_latency_ms: float = 35.0,
+        fail_dependency: bool = False,
+    ) -&gt; dict[str, Any]:
+        trace_id = trace_id or new_trace_id()
+        started = perf_counter()
+        span = self.telemetry.start_span("service.handle_request", trace_id)
+        self.telemetry.log("info", "request.started", trace_id, route=route, version=self.version)
+
+        dependency_timeout = dependency_latency_ms &gt; 100.0 or fail_dependency
+        status = "ok"
+        error_type = None
+        response: dict[str, Any] = {"ok": True, "route": route, "trace_id": trace_id}
+
+        if dependency_timeout:
+            status = "error"
+            error_type = "DependencyTimeout"
+            response = {"ok": False, "route": route, "trace_id": trace_id, "error": error_type}
+            self.telemetry.log(
+                "error",
+                "dependency.timeout",
+                trace_id,
+                route=route,
+                dependency="orders-db",
+                duration_ms=dependency_latency_ms,
+                token="should-not-leak",
+            )
+
+        duration_ms = (perf_counter() - started) * 1000 + dependency_latency_ms
+        self.telemetry.finish_span(span, status=status, error_type=error_type)
+        self.telemetry.record_request(duration_ms, ok=not dependency_timeout, dependency_timeout=dependency_timeout)
+        self.telemetry.log(
+            "info",
+            "request.completed",
+            trace_id,
+            route=route,
+            duration_ms=round(duration_ms, 3),
+            ok=not dependency_timeout,
+        )
+        return response
+
+    def health_report(self, dependency_latency_ms: float = 35.0, dependency_ok: bool = True) -&gt; dict[str, object]:
+        dependency = DependencyState(name="orders-db", ok=dependency_ok, latency_ms=dependency_latency_ms)
+        return build_health_report([dependency])
+</code></pre></details>
+<details class="example-file"><summary><code>src/observability_operations/telemetry.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/src/observability_operations/telemetry.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from statistics import mean
+from time import perf_counter
+from typing import Any
+from uuid import uuid4
+
+
+def new_trace_id() -&gt; str:
+    return uuid4().hex
+
+
+@dataclass
+class Span:
+    name: str
+    trace_id: str
+    start_ms: float = field(default_factory=lambda: perf_counter() * 1000)
+    end_ms: float | None = None
+    status: str = "ok"
+    error_type: str | None = None
+
+    def finish(self, status: str = "ok", error_type: str | None = None) -&gt; dict[str, Any]:
+        self.end_ms = perf_counter() * 1000
+        self.status = status
+        self.error_type = error_type
+        return {
+            "event": "span.finished",
+            "trace_id": self.trace_id,
+            "span": self.name,
+            "status": self.status,
+            "duration_ms": round(self.end_ms - self.start_ms, 3),
+            "error_type": self.error_type,
+        }
+
+
+@dataclass
+class TelemetryCollector:
+    logs: list[dict[str, Any]] = field(default_factory=list)
+    spans: list[dict[str, Any]] = field(default_factory=list)
+    request_latencies_ms: list[float] = field(default_factory=list)
+    requests_total: int = 0
+    errors_total: int = 0
+    dependency_timeouts_total: int = 0
+
+    def log(self, level: str, event: str, trace_id: str, **fields: Any) -&gt; dict[str, Any]:
+        record = {"level": level, "event": event, "trace_id": trace_id, **self._redact(fields)}
+        self.logs.append(record)
+        return record
+
+    def start_span(self, name: str, trace_id: str) -&gt; Span:
+        return Span(name=name, trace_id=trace_id)
+
+    def finish_span(self, span: Span, status: str = "ok", error_type: str | None = None) -&gt; dict[str, Any]:
+        event = span.finish(status=status, error_type=error_type)
+        self.spans.append(event)
+        return event
+
+    def record_request(self, duration_ms: float, ok: bool, dependency_timeout: bool = False) -&gt; None:
+        self.requests_total += 1
+        self.request_latencies_ms.append(duration_ms)
+        if not ok:
+            self.errors_total += 1
+        if dependency_timeout:
+            self.dependency_timeouts_total += 1
+
+    def metrics_snapshot(self) -&gt; dict[str, float | int]:
+        average_latency = mean(self.request_latencies_ms) if self.request_latencies_ms else 0.0
+        error_rate = self.errors_total / self.requests_total if self.requests_total else 0.0
+        return {
+            "requests_total": self.requests_total,
+            "errors_total": self.errors_total,
+            "dependency_timeouts_total": self.dependency_timeouts_total,
+            "average_latency_ms": round(average_latency, 3),
+            "error_rate": round(error_rate, 4),
+        }
+
+    def evaluate_slo(self, max_error_rate: float = 0.05, max_average_latency_ms: float = 250.0) -&gt; dict[str, Any]:
+        metrics = self.metrics_snapshot()
+        passed = metrics["error_rate"] &lt;= max_error_rate and metrics["average_latency_ms"] &lt;= max_average_latency_ms
+        return {
+            "slo": "request-quality",
+            "passed": bool(passed),
+            "max_error_rate": max_error_rate,
+            "max_average_latency_ms": max_average_latency_ms,
+            "metrics": metrics,
+        }
+
+    def _redact(self, fields: dict[str, Any]) -&gt; dict[str, Any]:
+        redacted = dict(fields)
+        for key in ("token", "password", "secret"):
+            if key in redacted:
+                redacted[key] = "***"
+        return redacted
+</code></pre></details>
+<details class="example-file"><summary><code>src/observability_operations/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/src/observability_operations/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Teaching sample for Python observability and operations."""
+
+from .service import ObservedService
+from .telemetry import TelemetryCollector
+
+__all__ = ["ObservedService", "TelemetryCollector"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_observability_operations.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/observability_operations/tests/test_observability_operations.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from observability_operations.health import DependencyState, build_health_report
+from observability_operations.service import ObservedService
+from observability_operations.telemetry import TelemetryCollector
+
+
+class ObservabilityOperationsTests(unittest.TestCase):
+    def test_successful_request_records_log_metric_and_span(self) -&gt; None:
+        collector = TelemetryCollector()
+        service = ObservedService(collector)
+
+        response = service.handle_request("/orders", trace_id="trace-ok", dependency_latency_ms=40)
+
+        self.assertTrue(response["ok"])
+        self.assertEqual(collector.metrics_snapshot()["requests_total"], 1)
+        self.assertEqual(collector.metrics_snapshot()["errors_total"], 0)
+        self.assertEqual(collector.spans[0]["status"], "ok")
+        self.assertEqual(collector.logs[0]["trace_id"], "trace-ok")
+
+    def test_dependency_timeout_records_error_and_redacts_secret(self) -&gt; None:
+        collector = TelemetryCollector()
+        service = ObservedService(collector)
+
+        response = service.handle_request("/orders", trace_id="trace-timeout", dependency_latency_ms=150)
+
+        self.assertFalse(response["ok"])
+        metrics = collector.metrics_snapshot()
+        self.assertEqual(metrics["errors_total"], 1)
+        self.assertEqual(metrics["dependency_timeouts_total"], 1)
+        error_logs = [item for item in collector.logs if item["event"] == "dependency.timeout"]
+        self.assertEqual(error_logs[0]["token"], "***")
+
+    def test_health_report_distinguishes_liveness_and_readiness(self) -&gt; None:
+        report = build_health_report([DependencyState(name="orders-db", ok=True, latency_ms=130)])
+
+        self.assertEqual(report["live"], "ok")
+        self.assertEqual(report["ready"], "fail")
+        self.assertEqual(report["status"], "degraded")
+
+    def test_slo_evaluation_fails_when_error_rate_is_too_high(self) -&gt; None:
+        collector = TelemetryCollector()
+        service = ObservedService(collector)
+        service.handle_request("/orders", trace_id="trace-ok", dependency_latency_ms=40)
+        service.handle_request("/orders", trace_id="trace-timeout", dependency_latency_ms=180)
+
+        slo = collector.evaluate_slo(max_error_rate=0.1, max_average_latency_ms=250)
+
+        self.assertFalse(slo["passed"])
+        self.assertGreater(slo["metrics"]["error_rate"], 0.1)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

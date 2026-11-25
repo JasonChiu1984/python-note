@@ -90,6 +90,7 @@
 @media(max-width:800px){.qgd-flow{grid-template-columns:1fr}.qgd-flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.35rem}}
 
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -208,7 +209,275 @@ jobs:
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>CI Quality Gate 範例專案</h2><p>`範例程式碼/ci_quality_gate/` 示範標準庫 py_compile、unittest、coverage policy、matrix policy、workflow contract 與 evidence manifest。 <a href="範例程式碼/ci_quality_gate/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/ci_quality_gate
 python3 -m py_compile src/ci_quality_gate/*.py scripts/run_ci_gate.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_ci_gate.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_ci_gate.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-ci-quality-gate">
+<h3>範例程式碼 · CI 品質檢查</h3>
+<p>從 pipeline.py 追蹤檢查順序，對照哪些條件會阻擋交付。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/ci_quality_gate
+PYTHONPATH=src python3 scripts/run_ci_gate.py</code></pre>
+<!-- example-source: ci_quality_gate -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_ci_gate.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate/scripts/run_ci_gate.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from ci_quality_gate import build_release_evidence, evaluate_gate  # noqa: E402
+
+
+def main() -&gt; int:
+    report = evaluate_gate(ROOT, version="0.1.0", commit="local")
+    evidence = build_release_evidence(report)
+    evidence_path = ROOT / "ci_gate_evidence.json"
+    evidence_path.write_text(evidence + "\n", encoding="utf-8")
+    if report.passed:
+        print("ci quality gate passed: compile + tests + coverage + matrix + workflow")
+        return 0
+    print(evidence)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/ci_quality_gate/checks.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate/src/ci_quality_gate/checks.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+import json
+import os
+import py_compile
+import subprocess
+import sys
+from typing import Iterable
+
+
+@dataclass(frozen=True)
+class CheckResult:
+    name: str
+    passed: bool
+    detail: str
+    blocking: bool = True
+
+
+@dataclass(frozen=True)
+class GateReport:
+    version: str
+    commit: str
+    results: tuple[CheckResult, ...] = field(default_factory=tuple)
+
+    @property
+    def passed(self) -&gt; bool:
+        return all(result.passed or not result.blocking for result in self.results)
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return {
+            "version": self.version,
+            "commit": self.commit,
+            "passed": self.passed,
+            "results": [
+                {
+                    "name": result.name,
+                    "passed": result.passed,
+                    "detail": result.detail,
+                    "blocking": result.blocking,
+                }
+                for result in self.results
+            ],
+        }
+
+
+def run_py_compile(paths: Iterable[Path]) -&gt; CheckResult:
+    checked = 0
+    for path in paths:
+        py_compile.compile(str(path), doraise=True)
+        checked += 1
+    return CheckResult("py_compile", True, f"compiled {checked} python files")
+
+
+def run_unittest(project_root: Path) -&gt; CheckResult:
+    command = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]
+    completed = subprocess.run(
+        command,
+        cwd=project_root,
+        env={**os.environ, "PYTHONPATH": "src"},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return CheckResult("unittest", True, "unittest discover passed")
+    detail = (completed.stdout + completed.stderr).strip().splitlines()[-1:]
+    return CheckResult("unittest", False, detail[0] if detail else "unittest failed")
+
+
+def check_coverage_policy(covered_items: int, total_items: int, floor: int = 80) -&gt; CheckResult:
+    if total_items &lt;= 0:
+        return CheckResult("coverage_policy", False, "total_items must be positive")
+    percent = round((covered_items / total_items) * 100)
+    passed = percent &gt;= floor
+    return CheckResult("coverage_policy", passed, f"coverage model {percent}% &gt;= {floor}%")
+
+
+def check_runtime_matrix(stable: str, beta: str) -&gt; tuple[CheckResult, CheckResult]:
+    stable_ok = stable.startswith("3.14")
+    beta_ok = beta.startswith("3.15")
+    return (
+        CheckResult("stable_runtime", stable_ok, f"stable runtime lane {stable}", blocking=True),
+        CheckResult("beta_runtime", beta_ok, f"beta preview lane {beta}", blocking=False),
+    )
+
+
+def check_workflow_contract(path: Path) -&gt; CheckResult:
+    text = path.read_text(encoding="utf-8")
+    required = ["pull_request", "push", "workflow_dispatch", "3.14", "3.15-dev", "compile", "test"]
+    missing = [item for item in required if item not in text]
+    if missing:
+        return CheckResult("workflow_contract", False, f"missing workflow tokens: {', '.join(missing)}")
+    return CheckResult("workflow_contract", True, "workflow has trigger, matrix, compile, and test")
+
+
+def build_release_evidence(report: GateReport) -&gt; str:
+    return json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def evaluate_gate(project_root: Path, version: str, commit: str) -&gt; GateReport:
+    source_files = sorted((project_root / "src").glob("ci_quality_gate/*.py"))
+    script_files = sorted((project_root / "scripts").glob("*.py"))
+    results: list[CheckResult] = [
+        run_py_compile([*source_files, *script_files]),
+        run_unittest(project_root),
+        check_coverage_policy(covered_items=9, total_items=10, floor=80),
+        check_workflow_contract(project_root / ".github" / "workflows" / "python-ci.yml"),
+    ]
+    results.extend(check_runtime_matrix(stable="3.14", beta="3.15-dev"))
+    return GateReport(version=version, commit=commit, results=tuple(results))
+</code></pre></details>
+<details class="example-file"><summary><code>src/ci_quality_gate/pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate/src/ci_quality_gate/pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable, Iterable
+
+from .checks import CheckResult
+
+
+@dataclass(frozen=True)
+class CIJob:
+    name: str
+    run: Callable[[], CheckResult]
+    blocking: bool = True
+
+
+class Pipeline:
+    def __init__(self, jobs: Iterable[CIJob]) -&gt; None:
+        self._jobs = tuple(jobs)
+
+    def run(self) -&gt; tuple[CheckResult, ...]:
+        results: list[CheckResult] = []
+        for job in self._jobs:
+            result = job.run()
+            if result.blocking != job.blocking:
+                result = CheckResult(result.name, result.passed, result.detail, job.blocking)
+            results.append(result)
+            if job.blocking and not result.passed:
+                break
+        return tuple(results)
+</code></pre></details>
+<details class="example-file"><summary><code>src/ci_quality_gate/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate/src/ci_quality_gate/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""CI quality gate sample package."""
+
+from .checks import CheckResult, GateReport, build_release_evidence, evaluate_gate
+from .pipeline import CIJob, Pipeline
+
+__all__ = [
+    "CIJob",
+    "CheckResult",
+    "GateReport",
+    "Pipeline",
+    "build_release_evidence",
+    "evaluate_gate",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_ci_quality_gate.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/ci_quality_gate/tests/test_ci_quality_gate.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import tempfile
+import unittest
+
+from ci_quality_gate.checks import (
+    CheckResult,
+    GateReport,
+    build_release_evidence,
+    check_coverage_policy,
+    check_runtime_matrix,
+    check_workflow_contract,
+)
+from ci_quality_gate.pipeline import CIJob, Pipeline
+
+
+class QualityGateTests(unittest.TestCase):
+    def test_coverage_policy_blocks_low_coverage(self) -&gt; None:
+        result = check_coverage_policy(covered_items=7, total_items=10, floor=80)
+        self.assertFalse(result.passed)
+        self.assertTrue(result.blocking)
+
+    def test_runtime_matrix_marks_beta_non_blocking(self) -&gt; None:
+        stable, beta = check_runtime_matrix("3.14", "3.15-dev")
+        self.assertTrue(stable.passed)
+        self.assertTrue(beta.passed)
+        self.assertFalse(beta.blocking)
+
+    def test_gate_report_allows_non_blocking_failure(self) -&gt; None:
+        report = GateReport(
+            version="0.1.0",
+            commit="abc123",
+            results=(
+                CheckResult("unit", True, "ok"),
+                CheckResult("beta", False, "preview failed", blocking=False),
+            ),
+        )
+        self.assertTrue(report.passed)
+
+    def test_release_evidence_is_json(self) -&gt; None:
+        report = GateReport(version="0.1.0", commit="abc123", results=(CheckResult("unit", True, "ok"),))
+        evidence = build_release_evidence(report)
+        self.assertIn('"passed": true', evidence)
+        self.assertIn('"commit": "abc123"', evidence)
+
+    def test_workflow_contract_detects_required_tokens(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "python-ci.yml"
+            path.write_text("pull_request\npush\nworkflow_dispatch\n3.14\n3.15-dev\ncompile\ntest\n", encoding="utf-8")
+            self.assertTrue(check_workflow_contract(path).passed)
+
+    def test_pipeline_stops_on_blocking_failure(self) -&gt; None:
+        jobs = [
+            CIJob("compile", lambda: CheckResult("compile", False, "syntax error"), blocking=True),
+            CIJob("test", lambda: CheckResult("test", True, "should not run"), blocking=True),
+        ]
+        results = Pipeline(jobs).run()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, "compile")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

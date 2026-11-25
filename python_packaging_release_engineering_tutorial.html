@@ -114,6 +114,7 @@
       #preflight-checklist .release-flow li:not(:last-child)::after{inset-inline-start:auto;inset-inline-end:-1.18rem;inset-block-end:calc(50% - .28rem);transform:rotate(-45deg)}
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -181,7 +182,74 @@ class MessageTest(unittest.TestCase):
         self.assertEqual(message(), &quot;Release artifact verified&quot;)</code></pre></details></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="artifact" data-group="artifact"><div class="section-head"><div><span class="eyebrow">03 / 成品</span><h2>先建 sdist，再從 sdist 建 wheel</h2><p>讓 sdist 實際輪到建置；不要只從 checkout 建 wheel，否則漏掉的來源檔會被掩蓋。</p></div></div><div class="release-panel"><dl><dt>sdist（<code>.tar.gz</code>）</dt><dd>來源發行包；安裝時通常需由工具與後端再建成 wheel。它不是 Git repo 備份，也不保證含有測試、審查紀錄或 CI 憑據。</dd><dt>wheel（<code>.whl</code>）</dt><dd>可直接安裝的套件；本例為 <code>py3-none-any</code>。有原生擴充時，應依 Python／ABI／平台標籤發布並逐個測試；不要用本例推論各環境可直接共用。</dd><dt>兩份包都需要驗證</dt><dd>PyPA <code>build</code> 的預設雙包流程會從 sdist 建 wheel；本章用它檢查來源包足以供建置，並對交付的 wheel 做完整安裝冒煙測試。</dd></dl><pre tabindex="0"><code># 檢查檔案清單，不執行其中程式
 python -m tarfile -l &quot;$DIST/release_note_lab-0.1.0.tar.gz&quot;
-python -m zipfile -l &quot;$DIST/release_note_lab-0.1.0-py3-none-any.whl&quot;</code></pre><p>預期 wheel 中含 <code>release_note_lab/message.txt</code>、<code>METADATA</code>、<code>WHEEL</code>、<code>entry_points.txt</code> 與 <code>RECORD</code>。<code>RECORD</code> 是安裝檔案清單及部分檔案摘要，不是整份 wheel 的簽章。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+python -m zipfile -l &quot;$DIST/release_note_lab-0.1.0-py3-none-any.whl&quot;</code></pre><p>預期 wheel 中含 <code>release_note_lab/message.txt</code>、<code>METADATA</code>、<code>WHEEL</code>、<code>entry_points.txt</code> 與 <code>RECORD</code>。<code>RECORD</code> 是安裝檔案清單及部分檔案摘要，不是整份 wheel 的簽章。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details>
+<div class="course-example" id="example-cython-so-example">
+<h3>範例程式碼 · Cython 原生擴充</h3>
+<p>將 _core.pyx 編譯成擴充模組，再以 Python 呼叫 add_range 和 weighted_sum。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/cython_so_example
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install .
+python3 demo.py</code></pre>
+<!-- example-source: cython_so_example -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cython_so_example">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cython_so_example/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from array import array
+
+from fastmath import add_range, weighted_sum
+
+
+values = array("d", [1.0, 2.0, 3.0])
+
+print(f"add_range(100) = {add_range(100)}")
+print(f"weighted_sum([1, 2, 3], 0.5) = {weighted_sum(values, 0.5)}")
+</code></pre></details>
+<details class="example-file"><summary><code>setup.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cython_so_example/setup.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+
+extensions = [
+    Extension("fastmath._core", ["src/fastmath/_core.pyx"]),
+]
+
+
+setup(
+    packages=["fastmath"],
+    package_dir={"": "src"},
+    ext_modules=cythonize(extensions, language_level=3),
+)
+</code></pre></details>
+<details class="example-file"><summary><code>src/fastmath/_core.pyx</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cython_so_example/src/fastmath/_core.pyx">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code># cython: language_level=3
+
+cpdef long add_range(long n):
+    cdef long i
+    cdef long total = 0
+    for i in range(n + 1):
+        total += i
+    return total
+
+
+cpdef double weighted_sum(double[:] values, double weight):
+    cdef Py_ssize_t i
+    cdef double total = 0.0
+    for i in range(values.shape[0]):
+        total += values[i] * weight
+    return total
+</code></pre></details>
+<details class="example-file"><summary><code>src/fastmath/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cython_so_example/src/fastmath/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from ._core import add_range, weighted_sum
+
+__all__ = ["add_range", "weighted_sum"]
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 <section class="section-block" id="evidence" data-group="evidence"><div class="section-head"><div><span class="eyebrow">04 / 證據</span><h2>完整性、來源、可重建性各自驗證</h2><p>知道檔案沒壞，不等於知道誰建置；知道誰建置，也不等於證明沒有漏洞。</p></div></div><div class="release-panel"><dl><dt>完整性：SHA-256</dt><dd>比對收到的檔案與已核准摘要；下載管道若能同時被改寫成品與摘要，裸摘要不能證明來源。範例以 UTF-8 相容 ASCII、固定檔名與換行格式產生 <code>SHA256SUMS</code>，在安裝前驗證。</dd><dt>來源：簽署的 attestation / provenance</dt><dd>按政策核對成品 digest、信任的簽署者／publisher、repo、ref 或工作流程。PyPI Publish Attestation 證明發布者與成品的聲明，不等於完整建置 provenance，也不代表已通過測試。一般 JSON 只算未簽署紀錄。</dd><dt>可重建性：用第二次建置驗證</dt><dd>鎖定 source commit、Python／OS／工具版本、相依圖、時間與 locale。<code>SOURCE_DATE_EPOCH</code> 只對會讀取它的工具生效；不同後端、歸檔格式、檔案順序與平台都可能改變位元組。重建失配先找差異，不要修改舊摘要來讓關卡通過。</dd></dl><p class="notice">最少附上：安裝包、來源包、SHA-256、建置條件、測試命令／環境／結果、已知限制、回退版本。SBOM 是依賴清單，不是漏洞不存在或已修補的證據。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="pipeline" data-group="pipeline"><div class="section-head"><div><span class="eyebrow">05 / 流程</span><h2>先驗成品，再讓同一成品過發布閘門</h2><p>每一站要有可觀察結果。以成品雜湊當作建置、驗收與發布的共同識別。</p></div></div><div class="release-panel"><ol class="release-flow"><li><strong>01 固定來源</strong><span>核對 tag 與 commit</span></li><li><strong>02 建置</strong><span>先 sdist，再 wheel</span></li><li><strong>03 驗包</strong><span>檔案清單與 SHA-256</span></li><li><strong>04 乾淨驗收</strong><span>新 venv、pip check、CLI、資源檔</span></li><li><strong>05 核准</strong><span>同一成品、證據齊全才可發布</span></li></ol><p>建置工作不持有發布憑證；驗收工作下載候選成品並重新驗證；發布工作不能重建另一份同名檔案。CI 如需透過 Trusted Publishing 授權，應限定核准的 repo／workflow／environment。練習僅留在本機，不包含上傳步驟。</p></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
 <section class="section-block" id="preflight-checklist" aria-labelledby="preflight-title">
@@ -423,7 +491,476 @@ def main() -&gt; None:
 
 if __name__ == &quot;__main__&quot;:
     main()</code></pre></details>
-<h3>規格與原廠文件</h3><ul><li><a href="https://build.pypa.io/en/stable/">PyPA build</a> · <a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">pyproject.toml</a></li><li><a href="https://packaging.python.org/en/latest/discussions/package-formats/">PyPA 套件格式</a> · <a href="https://packaging.python.org/en/latest/specifications/recording-installed-packages/">安裝檔案與 RECORD</a></li><li><a href="https://docs.python.org/3/library/venv.html">Python venv</a> · <a href="https://docs.python.org/3/library/importlib.resources.html">importlib.resources</a></li><li><a href="https://docs.pypi.org/attestations/">PyPI Attestations</a> · <a href="https://docs.pypi.org/trusted-publishers/">PyPI Trusted Publishing</a></li></ul></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details></section>
+<h3>規格與原廠文件</h3><ul><li><a href="https://build.pypa.io/en/stable/">PyPA build</a> · <a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">pyproject.toml</a></li><li><a href="https://packaging.python.org/en/latest/discussions/package-formats/">PyPA 套件格式</a> · <a href="https://packaging.python.org/en/latest/specifications/recording-installed-packages/">安裝檔案與 RECORD</a></li><li><a href="https://docs.python.org/3/library/venv.html">Python venv</a> · <a href="https://docs.python.org/3/library/importlib.resources.html">importlib.resources</a></li><li><a href="https://docs.pypi.org/attestations/">PyPI Attestations</a> · <a href="https://docs.pypi.org/trusted-publishers/">PyPI Trusted Publishing</a></li></ul></div><details class="legacy"><summary>原有複習卡（保留學習進度）</summary><div class="cards"></div></details>
+<div class="course-example" id="example-packaging-release-engineering">
+<h3>範例程式碼 · Python 套件發布</h3>
+<p>追蹤 metadata、原始碼封存與校驗碼如何匯入發布清單。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/packaging_release_engineering
+PYTHONPATH=src python3 scripts/run_release_smoke.py</code></pre>
+<!-- example-source: packaging_release_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_release_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering/scripts/run_release_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC = PROJECT_ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from packaging_release_engineering.release import run_release_gate  # noqa: E402
+
+
+def main() -&gt; int:
+    with tempfile.TemporaryDirectory(prefix="release-gate-") as tmp:
+        archive_path, manifest_path = run_release_gate(PROJECT_ROOT, dist_dir=Path(tmp))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert archive_path.exists(), "archive missing"
+        assert len(manifest["sha256"]) == 64, "invalid sha256"
+        assert "src/packaging_release_engineering/release.py" in manifest["files"], "release module missing"
+    print("release smoke passed: metadata + archive + checksum + manifest")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/packaging_release_engineering/cli.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering/src/packaging_release_engineering/cli.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from .release import ReleaseGateError, run_release_gate, validate_release_metadata
+
+
+def build_parser() -&gt; argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run packaging release gate checks.")
+    parser.add_argument("command", choices=["verify", "build"], help="verify metadata or build release evidence")
+    parser.add_argument("--project-root", default=".", help="project root path")
+    parser.add_argument("--dist-dir", default=None, help="optional dist output directory")
+    return parser
+
+
+def main(argv: list[str] | None = None) -&gt; int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    project_root = Path(args.project_root).resolve()
+    dist_dir = Path(args.dist_dir).resolve() if args.dist_dir else None
+
+    try:
+        if args.command == "verify":
+            metadata = validate_release_metadata(project_root)
+            print(f"release metadata ok: {metadata.name} {metadata.version}")
+            return 0
+        archive_path, manifest_path = run_release_gate(project_root, dist_dir=dist_dir)
+        print(f"release artifact: {archive_path}")
+        print(f"release manifest: {manifest_path}")
+        return 0
+    except ReleaseGateError as exc:
+        parser.exit(status=2, message=f"release gate failed: {exc}\n")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/packaging_release_engineering/release.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering/src/packaging_release_engineering/release.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import hashlib
+import json
+import re
+import tarfile
+import tomllib
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+
+
+class ReleaseGateError(RuntimeError):
+    """Raised when release evidence is incomplete or inconsistent."""
+
+
+@dataclass(frozen=True)
+class ProjectMetadata:
+    name: str
+    version: str
+    package: str
+    changelog: Path
+    dist_dir: Path
+
+    @property
+    def archive_name(self) -&gt; str:
+        return f"{self.name}-{self.version}.tar.gz"
+
+
+def load_project_metadata(project_root: Path) -&gt; ProjectMetadata:
+    pyproject = project_root / "pyproject.toml"
+    if not pyproject.exists():
+        raise ReleaseGateError("Missing pyproject.toml")
+
+    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    project = data.get("project", {})
+    tool = data.get("tool", {}).get("release_gate", {})
+    name = project.get("name")
+    version = project.get("version")
+    package = tool.get("package") or str(name).replace("-", "_")
+    changelog = project_root / tool.get("changelog", "CHANGELOG.md")
+    dist_dir = project_root / tool.get("dist_dir", "dist")
+
+    if not name or not version:
+        raise ReleaseGateError("pyproject.toml must define project.name and project.version")
+    return ProjectMetadata(name=name, version=version, package=package, changelog=changelog, dist_dir=dist_dir)
+
+
+def read_package_version(project_root: Path, package: str) -&gt; str:
+    init_file = project_root / "src" / package / "__init__.py"
+    if not init_file.exists():
+        raise ReleaseGateError(f"Missing package init: {init_file}")
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', init_file.read_text(encoding="utf-8"), re.MULTILINE)
+    if not match:
+        raise ReleaseGateError(f"Missing __version__ in {init_file}")
+    return match.group(1)
+
+
+def validate_release_metadata(project_root: Path) -&gt; ProjectMetadata:
+    metadata = load_project_metadata(project_root)
+    package_version = read_package_version(project_root, metadata.package)
+    if package_version != metadata.version:
+        raise ReleaseGateError(f"Version mismatch: pyproject={metadata.version}, package={package_version}")
+    if not metadata.changelog.exists():
+        raise ReleaseGateError(f"Missing changelog: {metadata.changelog}")
+    changelog_text = metadata.changelog.read_text(encoding="utf-8")
+    if f"## v{metadata.version}" not in changelog_text:
+        raise ReleaseGateError(f"Missing changelog entry for v{metadata.version}")
+    return metadata
+
+
+def iter_release_files(project_root: Path) -&gt; Iterable[Path]:
+    include_roots = [project_root / "pyproject.toml", project_root / "README.md", project_root / "CHANGELOG.md", project_root / "src"]
+    for root in include_roots:
+        if root.is_file():
+            yield root
+        elif root.is_dir():
+            for path in sorted(root.rglob("*")):
+                if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                    yield path
+
+
+def build_source_archive(project_root: Path, dist_dir: Path | None = None) -&gt; Path:
+    metadata = validate_release_metadata(project_root)
+    target_dir = dist_dir or metadata.dist_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = target_dir / metadata.archive_name
+    prefix = f"{metadata.name}-{metadata.version}"
+
+    with tarfile.open(archive_path, "w:gz") as archive:
+        for path in iter_release_files(project_root):
+            relative = path.relative_to(project_root)
+            tar_info = archive.gettarinfo(str(path), arcname=str(Path(prefix) / relative))
+            tar_info.uid = tar_info.gid = 0
+            tar_info.uname = tar_info.gname = ""
+            tar_info.mtime = 0
+            with path.open("rb") as source:
+                archive.addfile(tar_info, source)
+    return archive_path
+
+
+def sha256_file(path: Path) -&gt; str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 64), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def write_release_manifest(project_root: Path, archive_path: Path) -&gt; Path:
+    metadata = validate_release_metadata(project_root)
+    manifest = {
+        "name": metadata.name,
+        "version": metadata.version,
+        "package": metadata.package,
+        "artifact": archive_path.name,
+        "sha256": sha256_file(archive_path),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "files": [str(path.relative_to(project_root)) for path in iter_release_files(project_root)],
+        "gates": ["metadata", "version", "changelog", "archive", "checksum"],
+    }
+    manifest_path = archive_path.with_name("release-manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest_path
+
+
+def run_release_gate(project_root: Path, dist_dir: Path | None = None) -&gt; tuple[Path, Path]:
+    archive_path = build_source_archive(project_root, dist_dir=dist_dir)
+    manifest_path = write_release_manifest(project_root, archive_path)
+    return archive_path, manifest_path
+</code></pre></details>
+<details class="example-file"><summary><code>src/packaging_release_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering/src/packaging_release_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Packaging and release engineering sample."""
+
+__version__ = "0.1.0"
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_release_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/packaging_release_engineering/tests/test_release_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import shutil
+import tarfile
+import tempfile
+import unittest
+from pathlib import Path
+
+from packaging_release_engineering.release import (
+    ReleaseGateError,
+    build_source_archive,
+    load_project_metadata,
+    run_release_gate,
+    validate_release_metadata,
+)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+class ReleaseEngineeringTests(unittest.TestCase):
+    def test_load_project_metadata(self) -&gt; None:
+        metadata = load_project_metadata(PROJECT_ROOT)
+        self.assertEqual(metadata.name, "packaging-release-engineering")
+        self.assertEqual(metadata.version, "0.1.0")
+        self.assertEqual(metadata.package, "packaging_release_engineering")
+
+    def test_validate_release_metadata(self) -&gt; None:
+        metadata = validate_release_metadata(PROJECT_ROOT)
+        self.assertEqual(metadata.archive_name, "packaging-release-engineering-0.1.0.tar.gz")
+
+    def test_detects_version_mismatch(self) -&gt; None:
+        with tempfile.TemporaryDirectory(prefix="release-mismatch-") as tmp:
+            copied = Path(tmp) / "project"
+            shutil.copytree(PROJECT_ROOT, copied, ignore=shutil.ignore_patterns("__pycache__", "dist"))
+            init_file = copied / "src" / "packaging_release_engineering" / "__init__.py"
+            init_file.write_text('__version__ = "9.9.9"\n', encoding="utf-8")
+            with self.assertRaisesRegex(ReleaseGateError, "Version mismatch"):
+                validate_release_metadata(copied)
+
+    def test_build_source_archive_excludes_generated_files(self) -&gt; None:
+        with tempfile.TemporaryDirectory(prefix="release-archive-") as tmp:
+            dist = Path(tmp) / "dist"
+            archive_path = build_source_archive(PROJECT_ROOT, dist_dir=dist)
+            with tarfile.open(archive_path, "r:gz") as archive:
+                names = archive.getnames()
+            self.assertTrue(any(name.endswith("pyproject.toml") for name in names))
+            self.assertFalse(any("__pycache__" in name for name in names))
+            self.assertFalse(any(name.endswith(".pyc") for name in names))
+            self.assertFalse(any("/dist/" in name for name in names))
+
+    def test_run_release_gate_writes_manifest(self) -&gt; None:
+        with tempfile.TemporaryDirectory(prefix="release-manifest-") as tmp:
+            archive_path, manifest_path = run_release_gate(PROJECT_ROOT, dist_dir=Path(tmp))
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["artifact"], archive_path.name)
+            self.assertEqual(len(manifest["sha256"]), 64)
+            self.assertIn("metadata", manifest["gates"])
+            self.assertIn("src/packaging_release_engineering/release.py", manifest["files"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+
+<div class="course-example" id="example-verified-release-lab">
+<h3>範例程式碼 · 安裝成品驗證</h3>
+<p>對照成品驗證腳本與測試，找出 wheel 內必須包含的訊息檔。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/verified_release_lab
+PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre>
+<!-- example-source: verified_release_lab -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/verified_release_lab">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>check_preflight.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/verified_release_lab/check_preflight.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Local manifest gate. Validates evidence metadata; does not run scans or deploy."""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+REQUIRED = (
+    "tests", "lint_and_types", "dependency_audit", "secret_scan", "sbom",
+    "artifact_smoke", "rollback_rehearsal",
+)
+
+
+def sha256(path: Path) -&gt; str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(1024 * 1024):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def distinct_keys(pairs: list[tuple]) -&gt; dict:
+    out: dict = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate key: {key}")
+        out[key] = value
+    return out
+
+
+def run(candidate: Path, manifest: Path) -&gt; list[str]:
+    digest = sha256(candidate)
+    payload = json.loads(manifest.read_text(encoding="utf-8"),
+                         object_pairs_hook=distinct_keys)
+    if not isinstance(payload, dict) or payload.get("candidate_sha256") != digest:
+        return ["candidate digest mismatch"]
+    gates = payload.get("gates")
+    if not isinstance(gates, dict):
+        return ["invalid gates"]
+    errors = []
+    for name in REQUIRED:
+        item = gates.get(name)
+        if (not isinstance(item, dict) or item.get("status") != "pass"
+                or not isinstance(item.get("evidence"), str)
+                or not item["evidence"].strip()):
+            errors.append(f"missing passing evidence: {name}")
+    return errors
+
+
+def main() -&gt; int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("candidate", type=Path)
+    parser.add_argument("manifest", type=Path)
+    args = parser.parse_args()
+    try:
+        errors = run(args.candidate, args.manifest)
+    except (ValueError, OSError):
+        print(json.dumps({"decision": "BLOCK", "reasons": ["unreadable artifact or manifest"]}))
+        return 2
+    print(json.dumps({"decision": "BLOCK" if errors else "PASS", "reasons": errors}))
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>check_release.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/verified_release_lab/check_release.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Verify the lab's exact package pair; then smoke-test the wheel in a clean venv."""
+
+import argparse
+import hashlib
+import hmac
+import os
+from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
+import venv
+
+NAMES = ("release_note_lab-0.1.0-py3-none-any.whl", "release_note_lab-0.1.0.tar.gz")
+MANIFEST = "SHA256SUMS"
+
+
+def manifest_bytes(dist: Path) -&gt; bytes:
+    actual = {p.name for p in dist.iterdir() if p.name != MANIFEST}
+    if actual != set(NAMES):
+        raise SystemExit(f"Expected only the two lab artifacts; found {sorted(actual)}")
+    lines = []
+    for name in NAMES:
+        with (dist / name).open("rb") as artifact:
+            sha = hashlib.sha256()
+            while block := artifact.read(1024 * 1024):
+                sha.update(block)
+        lines.append(f"{sha.hexdigest()}  {name}\n")
+    return "".join(lines).encode("ascii")
+
+
+def verify(dist: Path) -&gt; None:
+    if not hmac.compare_digest((dist / MANIFEST).read_bytes(), manifest_bytes(dist)):
+        raise SystemExit("SHA-256 mismatch: do not install or promote these files")
+
+
+def smoke(dist: Path) -&gt; None:
+    with TemporaryDirectory(prefix="release-smoke-") as temp:
+        temp = Path(temp)
+        envdir = temp / "venv"
+        venv.EnvBuilder(with_pip=True).create(envdir)
+        bindir = envdir / ("Scripts" if os.name == "nt" else "bin")
+        py = bindir / ("python.exe" if os.name == "nt" else "python")
+        exe = bindir / ("release-note-lab.exe" if os.name == "nt" else "release-note-lab")
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTHON", "PIP_"))}
+        subprocess.run(
+            [py, "-I", "-m", "pip", "--isolated", "install", "--no-index",
+             "--no-deps", dist / NAMES[0]],
+            cwd=temp, env=env, check=True,
+        )
+        subprocess.run([py, "-I", "-m", "pip", "--isolated", "check"],
+                       cwd=temp, env=env, check=True)
+        actual = subprocess.check_output([exe], cwd=temp, env=env, text=True).strip()
+        expected = "0.1.0: Release artifact verified"
+        if actual != expected:
+            raise SystemExit(f"CLI output mismatch: {actual!r}")
+        print(f"{actual}; wheel smoke PASS ({sys.version.split()[0]})")
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dist", type=Path)
+    parser.add_argument("mode", choices=("write", "verify", "smoke"))
+    args = parser.parse_args()
+    dist = args.dist.resolve()
+    if args.mode == "write":
+        with (dist / MANIFEST).open("xb") as target:
+            target.write(manifest_bytes(dist))
+    else:
+        verify(dist)
+        print("SHA-256 PASS")
+        if args.mode == "smoke":
+            smoke(dist)
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/release_note_lab/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/verified_release_lab/src/release_note_lab/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from importlib.metadata import version
+from importlib.resources import files
+
+
+def message() -&gt; str:
+    return files(__package__).joinpath("message.txt").read_text(encoding="utf-8").strip()
+
+
+def main() -&gt; None:
+    print(f"{version('release-note-lab')}: {message()}")
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_message.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/verified_release_lab/tests/test_message.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>import unittest
+
+from release_note_lab import message
+
+
+class MessageTest(unittest.TestCase):
+    def test_packaged_resource(self):
+        self.assertEqual(message(), "Release artifact verified")
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

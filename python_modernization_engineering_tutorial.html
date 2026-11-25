@@ -81,6 +81,7 @@
       }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -208,7 +209,179 @@
 PYTHONPATH=src python3 -m version_readiness.cli
 PYTHONPATH=src python3 -m unittest discover -s tests</code></pre>
         <div class="cards"></div>
-      </section>
+      
+<div class="course-example" id="example-python-version-readiness">
+<h3>範例程式碼 · Python 版本相容性</h3>
+<p>查看 compat.py 的版本判定，再用 CLI 對照本機直譯器的報告。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/python_version_readiness
+PYTHONPATH=src python3 -m version_readiness.cli</code></pre>
+<!-- example-source: python_version_readiness -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_version_readiness">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>src/version_readiness/cli.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_version_readiness/src/version_readiness/cli.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+from .compat import build_readiness_report
+
+
+def main() -&gt; None:
+    print(json.dumps(build_readiness_report(), ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+
+</code></pre></details>
+<details class="example-file"><summary><code>src/version_readiness/compat.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_version_readiness/src/version_readiness/compat.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+import platform
+import sys
+from typing import Any
+
+
+@dataclass(frozen=True)
+class RuntimeProfile:
+    major: int
+    minor: int
+    micro: int
+    implementation: str
+
+    @classmethod
+    def current(cls) -&gt; "RuntimeProfile":
+        info = sys.version_info
+        return cls(
+            major=info.major,
+            minor=info.minor,
+            micro=info.micro,
+            implementation=platform.python_implementation(),
+        )
+
+    @property
+    def version_label(self) -&gt; str:
+        return f"{self.major}.{self.minor}.{self.micro}"
+
+    def at_least(self, major: int, minor: int) -&gt; bool:
+        return (self.major, self.minor) &gt;= (major, minor)
+
+
+@dataclass(frozen=True)
+class FeaturePolicy:
+    name: str
+    min_version: tuple[int, int]
+    production_action: str
+    fallback: str
+
+    def available_on(self, profile: RuntimeProfile) -&gt; bool:
+        return profile.at_least(*self.min_version)
+
+
+POLICIES: tuple[FeaturePolicy, ...] = (
+    FeaturePolicy(
+        name="template_string_literals",
+        min_version=(3, 14),
+        production_action="adopt only with code review rules for safe interpolation",
+        fallback="keep f-string or Template based formatting",
+    ),
+    FeaturePolicy(
+        name="deferred_annotations",
+        min_version=(3, 14),
+        production_action="run schema and runtime introspection regression tests",
+        fallback="keep explicit typing.get_type_hints checks in compatibility layer",
+    ),
+    FeaturePolicy(
+        name="standard_zstd",
+        min_version=(3, 14),
+        production_action="use compression.zstd behind a storage compatibility boundary",
+        fallback="keep optional third-party zstandard adapter",
+    ),
+    FeaturePolicy(
+        name="python_315_beta",
+        min_version=(3, 15),
+        production_action="test in CI as allow-failure or prerelease lane",
+        fallback="ship production on latest supported stable Python",
+    ),
+)
+
+
+def build_readiness_report(
+    profile: RuntimeProfile | None = None,
+    policies: tuple[FeaturePolicy, ...] = POLICIES,
+) -&gt; dict[str, Any]:
+    runtime = profile or RuntimeProfile.current()
+    features = []
+    for policy in policies:
+        available = policy.available_on(runtime)
+        features.append(
+            {
+                "name": policy.name,
+                "available": available,
+                "minimum": f"{policy.min_version[0]}.{policy.min_version[1]}",
+                "action": policy.production_action if available else policy.fallback,
+            }
+        )
+
+    return {
+        "runtime": runtime.version_label,
+        "implementation": runtime.implementation,
+        "supported_baseline": runtime.at_least(3, 11),
+        "recommended_ci": ["3.12", "3.13", "3.14", "3.15-dev"],
+        "features": features,
+    }
+
+</code></pre></details>
+<details class="example-file"><summary><code>src/version_readiness/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_version_readiness/src/version_readiness/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Runtime readiness sample package."""
+
+from .compat import FeaturePolicy, RuntimeProfile, build_readiness_report
+
+__all__ = ["FeaturePolicy", "RuntimeProfile", "build_readiness_report"]
+
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_compat.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/python_version_readiness/tests/test_compat.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>import unittest
+
+from version_readiness.compat import (
+    FeaturePolicy,
+    RuntimeProfile,
+    build_readiness_report,
+)
+
+
+class RuntimeReadinessTests(unittest.TestCase):
+    def test_profile_version_label(self) -&gt; None:
+        profile = RuntimeProfile(3, 14, 5, "CPython")
+        self.assertEqual(profile.version_label, "3.14.5")
+        self.assertTrue(profile.at_least(3, 14))
+        self.assertFalse(profile.at_least(3, 15))
+
+    def test_policy_availability_uses_major_minor(self) -&gt; None:
+        policy = FeaturePolicy("demo", (3, 14), "use", "fallback")
+        self.assertTrue(policy.available_on(RuntimeProfile(3, 14, 0, "CPython")))
+        self.assertFalse(policy.available_on(RuntimeProfile(3, 13, 9, "CPython")))
+
+    def test_report_contains_fallback_for_unavailable_features(self) -&gt; None:
+        report = build_readiness_report(
+            RuntimeProfile(3, 13, 10, "CPython"),
+            (FeaturePolicy("future_feature", (3, 14), "use it", "keep fallback"),),
+        )
+        self.assertEqual(report["runtime"], "3.13.10")
+        self.assertEqual(report["features"][0]["action"], "keep fallback")
+        self.assertFalse(report["features"][0]["available"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <nav class="pager">
         <a class="button light" href="index.html">回入口</a>

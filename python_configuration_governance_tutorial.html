@@ -73,6 +73,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -126,7 +127,393 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把來源、解析、驗證與證據分層</h2><p>defaults、env、secret mount、CLI override 與 feature flags 應有穩定 precedence，並輸出已遮蔽敏感值的紀錄。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能模擬多環境設定流</h2><p>用標準庫範例就能驗證 loader、secret boundary、flag lifecycle 與 config drift。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>明確寫出 precedence、required 與 fail-safe 行為</h2><p>沒有 precedence contract 的專案，部署越多環境越容易出錯。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 typed settings sample 展示完整閉環</h2><p>範例專案示範 defaults、env、secret file、CLI override、feature flag、config report 與 smoke evidence。 <a href="範例程式碼/configuration_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用 typed settings sample 展示完整閉環</h2><p>範例專案示範 defaults、env、secret file、CLI override、feature flag、config report 與 smoke evidence。 <a href="範例程式碼/configuration_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-configuration-governance">
+<h3>範例程式碼 · 多環境設定載入</h3>
+<p>從 loader.py 找出預設值、環境變數與命令列設定的覆寫順序。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/configuration_governance
+PYTHONPATH=src python3 scripts/run_configuration_governance_smoke.py</code></pre>
+<!-- example-source: configuration_governance -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_configuration_governance_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/scripts/run_configuration_governance_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+
+from configuration_governance.report import write_config_report
+from configuration_governance.testing import make_loader, make_secret_file
+
+
+def main() -&gt; None:
+    loader = make_loader()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        secret_path = make_secret_file(tmpdir_path / "secrets.json", token="prod-secret-token", port=9500)
+        loaded = loader.load(
+            env={
+                "APP_API_TOKEN": "env-token",
+                "APP_HOST": "192.168.10.50",
+                "APP_WRITE_ENABLED": "false",
+            },
+            secret_file=secret_path,
+            cli_overrides={"request_timeout_seconds": 7.5},
+        )
+        report_path = tmpdir_path / "config_report.json"
+        write_config_report(report_path, loaded)
+        payload = report_path.read_text(encoding="utf-8")
+        if "***REDACTED***" not in payload:
+            raise RuntimeError("config report must redact api_token")
+        print("configuration governance smoke passed: precedence + validation + redaction")
+        print(report_path)
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/configuration_governance/loader.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/src/configuration_governance/loader.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+class ConfigError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class FeatureFlagMetadata:
+    enabled: bool
+    owner: str
+    expires_on: str
+
+
+@dataclass(frozen=True)
+class AppConfig:
+    host: str
+    port: int
+    request_timeout_seconds: float
+    poll_interval_seconds: float
+    device_timeout_seconds: float
+    write_enabled: bool
+    api_token: str
+    schema_version: int = 1
+    feature_flags: dict[str, FeatureFlagMetadata] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ConfigSource:
+    host: str = "0.0.0.0"
+    port: int = 8080
+    request_timeout_seconds: float = 5.0
+    poll_interval_seconds: float = 10.0
+    device_timeout_seconds: float = 2.0
+    write_enabled: bool = False
+    api_token: str = ""
+    feature_flags: dict[str, dict[str, object]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LoadedConfig:
+    config: AppConfig
+    effective_values: dict[str, object]
+    source_map: dict[str, str]
+    precedence: list[str]
+    redacted_fields: set[str]
+
+
+def _parse_bool(value: object) -&gt; bool:
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigError(f"invalid bool: {value}")
+
+
+class ConfigurationLoader:
+    precedence = ["defaults", "env", "secret_file", "cli"]
+
+    def __init__(self, defaults: ConfigSource, *, redacted_fields: set[str] | None = None) -&gt; None:
+        self.defaults = defaults
+        self.redacted_fields = redacted_fields or {"api_token"}
+
+    def load(
+        self,
+        *,
+        env: dict[str, str] | None = None,
+        secret_file: Path | None = None,
+        cli_overrides: dict[str, object] | None = None,
+    ) -&gt; LoadedConfig:
+        merged: dict[str, object] = {
+            "host": self.defaults.host,
+            "port": self.defaults.port,
+            "request_timeout_seconds": self.defaults.request_timeout_seconds,
+            "poll_interval_seconds": self.defaults.poll_interval_seconds,
+            "device_timeout_seconds": self.defaults.device_timeout_seconds,
+            "write_enabled": self.defaults.write_enabled,
+            "api_token": self.defaults.api_token,
+            "feature_flags": dict(self.defaults.feature_flags),
+        }
+        source_map = {key: "defaults" for key in merged}
+        if env:
+            self._apply_env(merged, source_map, env)
+        if secret_file:
+            self._apply_secret_file(merged, source_map, secret_file)
+        if cli_overrides:
+            self._apply_mapping(merged, source_map, cli_overrides, source_name="cli")
+        config = self._build_config(merged)
+        effective = self._redacted_effective_values(config)
+        return LoadedConfig(
+            config=config,
+            effective_values=effective,
+            source_map=source_map,
+            precedence=list(self.precedence),
+            redacted_fields=set(self.redacted_fields),
+        )
+
+    def _apply_env(self, merged: dict[str, object], source_map: dict[str, str], env: dict[str, str]) -&gt; None:
+        mapping: dict[str, object] = {}
+        aliases = {
+            "APP_HOST": "host",
+            "APP_PORT": "port",
+            "APP_REQUEST_TIMEOUT_SECONDS": "request_timeout_seconds",
+            "APP_POLL_INTERVAL_SECONDS": "poll_interval_seconds",
+            "APP_DEVICE_TIMEOUT_SECONDS": "device_timeout_seconds",
+            "APP_WRITE_ENABLED": "write_enabled",
+            "APP_API_TOKEN": "api_token",
+            "APP_FEATURE_FLAGS_JSON": "feature_flags",
+        }
+        for key, target in aliases.items():
+            if key not in env:
+                continue
+            value: object = env[key]
+            if target == "feature_flags":
+                value = json.loads(value)
+            mapping[target] = value
+        self._apply_mapping(merged, source_map, mapping, source_name="env")
+
+    def _apply_secret_file(self, merged: dict[str, object], source_map: dict[str, str], secret_file: Path) -&gt; None:
+        payload = json.loads(secret_file.read_text(encoding="utf-8"))
+        self._apply_mapping(merged, source_map, payload, source_name="secret_file")
+
+    def _apply_mapping(
+        self,
+        merged: dict[str, object],
+        source_map: dict[str, str],
+        values: dict[str, object],
+        *,
+        source_name: str,
+    ) -&gt; None:
+        for key, value in values.items():
+            if key not in merged:
+                continue
+            merged[key] = value
+            source_map[key] = source_name
+
+    def _build_config(self, merged: dict[str, object]) -&gt; AppConfig:
+        port = int(merged["port"])
+        if not 1 &lt;= port &lt;= 65535:
+            raise ConfigError("port out of range")
+        request_timeout_seconds = float(merged["request_timeout_seconds"])
+        poll_interval_seconds = float(merged["poll_interval_seconds"])
+        device_timeout_seconds = float(merged["device_timeout_seconds"])
+        if request_timeout_seconds &lt;= 0 or poll_interval_seconds &lt;= 0 or device_timeout_seconds &lt;= 0:
+            raise ConfigError("timeouts and intervals must be positive")
+        write_enabled = _parse_bool(merged["write_enabled"])
+        api_token = str(merged["api_token"]).strip()
+        if not api_token:
+            raise ConfigError("API token required")
+        feature_flags = {
+            name: FeatureFlagMetadata(
+                enabled=_parse_bool(payload.get("enabled", False)),
+                owner=str(payload.get("owner", "")).strip() or "unassigned",
+                expires_on=str(payload.get("expires_on", "")).strip() or "unspecified",
+            )
+            for name, payload in dict(merged["feature_flags"]).items()
+        }
+        return AppConfig(
+            host=str(merged["host"]),
+            port=port,
+            request_timeout_seconds=request_timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+            device_timeout_seconds=device_timeout_seconds,
+            write_enabled=write_enabled,
+            api_token=api_token,
+            feature_flags=feature_flags,
+        )
+
+    def _redacted_effective_values(self, config: AppConfig) -&gt; dict[str, object]:
+        return {
+            "schema_version": config.schema_version,
+            "host": config.host,
+            "port": config.port,
+            "request_timeout_seconds": config.request_timeout_seconds,
+            "poll_interval_seconds": config.poll_interval_seconds,
+            "device_timeout_seconds": config.device_timeout_seconds,
+            "write_enabled": config.write_enabled,
+            "api_token": "***REDACTED***" if "api_token" in self.redacted_fields else config.api_token,
+            "feature_flags": {
+                name: {
+                    "enabled": metadata.enabled,
+                    "owner": metadata.owner,
+                    "expires_on": metadata.expires_on,
+                }
+                for name, metadata in config.feature_flags.items()
+            },
+        }
+</code></pre></details>
+<details class="example-file"><summary><code>src/configuration_governance/report.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/src/configuration_governance/report.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from .loader import LoadedConfig
+
+
+def write_config_report(target: Path, loaded: LoadedConfig) -&gt; None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": loaded.config.schema_version,
+        "precedence": loaded.precedence,
+        "source_map": loaded.source_map,
+        "effective_values": loaded.effective_values,
+        "redacted_fields": sorted(loaded.redacted_fields),
+    }
+    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+</code></pre></details>
+<details class="example-file"><summary><code>src/configuration_governance/testing.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/src/configuration_governance/testing.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+
+from .loader import ConfigSource, ConfigurationLoader
+
+
+def make_loader() -&gt; ConfigurationLoader:
+    defaults = ConfigSource(
+        host="127.0.0.1",
+        port=8080,
+        request_timeout_seconds=5.0,
+        poll_interval_seconds=10.0,
+        device_timeout_seconds=2.0,
+        write_enabled=False,
+        api_token="",
+        feature_flags={
+            "new_parser": {
+                "enabled": False,
+                "owner": "platform-team",
+                "expires_on": "2026-06-30",
+            }
+        },
+    )
+    return ConfigurationLoader(defaults)
+
+
+def make_secret_file(path: Path, *, token: str, port: int = 9200) -&gt; Path:
+    path.write_text(
+        (
+            "{\n"
+            f'  "api_token": "{token}",\n'
+            f'  "port": {port},\n'
+            '  "feature_flags": {"new_parser": {"enabled": true, "owner": "platform-team", "expires_on": "2026-06-30"}}\n'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    return path
+</code></pre></details>
+<details class="example-file"><summary><code>src/configuration_governance/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/src/configuration_governance/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .loader import AppConfig, ConfigError, ConfigSource, ConfigurationLoader, FeatureFlagMetadata, LoadedConfig
+from .report import write_config_report
+
+__all__ = [
+    "AppConfig",
+    "ConfigError",
+    "ConfigSource",
+    "ConfigurationLoader",
+    "FeatureFlagMetadata",
+    "LoadedConfig",
+    "write_config_report",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_configuration_governance.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/configuration_governance/tests/test_configuration_governance.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from configuration_governance.loader import ConfigError
+from configuration_governance.report import write_config_report
+from configuration_governance.testing import make_loader, make_secret_file
+
+
+class ConfigurationGovernanceTests(unittest.TestCase):
+    def test_env_overrides_defaults(self) -&gt; None:
+        loaded = make_loader().load(env={"APP_API_TOKEN": "env-token", "APP_PORT": "9100"})
+        self.assertEqual(loaded.config.port, 9100)
+        self.assertEqual(loaded.source_map["port"], "env")
+
+    def test_secret_file_overrides_env(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secret_path = make_secret_file(Path(tmpdir) / "secrets.json", token="secret-token", port=9300)
+            loaded = make_loader().load(
+                env={"APP_API_TOKEN": "env-token", "APP_PORT": "9100"},
+                secret_file=secret_path,
+            )
+        self.assertEqual(loaded.config.api_token, "secret-token")
+        self.assertEqual(loaded.config.port, 9300)
+        self.assertEqual(loaded.source_map["api_token"], "secret_file")
+
+    def test_cli_overrides_secret_file(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secret_path = make_secret_file(Path(tmpdir) / "secrets.json", token="secret-token", port=9300)
+            loaded = make_loader().load(
+                secret_file=secret_path,
+                cli_overrides={"port": 9400, "write_enabled": True},
+            )
+        self.assertEqual(loaded.config.port, 9400)
+        self.assertTrue(loaded.config.write_enabled)
+        self.assertEqual(loaded.source_map["port"], "cli")
+
+    def test_missing_token_fails_fast(self) -&gt; None:
+        with self.assertRaises(ConfigError):
+            make_loader().load()
+
+    def test_invalid_port_is_rejected(self) -&gt; None:
+        with self.assertRaises(ConfigError):
+            make_loader().load(env={"APP_API_TOKEN": "env-token", "APP_PORT": "70000"})
+
+    def test_report_redacts_secret(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secret_path = make_secret_file(Path(tmpdir) / "secrets.json", token="secret-token")
+            loaded = make_loader().load(secret_file=secret_path)
+            target = Path(tmpdir) / "config_report.json"
+            write_config_report(target, loaded)
+            payload = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual(payload["effective_values"]["api_token"], "***REDACTED***")
+        self.assertEqual(payload["source_map"]["api_token"], "secret_file")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋 precedence、validation 與 redaction</h2><p>設定治理不是 <code>print(os.getenv())</code>；要驗證來源、風險與輸出證據都正確。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先排除 drift，再看程式碼</h2><p>大量「只有某環境才壞」的問題，本質上都是設定契約不清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓設定變成可交付、可稽核資產</h2><p>版本發布時，設定證據、secret 邊界與 flag 狀態都應可回溯。</p></div></div><div class="cards"></div></section>

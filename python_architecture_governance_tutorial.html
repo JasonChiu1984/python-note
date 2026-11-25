@@ -85,6 +85,7 @@
       .governance-compact figcaption { margin-top: .8rem; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -158,7 +159,272 @@
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把決策、ownership、邊界與淘汰拆成四層</h2><p>大型 Python 專案的穩定性，不只來自測試，也來自清楚的演進規則。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能驗 ADR 與邊界</h2><p>用零外部套件範例，先把結構治理做成可重複檢查的流程。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 ownership、import rule 與 deprecation 寫成規則</h2><p>沒有明文規則，結構只會慢慢漂移。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用治理樣板專案驗證架構演進</h2><p>範例專案集中展示 ADR、ownership、import guard 與報告輸出。 <a href="範例程式碼/architecture_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用治理樣板專案驗證架構演進</h2><p>範例專案集中展示 ADR、ownership、import guard 與報告輸出。 <a href="範例程式碼/architecture_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-architecture-governance">
+<h3>範例程式碼 · 模組邊界治理</h3>
+<p>對照 policy.py 與專案中的 import_rules.json，觀察違反匯入規則時的報告。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/architecture_governance
+PYTHONPATH=src python3 scripts/run_architecture_governance_smoke.py</code></pre>
+<!-- example-source: architecture_governance -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/architecture_governance">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_architecture_governance_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/architecture_governance/scripts/run_architecture_governance_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+
+from architecture_governance.policy import render_report
+
+
+def main() -&gt; None:
+    base_dir = Path(__file__).resolve().parents[1]
+    report_path = base_dir / "architecture_governance_report.json"
+    render_report(base_dir, report_path)
+    print("architecture governance smoke passed: adr + ownership + import rules + deprecation + report")
+    print(report_path)
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/architecture_governance/policy.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/architecture_governance/src/architecture_governance/policy.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+from pathlib import Path
+from typing import Any
+
+
+class GovernanceError(ValueError):
+    """Raised when architecture governance rules are violated."""
+
+
+@dataclass(frozen=True)
+class DeprecationEntry:
+    component: str
+    replacement: str
+    sunset_date: str
+
+
+@dataclass(frozen=True)
+class GovernancePolicy:
+    module_ownership: dict[str, str]
+    import_rules: dict[str, list[str]]
+    module_dependencies: dict[str, list[str]]
+    deprecations: list[DeprecationEntry]
+
+
+DEFAULT_MODULE_DEPENDENCIES = {
+    "domain": [],
+    "application": ["domain"],
+    "adapters": ["application", "domain"],
+    "interfaces": ["application", "domain"],
+    "legacy_gateway": ["application"],
+}
+
+
+def _load_json(path: Path) -&gt; Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _parse_adr_blocks(path: Path) -&gt; list[dict[str, str]]:
+    blocks: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+      line = raw_line.strip()
+      if line.startswith("## ADR-"):
+          if current:
+              blocks.append(current)
+          current = {"title": line[3:].strip()}
+      elif current and line.startswith("- ") and ":" in line:
+          key, value = line[2:].split(":", 1)
+          current[key.strip()] = value.strip()
+    if current:
+        blocks.append(current)
+    return blocks
+
+
+def load_policy(base_dir: Path) -&gt; GovernancePolicy:
+    ownership = _load_json(base_dir / "module_ownership.json")
+    import_rules = _load_json(base_dir / "import_rules.json")
+    deprecations = [
+        DeprecationEntry(
+            component="legacy_gateway.run",
+            replacement="gateway_service.start",
+            sunset_date="2026-08-31",
+        )
+    ]
+    return GovernancePolicy(
+        module_ownership=ownership,
+        import_rules=import_rules,
+        module_dependencies=DEFAULT_MODULE_DEPENDENCIES,
+        deprecations=deprecations,
+    )
+
+
+def _validate_adr(path: Path) -&gt; list[str]:
+    issues: list[str] = []
+    blocks = _parse_adr_blocks(path)
+    if not blocks:
+        raise GovernanceError("No ADR blocks found in architecture_decisions.md")
+    required = {"context", "decision", "tradeoff", "replacement_trigger"}
+    for block in blocks:
+        missing = sorted(required - set(block))
+        if missing:
+            issues.append(f"{block.get('title', 'ADR')} missing fields: {', '.join(missing)}")
+    return issues
+
+
+def _validate_ownership(policy: GovernancePolicy) -&gt; list[str]:
+    issues: list[str] = []
+    for module in policy.module_dependencies:
+        if module not in policy.module_ownership:
+            issues.append(f"Ownership missing for module: {module}")
+    return issues
+
+
+def _validate_import_rules(policy: GovernancePolicy) -&gt; list[str]:
+    issues: list[str] = []
+    for module, deps in policy.module_dependencies.items():
+        allowed = set(policy.import_rules.get(module, []))
+        disallowed = sorted(dep for dep in deps if dep not in allowed)
+        if disallowed:
+            issues.append(
+                f"Module {module} imports disallowed dependencies: {', '.join(disallowed)}"
+            )
+    return issues
+
+
+def _validate_deprecations(policy: GovernancePolicy) -&gt; list[str]:
+    issues: list[str] = []
+    for entry in policy.deprecations:
+        if not entry.replacement:
+            issues.append(f"Deprecation {entry.component} missing replacement")
+        if not entry.sunset_date:
+            issues.append(f"Deprecation {entry.component} missing sunset_date")
+    return issues
+
+
+def evaluate_governance(base_dir: Path) -&gt; dict[str, Any]:
+    policy = load_policy(base_dir)
+    issues: list[str] = []
+    issues.extend(_validate_adr(base_dir / "architecture_decisions.md"))
+    issues.extend(_validate_ownership(policy))
+    issues.extend(_validate_import_rules(policy))
+    issues.extend(_validate_deprecations(policy))
+    if issues:
+        raise GovernanceError("; ".join(issues))
+    return {
+        "ownership": policy.module_ownership,
+        "import_rules": policy.import_rules,
+        "deprecations": [
+            {
+                "component": entry.component,
+                "replacement": entry.replacement,
+                "sunset_date": entry.sunset_date,
+            }
+            for entry in policy.deprecations
+        ],
+        "evidence": {
+            "adr_count": len(_parse_adr_blocks(base_dir / "architecture_decisions.md")),
+            "governance_passed": True,
+            "smoke_command": "PYTHONPATH=src python3 scripts/run_architecture_governance_smoke.py",
+        },
+    }
+
+
+def render_report(base_dir: Path, output_path: Path) -&gt; Path:
+    report = evaluate_governance(base_dir)
+    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return output_path
+</code></pre></details>
+<details class="example-file"><summary><code>src/architecture_governance/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/architecture_governance/src/architecture_governance/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Architecture governance sample package."""
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_architecture_governance.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/architecture_governance/tests/test_architecture_governance.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import tempfile
+import unittest
+
+from architecture_governance.policy import GovernanceError, evaluate_governance, render_report
+
+
+FIXTURE = Path(__file__).resolve().parents[1]
+
+
+class ArchitectureGovernanceTests(unittest.TestCase):
+    def test_report_generation(self) -&gt; None:
+        report = evaluate_governance(FIXTURE)
+        self.assertTrue(report["evidence"]["governance_passed"])
+        self.assertEqual(report["evidence"]["adr_count"], 2)
+
+    def test_render_report_writes_json(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "report.json"
+            render_report(FIXTURE, output)
+            self.assertTrue(output.exists())
+            self.assertIn('"governance_passed": true', output.read_text(encoding="utf-8"))
+
+    def test_missing_owner_is_rejected(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "architecture_decisions.md").write_text(
+                "## ADR-001\n- context: x\n- decision: y\n- tradeoff: z\n- replacement_trigger: t\n",
+                encoding="utf-8",
+            )
+            (base / "module_ownership.json").write_text('{"domain":"team-domain"}\n', encoding="utf-8")
+            (base / "import_rules.json").write_text(
+                '{"domain":[],"application":["domain"],"adapters":["application","domain"],"interfaces":["application","domain"],"legacy_gateway":["application"]}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+
+    def test_disallowed_import_is_rejected(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "architecture_decisions.md").write_text(
+                "## ADR-001\n- context: x\n- decision: y\n- tradeoff: z\n- replacement_trigger: t\n",
+                encoding="utf-8",
+            )
+            (base / "module_ownership.json").write_text(
+                '{"domain":"team-domain","application":"team-core","adapters":"team-integrations","interfaces":"team-platform","legacy_gateway":"team-core"}\n',
+                encoding="utf-8",
+            )
+            (base / "import_rules.json").write_text(
+                '{"domain":[],"application":["domain"],"adapters":["domain"],"interfaces":["application","domain"],"legacy_gateway":["application"]}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+
+    def test_missing_adr_fields_is_rejected(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "architecture_decisions.md").write_text(
+                "## ADR-001\n- context: x\n- decision: y\n",
+                encoding="utf-8",
+            )
+            (base / "module_ownership.json").write_text(
+                '{"domain":"team-domain","application":"team-core","adapters":"team-integrations","interfaces":"team-platform","legacy_gateway":"team-core"}\n',
+                encoding="utf-8",
+            )
+            (base / "import_rules.json").write_text(
+                '{"domain":[],"application":["domain"],"adapters":["application","domain"],"interfaces":["application","domain"],"legacy_gateway":["application"]}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要覆蓋 compile、unittest、boundary check 與 HTML</h2><p>只看功能測試通過，不代表結構治理已完成。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>重構出問題時，先看規則不是先怪人</h2><p>模組漂移、循環依賴與舊 API 殘留，多半是治理層缺位。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓架構治理跟 release 一起交付</h2><p>ADR、ownership、boundary check 與 deprecation 時程應進更新紀錄與 release note。</p></div></div><div class="cards"></div></section>

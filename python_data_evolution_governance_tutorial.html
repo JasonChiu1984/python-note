@@ -97,6 +97,7 @@
     @media(max-width:1120px) {.hero {grid-template-columns:minmax(0,1fr);}}
     @media(max-width:740px) {.read-grid,.lesson-top {grid-template-columns:minmax(0,1fr);} .section-head {display:block;}}
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -410,7 +411,340 @@ class Lab(unittest.TestCase):
 
 if __name__ == &#x27;__main__&#x27;:
     unittest.main(verbosity=2)
-</code></pre></details></article><div class="cards"></div></section>
+</code></pre></details></article><div class="cards"></div>
+<div class="course-example" id="example-data-evolution-governance">
+<h3>範例程式碼 · 資料結構遷移</h3>
+<p>從 migration.py 對照舊資料讀取、回填與重新執行時的狀態。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/data_evolution_governance
+PYTHONPATH=src python3 scripts/run_data_evolution_smoke.py</code></pre>
+<!-- example-source: data_evolution_governance -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_data_evolution_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/scripts/run_data_evolution_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+
+from data_evolution_governance.migration import Checkpoint, backfill_records, preflight_check
+from data_evolution_governance.report import write_migration_report
+from data_evolution_governance.testing import sample_manifest, sample_records
+
+
+def main() -&gt; None:
+    records = sample_records()
+    issues = preflight_check(records)
+    if issues:
+        raise SystemExit(f"unexpected preflight issues: {issues}")
+    checkpoint = Checkpoint()
+    first_pass, partial = backfill_records(records, checkpoint=checkpoint, stop_after=2)
+    resumed, summary = backfill_records(first_pass + records[2:], checkpoint=checkpoint)
+    if partial.last_processed_id != 2:
+        raise SystemExit("checkpoint did not advance to expected id")
+    if summary.last_processed_id &lt; 2 or not summary.rollback_validated:
+        raise SystemExit("rollback validation failed")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        report_path = Path(tmpdir) / "migration_report.json"
+        write_migration_report(report_path, manifest=sample_manifest(), summary=summary, preflight_issues=issues)
+        if not report_path.exists():
+            raise SystemExit("migration report not written")
+    if not any(int(item.get("schema_version", 1)) == 2 for item in resumed):
+        raise SystemExit("records were not upgraded")
+    print("data evolution smoke passed: compat + checkpoint + rollback + evidence")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/data_evolution_governance/migration.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/src/data_evolution_governance/migration.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .models import DataEvolutionError, LegacyReader, read_record
+
+
+@dataclass(frozen=True)
+class MigrationManifest:
+    from_version: int
+    to_version: int
+    expand_steps: tuple[str, ...]
+    contract_condition: str
+
+
+@dataclass
+class Checkpoint:
+    last_processed_id: int = 0
+
+
+@dataclass(frozen=True)
+class MigrationSummary:
+    upgraded: int
+    skipped: int
+    drifted: int
+    last_processed_id: int
+    rollback_validated: bool
+
+
+def preflight_check(records: list[dict[str, object]]) -&gt; list[str]:
+    issues: list[str] = []
+    required = {"record_id", "device_id", "timestamp", "value"}
+    for payload in records:
+        missing = sorted(required - payload.keys())
+        if missing:
+            issues.append(f"record {payload.get('record_id', 'unknown')}: missing {','.join(missing)}")
+    return issues
+
+
+def apply_expand(payload: dict[str, object]) -&gt; dict[str, object]:
+    record = read_record(payload)
+    expanded = record.to_payload()
+    expanded["schema_version"] = 2
+    expanded["severity"] = record.severity
+    expanded["device_group"] = record.device_group
+    return expanded
+
+
+def backfill_records(
+    records: list[dict[str, object]],
+    *,
+    checkpoint: Checkpoint | None = None,
+    stop_after: int | None = None,
+) -&gt; tuple[list[dict[str, object]], MigrationSummary]:
+    active_checkpoint = checkpoint or Checkpoint()
+    upgraded = 0
+    skipped = 0
+    drifted = 0
+    output: list[dict[str, object]] = []
+    processed_in_run = 0
+    for payload in records:
+        record_id = int(payload.get("record_id", 0))
+        if record_id &lt;= active_checkpoint.last_processed_id:
+            output.append(payload)
+            skipped += 1
+            continue
+        try:
+            expanded = apply_expand(payload)
+        except (KeyError, TypeError, ValueError, DataEvolutionError):
+            drifted += 1
+            output.append(payload)
+            continue
+        output.append(expanded)
+        upgraded += 1
+        active_checkpoint.last_processed_id = record_id
+        processed_in_run += 1
+        if stop_after is not None and processed_in_run &gt;= stop_after:
+            break
+    rollback_validated = all("level" in LegacyReader().read(item) for item in output if int(item.get("schema_version", 1)) == 2)
+    return output, MigrationSummary(
+        upgraded=upgraded,
+        skipped=skipped,
+        drifted=drifted,
+        last_processed_id=active_checkpoint.last_processed_id,
+        rollback_validated=rollback_validated,
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/data_evolution_governance/models.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/src/data_evolution_governance/models.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+
+
+class DataEvolutionError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class TelemetryRecord:
+    record_id: int
+    device_id: str
+    timestamp: str
+    value: float
+    severity: str
+    device_group: str
+    schema_version: int = 2
+    level: str | None = None
+
+    def to_payload(self) -&gt; dict[str, object]:
+        return asdict(self)
+
+
+def read_record(payload: dict[str, object]) -&gt; TelemetryRecord:
+    version = int(payload.get("schema_version", 1))
+    if version == 1:
+        severity = str(payload.get("level", "info"))
+        device_group = str(payload.get("device_group", "ungrouped"))
+    elif version == 2:
+        severity = str(payload["severity"])
+        device_group = str(payload.get("device_group", "ungrouped"))
+    else:
+        raise DataEvolutionError(f"unsupported schema version: {version}")
+    return TelemetryRecord(
+        record_id=int(payload["record_id"]),
+        device_id=str(payload["device_id"]),
+        timestamp=str(payload["timestamp"]),
+        value=float(payload["value"]),
+        severity=severity,
+        device_group=device_group,
+        schema_version=2,
+        level=str(payload["level"]) if "level" in payload else None,
+    )
+
+
+class LegacyReader:
+    def read(self, payload: dict[str, object]) -&gt; dict[str, object]:
+        severity = str(payload.get("severity") or payload.get("level", "info"))
+        return {
+            "record_id": int(payload["record_id"]),
+            "device_id": str(payload["device_id"]),
+            "timestamp": str(payload["timestamp"]),
+            "value": float(payload["value"]),
+            "level": severity,
+            "schema_version": 1,
+        }
+</code></pre></details>
+<details class="example-file"><summary><code>src/data_evolution_governance/report.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/src/data_evolution_governance/report.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from .migration import MigrationManifest, MigrationSummary
+
+
+def write_migration_report(
+    path: Path,
+    *,
+    manifest: MigrationManifest,
+    summary: MigrationSummary,
+    preflight_issues: list[str],
+) -&gt; None:
+    payload = {
+        "manifest": {
+            "from_version": manifest.from_version,
+            "to_version": manifest.to_version,
+            "expand_steps": list(manifest.expand_steps),
+            "contract_condition": manifest.contract_condition,
+        },
+        "summary": {
+            "upgraded": summary.upgraded,
+            "skipped": summary.skipped,
+            "drifted": summary.drifted,
+            "last_processed_id": summary.last_processed_id,
+            "rollback_validated": summary.rollback_validated,
+        },
+        "preflight_issues": preflight_issues,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+</code></pre></details>
+<details class="example-file"><summary><code>src/data_evolution_governance/testing.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/src/data_evolution_governance/testing.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from .migration import MigrationManifest
+
+
+def sample_manifest() -&gt; MigrationManifest:
+    return MigrationManifest(
+        from_version=1,
+        to_version=2,
+        expand_steps=("add severity", "add device_group", "keep level for compat"),
+        contract_condition="legacy reader verified and backfill report has zero drift",
+    )
+
+
+def sample_records() -&gt; list[dict[str, object]]:
+    return [
+        {"record_id": 1, "device_id": "boiler-01", "timestamp": "2026-05-16T12:00:00Z", "value": 41.2, "level": "warning", "schema_version": 1},
+        {"record_id": 2, "device_id": "boiler-02", "timestamp": "2026-05-16T12:00:05Z", "value": 39.4, "level": "info", "schema_version": 1},
+        {"record_id": 3, "device_id": "boiler-03", "timestamp": "2026-05-16T12:00:10Z", "value": 52.6, "severity": "critical", "device_group": "heat", "schema_version": 2},
+    ]
+
+
+def drift_record() -&gt; dict[str, object]:
+    return {"record_id": 99, "timestamp": "2026-05-16T12:00:59Z", "value": 12.0, "schema_version": 1}
+</code></pre></details>
+<details class="example-file"><summary><code>src/data_evolution_governance/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/src/data_evolution_governance/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .migration import Checkpoint, MigrationManifest, MigrationSummary, backfill_records, preflight_check
+from .models import DataEvolutionError, LegacyReader, TelemetryRecord, read_record
+from .report import write_migration_report
+
+__all__ = [
+    "Checkpoint",
+    "DataEvolutionError",
+    "LegacyReader",
+    "MigrationManifest",
+    "MigrationSummary",
+    "TelemetryRecord",
+    "backfill_records",
+    "preflight_check",
+    "read_record",
+    "write_migration_report",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_data_evolution_governance.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/data_evolution_governance/tests/test_data_evolution_governance.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from data_evolution_governance.migration import Checkpoint, backfill_records, preflight_check
+from data_evolution_governance.models import LegacyReader, read_record
+from data_evolution_governance.report import write_migration_report
+from data_evolution_governance.testing import drift_record, sample_manifest, sample_records
+
+
+class DataEvolutionGovernanceTests(unittest.TestCase):
+    def test_read_record_supports_v1_payload(self) -&gt; None:
+        record = read_record(sample_records()[0])
+        self.assertEqual(record.severity, "warning")
+        self.assertEqual(record.schema_version, 2)
+
+    def test_backfill_updates_checkpoint(self) -&gt; None:
+        checkpoint = Checkpoint()
+        upgraded, summary = backfill_records(sample_records(), checkpoint=checkpoint, stop_after=2)
+        self.assertEqual(summary.last_processed_id, 2)
+        self.assertTrue(any(int(item.get("schema_version", 1)) == 2 for item in upgraded))
+
+    def test_resume_skips_processed_records(self) -&gt; None:
+        checkpoint = Checkpoint(last_processed_id=2)
+        _, summary = backfill_records(sample_records(), checkpoint=checkpoint)
+        self.assertEqual(summary.skipped, 2)
+
+    def test_preflight_detects_drift(self) -&gt; None:
+        issues = preflight_check(sample_records() + [drift_record()])
+        self.assertEqual(len(issues), 1)
+        self.assertIn("missing device_id", issues[0])
+
+    def test_legacy_reader_can_read_upgraded_record(self) -&gt; None:
+        upgraded, _ = backfill_records(sample_records())
+        legacy = LegacyReader().read(upgraded[0])
+        self.assertEqual(legacy["level"], "warning")
+        self.assertEqual(legacy["schema_version"], 1)
+
+    def test_report_writes_summary(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _, summary = backfill_records(sample_records())
+            target = Path(tmpdir) / "migration_report.json"
+            write_migration_report(target, manifest=sample_manifest(), summary=summary, preflight_issues=[])
+            payload = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual(payload["manifest"]["to_version"], 2)
+        self.assertTrue(payload["summary"]["rollback_validated"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時覆蓋升版、續跑與回退</h2><p>資料演進不是 migration 跑完就算完成，還要證明能重跑、能停止、能回讀。</p></div></div><div class="read-grid">
  <article class="reading"><h3>六項實驗證據</h3><ol><li>陌生欄位使預檢停止，不偷偷修正 schema。</li><li>可重複 expand，新舊讀路徑資料一致。</li><li>故意在 checkpoint 前中斷，驗證資料和指標都未推進，再續跑並重跑。</li><li>更新 checkpoint 之前的主鍵，兩欄仍一致。</li><li>未回填完成不得收斂，收斂後舊讀不可用且約束生效。</li><li>用備份另開復原檔、實際讀舊格式，確認來源未覆蓋；快照之後的新寫入不在備份裡。</li></ol></article>
  <article class="reading"><h3>上線驗收還要補哪些？</h3><p>用實際資料量與備份容量估算工期，量測每批耗時、寫入延遲 P95、忙碌錯誤、尚未填值列數與 journal/WAL 成長。測試不代表已經驗證多程序壓力、跨庫事件同步、斷電或資料損毀。</p><p>發布紀錄至少保存 schema 版本、migration 檔版本、每批範圍、截止時間、來源／目的資料量、NULL 與差異數、備份時間點，以及實際演練耗時與簽核。</p></article>

@@ -74,6 +74,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -133,7 +134,338 @@
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Security Engineering 範例專案</h2><p>`範例程式碼/security_engineering/` 示範 PBKDF2 password hash、RBAC policy、input guard、rate limiter、redacted audit 與 manifest gate。 <a href="範例程式碼/security_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/security_engineering
 PYTHONPATH=src python3 -m security_engineering.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_security_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_security_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-security-engineering">
+<h3>範例程式碼 · 授權與稽核</h3>
+<p>追蹤一次存取決策，觀察角色檢查、輸入驗證與稽核紀錄如何配合。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/security_engineering
+PYTHONPATH=src python3 scripts/run_security_smoke.py</code></pre>
+<!-- example-source: security_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_security_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/scripts/run_security_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import pathlib
+import os
+import subprocess
+import sys
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+TESTS = ROOT / "tests"
+sys.path.insert(0, str(SRC))
+
+
+def run(command: list[str]) -&gt; None:
+    env = {**os.environ, "PYTHONPATH": str(SRC)}
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+
+
+def main() -&gt; int:
+    files = [*SRC.glob("security_engineering/*.py"), *TESTS.glob("*.py"), pathlib.Path(__file__)]
+    run([sys.executable, "-m", "py_compile", *map(str, files)])
+    run([sys.executable, "-m", "unittest", "discover", "-s", str(TESTS), "-v"])
+    run([sys.executable, "-m", "security_engineering.demo"])
+    print("security smoke passed: auth + policy + audit + manifest")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/audit.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/audit.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+SENSITIVE_KEYS = {"password", "token", "secret", "authorization"}
+
+
+def redact(fields: dict[str, Any]) -&gt; dict[str, Any]:
+    return {key: ("***" if key.lower() in SENSITIVE_KEYS else value) for key, value in fields.items()}
+
+
+@dataclass
+class AuditLog:
+    events: list[dict[str, Any]] = field(default_factory=list)
+
+    def record(self, event: str, actor: str, trace_id: str, **fields: Any) -&gt; dict[str, Any]:
+        item = {"event": event, "actor": actor, "trace_id": trace_id, **redact(fields)}
+        self.events.append(item)
+        return item
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/auth.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/auth.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import os
+
+
+class PasswordHasher:
+    def __init__(self, iterations: int = 200_000) -&gt; None:
+        if iterations &lt; 100_000:
+            raise ValueError("iterations must be at least 100000")
+        self.iterations = iterations
+
+    def hash_password(self, password: str, *, salt: bytes | None = None) -&gt; str:
+        if len(password) &lt; 12:
+            raise ValueError("password must be at least 12 characters")
+        salt = salt or os.urandom(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, self.iterations)
+        return ".".join(
+            [
+                "pbkdf2_sha256",
+                str(self.iterations),
+                base64.urlsafe_b64encode(salt).decode("ascii"),
+                base64.urlsafe_b64encode(digest).decode("ascii"),
+            ]
+        )
+
+    def verify(self, password: str, encoded_hash: str) -&gt; bool:
+        try:
+            algorithm, iterations, salt_b64, digest_b64 = encoded_hash.split(".", 3)
+            if algorithm != "pbkdf2_sha256":
+                return False
+            salt = base64.urlsafe_b64decode(salt_b64.encode("ascii"))
+            expected = base64.urlsafe_b64decode(digest_b64.encode("ascii"))
+            actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations))
+            return hmac.compare_digest(expected, actual)
+        except (ValueError, TypeError):
+            return False
+
+
+def constant_time_token_match(expected: str, actual: str) -&gt; bool:
+    return hmac.compare_digest(expected.encode("utf-8"), actual.encode("utf-8"))
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/demo.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/demo.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+from .audit import AuditLog
+from .auth import PasswordHasher, constant_time_token_match
+from .policy import RolePolicy
+from .rate_limit import SlidingWindowRateLimiter
+from .supply_chain import DependencyRecord, validate_manifest
+from .validation import safe_error_response, validate_user_payload
+
+
+def main() -&gt; int:
+    hasher = PasswordHasher(iterations=120_000)
+    encoded = hasher.hash_password("correct-horse-battery")
+    policy = RolePolicy()
+    audit = AuditLog()
+    limiter = SlidingWindowRateLimiter(limit=2, window_seconds=60)
+    payload = validate_user_payload({"email": "operator@example.com", "role": "operator"})
+    audit.record("login.success", payload.email, "trace-sec-1", token="demo-token")
+    result = {
+        "password_verified": hasher.verify("correct-horse-battery", encoded),
+        "token_match": constant_time_token_match("expected-token", "expected-token"),
+        "operator_can_write_order": policy.can(payload.role, "write", "order"),
+        "operator_can_delete_order": policy.can(payload.role, "delete", "order"),
+        "rate_limit": [limiter.allow(payload.email, 1), limiter.allow(payload.email, 2), limiter.allow(payload.email, 3)],
+        "audit": audit.events,
+        "safe_error": safe_error_response("invalid_request", "trace-sec-1"),
+        "manifest": validate_manifest([DependencyRecord("fastapi", "0.120.0", "sha256:abc123")]),
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/policy.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/policy.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+Permission = tuple[str, str]
+
+
+@dataclass(frozen=True)
+class RolePolicy:
+    permissions: dict[str, set[Permission]] = field(
+        default_factory=lambda: {
+            "admin": {("read", "order"), ("write", "order"), ("delete", "order"), ("read", "audit")},
+            "operator": {("read", "order"), ("write", "order")},
+            "auditor": {("read", "order"), ("read", "audit")},
+        }
+    )
+
+    def can(self, role: str, action: str, resource: str) -&gt; bool:
+        return (action, resource) in self.permissions.get(role, set())
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/rate_limit.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/rate_limit.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+
+
+@dataclass
+class SlidingWindowRateLimiter:
+    limit: int
+    window_seconds: float
+    attempts: dict[str, deque[float]] = field(default_factory=lambda: defaultdict(deque))
+
+    def allow(self, key: str, now: float) -&gt; bool:
+        bucket = self.attempts[key]
+        while bucket and now - bucket[0] &gt;= self.window_seconds:
+            bucket.popleft()
+        if len(bucket) &gt;= self.limit:
+            return False
+        bucket.append(now)
+        return True
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/supply_chain.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/supply_chain.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class DependencyRecord:
+    name: str
+    version: str
+    hash: str
+
+
+def validate_manifest(records: list[DependencyRecord]) -&gt; dict[str, object]:
+    missing = [item.name for item in records if not item.version or not item.hash.startswith("sha256:")]
+    return {
+        "dependencies_total": len(records),
+        "passed": not missing,
+        "missing_or_invalid": missing,
+    }
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/validation.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/validation.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+
+class ValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class UserPayload:
+    email: str
+    role: str
+
+
+def validate_user_payload(payload: dict[str, object]) -&gt; UserPayload:
+    email = payload.get("email")
+    role = payload.get("role")
+    if not isinstance(email, str) or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValidationError("invalid email")
+    if len(email) &gt; 120:
+        raise ValidationError("email too long")
+    if role not in {"admin", "operator", "auditor"}:
+        raise ValidationError("invalid role")
+    return UserPayload(email=email, role=str(role))
+
+
+def safe_error_response(error_code: str, trace_id: str) -&gt; dict[str, str]:
+    return {"error": error_code, "trace_id": trace_id}
+</code></pre></details>
+<details class="example-file"><summary><code>src/security_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/src/security_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Teaching sample for Python security engineering."""
+
+from .auth import PasswordHasher, constant_time_token_match
+from .policy import RolePolicy
+
+__all__ = ["PasswordHasher", "RolePolicy", "constant_time_token_match"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_security_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/security_engineering/tests/test_security_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from security_engineering.audit import AuditLog
+from security_engineering.auth import PasswordHasher, constant_time_token_match
+from security_engineering.policy import RolePolicy
+from security_engineering.rate_limit import SlidingWindowRateLimiter
+from security_engineering.supply_chain import DependencyRecord, validate_manifest
+from security_engineering.validation import ValidationError, safe_error_response, validate_user_payload
+
+
+class SecurityEngineeringTests(unittest.TestCase):
+    def test_password_hash_verifies_and_rejects_wrong_password(self) -&gt; None:
+        hasher = PasswordHasher(iterations=120_000)
+        encoded = hasher.hash_password("correct-horse-battery", salt=b"1234567890abcdef")
+
+        self.assertTrue(hasher.verify("correct-horse-battery", encoded))
+        self.assertFalse(hasher.verify("wrong-password", encoded))
+
+    def test_policy_denies_unknown_permission_by_default(self) -&gt; None:
+        policy = RolePolicy()
+
+        self.assertTrue(policy.can("operator", "write", "order"))
+        self.assertFalse(policy.can("operator", "delete", "order"))
+        self.assertFalse(policy.can("unknown", "read", "order"))
+
+    def test_validation_and_safe_error_response(self) -&gt; None:
+        payload = validate_user_payload({"email": "operator@example.com", "role": "operator"})
+
+        self.assertEqual(payload.role, "operator")
+        with self.assertRaises(ValidationError):
+            validate_user_payload({"email": "../bad", "role": "admin"})
+        self.assertEqual(safe_error_response("invalid_request", "trace-1")["trace_id"], "trace-1")
+
+    def test_audit_log_redacts_sensitive_fields(self) -&gt; None:
+        audit = AuditLog()
+
+        event = audit.record("login.failed", "operator@example.com", "trace-2", token="secret-token")
+
+        self.assertEqual(event["token"], "***")
+        self.assertEqual(event["trace_id"], "trace-2")
+
+    def test_rate_limit_blocks_after_threshold(self) -&gt; None:
+        limiter = SlidingWindowRateLimiter(limit=2, window_seconds=60)
+
+        self.assertTrue(limiter.allow("actor-1", 1))
+        self.assertTrue(limiter.allow("actor-1", 2))
+        self.assertFalse(limiter.allow("actor-1", 3))
+        self.assertTrue(limiter.allow("actor-1", 62))
+
+    def test_manifest_gate_requires_hashes(self) -&gt; None:
+        ok = validate_manifest([DependencyRecord("fastapi", "0.120.0", "sha256:abc123")])
+        bad = validate_manifest([DependencyRecord("unknown", "1.0.0", "nohash")])
+
+        self.assertTrue(ok["passed"])
+        self.assertFalse(bad["passed"])
+        self.assertEqual(bad["missing_or_invalid"], ["unknown"])
+
+    def test_constant_time_token_match(self) -&gt; None:
+        self.assertTrue(constant_time_token_match("token-a", "token-a"))
+        self.assertFalse(constant_time_token_match("token-a", "token-b"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>

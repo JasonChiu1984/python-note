@@ -86,6 +86,7 @@
 @media(max-width:800px){.bsd-flow{grid-template-columns:1fr}.bsd-flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.35rem}}
 
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -181,7 +182,240 @@ python python_batch_scheduler_deep_lab.py --date 2025-03-09 --zone America/New_Y
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>排程、lease、checkpoint 與 rerun 要成套設計</h2><p>只補其中一項，整體仍然脆弱。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗批次治理</h2><p>先在本機把 lease、checkpoint 與 dead-letter 跑順，再談真實排程器。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 job contract 與 retry budget 寫成明文</h2><p>owner、schedule、timeout、max attempts、backfill window 都不能只放口頭。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 runner 模擬真實批次工作</h2><p>範例專案集中展示 lease、resume、dead-letter 與回補證據。 <a href="範例程式碼/batch_scheduler_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>用小型 runner 模擬真實批次工作</h2><p>範例專案集中展示 lease、resume、dead-letter 與回補證據。 <a href="範例程式碼/batch_scheduler_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-batch-scheduler-engineering">
+<h3>範例程式碼 · 批次排程與續跑</h3>
+<p>從 runner.py 對照工作租約與 checkpoint，辨認中斷後從哪一筆繼續。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/batch_scheduler_engineering
+PYTHONPATH=src python3 scripts/run_batch_scheduler_smoke.py</code></pre>
+<!-- example-source: batch_scheduler_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/batch_scheduler_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_batch_scheduler_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/batch_scheduler_engineering/scripts/run_batch_scheduler_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+from batch_scheduler_engineering.runner import BatchJobRunner, JobConfig, SchedulerExecutionError
+
+
+def main() -&gt; None:
+    runner = BatchJobRunner()
+    job = JobConfig(
+        name="nightly-reconciliation",
+        owner="team-ops",
+        schedule="0 2 * * *",
+        checkpoint_key="reconcile:last-item",
+        max_attempts=3,
+    )
+    failures: dict[int, int] = {2: 1, 5: 3}
+
+    def handler(item: int) -&gt; None:
+        remaining = failures.get(item, 0)
+        if remaining:
+            failures[item] = remaining - 1
+            raise SchedulerExecutionError(f"transient failure on item {item}")
+
+    first = runner.run_job(job, [0, 1, 2, 3], "worker-a", handler)
+    second = runner.run_job(job, [0, 1, 2, 3, 4, 5], "worker-a", handler)
+    backfill = runner.run_job(job, [1, 2, 3], "worker-b", lambda item: None, backfill_from=1)
+    print(json.dumps({"first": first, "second": second, "backfill": backfill}, ensure_ascii=False, indent=2))
+    if second["dead_letter_count"] != 1 or backfill["backfill_mode"] is not True:
+        raise SystemExit("batch scheduler smoke failed")
+    print("batch scheduler smoke passed: lease + checkpoint + retry + dead-letter + backfill")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/batch_scheduler_engineering/runner.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/batch_scheduler_engineering/src/batch_scheduler_engineering/runner.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+
+
+class SchedulerExecutionError(RuntimeError):
+    """Raised when a single batch item fails."""
+
+
+class LeaseConflictError(RuntimeError):
+    """Raised when another worker already owns the job lease."""
+
+
+@dataclass(frozen=True)
+class JobConfig:
+    name: str
+    owner: str
+    schedule: str
+    checkpoint_key: str
+    max_attempts: int = 3
+
+
+@dataclass
+class SchedulerReport:
+    job_name: str
+    owner: str
+    schedule: str
+    worker_id: str
+    processed: int = 0
+    retries: int = 0
+    dead_letter_count: int = 0
+    last_checkpoint: int = -1
+    backfill_mode: bool = False
+
+
+class BatchJobRunner:
+    def __init__(self) -&gt; None:
+        self._leases: dict[str, str] = {}
+        self._checkpoints: dict[str, int] = {}
+        self._dead_letters: list[dict[str, object]] = []
+
+    def acquire_lease(self, job: JobConfig, worker_id: str) -&gt; None:
+        current = self._leases.get(job.name)
+        if current and current != worker_id:
+            raise LeaseConflictError(f"job {job.name} is already leased by {current}")
+        self._leases[job.name] = worker_id
+
+    def release_lease(self, job: JobConfig, worker_id: str) -&gt; None:
+        if self._leases.get(job.name) == worker_id:
+            self._leases.pop(job.name, None)
+
+    def get_checkpoint(self, job: JobConfig) -&gt; int:
+        return self._checkpoints.get(job.checkpoint_key, -1)
+
+    def dead_letters(self) -&gt; list[dict[str, object]]:
+        return list(self._dead_letters)
+
+    def run_job(
+        self,
+        job: JobConfig,
+        items: list[int],
+        worker_id: str,
+        handler,
+        *,
+        backfill_from: int | None = None,
+    ) -&gt; dict[str, object]:
+        self.acquire_lease(job, worker_id)
+        report = SchedulerReport(
+            job_name=job.name,
+            owner=job.owner,
+            schedule=job.schedule,
+            worker_id=worker_id,
+            last_checkpoint=self.get_checkpoint(job),
+            backfill_mode=backfill_from is not None,
+        )
+        start_from = backfill_from if backfill_from is not None else self.get_checkpoint(job) + 1
+        try:
+            for item in items:
+                if item &lt; start_from:
+                    continue
+                self._handle_item(job, item, handler, report)
+        finally:
+            self.release_lease(job, worker_id)
+        result = asdict(report)
+        result["dead_letters"] = self.dead_letters()
+        return result
+
+    def _handle_item(self, job: JobConfig, item: int, handler, report: SchedulerReport) -&gt; None:
+        attempts = 0
+        while attempts &lt; job.max_attempts:
+            attempts += 1
+            try:
+                handler(item)
+                report.processed += 1
+                report.last_checkpoint = item
+                self._checkpoints[job.checkpoint_key] = item
+                return
+            except SchedulerExecutionError as exc:
+                if attempts &lt; job.max_attempts:
+                    report.retries += 1
+                    continue
+                self._dead_letters.append(
+                    {
+                        "job_name": job.name,
+                        "item": item,
+                        "attempts": attempts,
+                        "reason": str(exc),
+                    }
+                )
+                report.dead_letter_count = len(self._dead_letters)
+                return
+</code></pre></details>
+<details class="example-file"><summary><code>src/batch_scheduler_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/batch_scheduler_engineering/src/batch_scheduler_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from .runner import BatchJobRunner, JobConfig, LeaseConflictError, SchedulerExecutionError
+
+__all__ = [
+    "BatchJobRunner",
+    "JobConfig",
+    "LeaseConflictError",
+    "SchedulerExecutionError",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_batch_scheduler_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/batch_scheduler_engineering/tests/test_batch_scheduler_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from batch_scheduler_engineering.runner import BatchJobRunner, JobConfig, LeaseConflictError, SchedulerExecutionError
+
+
+class BatchSchedulerEngineeringTests(unittest.TestCase):
+    def setUp(self) -&gt; None:
+        self.runner = BatchJobRunner()
+        self.job = JobConfig(
+            name="nightly-reconciliation",
+            owner="team-ops",
+            schedule="0 2 * * *",
+            checkpoint_key="reconcile:last-item",
+            max_attempts=3,
+        )
+
+    def test_checkpoint_resume_skips_completed_items(self) -&gt; None:
+        seen: list[int] = []
+        self.runner.run_job(self.job, [0, 1, 2], "worker-a", lambda item: seen.append(item))
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4], "worker-a", lambda item: seen.append(item))
+        self.assertEqual(seen, [0, 1, 2, 3, 4])
+
+    def test_lease_conflict_is_rejected(self) -&gt; None:
+        self.runner.acquire_lease(self.job, "worker-a")
+        with self.assertRaises(LeaseConflictError):
+            self.runner.acquire_lease(self.job, "worker-b")
+
+    def test_retry_then_success_updates_checkpoint(self) -&gt; None:
+        attempts = {2: 1}
+
+        def flaky(item: int) -&gt; None:
+            remaining = attempts.get(item, 0)
+            if remaining:
+                attempts[item] = remaining - 1
+                raise SchedulerExecutionError("retryable")
+
+        report = self.runner.run_job(self.job, [0, 1, 2], "worker-a", flaky)
+        self.assertEqual(report["processed"], 3)
+        self.assertEqual(report["retries"], 1)
+        self.assertEqual(report["last_checkpoint"], 2)
+
+    def test_dead_letter_after_retry_budget(self) -&gt; None:
+        def broken(_: int) -&gt; None:
+            raise SchedulerExecutionError("broken item")
+
+        report = self.runner.run_job(self.job, [5], "worker-a", broken)
+        self.assertEqual(report["dead_letter_count"], 1)
+        self.assertEqual(report["dead_letters"][0]["item"], 5)
+
+    def test_backfill_mode_reprocesses_window(self) -&gt; None:
+        seen: list[int] = []
+        self.runner.run_job(self.job, [0, 1, 2], "worker-a", lambda item: seen.append(item))
+        report = self.runner.run_job(self.job, [1, 2], "worker-b", lambda item: seen.append(item), backfill_from=1)
+        self.assertTrue(report["backfill_mode"])
+        self.assertEqual(seen, [0, 1, 2, 1, 2])
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、恢復與教材頁面</h2><p>不只跑過一次成功路徑，還要驗 lease conflict 與失敗隔離。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>批次失敗時先看契約，再看人</h2><p>大多數混亂來自缺 lease、checkpoint 或 backfill 邊界。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓批次執行證據進 release note</h2><p>operator 能從更新紀錄知道誰跑了什麼、失敗在哪裡、如何回補。</p></div></div><div class="cards"></div></section>

@@ -21,7 +21,8 @@
 #research-study .pr-chart ul{list-style:none;padding:0;margin:.5rem 0}
 #research-study .pr-chart li{display:grid;grid-template-columns:minmax(6rem,9.5rem) minmax(1rem,30rem) 2rem;gap:.5rem;align-items:center;margin:.4rem 0}
 #research-study .pr-chart i{display:block;height:.68rem;border-radius:.4rem;background:linear-gradient(90deg,#286b89 var(--bar),#d4e7f1 var(--bar))}
-</style></head><body><main><header id="top"><div class="eyebrow">PYTHON NETWORK ENGINEERING · 離線實驗</div><h1>Python 網路封包解析</h1><p>從一筆 Ethernet II 位元組紀錄，沿著 IPv4 標頭找到 TCP／UDP 區段。用標準函式庫拆欄位、驗證長度並輸出 JSON。本章只讀兩筆內建合成樣本，不需網路、管理權限或外部套件。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="#architecture">分層架構</a><a href="#workflow">解析流程</a><a href="#framing">長度圖表</a><a href="#apis">常見 API</a><a href="#lab">實驗與程式</a><a href="#validation">驗收與限制</a><a href="#offline-pcap">離線 PCAP</a><a href="#research-study">研究型實作</a><a href="python_wireshark_research_tutorial.html">Wireshark 深度實作</a></nav></header><section class="panel" id="architecture"><div class="eyebrow">01 / 資料分層</div><h2>架構圖：從框架到應用資料</h2><ol class="flow"><li><strong>L2｜Ethernet II</strong><span>前 14 bytes：目的 MAC、來源 MAC、EtherType。0x0800 代表 IPv4。</span></li><li><strong>L3｜IPv4</strong><span>依 IHL 決定標頭後的起點；Total Length 限定 IPv4 終點。Protocol 6＝TCP，17＝UDP。</span></li><li><strong>L4｜傳輸層</strong><span>TCP：Data Offset 決定標頭末端；UDP：固定 8 bytes 標頭，Length 含標頭。</span></li><li><strong>應用資料｜單筆示例</strong><span>只輸出 payload 範圍的十六進位。不假設目的埠等於應用協定，也不解讀加密內容。</span></li></ol>
+</style><link rel="stylesheet" href="assets/course-examples.css">
+</head><body><main><header id="top"><div class="eyebrow">PYTHON NETWORK ENGINEERING · 離線實驗</div><h1>Python 網路封包解析</h1><p>從一筆 Ethernet II 位元組紀錄，沿著 IPv4 標頭找到 TCP／UDP 區段。用標準函式庫拆欄位、驗證長度並輸出 JSON。本章只讀兩筆內建合成樣本，不需網路、管理權限或外部套件。</p><nav aria-label="章節導覽"><a href="index.html">教材首頁</a><a href="#architecture">分層架構</a><a href="#workflow">解析流程</a><a href="#framing">長度圖表</a><a href="#apis">常見 API</a><a href="#lab">實驗與程式</a><a href="#validation">驗收與限制</a><a href="#offline-pcap">離線 PCAP</a><a href="#research-study">研究型實作</a><a href="python_wireshark_research_tutorial.html">Wireshark 深度實作</a></nav></header><section class="panel" id="architecture"><div class="eyebrow">01 / 資料分層</div><h2>架構圖：從框架到應用資料</h2><ol class="flow"><li><strong>L2｜Ethernet II</strong><span>前 14 bytes：目的 MAC、來源 MAC、EtherType。0x0800 代表 IPv4。</span></li><li><strong>L3｜IPv4</strong><span>依 IHL 決定標頭後的起點；Total Length 限定 IPv4 終點。Protocol 6＝TCP，17＝UDP。</span></li><li><strong>L4｜傳輸層</strong><span>TCP：Data Offset 決定標頭末端；UDP：固定 8 bytes 標頭，Length 含標頭。</span></li><li><strong>應用資料｜單筆示例</strong><span>只輸出 payload 範圍的十六進位。不假設目的埠等於應用協定，也不解讀加密內容。</span></li></ol>
 <p class="notice"><strong>先辨識來源鏈路型別。</strong>本練習直接餵 Ethernet II 位元組；一般 PCAP／PCAPNG 還有外層容器、鏈路型別、時間戳、捕獲長度與原始長度。不能把整個捕獲檔直接當一個 frame，也不能假設所有紀錄都是 Ethernet。</p>
 <p>「frame」、「IPv4 datagram」、「TCP segment／UDP datagram」不是同一個位元組範圍。TCP 是位元組串流，單筆 payload 不代表一則完整應用訊息；需要多筆重組、順序／重傳處理與應用層 framing。UDP 保留 datagram 邊界，但不提供 TCP 式的可靠送達。</p></section><section class="panel" id="workflow"><div class="eyebrow">02 / 解析器資料流</div><h2>流程圖：先驗邊界，再讀欄位</h2><ol class="flow"><li><strong>讀固定標頭</strong><span>最少 14 bytes 才能讀 EtherType；只接受未標記的 IPv4。</span></li><li><strong>建立 IPv4 視窗</strong><span>確認版本、IHL×4、Total Length；擷取不足拒絕；忽略 IPv4 邊界外資料。</span></li><li><strong>分片／協定分流</strong><span>MF=1 或 fragment offset 非 0 拒絕；DF 單獨出現不代表是分片。</span></li><li><strong>建立 L4 視窗</strong><span>UDP 驗至少 8 且 Length 等於 IPv4 payload；TCP 驗至少 20、Data Offset 不越界。</span></li><li><strong>輸出結果</strong><span>成功輸出 JSON；格式、支援範圍或長度有誤時回 ParseError。</span></li></ol>
 <p>每次處理 offset 都先檢查 <code>start + length ≤ len(view)</code>。Python slice 越界會悄悄縮短，所以不能只用切片當成驗證。<code>struct.unpack_from()</code> 也應讀已確認足夠的範圍。</p></section><section class="panel" id="framing"><div class="eyebrow">03 / 位元組對照</div><h2>同一張圖，分清楚捕獲長度與封包長度</h2><figure style="margin:.5rem 0"><figcaption><strong>兩筆內建樣本：每條依自身總長度正規化</strong>（不是同一絕對尺度）</figcaption><div class="chart-row"><strong>UDP：60 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:20">20</span><span class="l4" style="--n:8">8</span><span class="data" style="--n:4"></span><span class="pad" style="--n:14">14</span></div></div><div class="chart-row"><strong>TCP：65 bytes</strong><div class="chart-strip" aria-hidden="true"><span class="eth" style="--n:14">14</span><span class="ip" style="--n:24">24</span><span class="l4" style="--n:24">24</span><span class="data" style="--n:3"></span></div></div><ul class="chart-key"><li class="eth">Ethernet 標頭</li><li class="ip">IPv4 標頭</li><li class="l4">傳輸層標頭</li><li class="data">應用資料</li><li class="pad">外層 padding</li></ul></figure><div class="local-scroll" role="region" tabindex="0" aria-label="兩筆樣本位移與長度（可橫移）"><table><thead><tr><th scope="col">範圍（起點含、終點不含）</th><th scope="col">UDP</th><th scope="col">TCP</th></tr></thead><tbody><tr><th scope="row">Ethernet 標頭</th><td>[0, 14)</td><td>[0, 14)</td></tr><tr><th scope="row">IPv4 標頭</th><td>[14, 34)；IHL=5</td><td>[14, 38)；IHL=6</td></tr><tr><th scope="row">IPv4 datagram</th><td>[14, 46)；Total Length=32</td><td>[14, 65)；Total Length=51</td></tr><tr><th scope="row">傳輸層標頭</th><td>[34, 42)；固定 8 bytes</td><td>[38, 62)；Data Offset=6，即 24 bytes</td></tr><tr><th scope="row">Payload</th><td>[42, 46)；4c414221（LAB!）</td><td>[62, 65)；4c4142（LAB）</td></tr><tr><th scope="row">外層尾端</th><td>[46, 60)；14 bytes padding</td><td>空</td></tr></tbody></table></div><p>例：UDP 的 Length=12 → 8 bytes 標頭 + 4 bytes 資料。TCP 沒有同義的 UDP Length 欄位；正常的非分片 IPv4 datagram 中，此例 TCP payload = 51 − 24 − 24 = 3 bytes。外層尾端不會被當作 payload；一般來源可能另含 FCS 或無 padding，本程式不嘗試辨識尾端種類。</p></section><section class="panel" id="apis"><div class="eyebrow">04 / 常見工具</div><h2>API 怎麼選：欄位拆解、離線檔案與資料匯出</h2><div class="local-scroll" role="region" tabindex="0" aria-label="常見 API 比較（可橫移）"><table><thead><tr><th scope="col">API／工具</th><th scope="col">常見用法與適用場景</th><th scope="col">拿到資料後仍要核對</th></tr></thead><tbody><tr><th scope="row">bytes.fromhex</th><td><code>bytes.fromhex("0800")</code>：將固定範例轉成兩個 bytes。</td><td>不是文字編碼轉換；不從外界載入樣本。</td></tr><tr><th scope="row">memoryview</th><td><code>memoryview(frame)[14:]</code>：取得子視圖，不複製所切資料。</td><td>生命週期跟著來源；轉為 bytes 或 hex 表示時會配置輸出。</td></tr><tr><th scope="row">struct</th><td><code>struct.unpack_from("!H", view, 12)</code>：從 offset 12 讀 big-endian 無號 16 位整數。</td><td><code>!</code> 是網路位元組序，<code>calcsize("!H")==2</code>。先驗邊界。</td></tr><tr><th scope="row">ipaddress</th><td><code>str(ipaddress.IPv4Address(b"\xc0\x00\x02\x01"))</code>：將四個位元組轉成 IPv4 字串。</td><td>數值和字串輸入的語意與錯誤處理要區分。</td></tr><tr><th scope="row">Scapy（選用）</th><td><code>scapy.utils.PcapReader</code> 可逐筆讀已授權、脫敏樣本；<code>rdpcap()</code> 適合小檔讀入記憶體。</td><td>核對封裝、截斷與資源用量；不在本次環境執行。</td></tr><tr><th scope="row">TShark（選用）</th><td>讀檔模式 <code>-r</code>；<code>-T fields</code> 配 <code>-e</code> 選欄位，適合離線交叉比對。</td><td>核對欄位定義、空值、加密和 dissector 推斷；本章不擷取即時流量。</td></tr></tbody></table></div>
@@ -256,7 +257,196 @@ class PacketLabTest(unittest.TestCase):
 
 
 if __name__ == &quot;__main__&quot;:
-    unittest.main()</code></pre></details></section><section class="panel" id="validation"><div class="eyebrow">06 / 能證明與不能證明的事</div><h2>驗收：把解析正確性限縮到可觀察條件</h2><ul><li>確認 UDP 只輸出 4 bytes payload、尾端 14 bytes 不混入；TCP 兩層選項區各 4 bytes，最後只輸出 3 bytes payload。</li><li>先看錯誤落在哪一道檢查：測試包含 Ethernet 截斷、IPv4 Truncation、非 IPv4、IPv4 分片、UDP 長度不符及 TCP Data Offset 越界。</li><li>欄位 <code>checksum_field</code> 只是讀值；本程式不驗 IP 或傳輸層校驗和。IPv4 UDP checksum 0 代表未提供；TCP checksum 的行為不同。校驗和不是來源身分驗證。</li><li>本實驗不支援 VLAN、IPv6、分片重組、TCP 串流重組、解密、FCS 驗證或任意 PCAP。受控流程分析真實檔案時，先取得使用許可、確認資料留存／遮罩政策，並使用成熟的離線工具處理不同 link type。</li></ul><h3>練習題</h3><ol><li>手算 TCP 範例的應用資料範圍，再與 JSON 的 3 bytes 相互核對。</li><li>查閱單測，解釋為何 DF 不應拒絕、MF 應拒絕；再核對 IPv4 options 與資料起點的關係。</li><li>報告捕獲長度、IP Total Length 與實際 UDP payload 長度，說明為什麼三者不相同。</li></ol><h3>原始規格與文件</h3><ul><li><a href="https://www.rfc-editor.org/rfc/rfc894">RFC 894：Ethernet 承載 IP</a> · <a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791：IPv4</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768：UDP</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293：TCP</a></li><li><a href="https://docs.python.org/3/library/struct.html">Python struct</a> · <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a> · <a href="https://docs.python.org/3/library/ipaddress.html">ipaddress</a></li><li><a href="https://scapy.readthedocs.io/en/latest/api/scapy.utils.html">Scapy utils</a> · <a href="https://www.wireshark.org/docs/man-pages/tshark.html">Wireshark TShark 使用手冊</a></li></ul></section><footer><a href="#top">回到頁首</a> · <a href="index.html">回 Python 教材首頁</a></footer><section class="panel" id="offline-pcap"><div class="eyebrow">07 / 檔案鑑識實作</div><h2>離線 PCAP：從檔案格式一路驗證到 UDP</h2>
+    unittest.main()</code></pre></details>
+<div class="course-example" id="example-network-packet-analysis-lab">
+<h3>範例程式碼 · TCP 與 UDP 封包解析</h3>
+<p>選擇內建 UDP 或 TCP 樣本，對照 IPv4 標頭長度與實際解析出的 payload。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/network_packet_analysis_lab
+python3 packet_lab.py udp
+python3 packet_lab.py tcp</code></pre>
+<!-- example-source: network_packet_analysis_lab -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/network_packet_analysis_lab">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>packet_lab.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/network_packet_analysis_lab/packet_lab.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Decode only the two built-in documentation fixtures. No file or network input."""
+
+import argparse
+import ipaddress
+import json
+import struct
+
+FIXTURES = {
+    "udp": bytes.fromhex(
+        "0200000000020200000000010800 "
+        "450000200001000040118e95c0000201c6336402 "
+        "30391f90000c0000 4c414221 "
+        "0000000000000000000000000000"  # Ethernet padding, not part of IPv4
+    ),
+    "tcp": bytes.fromhex(
+        "0200000000020200000000010800 "
+        "460000330002400040064c8bc0000201c6336402 01010000 "
+        "303901bb000000010000000260184000b2540000 01010000 "
+        "4c4142"
+    ),
+}
+
+
+class ParseError(ValueError):
+    """Record is incomplete, inconsistent, or intentionally unsupported."""
+
+
+def bounded(view: memoryview, start: int, length: int, name: str) -&gt; memoryview:
+    if start &lt; 0 or length &lt; 0 or start + length &gt; len(view):
+        raise ParseError(f"{name}: truncated")
+    return view[start:start + length]
+
+
+def mac(view: memoryview) -&gt; str:
+    return view.hex(":")
+
+
+def parse_frame(frame: bytes) -&gt; dict:
+    captured = memoryview(frame)
+    eth = bounded(captured, 0, 14, "Ethernet II")
+    ether_type, = struct.unpack_from("!H", eth, 12)
+    if ether_type != 0x0800:
+        raise ParseError("EtherType: only untagged IPv4 (0x0800) is supported")
+
+    fixed_ip = bounded(captured, 14, 20, "IPv4 minimum header")
+    version, ihl = fixed_ip[0] &gt;&gt; 4, (fixed_ip[0] &amp; 0xF) * 4
+    if version != 4 or ihl &lt; 20:
+        raise ParseError("IPv4: invalid version or IHL")
+    total, identification, frag = struct.unpack_from("!HHH", fixed_ip, 2)
+    if total &lt; ihl:
+        raise ParseError("IPv4: Total Length is smaller than header")
+    ip = bounded(captured, 14, total, "IPv4 Total Length")
+    if frag &amp; 0x8000:
+        raise ParseError("IPv4: reserved fragmentation flag is set")
+    if frag &amp; 0x3FFF:  # MF (0x2000) or non-zero offset, not DF (0x4000)
+        raise ParseError("IPv4: fragmented datagrams are unsupported")
+
+    protocol = fixed_ip[9]
+    segment = ip[ihl:]
+    if protocol == 17:
+        header = bounded(segment, 0, 8, "UDP minimum header")
+        src_port, dst_port, length, checksum = struct.unpack_from("!HHHH", header)
+        if length &lt; 8 or length != len(segment):
+            raise ParseError("UDP: length differs from IPv4 payload")
+        payload = segment[8:length]
+        info = {"kind": "UDP", "header_bytes": 8, "length": length,
+                "checksum_field": checksum}
+    elif protocol == 6:
+        header = bounded(segment, 0, 20, "TCP minimum header")
+        src_port, dst_port, seq, ack = struct.unpack_from("!HHII", header)
+        offset = (header[12] &gt;&gt; 4) * 4
+        if offset &lt; 20:
+            raise ParseError("TCP: invalid Data Offset")
+        bounded(segment, 0, offset, "TCP header including options")
+        payload = segment[offset:]
+        checksum, = struct.unpack_from("!H", header, 16)
+        info = {"kind": "TCP", "header_bytes": offset, "sequence": seq,
+                "acknowledgment": ack, "flags_low8_hex": f"{header[13]:02x}",
+                "checksum_field": checksum}
+    else:
+        raise ParseError("IPv4 Protocol: only TCP (6) and UDP (17) are supported")
+
+    return {
+        "captured_bytes": len(captured),
+        "ethernet": {"source": mac(eth[6:12]), "destination": mac(eth[:6]),
+                     "ethertype_hex": f"{ether_type:04x}"},
+        "ipv4": {"source": str(ipaddress.IPv4Address(bytes(fixed_ip[12:16]))),
+                 "destination": str(ipaddress.IPv4Address(bytes(fixed_ip[16:20]))),
+                 "header_bytes": ihl, "total_length": total, "ttl": fixed_ip[8],
+                 "identification": identification, "protocol": protocol,
+                 "dont_fragment": bool(frag &amp; 0x4000)},
+        "transport": {**info, "source_port": src_port, "destination_port": dst_port},
+        "payload_length": len(payload), "payload_hex": payload.hex(),
+        "unparsed_ethernet_tail_bytes": len(captured) - 14 - total,
+    }
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("fixture", choices=FIXTURES)
+    args = parser.parse_args()
+    try:
+        result = parse_frame(FIXTURES[args.fixture])
+    except ParseError as exc:
+        parser.exit(1, f"parse error: {exc}\n")
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>test_packet_lab.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/network_packet_analysis_lab/test_packet_lab.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>import unittest
+
+from packet_lab import FIXTURES, ParseError, parse_frame
+
+
+class PacketLabTest(unittest.TestCase):
+    def test_udp_payload_excludes_ethernet_padding(self):
+        p = parse_frame(FIXTURES["udp"])
+        self.assertEqual(p["captured_bytes"], 60)
+        self.assertEqual(p["ipv4"]["source"], "192.0.2.1")
+        self.assertEqual(p["ipv4"]["destination"], "198.51.100.2")
+        self.assertEqual(p["transport"]["length"], 12)
+        self.assertEqual(p["transport"]["destination_port"], 8080)
+        self.assertEqual(p["payload_hex"], "4c414221")
+        self.assertEqual(p["unparsed_ethernet_tail_bytes"], 14)
+
+    def test_tcp_ip_ihl_and_data_offset_use_words(self):
+        p = parse_frame(FIXTURES["tcp"])
+        self.assertEqual(p["captured_bytes"], 65)
+        self.assertEqual(p["ipv4"]["header_bytes"], 24)
+        self.assertEqual(p["transport"]["header_bytes"], 24)
+        self.assertEqual(p["transport"]["destination_port"], 443)
+        self.assertEqual(p["transport"]["sequence"], 1)
+        self.assertEqual(p["transport"]["flags_low8_hex"], "18")
+        self.assertEqual(p["payload_hex"], "4c4142")
+        self.assertTrue(p["ipv4"]["dont_fragment"])
+
+    def test_truncated_ethernet_header(self):
+        with self.assertRaisesRegex(ParseError, "Ethernet II: truncated"):
+            parse_frame(FIXTURES["udp"][:13])
+
+    def test_truncated_ipv4_total_length(self):
+        with self.assertRaisesRegex(ParseError, "IPv4 Total Length: truncated"):
+            parse_frame(FIXTURES["udp"][:45])
+
+    def test_unsupported_ethertype(self):
+        frame = bytearray(FIXTURES["udp"])
+        frame[12:14] = bytes.fromhex("86dd")
+        with self.assertRaisesRegex(ParseError, "EtherType"):
+            parse_frame(bytes(frame))
+
+    def test_fragmentation_is_out_of_scope(self):
+        frame = bytearray(FIXTURES["udp"])
+        frame[20:22] = bytes.fromhex("2000")
+        with self.assertRaisesRegex(ParseError, "fragmented datagrams"):
+            parse_frame(bytes(frame))
+
+    def test_bad_udp_length(self):
+        frame = bytearray(FIXTURES["udp"])
+        frame[38:40] = bytes.fromhex("000d")
+        with self.assertRaisesRegex(ParseError, "UDP: length"):
+            parse_frame(bytes(frame))
+
+    def test_bad_tcp_offset(self):
+        frame = bytearray(FIXTURES["tcp"])
+        frame[50] = 0xF0
+        with self.assertRaisesRegex(ParseError, "TCP header including options: truncated"):
+            parse_frame(bytes(frame))
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section><section class="panel" id="validation"><div class="eyebrow">06 / 能證明與不能證明的事</div><h2>驗收：把解析正確性限縮到可觀察條件</h2><ul><li>確認 UDP 只輸出 4 bytes payload、尾端 14 bytes 不混入；TCP 兩層選項區各 4 bytes，最後只輸出 3 bytes payload。</li><li>先看錯誤落在哪一道檢查：測試包含 Ethernet 截斷、IPv4 Truncation、非 IPv4、IPv4 分片、UDP 長度不符及 TCP Data Offset 越界。</li><li>欄位 <code>checksum_field</code> 只是讀值；本程式不驗 IP 或傳輸層校驗和。IPv4 UDP checksum 0 代表未提供；TCP checksum 的行為不同。校驗和不是來源身分驗證。</li><li>本實驗不支援 VLAN、IPv6、分片重組、TCP 串流重組、解密、FCS 驗證或任意 PCAP。受控流程分析真實檔案時，先取得使用許可、確認資料留存／遮罩政策，並使用成熟的離線工具處理不同 link type。</li></ul><h3>練習題</h3><ol><li>手算 TCP 範例的應用資料範圍，再與 JSON 的 3 bytes 相互核對。</li><li>查閱單測，解釋為何 DF 不應拒絕、MF 應拒絕；再核對 IPv4 options 與資料起點的關係。</li><li>報告捕獲長度、IP Total Length 與實際 UDP payload 長度，說明為什麼三者不相同。</li></ol><h3>原始規格與文件</h3><ul><li><a href="https://www.rfc-editor.org/rfc/rfc894">RFC 894：Ethernet 承載 IP</a> · <a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791：IPv4</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768：UDP</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293：TCP</a></li><li><a href="https://docs.python.org/3/library/struct.html">Python struct</a> · <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a> · <a href="https://docs.python.org/3/library/ipaddress.html">ipaddress</a></li><li><a href="https://scapy.readthedocs.io/en/latest/api/scapy.utils.html">Scapy utils</a> · <a href="https://www.wireshark.org/docs/man-pages/tshark.html">Wireshark TShark 使用手冊</a></li></ul></section><footer><a href="#top">回到頁首</a> · <a href="index.html">回 Python 教材首頁</a></footer><section class="panel" id="offline-pcap"><div class="eyebrow">07 / 檔案鑑識實作</div><h2>離線 PCAP：從檔案格式一路驗證到 UDP</h2>
 <p>本單元只產生與讀取三筆合成紀錄，不擷取介面、不傳送或重放封包，也不解析應用內容。範例只讀 classic PCAP 2.4、鏈路類型 1（Ethernet）、單層 802.1Q 以及未分片的 IPv4/UDP；PCAPNG、IPv6、多層 VLAN、重新組裝均不在此範例範圍。</p>
 <figure><figcaption><strong>架構圖｜離線資料來源、解析與對照</strong></figcaption><ol class="pcap-boxes"><li><strong>合成資料</strong><span>兩筆完整 Ethernet／IPv4／UDP、一筆截斷快照。</span></li><li><strong>classic PCAP 容器</strong><span>全域標頭及每筆時間、擷取長度、原始長度。</span></li><li><strong>Python 解析器</strong><span>明確檢查容器與 L2／L3／L4 的資料邊界。</span></li><li><strong>可驗證輸出</strong><span>JSON 結果與 Wireshark／TShark／tcpdump 對照。</span></li></ol></figure>
 <figure><figcaption><strong>流程圖｜先確認可讀範圍，再逐層縮小</strong></figcaption><ol class="pcap-boxes"><li><strong>判讀檔頭</strong><span>Magic 決定容器位元組序與時間精度；再驗版本、snaplen、linktype。</span></li><li><strong>切出紀錄</strong><span>caplen 需不大於 snaplen、origlen 和剩餘檔案；不足報容器錯誤。</span></li><li><strong>辨認協定</strong><span>EtherType／VLAN 決定 L3 起始；IHL、IPv4 Total Length 和 UDP Length 限界。</span></li><li><strong>回傳分類</strong><span>成功列長度與連接埠；截斷或未支援保留原因，不猜測缺失欄位。</span></li></ol></figure>

@@ -80,6 +80,7 @@
 .perf-hero-flow li span{grid-column:2;color:#45566e;font-size:.94rem;overflow-wrap:anywhere}
 .perf-hero-flow figcaption{padding-top:.6rem;color:#45566e;font-size:.9rem}
 </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -251,7 +252,326 @@ if __name__ == &quot;__main__&quot;:
       <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Performance Memory 範例專案</h2><p>範例用可重現 sensor readings 示範 slow path、optimized path、profile、memory 與 budget report。 <a href="範例程式碼/performance_memory_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/performance_memory_engineering
 python3 -m py_compile src/performance_memory_engineering/*.py scripts/run_performance_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_performance_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_performance_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-performance-memory-engineering">
+<h3>範例程式碼 · 效能與記憶體量測</h3>
+<p>比較兩種 workload 的執行時間，對照 profiling 與記憶體預算。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/performance_memory_engineering
+PYTHONPATH=src python3 scripts/run_performance_smoke.py</code></pre>
+<!-- example-source: performance_memory_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_performance_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/scripts/run_performance_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC = PROJECT_ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from performance_memory_engineering.budget import PerformanceBudget, evaluate_budget
+from performance_memory_engineering.profiling import run_benchmark, run_memory_snapshot, run_profile
+from performance_memory_engineering.workload import build_dataset, optimized_group_totals, slow_group_totals
+
+
+def main() -&gt; int:
+    readings = build_dataset(1600)
+    slow_result = slow_group_totals(readings)
+    optimized_result = optimized_group_totals(readings)
+    if slow_result != optimized_result:
+        raise SystemExit("optimized result does not match baseline")
+
+    baseline = run_benchmark("slow_group_totals", lambda: slow_group_totals(readings))
+    candidate = run_benchmark("optimized_group_totals", lambda: optimized_group_totals(readings))
+    profile = run_profile("optimized_group_totals", lambda: optimized_group_totals(readings))
+    memory = run_memory_snapshot("optimized_group_totals", lambda: optimized_group_totals(readings))
+    decision = evaluate_budget(candidate, baseline, memory, PerformanceBudget(max_latency_ratio=1.15, max_peak_kib=512))
+
+    report = {
+        "baseline": baseline.__dict__,
+        "candidate": candidate.__dict__,
+        "profile_top_functions": profile.top_functions,
+        "profile_total_calls": profile.total_calls,
+        "memory": memory.__dict__,
+        "budget": decision.__dict__,
+    }
+    evidence_path = PROJECT_ROOT / "performance_evidence.json"
+    evidence_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if not decision.passed:
+        raise SystemExit("; ".join(decision.notes))
+
+    print("performance memory smoke passed: benchmark + profile + tracemalloc + budget")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/performance_memory_engineering/budget.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/src/performance_memory_engineering/budget.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .profiling import BenchmarkResult, MemoryReport
+
+
+@dataclass(frozen=True)
+class PerformanceBudget:
+    max_latency_ratio: float = 1.15
+    max_peak_kib: float = 512.0
+
+
+@dataclass(frozen=True)
+class BudgetDecision:
+    passed: bool
+    latency_ratio: float
+    peak_kib: float
+    notes: tuple[str, ...]
+
+
+def evaluate_budget(
+    baseline: BenchmarkResult,
+    candidate: BenchmarkResult,
+    memory: MemoryReport,
+    budget: PerformanceBudget,
+) -&gt; BudgetDecision:
+    if baseline.median_seconds &lt;= 0:
+        raise ValueError("baseline median must be positive")
+    latency_ratio = candidate.median_seconds / baseline.median_seconds
+    notes: list[str] = []
+    if latency_ratio &gt; budget.max_latency_ratio:
+        notes.append(f"latency ratio {latency_ratio:.3f} exceeds {budget.max_latency_ratio:.3f}")
+    if memory.peak_kib &gt; budget.max_peak_kib:
+        notes.append(f"peak memory {memory.peak_kib:.3f} KiB exceeds {budget.max_peak_kib:.3f} KiB")
+    if not notes:
+        notes.append("performance budget passed")
+    return BudgetDecision(
+        passed=not any("exceeds" in note for note in notes),
+        latency_ratio=round(latency_ratio, 3),
+        peak_kib=memory.peak_kib,
+        notes=tuple(notes),
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/performance_memory_engineering/profiling.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/src/performance_memory_engineering/profiling.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import cProfile
+import io
+import pstats
+import statistics
+import time
+import tracemalloc
+from dataclasses import dataclass
+from typing import Callable, TypeVar
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class BenchmarkResult:
+    name: str
+    iterations: int
+    median_seconds: float
+    min_seconds: float
+    max_seconds: float
+    result_size: int
+
+
+@dataclass(frozen=True)
+class ProfileReport:
+    function_name: str
+    top_functions: list[str]
+    total_calls: int
+
+
+@dataclass(frozen=True)
+class MemoryReport:
+    function_name: str
+    current_kib: float
+    peak_kib: float
+    result_size: int
+
+
+def run_benchmark(name: str, fn: Callable[[], dict[str, float]], iterations: int = 7) -&gt; BenchmarkResult:
+    if iterations &lt; 3:
+        raise ValueError("iterations must be at least 3")
+    durations: list[float] = []
+    result: dict[str, float] = {}
+    for _ in range(iterations):
+        start = time.perf_counter()
+        result = fn()
+        durations.append(time.perf_counter() - start)
+    return BenchmarkResult(
+        name=name,
+        iterations=iterations,
+        median_seconds=statistics.median(durations),
+        min_seconds=min(durations),
+        max_seconds=max(durations),
+        result_size=len(result),
+    )
+
+
+def run_profile(function_name: str, fn: Callable[[], T], top_n: int = 5) -&gt; ProfileReport:
+    if top_n &lt;= 0:
+        raise ValueError("top_n must be positive")
+    profiler = cProfile.Profile()
+    profiler.enable()
+    fn()
+    profiler.disable()
+    stats_stream = io.StringIO()
+    stats = pstats.Stats(profiler, stream=stats_stream).strip_dirs().sort_stats("cumulative")
+    stats.print_stats(top_n)
+    lines = [line.strip() for line in stats_stream.getvalue().splitlines() if line.strip()]
+    return ProfileReport(function_name=function_name, top_functions=lines[-top_n:], total_calls=stats.total_calls)
+
+
+def run_memory_snapshot(function_name: str, fn: Callable[[], dict[str, float]]) -&gt; MemoryReport:
+    tracemalloc.start()
+    try:
+        result = fn()
+        current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return MemoryReport(
+        function_name=function_name,
+        current_kib=round(current / 1024, 3),
+        peak_kib=round(peak / 1024, 3),
+        result_size=len(result),
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/performance_memory_engineering/workload.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/src/performance_memory_engineering/workload.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class SensorReading:
+    sensor_id: str
+    group: str
+    value: float
+    quality: str
+
+
+def build_dataset(size: int = 1200) -&gt; list[SensorReading]:
+    if size &lt;= 0:
+        raise ValueError("size must be positive")
+    groups = ("ahu", "chiller", "pump", "power")
+    data: list[SensorReading] = []
+    for index in range(size):
+        group = groups[index % len(groups)]
+        quality = "good" if index % 17 else "stale"
+        value = round(18.0 + (index % 31) * 0.37 + (index % 5) * 0.11, 3)
+        data.append(SensorReading(sensor_id=f"{group}-{index:05d}", group=group, value=value, quality=quality))
+    return data
+
+
+def slow_group_totals(readings: list[SensorReading]) -&gt; dict[str, float]:
+    groups = sorted({reading.group for reading in readings})
+    totals: dict[str, float] = {}
+    for group in groups:
+        group_total = 0.0
+        for reading in readings:
+            if reading.group == group and reading.quality == "good":
+                group_total += reading.value
+        totals[group] = round(group_total, 3)
+    return totals
+
+
+def optimized_group_totals(readings: list[SensorReading]) -&gt; dict[str, float]:
+    totals: dict[str, float] = {}
+    for reading in readings:
+        if reading.quality != "good":
+            continue
+        totals[reading.group] = totals.get(reading.group, 0.0) + reading.value
+    return {group: round(total, 3) for group, total in sorted(totals.items())}
+</code></pre></details>
+<details class="example-file"><summary><code>src/performance_memory_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/src/performance_memory_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Performance and memory engineering sample package."""
+
+from .budget import BudgetDecision, PerformanceBudget, evaluate_budget
+from .profiling import BenchmarkResult, ProfileReport, run_benchmark, run_profile, run_memory_snapshot
+from .workload import build_dataset, optimized_group_totals, slow_group_totals
+
+__all__ = [
+    "BenchmarkResult",
+    "BudgetDecision",
+    "PerformanceBudget",
+    "ProfileReport",
+    "build_dataset",
+    "evaluate_budget",
+    "optimized_group_totals",
+    "run_benchmark",
+    "run_memory_snapshot",
+    "run_profile",
+    "slow_group_totals",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_performance_memory_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/performance_memory_engineering/tests/test_performance_memory_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import unittest
+
+from performance_memory_engineering.budget import PerformanceBudget, evaluate_budget
+from performance_memory_engineering.profiling import BenchmarkResult, run_benchmark, run_memory_snapshot, run_profile
+from performance_memory_engineering.workload import build_dataset, optimized_group_totals, slow_group_totals
+
+
+class PerformanceMemoryEngineeringTests(unittest.TestCase):
+    def test_optimized_result_matches_baseline(self) -&gt; None:
+        readings = build_dataset(400)
+        self.assertEqual(slow_group_totals(readings), optimized_group_totals(readings))
+
+    def test_benchmark_reports_result_size(self) -&gt; None:
+        readings = build_dataset(240)
+        result = run_benchmark("optimized", lambda: optimized_group_totals(readings), iterations=3)
+        self.assertEqual(result.result_size, 4)
+        self.assertGreater(result.median_seconds, 0)
+
+    def test_profile_reports_top_functions(self) -&gt; None:
+        readings = build_dataset(240)
+        report = run_profile("optimized", lambda: optimized_group_totals(readings), top_n=3)
+        self.assertEqual(len(report.top_functions), 3)
+        self.assertGreater(report.total_calls, 0)
+
+    def test_memory_snapshot_reports_peak(self) -&gt; None:
+        readings = build_dataset(240)
+        report = run_memory_snapshot("optimized", lambda: optimized_group_totals(readings))
+        self.assertEqual(report.result_size, 4)
+        self.assertGreater(report.peak_kib, 0)
+
+    def test_budget_passes_for_fast_candidate(self) -&gt; None:
+        baseline = BenchmarkResult("slow", 3, 0.010, 0.009, 0.011, 4)
+        candidate = BenchmarkResult("optimized", 3, 0.004, 0.003, 0.005, 4)
+        memory = run_memory_snapshot("optimized", lambda: optimized_group_totals(build_dataset(100)))
+        decision = evaluate_budget(baseline, candidate, memory, PerformanceBudget(max_latency_ratio=1.15, max_peak_kib=512))
+        self.assertTrue(decision.passed)
+
+    def test_budget_fails_for_regression(self) -&gt; None:
+        baseline = BenchmarkResult("baseline", 3, 0.010, 0.009, 0.011, 4)
+        candidate = BenchmarkResult("candidate", 3, 0.020, 0.019, 0.021, 4)
+        memory = run_memory_snapshot("candidate", lambda: optimized_group_totals(build_dataset(100)))
+        decision = evaluate_budget(baseline, candidate, memory, PerformanceBudget(max_latency_ratio=1.15, max_peak_kib=512))
+        self.assertFalse(decision.passed)
+        self.assertIn("latency ratio", decision.notes[0])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時證明正確性與效能風險</h2><p>效能優化不能只看速度，也要證明輸出一致、memory peak 可控、threshold 合理。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>效能診斷先排除測量錯誤</h2><p>資料量、測量區間、cache 狀態、I/O 與 CI 環境都會影響結論。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>效能證據要支援交付決策</h2><p>把 benchmark、profile、memory 與 budget decision 寫進 release evidence。</p></div></div><div class="cards"></div></section>

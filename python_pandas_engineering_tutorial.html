@@ -494,6 +494,7 @@
       h1 { max-width: 12ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <nav class="mobile-nav" aria-label="行動版章節導覽">
@@ -599,7 +600,184 @@
           <div class="mini"><strong>tests</strong><span>`tests/test_pipeline.py` 驗 schema、missing policy、quality summary 與 JSON feed。</span></div>
           <div class="mini"><strong>handoff</strong><span><a href="範例程式碼/pandas_etl_report/README.md">開啟 Pandas 範例 README</a></span></div>
         </div>
-      </section>
+      
+<div class="course-example" id="example-pandas-etl-report">
+<h3>範例程式碼 · Pandas 訂單 ETL</h3>
+<p>從訂單 CSV 產生營收與品質報表，對照測試中的日期與缺值案例。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/pandas_etl_report
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install -e ".[test]"
+python3 -m pytest -q</code></pre>
+<!-- example-source: pandas_etl_report -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/pandas_etl_report">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>src/pandas_etl_report/cli.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/pandas_etl_report/src/pandas_etl_report/cli.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from .pipeline import write_report
+
+
+def build_parser() -&gt; argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Build a Pandas revenue report from orders CSV.")
+    parser.add_argument("orders_csv", type=Path)
+    parser.add_argument("--out", type=Path, default=Path("dist/orders-report.json"))
+    return parser
+
+
+def main() -&gt; int:
+    args = build_parser().parse_args()
+    output = write_report(args.orders_csv, args.out)
+    print(f"wrote {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/pandas_etl_report/pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/pandas_etl_report/src/pandas_etl_report/pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+REQUIRED_COLUMNS = {"order_id", "customer_id", "country", "created_at", "amount"}
+
+
+def load_orders(csv_path: Path) -&gt; pd.DataFrame:
+    orders = pd.read_csv(
+        csv_path,
+        dtype={
+            "order_id": "string",
+            "customer_id": "string",
+            "country": "string",
+            "amount": "float64",
+        },
+    )
+    missing = REQUIRED_COLUMNS - set(orders.columns)
+    if missing:
+        raise ValueError(f"missing columns: {sorted(missing)}")
+
+    orders["created_at"] = pd.to_datetime(orders["created_at"], utc=True, errors="raise")
+    return orders
+
+
+def build_report(orders: pd.DataFrame) -&gt; dict[str, Any]:
+    amount_missing_ratio = round(float(orders["amount"].isna().mean()), 4) if len(orders) else None
+    clean = orders.loc[orders["amount"].notna()].copy()
+    if clean["amount"].isin([float("inf"), float("-inf")]).any():
+        raise ValueError("amount must be finite")
+    clean["month"] = clean["created_at"].dt.strftime("%Y-%m")
+
+    revenue = (
+        clean.groupby(["country", "month"], dropna=False)
+        .agg(revenue=("amount", "sum"), orders=("order_id", "nunique"))
+        .reset_index()
+        .sort_values(["country", "month"])
+    )
+
+    return {
+        "quality": {
+            "rows": int(len(orders)),
+            "amount_missing_ratio": amount_missing_ratio,
+            "countries": sorted(clean["country"].dropna().unique().tolist()),
+        },
+        "revenue": revenue.astype(object).where(revenue.notna(), None).to_dict(orient="records"),
+    }
+
+
+def write_report(csv_path: Path, output_path: Path) -&gt; Path:
+    report = build_report(load_orders(csv_path))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    return output_path
+</code></pre></details>
+<details class="example-file"><summary><code>src/pandas_etl_report/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/pandas_etl_report/src/pandas_etl_report/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Pandas ETL report teaching example."""
+
+from .pipeline import REQUIRED_COLUMNS, build_report, load_orders
+
+__all__ = ["REQUIRED_COLUMNS", "build_report", "load_orders"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/pandas_etl_report/tests/test_pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+import pytest
+
+from pandas_etl_report.pipeline import build_report, load_orders, write_report
+
+
+def test_load_orders_validates_required_columns(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text("order_id,amount\no-001,1200\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="missing columns"):
+        load_orders(csv_path)
+
+
+def test_build_report_quality_and_revenue(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "o-001,c-001,TW,2026-05-01T10:20:00+08:00,1200\n"
+        "o-002,c-002,JP,2026-05-02T09:30:00+09:00,\n",
+        encoding="utf-8",
+    )
+
+    report = build_report(load_orders(csv_path))
+
+    assert report["quality"]["rows"] == 2
+    assert report["quality"]["amount_missing_ratio"] == 0.5
+    assert report["revenue"] == [{"country": "TW", "month": "2026-05", "revenue": 1200.0, "orders": 1}]
+
+
+def test_write_report(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "o-001,c-001,TW,2026-05-01T10:20:00+08:00,1200\n",
+        encoding="utf-8",
+    )
+
+    output = write_report(csv_path, tmp_path / "report.json")
+    payload = json.loads(output.read_text(encoding="utf-8"))
+
+    assert payload["quality"]["rows"] == 1
+    assert payload["revenue"][0]["country"] == "TW"
+
+
+def test_empty_report_has_null_missing_ratio(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text("order_id,customer_id,country,created_at,amount\n", encoding="utf-8")
+    output = write_report(csv_path, tmp_path / "report.json")
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["quality"]["amount_missing_ratio"] is None
+    assert report["revenue"] == []
+
+
+def test_month_uses_utc_boundary(tmp_path):
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "o-001,c-001,TW,2026-06-01T00:05:00+08:00,20\n", encoding="utf-8"
+    )
+    report = build_report(load_orders(csv_path))
+    assert report["revenue"][0]["month"] == "2026-05"
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <section class="section-block" id="map">
         <div class="section-head">

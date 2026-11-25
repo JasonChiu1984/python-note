@@ -74,6 +74,7 @@
       h1 { max-width: 14ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -131,7 +132,356 @@
       <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Type Contract 範例專案</h2><p>範例用工業溫度點位示範 schema、alarm 與 fail-safe，但保持純 Python 標準庫。 <a href="範例程式碼/type_contract_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/type_contract_engineering
 python3 -m py_compile src/type_contract_engineering/*.py scripts/run_type_contract_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-python3 scripts/run_type_contract_smoke.py</code></pre><div class="cards"></div></section>
+python3 scripts/run_type_contract_smoke.py</code></pre><div class="cards"></div>
+<div class="course-example" id="example-type-contract-engineering">
+<h3>範例程式碼 · 感測點型別契約</h3>
+<p>追蹤原始資料如何轉成 SensorReading，再由服務判定告警。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/type_contract_engineering
+PYTHONPATH=src python3 scripts/run_type_contract_smoke.py</code></pre>
+<!-- example-source: type_contract_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_type_contract_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/scripts/run_type_contract_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from type_contract_engineering.contracts import build_contract_report, validate_payload, write_contract_report  # noqa: E402
+from type_contract_engineering.service import GatewayService, InMemoryAlarmPublisher  # noqa: E402
+
+
+def main() -&gt; int:
+    payload = {
+        "schema_version": "1.0",
+        "device_id": "M241-AHU-01",
+        "point": "AI_Temp_Supply",
+        "value": 39.2,
+        "unit": "C",
+        "timestamp": 1778673600,
+        "status": "ok",
+    }
+    publisher = InMemoryAlarmPublisher()
+    service = GatewayService(publisher=publisher)
+    reading = validate_payload(payload)
+    alarm = service.evaluate(reading, now_epoch=1778673610)
+    stale_reading = validate_payload({**payload, "value": 22.0, "timestamp": 1778673500, "status": "stale"})
+    fail_safe = service.evaluate(stale_reading, now_epoch=1778673610)
+    report = build_contract_report(
+        validation_passed=True,
+        alarm_checked=alarm is not None,
+        fail_safe_checked=fail_safe is not None and fail_safe.fail_safe_required,
+    )
+    write_contract_report(ROOT / "type_contract_report.json", report)
+    if alarm and fail_safe and fail_safe.fail_safe_required and report.model_has_type_hints:
+        print("type contract smoke passed: schema + alarm + fail-safe + evidence")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/type_contract_engineering/contracts.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/src/type_contract_engineering/contracts.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+from pathlib import Path
+from typing import Any, get_type_hints
+
+from .models import ReadingPayload, ReadingStatus, SensorReading
+
+
+REQUIRED_PAYLOAD_KEYS = {
+    "schema_version",
+    "device_id",
+    "point",
+    "value",
+    "unit",
+    "timestamp",
+    "status",
+}
+
+
+@dataclass(frozen=True)
+class ContractReport:
+    schema_version: str
+    required_keys: tuple[str, ...]
+    model_has_type_hints: bool
+    validation_passed: bool
+    alarm_checked: bool
+    fail_safe_checked: bool
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "required_keys": list(self.required_keys),
+            "model_has_type_hints": self.model_has_type_hints,
+            "validation_passed": self.validation_passed,
+            "alarm_checked": self.alarm_checked,
+            "fail_safe_checked": self.fail_safe_checked,
+        }
+
+
+def validate_payload(payload: dict[str, Any]) -&gt; SensorReading:
+    missing = sorted(REQUIRED_PAYLOAD_KEYS.difference(payload))
+    if missing:
+        raise ValueError(f"missing payload keys: {', '.join(missing)}")
+    if not isinstance(payload["value"], (int, float)):
+        raise ValueError("value must be numeric")
+    if not isinstance(payload["timestamp"], int):
+        raise ValueError("timestamp must be an integer epoch second")
+    try:
+        status = ReadingStatus(str(payload["status"]))
+    except ValueError as exc:
+        raise ValueError("status must be ok, stale, or fault") from exc
+    typed_payload: ReadingPayload = {
+        "schema_version": str(payload["schema_version"]),
+        "device_id": str(payload["device_id"]),
+        "point": str(payload["point"]),
+        "value": float(payload["value"]),
+        "unit": str(payload["unit"]),
+        "timestamp": int(payload["timestamp"]),
+        "status": status.value,
+    }
+    return SensorReading(
+        schema_version=typed_payload["schema_version"],
+        device_id=typed_payload["device_id"],
+        point=typed_payload["point"],
+        value=typed_payload["value"],
+        unit=typed_payload["unit"],
+        timestamp=typed_payload["timestamp"],
+        status=status,
+    )
+
+
+def build_contract_report(validation_passed: bool, alarm_checked: bool, fail_safe_checked: bool) -&gt; ContractReport:
+    hints = get_type_hints(SensorReading)
+    expected_hints = {"schema_version", "device_id", "point", "value", "unit", "timestamp", "status"}
+    return ContractReport(
+        schema_version="1.0",
+        required_keys=tuple(sorted(REQUIRED_PAYLOAD_KEYS)),
+        model_has_type_hints=expected_hints.issubset(hints),
+        validation_passed=validation_passed,
+        alarm_checked=alarm_checked,
+        fail_safe_checked=fail_safe_checked,
+    )
+
+
+def write_contract_report(path: Path, report: ContractReport) -&gt; None:
+    path.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+</code></pre></details>
+<details class="example-file"><summary><code>src/type_contract_engineering/models.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/src/type_contract_engineering/models.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import TypedDict
+
+
+class ReadingStatus(str, Enum):
+    OK = "ok"
+    STALE = "stale"
+    FAULT = "fault"
+
+
+class ReadingPayload(TypedDict):
+    schema_version: str
+    device_id: str
+    point: str
+    value: float
+    unit: str
+    timestamp: int
+    status: str
+
+
+@dataclass(frozen=True)
+class SensorReading:
+    schema_version: str
+    device_id: str
+    point: str
+    value: float
+    unit: str
+    timestamp: int
+    status: ReadingStatus
+
+    def __post_init__(self) -&gt; None:
+        if self.schema_version != "1.0":
+            raise ValueError("unsupported schema_version")
+        if not self.device_id.strip():
+            raise ValueError("device_id is required")
+        if not self.point.strip():
+            raise ValueError("point is required")
+        if self.unit != "C":
+            raise ValueError("only Celsius readings are supported in this sample")
+        if not 0 &lt;= self.value &lt;= 100:
+            raise ValueError("temperature reading is outside the safety envelope")
+        if self.timestamp &lt;= 0:
+            raise ValueError("timestamp must be positive")
+
+
+@dataclass(frozen=True)
+class AlarmEvent:
+    device_id: str
+    point: str
+    severity: str
+    message: str
+    fail_safe_required: bool
+</code></pre></details>
+<details class="example-file"><summary><code>src/type_contract_engineering/service.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/src/type_contract_engineering/service.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Protocol
+
+from .models import AlarmEvent, ReadingStatus, SensorReading
+
+
+class AlarmPublisher(Protocol):
+    def publish(self, event: AlarmEvent) -&gt; None:
+        """Publish an alarm event to an external channel."""
+
+
+@dataclass
+class InMemoryAlarmPublisher:
+    events: list[AlarmEvent] = field(default_factory=list)
+
+    def publish(self, event: AlarmEvent) -&gt; None:
+        self.events.append(event)
+
+
+@dataclass
+class GatewayService:
+    publisher: AlarmPublisher
+    alarm_threshold_c: float = 38.0
+    stale_timeout_seconds: int = 30
+
+    def evaluate(self, reading: SensorReading, now_epoch: int) -&gt; AlarmEvent | None:
+        stale = now_epoch - reading.timestamp &gt; self.stale_timeout_seconds
+        if reading.status in {ReadingStatus.STALE, ReadingStatus.FAULT} or stale:
+            event = AlarmEvent(
+                device_id=reading.device_id,
+                point=reading.point,
+                severity="critical",
+                message="reading stale or device fault; fail-safe output required",
+                fail_safe_required=True,
+            )
+            self.publisher.publish(event)
+            return event
+        if reading.value &gt;= self.alarm_threshold_c:
+            event = AlarmEvent(
+                device_id=reading.device_id,
+                point=reading.point,
+                severity="warning",
+                message=f"temperature {reading.value:.1f}C reached alarm threshold",
+                fail_safe_required=False,
+            )
+            self.publisher.publish(event)
+            return event
+        return None
+</code></pre></details>
+<details class="example-file"><summary><code>src/type_contract_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/src/type_contract_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Type contract engineering sample package."""
+
+from .contracts import ContractReport, validate_payload, write_contract_report
+from .models import AlarmEvent, ReadingPayload, ReadingStatus, SensorReading
+from .service import AlarmPublisher, GatewayService, InMemoryAlarmPublisher
+
+__all__ = [
+    "AlarmEvent",
+    "AlarmPublisher",
+    "ContractReport",
+    "GatewayService",
+    "InMemoryAlarmPublisher",
+    "ReadingPayload",
+    "ReadingStatus",
+    "SensorReading",
+    "validate_payload",
+    "write_contract_report",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_type_contract_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/type_contract_engineering/tests/test_type_contract_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+import unittest
+
+from type_contract_engineering.contracts import build_contract_report, validate_payload, write_contract_report
+from type_contract_engineering.models import ReadingStatus
+from type_contract_engineering.service import GatewayService, InMemoryAlarmPublisher
+
+
+BASE_PAYLOAD = {
+    "schema_version": "1.0",
+    "device_id": "M241-AHU-01",
+    "point": "AI_Temp_Supply",
+    "value": 24.5,
+    "unit": "C",
+    "timestamp": 1778673600,
+    "status": "ok",
+}
+
+
+class TypeContractEngineeringTests(unittest.TestCase):
+    def test_validate_payload_builds_domain_model(self) -&gt; None:
+        reading = validate_payload(dict(BASE_PAYLOAD))
+        self.assertEqual(reading.device_id, "M241-AHU-01")
+        self.assertEqual(reading.status, ReadingStatus.OK)
+
+    def test_validate_payload_rejects_missing_key(self) -&gt; None:
+        payload = dict(BASE_PAYLOAD)
+        payload.pop("unit")
+        with self.assertRaisesRegex(ValueError, "missing payload keys"):
+            validate_payload(payload)
+
+    def test_alarm_event_is_published_above_threshold(self) -&gt; None:
+        publisher = InMemoryAlarmPublisher()
+        service = GatewayService(publisher=publisher, alarm_threshold_c=38.0)
+        reading = validate_payload({**BASE_PAYLOAD, "value": 39.0})
+        event = service.evaluate(reading, now_epoch=1778673601)
+        self.assertIsNotNone(event)
+        self.assertEqual(len(publisher.events), 1)
+        self.assertEqual(publisher.events[0].severity, "warning")
+
+    def test_stale_reading_requires_fail_safe(self) -&gt; None:
+        publisher = InMemoryAlarmPublisher()
+        service = GatewayService(publisher=publisher, stale_timeout_seconds=30)
+        reading = validate_payload({**BASE_PAYLOAD, "timestamp": 1778673500})
+        event = service.evaluate(reading, now_epoch=1778673600)
+        self.assertIsNotNone(event)
+        self.assertTrue(event.fail_safe_required)
+
+    def test_contract_report_contains_required_evidence(self) -&gt; None:
+        report = build_contract_report(validation_passed=True, alarm_checked=True, fail_safe_checked=True)
+        self.assertTrue(report.model_has_type_hints)
+        self.assertIn("device_id", report.required_keys)
+
+    def test_contract_report_is_written_as_json(self) -&gt; None:
+        report = build_contract_report(validation_passed=True, alarm_checked=True, fail_safe_checked=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "type_contract_report.json"
+            write_contract_report(path, report)
+            text = path.read_text(encoding="utf-8")
+        self.assertIn('"schema_version": "1.0"', text)
+        self.assertIn('"fail_safe_checked": true', text)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗收要同時看靜態契約與 runtime 行為</h2><p>type hints、payload validation、alarm、fail-safe、report 都要能被測試。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>常見問題多半來自邊界混用</h2><p>不要讓外部 payload 直接流進核心 business logic。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓型別契約支援重構與交付</h2><p>型別策略應能幫團隊更快改、更穩交付，而不是增加無效儀式。</p></div></div><div class="cards"></div></section>

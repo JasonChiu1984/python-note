@@ -89,6 +89,7 @@
   .contract-panel :focus-visible{outline:3px solid #2f6fbb;outline-offset:2px}
   @media (max-width:980px){.layout,.hero,.tool-panel,.cards,.steps{grid-template-columns:minmax(0,1fr)}}
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -207,7 +208,220 @@ python python_dependency_contract_lab.py --self-test</code></pre>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把 runtime、依賴、啟動與證據拆成四層</h2><p>專案的可重現性不是單一檔案，而是一整條治理鏈。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>本機就能驗證治理規則</h2><p>用零外部安裝的標準庫範例，先驗 requirements 契約與 runtime 政策。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>把 requirements、constraints 與版本基線寫成規則</h2><p>缺規則時，環境只是暫時可用，不是可交付。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>以治理樣板專案驗證依賴與環境契約</h2><p>範例專案集中展示 runtime、requirements 分層、constraints 覆蓋與報告輸出。 <a href="範例程式碼/dependency_environment_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>以治理樣板專案驗證依賴與環境契約</h2><p>範例專案集中展示 runtime、requirements 分層、constraints 覆蓋與報告輸出。 <a href="範例程式碼/dependency_environment_governance/README.md">範例原始碼與執行說明</a>。</p></div></div><div class="cards"></div>
+<div class="course-example" id="example-dependency-environment-governance">
+<h3>範例程式碼 · 相依套件與版本約束</h3>
+<p>對照 requirements、constraints 與 policy.py，檢查版本約束是否一致。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/dependency_environment_governance
+PYTHONPATH=src python3 scripts/run_dependency_environment_governance_smoke.py</code></pre>
+<!-- example-source: dependency_environment_governance -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/dependency_environment_governance">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_dependency_environment_governance_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/dependency_environment_governance/scripts/run_dependency_environment_governance_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+
+from dependency_environment_governance.policy import render_report
+
+
+def main() -&gt; None:
+    base_dir = Path(__file__).resolve().parents[1]
+    report_path = base_dir / "governance_report.json"
+    render_report(base_dir, report_path)
+    print("dependency environment governance smoke passed: requirements + constraints + runtime + report")
+    print(report_path)
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/dependency_environment_governance/policy.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/dependency_environment_governance/src/dependency_environment_governance/policy.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+from pathlib import Path
+import re
+import sys
+from typing import Iterable
+
+
+PINNED_RE = re.compile(r"^[A-Za-z0-9_.-]+==[A-Za-z0-9_.!+-]+$")
+
+
+class GovernanceError(ValueError):
+    """Raised when dependency governance rules are violated."""
+
+
+@dataclass(frozen=True)
+class RuntimePolicy:
+    minimum_python: tuple[int, int]
+    recommended_python: tuple[int, int]
+    preview_python: str
+    requires_venv: bool
+
+
+DEFAULT_RUNTIME_POLICY = RuntimePolicy(
+    minimum_python=(3, 11),
+    recommended_python=(3, 14),
+    preview_python="3.15.0b1",
+    requires_venv=False,
+)
+
+
+def _read_lines(path: Path) -&gt; list[str]:
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def _parse_requirement_names(lines: Iterable[str]) -&gt; list[str]:
+    names: list[str] = []
+    for line in lines:
+        if line.startswith("-r "):
+            continue
+        name = re.split(r"[&lt;&gt;=!~]", line, maxsplit=1)[0].strip()
+        if not name:
+            raise GovernanceError(f"Invalid requirement line: {line}")
+        names.append(name)
+    return names
+
+
+def _ensure_pinned(lines: Iterable[str]) -&gt; None:
+    for line in lines:
+        if line.startswith("-r "):
+            continue
+        if not PINNED_RE.match(line):
+            raise GovernanceError(f"Dependency is not pinned: {line}")
+
+
+def evaluate_governance(base_dir: Path, runtime_policy: RuntimePolicy = DEFAULT_RUNTIME_POLICY) -&gt; dict:
+    requirements = _read_lines(base_dir / "requirements.txt")
+    requirements_dev = _read_lines(base_dir / "requirements-dev.txt")
+    constraints = _read_lines(base_dir / "constraints.txt")
+
+    _ensure_pinned(requirements)
+    _ensure_pinned(requirements_dev)
+    _ensure_pinned(constraints)
+
+    if not requirements_dev or requirements_dev[0] != "-r requirements.txt":
+        raise GovernanceError("requirements-dev.txt must start with '-r requirements.txt'")
+
+    prod_names = _parse_requirement_names(requirements)
+    dev_names = _parse_requirement_names(requirements_dev)
+    constraint_names = set(_parse_requirement_names(constraints))
+
+    missing_constraints = sorted((set(prod_names) | set(dev_names)) - constraint_names)
+    if missing_constraints:
+        raise GovernanceError(
+            f"constraints.txt is missing pinned packages: {', '.join(missing_constraints)}"
+        )
+
+    python_runtime = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    runtime_ok = (sys.version_info.major, sys.version_info.minor) &gt;= runtime_policy.minimum_python
+    if not runtime_ok:
+        raise GovernanceError(
+            f"Python {python_runtime} is below minimum {runtime_policy.minimum_python[0]}.{runtime_policy.minimum_python[1]}"
+        )
+
+    return {
+        "runtime": {
+            "current": python_runtime,
+            "minimum": ".".join(map(str, runtime_policy.minimum_python)),
+            "recommended": ".".join(map(str, runtime_policy.recommended_python)),
+            "preview": runtime_policy.preview_python,
+            "venv_active": sys.prefix != getattr(sys, "base_prefix", sys.prefix),
+            "runtime_ok": runtime_ok,
+        },
+        "dependency_policy": {
+            "requirements_count": len(requirements),
+            "requirements_dev_count": len(requirements_dev),
+            "constraints_count": len(constraints),
+            "prod_dependencies": prod_names,
+            "dev_dependencies": dev_names,
+        },
+        "evidence": {
+            "startup_command": "PYTHONPATH=src python3 -m unittest discover -s tests -v",
+            "smoke_command": "PYTHONPATH=src python3 scripts/run_dependency_environment_governance_smoke.py",
+            "governance_passed": True,
+        },
+    }
+
+
+def render_report(base_dir: Path, output_path: Path) -&gt; Path:
+    report = evaluate_governance(base_dir)
+    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return output_path
+</code></pre></details>
+<details class="example-file"><summary><code>src/dependency_environment_governance/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/dependency_environment_governance/src/dependency_environment_governance/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""Dependency and environment governance sample."""
+
+from .policy import GovernanceError, evaluate_governance, render_report
+
+__all__ = ["GovernanceError", "evaluate_governance", "render_report"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_dependency_environment_governance.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/dependency_environment_governance/tests/test_dependency_environment_governance.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+from pathlib import Path
+import tempfile
+import unittest
+
+from dependency_environment_governance.policy import GovernanceError, evaluate_governance, render_report
+
+
+FIXTURE = Path(__file__).resolve().parents[1]
+
+
+class DependencyEnvironmentGovernanceTests(unittest.TestCase):
+    def test_report_generation(self) -&gt; None:
+        report = evaluate_governance(FIXTURE)
+        self.assertTrue(report["evidence"]["governance_passed"])
+        self.assertIn("fastapi", report["dependency_policy"]["prod_dependencies"])
+
+    def test_render_report_writes_json(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "report.json"
+            render_report(FIXTURE, output)
+            self.assertTrue(output.exists())
+            self.assertIn('"governance_passed": true', output.read_text(encoding="utf-8"))
+
+    def test_dev_requirements_must_reference_prod(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "requirements.txt").write_text("fastapi==0.115.0\n", encoding="utf-8")
+            (base / "requirements-dev.txt").write_text("pytest==8.3.3\n", encoding="utf-8")
+            (base / "constraints.txt").write_text("fastapi==0.115.0\npytest==8.3.3\n", encoding="utf-8")
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+
+    def test_constraints_must_cover_all_packages(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "requirements.txt").write_text("fastapi==0.115.0\n", encoding="utf-8")
+            (base / "requirements-dev.txt").write_text("-r requirements.txt\npytest==8.3.3\n", encoding="utf-8")
+            (base / "constraints.txt").write_text("fastapi==0.115.0\n", encoding="utf-8")
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+
+    def test_unpinned_dependency_is_rejected(self) -&gt; None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "requirements.txt").write_text("fastapi&gt;=0.115.0\n", encoding="utf-8")
+            (base / "requirements-dev.txt").write_text("-r requirements.txt\npytest==8.3.3\n", encoding="utf-8")
+            (base / "constraints.txt").write_text("fastapi==0.115.0\npytest==8.3.3\n", encoding="utf-8")
+            with self.assertRaises(GovernanceError):
+                evaluate_governance(base)
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要覆蓋 compile、unittest、smoke 與 HTML</h2><p>只看 <code>pip install</code> 成功不算治理完成。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>環境問題要先看契約，再看框架</h2><p>本機與 CI 不一致時，通常不是框架壞掉，而是依賴治理層鬆散。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓依賴治理與版本發布同時存在</h2><p>release note、constraints、runtime baseline 與 smoke evidence 應一起交付。</p></div></div><div class="cards"></div></section>

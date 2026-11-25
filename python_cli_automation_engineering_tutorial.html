@@ -101,6 +101,7 @@
     @media(max-width:920px){.cli-deep-diagram,.cli-deep-matrix{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:570px){.cli-deep-diagram,.cli-deep-matrix{grid-template-columns:minmax(0,1fr)}}
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
@@ -220,7 +221,348 @@ def main():
 
 if __name__ == &quot;__main__&quot;:
     sys.exit(main())
-</code></pre></details><ol><li><code>load_manifest()</code> 驗證清單，拒絕不符合格式或大小的輸入。</li><li><code>plan</code> 與未帶 <code>--execute</code> 的 <code>apply</code> 不寫檔。</li><li><code>apply --execute</code> 以 <code>xb</code> 拒絕覆蓋。寫入途中失敗可能留有部份結果；正式工具需選用交易式或原子發佈策略。</li><li><code>report</code> 比對位元組，不執行修復。退出碼 2 表示操作失敗或不符；在參數解析階段，argparse 本身也使用 2。</li></ol></article><div class="cards"></div></section>
+</code></pre></details><ol><li><code>load_manifest()</code> 驗證清單，拒絕不符合格式或大小的輸入。</li><li><code>plan</code> 與未帶 <code>--execute</code> 的 <code>apply</code> 不寫檔。</li><li><code>apply --execute</code> 以 <code>xb</code> 拒絕覆蓋。寫入途中失敗可能留有部份結果；正式工具需選用交易式或原子發佈策略。</li><li><code>report</code> 比對位元組，不執行修復。退出碼 2 表示操作失敗或不符；在參數解析階段，argparse 本身也使用 2。</li></ol></article><div class="cards"></div>
+<div class="course-example" id="example-cli-automation-engineering">
+<h3>範例程式碼 · CLI 自動化</h3>
+<p>對照 plan、apply 與 report，追蹤 dry-run 如何避免寫入。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/cli_automation_engineering
+PYTHONPATH=src python3 scripts/run_cli_automation_smoke.py</code></pre>
+<!-- example-source: cli_automation_engineering -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>scripts/run_cli_automation_smoke.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering/scripts/run_cli_automation_smoke.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import tempfile
+from pathlib import Path
+
+from cli_automation_engineering.cli import run
+
+
+def main() -&gt; None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        manifest = root / "manifest.json"
+        dry_run_report = root / "dry-run-report.json"
+        apply_report = root / "apply-report.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "items": [
+                        {"id": "job-1", "action": "sync", "target": "gateway-a", "owner": "ops"},
+                        {"id": "job-2", "action": "sync", "target": "gateway-b", "owner": "ops", "enabled": False},
+                        {"id": "job-3", "action": "sync", "target": "gateway-c", "owner": "ops"},
+                    ]
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        dry_run_code = run(["apply", "--manifest", str(manifest), "--output", str(dry_run_report), "--dry-run"])
+        if dry_run_code != 2:
+            raise SystemExit(f"unexpected dry-run exit code: {dry_run_code}")
+
+        apply_code = run(["apply", "--manifest", str(manifest), "--output", str(apply_report)])
+        if apply_code != 2:
+            raise SystemExit(f"unexpected apply exit code: {apply_code}")
+
+        payload = json.loads(apply_report.read_text(encoding="utf-8"))
+        if payload["executed"] != 2 or payload["blocked"] != 1:
+            raise SystemExit("unexpected apply report counts")
+
+    print("cli automation smoke passed: plan/apply/report + dry-run + exit-code + evidence")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details class="example-file"><summary><code>src/cli_automation_engineering/cli.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering/src/cli_automation_engineering/cli.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Sequence
+
+from .engine import (
+    EXIT_PARTIAL,
+    EXIT_SUCCESS,
+    EXIT_VALIDATION,
+    apply_manifest,
+    build_summary_line,
+    load_manifest,
+    plan_manifest,
+    write_report,
+)
+
+
+def build_parser() -&gt; argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="CLI automation engineering sample")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    plan = subparsers.add_parser("plan", help="validate manifest and preview changes")
+    plan.add_argument("--manifest", required=True)
+    plan.add_argument("--output", required=True)
+
+    apply_cmd = subparsers.add_parser("apply", help="execute manifest")
+    apply_cmd.add_argument("--manifest", required=True)
+    apply_cmd.add_argument("--output", required=True)
+    apply_cmd.add_argument("--dry-run", action="store_true")
+
+    report = subparsers.add_parser("report", help="print existing report summary")
+    report.add_argument("--input", required=True)
+
+    return parser
+
+
+def run(argv: Sequence[str] | None = None) -&gt; int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "report":
+            payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
+            print(
+                "mode={mode} dry_run={dry_run} validated={validated} blocked={blocked} executed={executed} status={status}".format(
+                    **payload
+                )
+            )
+            return EXIT_SUCCESS
+
+        items = load_manifest(Path(args.manifest))
+        if args.command == "plan":
+            report = plan_manifest(items)
+        else:
+            report = apply_manifest(items, dry_run=bool(getattr(args, "dry_run", False)))
+        write_report(report, Path(args.output))
+        print(build_summary_line(report))
+        return EXIT_SUCCESS if report.status == "success" else EXIT_PARTIAL
+    except ValueError as exc:
+        print(f"validation_error: {exc}")
+        return EXIT_VALIDATION
+
+
+if __name__ == "__main__":
+    raise SystemExit(run())
+</code></pre></details>
+<details class="example-file"><summary><code>src/cli_automation_engineering/engine.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering/src/cli_automation_engineering/engine.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+
+EXIT_SUCCESS = 0
+EXIT_PARTIAL = 2
+EXIT_VALIDATION = 3
+REQUIRED_FIELDS = ("id", "action", "target", "owner")
+
+
+@dataclass
+class ManifestItem:
+    id: str
+    action: str
+    target: str
+    owner: str
+    enabled: bool = True
+
+
+@dataclass
+class ExecutionReport:
+    mode: str
+    dry_run: bool
+    validated: int
+    blocked: int
+    executed: int
+    status: str
+    items: list[dict[str, object]]
+
+
+def load_manifest(path: Path) -&gt; list[ManifestItem]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    items = payload.get("items")
+    if not isinstance(items, list):
+        raise ValueError("manifest items must be a list")
+    manifest: list[ManifestItem] = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            raise ValueError("manifest item must be an object")
+        missing = [field for field in REQUIRED_FIELDS if not raw.get(field)]
+        if missing:
+            raise ValueError(f"manifest item missing fields: {', '.join(missing)}")
+        manifest.append(
+            ManifestItem(
+                id=str(raw["id"]),
+                action=str(raw["action"]),
+                target=str(raw["target"]),
+                owner=str(raw["owner"]),
+                enabled=bool(raw.get("enabled", True)),
+            )
+        )
+    return manifest
+
+
+def plan_manifest(items: list[ManifestItem]) -&gt; ExecutionReport:
+    report_items = []
+    validated = 0
+    blocked = 0
+    for item in items:
+        entry = asdict(item)
+        if item.enabled:
+            entry["decision"] = "ready"
+            validated += 1
+        else:
+            entry["decision"] = "blocked"
+            blocked += 1
+        report_items.append(entry)
+    status = "success" if blocked == 0 else "partial"
+    return ExecutionReport("plan", True, validated, blocked, 0, status, report_items)
+
+
+def apply_manifest(items: list[ManifestItem], dry_run: bool) -&gt; ExecutionReport:
+    report_items = []
+    validated = 0
+    blocked = 0
+    executed = 0
+    for item in items:
+        entry = asdict(item)
+        if not item.enabled:
+            entry["result"] = "blocked"
+            blocked += 1
+        elif dry_run:
+            entry["result"] = "dry-run"
+            validated += 1
+        else:
+            entry["result"] = "executed"
+            validated += 1
+            executed += 1
+        report_items.append(entry)
+    status = "success" if blocked == 0 else "partial"
+    return ExecutionReport("apply", dry_run, validated, blocked, executed, status, report_items)
+
+
+def write_report(report: ExecutionReport, output_path: Path) -&gt; Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(report), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
+def build_summary_line(report: ExecutionReport) -&gt; str:
+    return (
+        f"mode={report.mode} dry_run={str(report.dry_run).lower()} "
+        f"validated={report.validated} blocked={report.blocked} executed={report.executed} status={report.status}"
+    )
+</code></pre></details>
+<details class="example-file"><summary><code>src/cli_automation_engineering/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering/src/cli_automation_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""CLI automation engineering sample package."""
+
+from .engine import (
+    EXIT_PARTIAL,
+    EXIT_SUCCESS,
+    EXIT_VALIDATION,
+    apply_manifest,
+    build_summary_line,
+    load_manifest,
+    plan_manifest,
+    write_report,
+)
+
+__all__ = [
+    "EXIT_PARTIAL",
+    "EXIT_SUCCESS",
+    "EXIT_VALIDATION",
+    "apply_manifest",
+    "build_summary_line",
+    "load_manifest",
+    "plan_manifest",
+    "write_report",
+]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_cli_automation_engineering.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/cli_automation_engineering/tests/test_cli_automation_engineering.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from cli_automation_engineering.cli import run
+from cli_automation_engineering.engine import EXIT_PARTIAL, EXIT_SUCCESS, EXIT_VALIDATION
+
+
+class CliAutomationEngineeringTest(unittest.TestCase):
+    def setUp(self) -&gt; None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name)
+        self.manifest = self.root / "manifest.json"
+        self.report = self.root / "report.json"
+
+    def tearDown(self) -&gt; None:
+        self.temp_dir.cleanup()
+
+    def write_manifest(self, items: list[dict[str, object]]) -&gt; None:
+        self.manifest.write_text(json.dumps({"items": items}, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def test_plan_returns_partial_when_disabled_item_exists(self) -&gt; None:
+        self.write_manifest(
+            [
+                {"id": "job-1", "action": "sync", "target": "gateway-a", "owner": "ops"},
+                {"id": "job-2", "action": "sync", "target": "gateway-b", "owner": "ops", "enabled": False},
+            ]
+        )
+        code = run(["plan", "--manifest", str(self.manifest), "--output", str(self.report)])
+        self.assertEqual(code, EXIT_PARTIAL)
+        payload = json.loads(self.report.read_text(encoding="utf-8"))
+        self.assertEqual(payload["validated"], 1)
+        self.assertEqual(payload["blocked"], 1)
+
+    def test_apply_dry_run_does_not_execute_items(self) -&gt; None:
+        self.write_manifest([{"id": "job-1", "action": "deploy", "target": "edge-1", "owner": "release"}])
+        code = run(["apply", "--manifest", str(self.manifest), "--output", str(self.report), "--dry-run"])
+        self.assertEqual(code, EXIT_SUCCESS)
+        payload = json.loads(self.report.read_text(encoding="utf-8"))
+        self.assertTrue(payload["dry_run"])
+        self.assertEqual(payload["executed"], 0)
+        self.assertEqual(payload["items"][0]["result"], "dry-run")
+
+    def test_invalid_manifest_returns_validation_exit_code(self) -&gt; None:
+        self.write_manifest([{"id": "job-1", "action": "deploy", "target": "edge-1"}])
+        code = run(["plan", "--manifest", str(self.manifest), "--output", str(self.report)])
+        self.assertEqual(code, EXIT_VALIDATION)
+        self.assertFalse(self.report.exists())
+
+    def test_report_command_reads_existing_report(self) -&gt; None:
+        self.report.write_text(
+            json.dumps(
+                {
+                    "mode": "apply",
+                    "dry_run": False,
+                    "validated": 2,
+                    "blocked": 0,
+                    "executed": 2,
+                    "status": "success",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        code = run(["report", "--input", str(self.report)])
+        self.assertEqual(code, EXIT_SUCCESS)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
       <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>同時驗 CLI 行為、輸出格式與成功訊號</h2><p>不只要命令可執行，還要能穩定被測試、被 release note 引用。</p></div></div><article class="surface cli-article cli-example"><h3>驗收表：不要只測成功路徑</h3><ol><li>合法清單的 <code>plan</code> 回傳 <code>planned</code>，預演回傳 <code>dry_run</code>，兩者退出碼均為 0，且結果檔不存在。</li><li>首次正式寫入回傳 <code>written</code>；原樣驗證為 <code>verified</code>；重複正式寫入須回傳 2 且不改原檔。</li><li>將清單改成 <code>{}</code>，預期退出碼 3；故意改結果檔，預期 <code>mismatch</code> 與退出碼 2。</li><li>在 CI 應分別檢查退出碼、stdout JSON、結果檔是否存在，以及失敗時是否維持原檔。</li></ol></article><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>命令出問題先看契約與 report</h2><p>CLI 問題大多來自參數漂移、dry-run 缺位、錯誤碼不穩或輸出不可解析。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把 CLI 當正式交付物，而不是工具人的祕密腳本</h2><p>只要命令會進排程、進 CI、交給其他工程師或現場人員，就應有正式工程品質。</p></div></div><div class="cards"></div></section>

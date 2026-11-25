@@ -478,6 +478,7 @@
       h1 { max-width: 12ch; }
     }
   </style>
+<link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <nav class="mobile-nav" aria-label="行動版章節導覽">
@@ -583,7 +584,165 @@
           <div class="mini"><strong>tests</strong><span>`tests/test_pipeline.py` 驗 shape、dtype、統計欄位與錯誤路徑。</span></div>
           <div class="mini"><strong>handoff</strong><span><a href="範例程式碼/numpy_feature_pipeline/README.md">開啟 NumPy 範例 README</a></span></div>
         </div>
-      </section>
+      
+<div class="course-example" id="example-numpy-feature-pipeline">
+<h3>範例程式碼 · NumPy 特徵矩陣</h3>
+<p>把 features.csv 轉成矩陣，檢查 shape、dtype 與輸出的統計檔。</p>
+<p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/numpy_feature_pipeline
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install -e ".[test]"
+python3 -m pytest -q</code></pre>
+<!-- example-source: numpy_feature_pipeline -->
+<p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/numpy_feature_pipeline">在 GitHub 開啟專案資料夾</a></p>
+<details class="example-file"><summary><code>src/numpy_feature_pipeline/cli.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/numpy_feature_pipeline/src/numpy_feature_pipeline/cli.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from .pipeline import write_feature_outputs
+
+
+def build_parser() -&gt; argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Build a NumPy feature matrix from CSV.")
+    parser.add_argument("input_csv", type=Path)
+    parser.add_argument("--out-dir", type=Path, default=Path("dist/features"))
+    return parser
+
+
+def main() -&gt; int:
+    args = build_parser().parse_args()
+    result = write_feature_outputs(args.input_csv, args.out_dir)
+    print(f"wrote {result.matrix_path}")
+    print(f"wrote {result.stats_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</code></pre></details>
+<details class="example-file"><summary><code>src/numpy_feature_pipeline/pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/numpy_feature_pipeline/src/numpy_feature_pipeline/pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import csv
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+
+FEATURE_COLUMNS = ("temperature", "humidity", "pressure")
+
+
+@dataclass(frozen=True)
+class FeatureOutput:
+    matrix_path: Path
+    stats_path: Path
+    shape: tuple[int, int]
+
+
+def build_feature_matrix(csv_path: Path) -&gt; np.ndarray:
+    with csv_path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames is None:
+            raise ValueError("CSV header is required")
+        missing = set(FEATURE_COLUMNS) - set(reader.fieldnames)
+        if missing:
+            raise ValueError(f"missing feature columns: {sorted(missing)}")
+
+        rows = []
+        for row_number, row in enumerate(reader, start=2):
+            try:
+                rows.append([float(row[column]) for column in FEATURE_COLUMNS])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"invalid numeric value at row {row_number}") from exc
+
+    matrix = np.asarray(rows, dtype=np.float32)
+    if matrix.ndim != 2 or matrix.shape[1] != len(FEATURE_COLUMNS):
+        raise ValueError(f"expected matrix shape (*, {len(FEATURE_COLUMNS)}), got {matrix.shape}")
+    if not np.isfinite(matrix).all():
+        raise ValueError("feature matrix contains non-finite values")
+    return matrix
+
+
+def summarize_matrix(matrix: np.ndarray) -&gt; dict[str, object]:
+    return {
+        "columns": list(FEATURE_COLUMNS),
+        "shape": list(matrix.shape),
+        "dtype": str(matrix.dtype),
+        "mean": np.round(matrix.mean(axis=0), 4).tolist(),
+        "std": np.round(matrix.std(axis=0), 4).tolist(),
+    }
+
+
+def write_feature_outputs(csv_path: Path, out_dir: Path) -&gt; FeatureOutput:
+    matrix = build_feature_matrix(csv_path)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    matrix_path = out_dir / "features.npy"
+    stats_path = out_dir / "stats.json"
+
+    np.save(matrix_path, matrix)
+    stats_path.write_text(json.dumps(summarize_matrix(matrix), ensure_ascii=False, indent=2), encoding="utf-8")
+    return FeatureOutput(matrix_path=matrix_path, stats_path=stats_path, shape=matrix.shape)
+</code></pre></details>
+<details class="example-file"><summary><code>src/numpy_feature_pipeline/__init__.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/numpy_feature_pipeline/src/numpy_feature_pipeline/__init__.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>"""NumPy feature pipeline teaching example."""
+
+from .pipeline import FEATURE_COLUMNS, build_feature_matrix, write_feature_outputs
+
+__all__ = ["FEATURE_COLUMNS", "build_feature_matrix", "write_feature_outputs"]
+</code></pre></details>
+<details class="example-file"><summary><code>tests/test_pipeline.py</code></summary>
+<p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/numpy_feature_pipeline/tests/test_pipeline.py">在 GitHub 查看此檔案</a></p>
+<pre tabindex="0"><code>from __future__ import annotations
+
+import json
+
+import numpy as np
+import pytest
+
+from numpy_feature_pipeline.pipeline import build_feature_matrix, write_feature_outputs
+
+
+def test_build_feature_matrix_shape_and_dtype(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    csv_path.write_text("temperature,humidity,pressure\n21.5,63.0,1012.2\n", encoding="utf-8")
+
+    matrix = build_feature_matrix(csv_path)
+
+    assert matrix.shape == (1, 3)
+    assert matrix.dtype == np.float32
+
+
+def test_invalid_numeric_value_fails_fast(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    csv_path.write_text("temperature,humidity,pressure\nbad,63.0,1012.2\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid numeric value"):
+        build_feature_matrix(csv_path)
+
+
+def test_write_feature_outputs(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    csv_path.write_text(
+        "temperature,humidity,pressure\n21.5,63.0,1012.2\n22.1,61.5,1011.8\n",
+        encoding="utf-8",
+    )
+
+    result = write_feature_outputs(csv_path, tmp_path / "out")
+    stats = json.loads(result.stats_path.read_text(encoding="utf-8"))
+
+    assert result.matrix_path.exists()
+    assert stats["shape"] == [2, 3]
+    assert stats["columns"] == ["temperature", "humidity", "pressure"]
+</code></pre></details>
+<!-- /example-source -->
+</div>
+</section>
 
       <section class="section-block" id="map">
         <div class="section-head">
