@@ -195,29 +195,37 @@
       .speed-acceptance-table tbody > tr > td:last-child { border-bottom:0; }
       .speed-acceptance-table .speed-mobile-label { display:block; color:#223c55; font-weight:800; }
     }
-  /* Protocol scoring UI: panels wrap on narrow viewports. */
-#protocol-scoring{margin-top:1.25rem;padding:clamp(.65rem,2vw,1rem);min-width:0;border:1px solid var(--line);border-radius:.8rem;background:#f3f8fc}
-#protocol-scoring h4,#protocol-scoring h5{margin:.4rem 0}
-#protocol-scoring p{margin:.45rem 0 .75rem;overflow-wrap:anywhere}
-.ps-columns,.ps-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.7rem;min-width:0}
-.ps-controls,.ps-card,.ps-scale{min-width:0;padding:.65rem;border:1px solid #bacdde;border-radius:.55rem;background:white;overflow-wrap:anywhere}
-.ps-card[hidden]{display:none}
-.ps-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,6.7rem),1fr));gap:.5rem}
-.ps-fields label,#protocol-scoring .ps-title{display:flex;flex-direction:column;gap:.2rem;min-width:0;font-weight:650;font-size:.92rem}
-#protocol-scoring input:not([type=checkbox]),#protocol-scoring select{padding:.34rem .38rem;font:inherit;color:#172033;min-width:0;max-width:100%;width:100%;border:1px solid #87a2b7;border-radius:.38rem;background:white}
-#protocol-scoring button{font:inherit;color:#172033;border:1px solid #87a2b7;border-radius:.4rem;background:#e7f1fb;padding:.35rem .6rem;cursor:pointer}
-#protocol-scoring fieldset{min-width:0;border:1px solid #bacdde;border-radius:.4rem;margin:.55rem 0;padding:.35rem .5rem}
-#protocol-scoring legend{font-weight:700}
-#protocol-scoring .ps-option{display:block}
-#protocol-scoring .ps-value{font-weight:800;color:#1c557c}
-#protocol-scoring .ps-gates{margin-top:.55rem}
-#protocol-scoring .ps-rank{margin:.35rem 0;padding-inline-start:1.5rem}
-#protocol-scoring .ps-summary{margin:.75rem 0;border-left:.25rem solid #315c87;padding:.55rem .65rem;background:#e5f1fb}
-#protocol-scoring :focus-visible{outline:2px solid #08688f;outline-offset:2px}
-#protocol-scoring .ps-scale{margin:.7rem 0}
-#protocol-scoring .ps-scale summary{cursor:pointer;font-weight:750}
-#protocol-scoring .ps-scale ol{padding-inline-start:1.5rem}
-#protocol-scoring .ps-btns{display:flex;flex-wrap:wrap;gap:.4rem}
+  /* Protocol scoring: one 0–5 scale across all ranked rows. */
+#protocol-scoring{margin-top:1.25rem;padding:clamp(.65rem,2.3vw,1.4rem);min-width:0;border:1px solid #b9cce0;border-radius:.8rem;background:#f1f7fc}
+#protocol-scoring h4{margin:.15rem 0 .4rem}
+#protocol-scoring p{margin:.35rem 0 .65rem;overflow-wrap:anywhere}
+#protocol-scoring .psc-controls{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:.55rem 0 .8rem}
+#protocol-scoring label{display:grid;gap:.16rem;min-width:0;width:min(100%,15rem);font-size:.9rem;font-weight:750}
+#protocol-scoring select{font:inherit;color:#142b42;background:white;border:1px solid #6486a7;border-radius:.45rem;padding:.38rem .45rem;width:100%;min-width:0}
+#protocol-scoring figure{margin:.35rem 0 .65rem;padding:clamp(.48rem,1.7vw,.9rem);background:white;border:1px solid #bfcede;border-radius:.55rem}
+#protocol-scoring figcaption{font-weight:800;color:#163d61}
+#protocol-scoring .psc-axis-row,#protocol-scoring .psc-row{display:grid;grid-template-columns:minmax(7.4rem,11rem) minmax(0,1fr) 3.25rem;gap:.4rem .62rem;align-items:center;min-width:0}
+#protocol-scoring .psc-scale{grid-column:2;display:flex;justify-content:space-between;color:#405771;font-size:.76rem;font-variant-numeric:tabular-nums}
+#protocol-scoring ol{margin:.15rem 0;padding:0;list-style:none;display:grid;gap:.18rem}
+#protocol-scoring .psc-row{padding:.23rem 0;border-bottom:1px solid #e8eff5}
+#protocol-scoring .psc-row:last-child{border:0}
+#protocol-scoring .psc-label{min-width:0;font-size:.89rem;overflow-wrap:anywhere}
+#protocol-scoring .psc-rank{display:inline-block;min-width:2em;color:#39536d;font-variant-numeric:tabular-nums}
+#protocol-scoring .psc-track{height:.78rem;overflow:hidden;min-width:0;background:repeating-linear-gradient(to right,#e7eff6 0,#e7eff6 calc(20% - 1px),#c0d2e1 calc(20% - 1px),#c0d2e1 20%);border-radius:.2rem}
+#protocol-scoring .psc-bar{display:block;height:100%;background:#176190;border-radius:.2rem}
+#protocol-scoring .psc-score{justify-self:end;color:#173d61;font-weight:800;font-variant-numeric:tabular-nums}
+#protocol-scoring summary{cursor:pointer;color:#21476a;font-weight:750}
+#protocol-scoring :focus-visible{outline:2px solid #07628b;outline-offset:2px}
+@media(max-width:585px){
+ #protocol-scoring .psc-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem}
+ #protocol-scoring label{width:100%}
+ #protocol-scoring .psc-axis-row,#protocol-scoring .psc-row{grid-template-columns:minmax(0,1fr) 3rem;column-gap:.35rem}
+ #protocol-scoring .psc-label{grid-column:1;grid-row:1}
+ #protocol-scoring .psc-score{grid-column:2;grid-row:1}
+ #protocol-scoring .psc-track,#protocol-scoring .psc-scale{grid-column:1/-1}
+ #protocol-scoring .psc-track{grid-row:2}
+ #protocol-scoring .psc-row{row-gap:.17rem;padding:.3rem 0}
+}
 </style>
 </head>
 <body>
@@ -470,49 +478,27 @@
 <p>以正常負載、尖峰負載及單站離線三種情境記錄完整掃描週期、端到端 P95／P99、逾時率與恢復時間。對需要確定時限的控制 I/O，另核對規定的最長更新與 watchdog。跨設備量測端到端時間時，先同步並確認時鐘誤差。</p>
 <p>規格與指引：<a href="https://www.modbus.org/modbus-specifications">Modbus Organization</a> · <a href="https://bacnetinternational.org/bacnetsc/">BACnet International</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4.8">OPC Foundation</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT</a> · <a href="https://csa-iot.org/all-solutions/zigbee/zigbee-faq/">CSA Zigbee</a> · <a href="https://us.profinet.com/profinet-rt-real-time-performance/">PI PROFINET RT</a> · <a href="https://www.profibus.com/fileadmin/media/downloadsection/installation_guide/PROFIBUS_Design_Guideline_8012_V129_Sep20.pdf">PI PROFIBUS 設計指引</a> · <a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab05">CLPA</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST OT Security</a></p>
 <section id="protocol-scoring" aria-labelledby="protocol-scoring-title">
-  <h4 id="protocol-scoring-title">互動選型：速度 × 安全 × 生命週期價格</h4>
-  <p><strong>10 個協定家族、11 個候選配置。</strong>上方原 10 列完整保留；此處只把 Modbus 拆成 RTU／TCP 兩列。BACnet、CC-Link 等家族依候選設備指定變體後再評分，不把有選配的家族名稱當成部署已支援。預填數值是教學假設，不是實測、認證、行情、推薦品牌或採購結論。</p>
-  <div class="ps-columns">
-    <div class="ps-controls">
-      <label class="ps-title" for="ps-preset">應用情境</label>
-      <select id="ps-preset">
-        <option value="bas">HVAC／BAS 監控</option><option value="motion">即時運動／循環 I/O</option><option value="telemetry">IT Telemetry／跨站資料</option>
-      </select>
-      <p id="ps-context"></p>
-      <div class="ps-fields">
-        <label>速度權重<input type="number" id="ps-w-speed" min="0" max="100" step="1" inputmode="numeric"></label>
-        <label>安全權重<input type="number" id="ps-w-security" min="0" max="100" step="1" inputmode="numeric"></label>
-        <label>價格權重<input type="number" id="ps-w-price" min="0" max="100" step="1" inputmode="numeric"></label>
-      </div>
-      <p>權重不必湊 100，程式依總和換算；皆為 0 則不排名。更換情境會載入該情境的速度範例、權重及門檻，並清除上一情境的個別修改及驗證狀態。</p>
-    </div>
-    <div class="ps-controls">
-      <fieldset><legend>硬門檻：不能用分數抵銷</legend>
-        <label class="ps-option"><input id="ps-hard-sec" type="checkbox" checked> 要求安全措施與部署證據已驗證</label>
-        <label class="ps-option"><input id="ps-hard-speed" type="checkbox"> 要求現場應用時限已驗證</label>
-      </fieldset>
-      <label class="ps-title" for="ps-filter">候選篩選</label>
-      <select id="ps-filter"><option value="all">顯示全部</option><option value="passed">只顯示通過啟用硬門檻</option><option value="unverified">只顯示尚未通過／待確認</option></select>
-      <p>選擇「通過」須由你確認實際設備、韌體、拓撲和證據。關閉任一門檻不代表該項已驗證；關閉全部時仍只是比較用。</p>
-      <div class="ps-btns"><button type="button" id="ps-reset">重設本情境（含全部欄位）</button></div>
-    </div>
+  <h4 id="protocol-scoring-title">通訊協定選型｜分數比較圖</h4>
+  <p><strong>教學示例，非實測、報價或合格認定。</strong>10 個協定家族、11 個候選（Modbus 拆為 RTU 與 TCP）。</p>
+  <div class="psc-controls">
+    <label>應用情境
+      <select id="psc-scenario"><option value="bas">HVAC／BAS 監控</option><option value="motion">即時運動／循環 I/O</option><option value="telemetry">跨站遙測／IT</option></select>
+    </label>
+    <label>顯示指標
+      <select id="psc-metric"><option value="overall">綜合</option><option value="speed">速度</option><option value="security">安全</option><option value="cost">成本（越高越省）</option></select>
+    </label>
   </div>
-  <details class="ps-scale" open><summary>1–5 分怎麼評？（5 分較符合本專案）</summary>
-    <ol>
-      <li><strong>速度：</strong>只用同一應用場景的 p95 或控制循環證據。例：p95 / 目標 ≤0.50 為 5、≤0.80 為 4、≤1.00 為 3、≤1.50 為 2、超過為 1；無數據先用示意值，不通過時限硬門檻。對硬即時另外驗證最長更新、jitter、watchdog，p95 夠快不代表過關。</li>
-      <li><strong>安全：</strong>1＝無必要措施；2＝部分補償控制；3＝設計含所需措施但未完整驗證；4＝驗證必要的身分／權限／隔離及依需求的保密、完整性；5＝再驗證輪替、稽核、拒絕與回復演練。選項可用不等於已啟用，跨網每一段都要核對。</li>
-      <li><strong>初期／維護價格：</strong>例如以相同點數、站數、幣別及 5 年持有期間整理兩項金額，再各自對照本案參考額。若跨期金額重大，使用一致的折現與風險假設；同樣未知的各項留待詢價，不當作已知零元。例：計畫成本 ÷ 參考額 ≤0.60 為 5、≤0.80 為 4、≤1.00 為 3、≤1.25 為 2、超過為 1。初期含設備、閘道、授權、施工及工程驗收；維護含續約、金鑰與憑證輪替、備援、備品、人員培訓及停機／移轉成本。無詢價就保持示意分。</li>
-    </ol>
-    <p><strong>算例：</strong>速度 4、安全 4、初期 3、維護 2 時，價格分＝(3+2)/2＝2.5；權重 30／45／25 的總分＝3.625（顯示 3.63／5）。即使分數較高，任一啟用硬門檻沒通過都不列入合格排名。預算、功能安全、互通性另視專案加獨立硬門檻，不能以此工具代簽。</p>
+  <figure aria-labelledby="psc-caption">
+    <figcaption id="psc-caption" aria-live="polite">綜合分數（0–5 分，由高到低）</figcaption>
+    <div class="psc-axis-row" aria-hidden="true"><div class="psc-scale"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>
+    <ol id="psc-ranking" aria-label="教學示意分數排名"></ol>
+    <noscript><p>請啟用 JavaScript 查看分數圖；上方靜態比較表仍可閱讀。</p></noscript>
+  </figure>
+  <details><summary>分數怎麼算？哪些要在現場驗證？</summary>
+    <p id="psc-method"></p>
+    <p>成本分＝初期與維護分的平均，分數越高代表假設成本越低；比較時固定點數、規模、年限與幣別。速度分依應用時限，不等於標稱線速；以現場 p95/p99、最大循環、逾時及復原量測判斷。安全查實際型號、韌體、已啟用選項、憑證、授權與分區。必要安全和時限是獨立硬門檻，不可用綜合高分抵銷；功能安全需另驗。</p>
+    <p><a href="#protocol-speed-security">回通訊速度、安全性與驗收</a></p>
   </details>
-  <div class="ps-summary">
-    <div id="ps-status" role="status" aria-live="polite"></div>
-    <ol id="ps-ranking" class="ps-rank" aria-label="通過硬門檻的綜合排名"></ol>
-  </div>
-  <div id="ps-results" class="ps-results"></div>
-  <noscript><p>本選型工具需要 JavaScript。上方靜態協定比較可直接閱讀。</p></noscript>
-  <p>驗收補充：固定設備與版本、訊息大小、網段、負載與點數，先定義起點（來源變化）與終點（控制任務採用或 BMS 取值），跨設備先同步時鐘並記不確定性。記錄樣本數、正常與尖峰 p95/p99、循環最大值、逾時與故障復原；安全另做權限拒絕測試。線路標稱值只作拓撲資料。</p>
-  <p>追加官方來源：<a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-security/">ODVA CIP Security</a> · <a href="https://www.ethercat.org/en/technology.html">ETG EtherCAT</a> · <a href="https://www.cc-link.org/en/networktechnology/features/cclinkietsn/index.html">CLPA IE TSN</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00081R1_Performance_Methodology_v1.0.pdf">ODVA 效能量測方法</a> · <a href="https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.135e2025.pdf">NIST 生命週期成本方法</a>（方法參考，非行情）。</p>
 </section>
 <section class="protocol-compare pc-history speed-detail-cards" id="protocol-speed-security-details" aria-labelledby="protocol-speed-security-details-title">
 <h3 id="protocol-speed-security-details-title">十個協定家族：版本、資料流、安全配置與故障驗收</h3>
@@ -862,9 +848,6 @@ python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.
 <script>(()=>{const d=[["Modbus RTU","lab-modbus","https://www.modbus.org/file/secure/modbusoverserial.pdf","RS-485／序列","9.6 和 19.2 kbit/s 為設定例，不是掃描速率。","主站逐站輪詢","同一串列匯流排一次只執行一個交易。","整輪掃描與單站逾時","將傳輸、間隔、設備處理與等待分開記錄。","傳統 RTU 無原生加密","以實體管控及閘道存取規則限制，不能由上游 TLS 推論下游受保護。"],["Modbus TCP","modbus-tcp-detail","https://www.modbus.org/file/secure/messagingimplementationguide.pdf","由乙太網埠和鏈路決定","MBAP 封裝在 TCP 之上；100 Mbit/s 只是鏈路示例。","Client/Server 請求回應","用 Transaction ID 對應交易；閘道到 RTU 仍可能串列排隊。","單次 RTT 與全輪 P95／P99","用相同點數及負載，原生 TCP 與 TCP→RTU 各自量測。","傳統 TCP ≠ Modbus Security","傳統 TCP 無原生鑑別和加密；安全版需相容端點、TLS 與 X.509。"],["BACnet","lab-bacnet","https://bacnetinternational.org/bacnetsc/","IP／SC／MS/TP","MS/TP 為序列鏈路；不要把 IP 或 SC 當成固定線速。","批讀／COV","COV 依物件支援、變化門檻及續訂；MS/TP 還需等 token。","門檻到入庫","用確認跨過 COV 增量的事件，另記訂閱恢復後收到新值的時間。","SC 保護所在分段","BACnet/SC 使用 TLS 和憑證；串接舊網段時需逐段判讀。"],["OPC UA","lab-opcua","https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2","依端點的底層鏈路","應用層不規定線速；先查端點、交換器與來源 PLC 掃描。","採樣 → 發布","核對 Server 採用的 sampling 與 publishing interval，並確認來源更新頻率。","來源時間到訂閱端","看資料品質、來源時間戳、訂閱序號與漏值；同步時鐘再算單向延遲。","安全端點與信任清單","核對 SignAndEncrypt、SecurityPolicy、應用憑證與操作授權。"],["MQTT","lab-mqtt","https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html","依 TCP／網路介面","線速屬於 TCP 承載網路，Broker 不提供固定延遲。","發布 → Broker → 訂閱","無固定控制週期；QoS 規定投遞語意，不是延遲保證。","發布至訂閱","以同一事件 ID 對帳，分開看正常、重送與恢復補送。","TLS 與 Broker 授權","使用 TLS 驗證及 topic ACL；QoS 不會加密訊息。"],["Zigbee","lab-zigbee","https://csa-iot.org/all-solutions/zigbee/zigbee-faq/","2.4 GHz：250 kbit/s","這是原始 PHY 速率，不是多跳路徑或有效傳輸量。","事件／定時上報","依設備的上報、休眠、重送與路由設定；需觀察漏報。","感測到閘道或應用","分開記錄射頻上報、Bridge 發布及應用收件。","無線金鑰與橋接分開","控管加入、金鑰與協調器，再驗證 Bridge 到上層網路的保護。"],["PROFINET IO","lab-profinet","https://us.profinet.com/profinet-rt-real-time-performance/","依控制器及裝置埠","線速與 RT 更新週期不可互換；RT／IRT 取決於服務與裝置組合。","循環 RT／IRT","依裝置支援與控制器設定；有同步需求時驗證排程、抖動及 watchdog。","實際 I/O 到 PLC 程式","以量測最大循環間隔、I/O 資料狀態及中斷後恢復為準。","依版本與產品能力","核對支援的 Security Class；不能由 RT／IRT 推論安全能力。"],["PROFIBUS DP","lab-profibus","https://www.profibus.com/technologies/profibus","DP 銅纜的序列速率","速率依網段設定、線長與實體層；不要套用到 PA。","DP 主站循環","站數、I/O 位元組與重試會改變最長循環。","輸入至 PLC 程序映像","正常與單站中斷都要測，不只評估最短週期。","傳統 DP 不加密","限制匯流排實體存取及 PLC 工程介面。"],["CC-Link","lab-cclink","https://www.cc-link.org/en/faq/index.html","Classic／IE 系列不同","Classic 與 IE 不可共用一組數字；IE Field Basic、IE Field、IE TSN 要分開看。","Link scan → PLC refresh","Classic 需看掃描與更新區；IE 能力及同步須按變體驗證。","遠端站到 PLC 更新區","記錄 link scan、CPU refresh 與離線資料品質。","依變體驗證","Classic 無原生加密；IE 不可從乙太網或 TSN 名稱推論已加密。"],["EtherNet/IP","ethernetip-comparison","https://www.odva.org/publication_download/ethernet-ip-technology-overview/","依乙太網路埠","連線速率依設備、交換器與實際埠協商結果，不由 CIP 指定單一線速。","Implicit I/O／Explicit 訊息","以 RPI 配置循環 I/O；Explicit 訊息用於請求回應，不以同一 RPI 評估。","I/O 至 PLC 程式","量裝置更新、PLC 工作週期及最壞間隔，CIP Sync 的時間同步精度不是資料延遲。","確認 CIP Security 端點","安全連線需兩端支援與啟用，依 Profile 和政策核對鑑別、完整性與保密性。"],["EtherCAT","ethercat-comparison","https://tr.beckhoff.com.cn/pluginfile.php/31888/mod_resource/content/1/ETG1600_V1i0i2_G_R_InstallationGuideline.pdf","典型段 100 Mbit/s 全雙工","圖 A 對應 100BASE-TX 範例；不涵蓋 EtherCAT G 或 G10。","MainDevice 循環交換","裝置在幀經過時處理資料；Distributed Clocks 可同步取樣與輸出。","物理輸入至物理輸出","量 I/O 到程式、週期與抖動；Distributed Clocks 的同步誤差不是整條延遲。","區分同步、功能安全與資安","不要把 Distributed Clocks 或功能安全機制當成加密；隔離主站、工程介面和上層閘道。"]];const caps=['鏈路：實體層或承載網路怎麼傳？','更新／循環：設備何時送資料？','端到端延遲：從哪裡到哪裡計時？','協定安全：哪一層受保護？'];const field=document.getElementById('pc-controls');const grid=document.getElementById('pc-grid');const cap=document.getElementById('pc-caption');field.hidden=false;field.querySelector('[value="1"]').checked=true;field.addEventListener('change',e=>{if(e.target.name!=='pc-mode')return;const i=Number(e.target.value);if(!Number.isInteger(i)||i<0||i>=caps.length)return;cap.textContent=caps[i];[...grid.children].forEach((row,n)=>{row.querySelector('.pc-chip').textContent=d[n][3+i*2];row.querySelector('p').textContent=d[n][4+i*2]});});})();</script>
 <script>
 (() => {
-  const root = document.querySelector('#protocol-scoring');
-  if (!root) return;
-  const byId = id => document.getElementById(id);
   const profiles = {
     bas: {w:[30,45,25], gate:[true,false], text:'例：樓控趨勢／告警，量點位到監控端 p95，COV、整輪輪詢與來源更新分開。示意目標 1 秒，不是樓控標準。'},
     motion: {w:[65,25,10], gate:[true,true], text:'例：運動控制／循環 I/O，量控制器至致動器的循環、最長值、同步與抖動。示意硬時限 2 ms，並非任何設備保證。'},
@@ -885,90 +868,53 @@ python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.
     ['EtherNet/IP',[3,4,3],3,2,3,'乙太網協商速率不是 RPI，也不是閉迴路反應；量實際循環與 RPI 遺漏。','CIP Security 需端點和政策都相容；依採用模式驗 TLS／DTLS 等。','初期：Scanner、Adapter、授權。維護：RPI、組播、憑證與相容性。'],
     ['EtherCAT',[3,5,2],2,2,3,'典型 100BASE-TX 為 100 Mb/s；DC 同步、應用更新與實體反應分開驗收。','DC／功能安全不是網路加密；確認主站存取限制與安全分區。','初期：主站、驅動與拓撲。維護：診斷、備品及應用同步。'],
   ];
-  const weights = ['speed','security','price'].map(k => byId('ps-w-'+k));
-  const gateSec = byId('ps-hard-sec');
-  const gateSpeed = byId('ps-hard-speed');
-  const preset = byId('ps-preset');
-  const filter = byId('ps-filter');
-  const container = byId('ps-results');
-  const fieldNames = ['速度','安全','初期價格','維護價格'];
-  const options = '<option value="unknown">待確認</option><option value="pass">通過</option><option value="fail">未通過</option>';
-  const out = byId('ps-ranking');
-  const cards = [];
-  for (const [name, , , , , speedNote, securityNote, costNote] of data) {
-    const article = document.createElement('article');
-    article.className = 'ps-card';
-    // Only fixed curated strings are interpolated. All user inputs stay controlled.
-    article.innerHTML = '<h5>'+name+'</h5><p><strong>速度：</strong>'+speedNote+'</p><p><strong>安全：</strong>'+securityNote+'</p><p><strong>價格項目：</strong>'+costNote+'</p>'+
-      '<div class="ps-fields">'+fieldNames.map(a=>'<label>'+a+'分<select aria-label="'+name+' '+a+'分">'+[1,2,3,4,5].map(n=>'<option>'+n+'</option>').join('')+'</select></label>').join('')+'</div>'+
-      '<fieldset class="ps-gates"><legend>現場證據狀態</legend><div class="ps-fields"><label>安全門檻<select aria-label="'+name+' 安全門檻">'+options+'</select></label><label>時限門檻<select aria-label="'+name+' 時限門檻">'+options+'</select></label></div></fieldset>'+
-      '<p class="ps-value"></p>';
-    container.append(article);
-    cards.push({article, name, controls:[...article.querySelectorAll('select')], result:article.querySelector('.ps-value')});
-  }
-  function clampWeight(el) {
-    const val = el.value === '' ? 0 : Number(el.value);
-    return Number.isFinite(val) ? Math.min(100,Math.max(0,Math.round(val))) : 0;
+  const scenario = document.getElementById('psc-scenario');
+  const metric = document.getElementById('psc-metric');
+  const list = document.getElementById('psc-ranking');
+  const captions = {overall:'綜合分數',speed:'速度分數',security:'安全分數',cost:'成本分數（越高越省）'};
+  const modes = ['bas','motion','telemetry'];
+  function make(tag, name, value) {
+    const el=document.createElement(tag);
+    el.className=name;
+    if(value !== undefined) el.textContent=value;
+    return el;
   }
   function render() {
-    const w = weights.map(clampWeight);
-    const tot = w.reduce((a,b)=>a+b,0);
-    const active = gateSec.checked || gateSpeed.checked;
-    const completed = [];
-    let count = 0;
-    for (const card of cards) {
-      const [s,a,b,c] = card.controls.slice(0,4).map(x=>Number(x.value));
-      const passed = active && (!gateSec.checked || card.controls[4].value === 'pass') && (!gateSpeed.checked || card.controls[5].value === 'pass');
-      const fail = (gateSec.checked && card.controls[4].value === 'fail') || (gateSpeed.checked && card.controls[5].value === 'fail');
-      const price = (b+c)/2;
-      const score = tot ? (s*w[0]+a*w[1]+price*w[2])/tot : null;
-      const label = !active ? '沒有啟用硬門檻，僅供比較' : passed ? '通過目前啟用門檻（自行勾選）' : fail ? '未通過硬門檻' : '待確認，不列合格排名';
-      card.result.textContent = '加權 '+(score===null?'未計分':score.toFixed(2)+'／5')+'；價格 '+price.toFixed(1)+'／5；'+label+'。';
-      card.article.hidden = (filter.value==='passed'&&!passed) || (filter.value==='unverified'&&passed);
-      if (!card.article.hidden) count++;
-      if (passed) completed.push({name:card.name,score});
-    }
-    out.replaceChildren();
-    byId('ps-status').textContent = '顯示 '+count+'／'+cards.length+'；通過啟用門檻 '+completed.length+'。'+
-      (!tot ? ' 速度、安全及價格權重皆為 0，不計分。' :
-       !active ? ' 未啟用門檻，沒有合格排名。' :
-       !completed.length ? ' 目前沒有合格候選。' : ' 合格排名依未四捨五入的分數排序，同分同名次。');
-    if (active && tot) {
-      completed.sort((a,b)=>b.score-a.score || a.name.localeCompare(b.name));
-      let rank = 1;
-      completed.forEach(({name,score},i)=>{
-        if(i && Math.abs(score-completed[i-1].score)>1e-10) rank=i+1;
-        const li=document.createElement('li');
-        li.value=rank;
-        li.textContent=name+'：'+score.toFixed(2)+'／5';
-        out.append(li);
-      });
-    }
-  }
-  function loadPreset() {
-    const key = preset.value;
-    const o = profiles[key];
-    const pi = ['bas','motion','telemetry'].indexOf(key);
-    byId('ps-context').textContent=o.text;
-    weights.forEach((e,i)=>{e.value=o.w[i];});
-    [gateSec.checked,gateSpeed.checked]=o.gate;
-    filter.value='all';
-    cards.forEach(({controls},i)=>{
-      const row=data[i];
-      const defaults=[row[1][pi],row[2],row[3],row[4],'unknown','unknown'];
-      controls.forEach((select,j)=>{select.value=String(defaults[j]);});
+    const profile=profiles[scenario.value];
+    const i=modes.indexOf(scenario.value);
+    const [wSpeed,wSecurity,wCost]=profile.w;
+    // All metrics represented as integer multiples of 1/200. Preset weights total 100.
+    const rows=data.map(([name,speeds,security,initial,maintenance])=>{
+      const speed=speeds[i], costTwice=initial+maintenance;
+      return {name,units:{
+        overall:2*wSpeed*speed+2*wSecurity*security+wCost*costTwice,
+        speed:200*speed,security:200*security,cost:100*costTwice,
+      }[metric.value]};
+    }).sort((a,b)=>b.units-a.units);
+    let rank=1;
+    const fragments=document.createDocumentFragment();
+    rows.forEach(({name,units}, j)=>{
+      if(j&&units!==rows[j-1].units) rank=j+1;
+      const tied=rows[j-1]?.units===units||rows[j+1]?.units===units;
+      const li=make('li','psc-row');
+      const label=make('span','psc-label');
+      label.append(make('span','psc-rank',rank+' '),document.createTextNode(name+(tied?'（並列）':'')));
+      const track=make('span','psc-track');
+      track.setAttribute('aria-hidden','true');
+      const bar=make('span','psc-bar');
+      bar.style.width=(units/10)+'%';
+      track.append(bar);
+      const score=make('span','psc-score',(Math.floor((units+1)/2)/100).toFixed(2));
+      li.append(label,track,score);
+      fragments.append(li);
     });
-    render();
+    list.replaceChildren(fragments);
+    document.getElementById('psc-caption').textContent=captions[metric.value]+'（0–5 分，由高到低）';
+    document.getElementById('psc-method').textContent='此情境的綜合權重：速度 '+wSpeed+'%／安全 '+wSecurity+'%／成本 '+wCost+'%。'+profile.text;
   }
-  preset.addEventListener('change',loadPreset);
-  byId('ps-reset').addEventListener('click',loadPreset);
-  root.addEventListener('input',e=>{if(weights.includes(e.target)) render();});
-  root.addEventListener('change',e=>{
-    if(e.target===preset) return;
-    if(weights.includes(e.target)) e.target.value=clampWeight(e.target);
-    if(e.target.matches('input,select')) render();
-  });
-  loadPreset();
+  scenario.addEventListener('change',render);
+  metric.addEventListener('change',render);
+  render();
 })();
 </script>
 </body>
