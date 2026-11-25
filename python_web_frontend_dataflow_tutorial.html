@@ -60,9 +60,28 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
  #dataflow-diagram .fd-pipeline,#dataflow-diagram .fd-protocols{grid-template-columns:minmax(0,1fr)}
  #dataflow-diagram .fd-pipeline li:not(:last-child)::after{content:"↓";top:auto;right:calc(50% - .37rem);bottom:-1.26rem}
 }
+.wsx{min-width:0;overflow-wrap:anywhere}.wsx-lane,.wsx-tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.65rem;padding:0;margin:.6rem 0;list-style:none}.wsx-lane li,.wsx-tips article{min-width:0;padding:.7rem;border:1px solid #a9ccdd;border-radius:.6rem;background:#eaf5fb}.wsx-lane li strong,.wsx-lane li span{display:block}.wsx-lane li:not(:last-child)::after{content:"→";display:block;color:#165d80;font-weight:800}.wsx-return{border-left:4px solid #177b91;padding:.35rem .55rem}.wsx-tips h4,.wsx-tips p{margin:.25rem 0}.wsx-steps{padding-left:1.45rem}.wsx-steps li{margin-bottom:.55rem}.wsx-code{max-width:100%;overflow:auto}.wsx-code:focus-visible{outline:3px solid #177b91}@media(max-width:500px){.wsx-lane li:not(:last-child)::after{content:"↓"}}
+
+#frontend-auto-refresh .afr-wrap{overflow-x:auto;max-width:100%}
+#frontend-auto-refresh .afr-wrap table{border-collapse:collapse;min-width:44rem;width:100%}
+#frontend-auto-refresh .afr-wrap :is(th,td){vertical-align:top;padding:.67rem .6rem;text-align:left}
+#frontend-auto-refresh .afr-wrap th[scope=row]{min-width:9rem}
+#frontend-auto-refresh .afr-demo{border:1px solid #9fb7ca;border-radius:.6rem;background:#edf7fa;color:#173047;padding:.8rem 1rem;margin:1rem 0;overflow-wrap:anywhere}
+#frontend-auto-refresh .afr-control[hidden]{display:none!important}
+#frontend-auto-refresh .afr-control{display:flex;align-items:center;gap:.6rem .8rem;flex-wrap:wrap}
+#frontend-auto-refresh .afr-control label{display:flex;gap:.4rem;align-items:center}
+#frontend-auto-refresh .afr-control button{color:#13374d;background:white;border:1px solid #7999af;border-radius:.4rem;padding:.3rem .65rem;font:inherit;min-height:2.55rem}
+#frontend-auto-refresh .afr-control button:disabled{opacity:.56}
+#frontend-auto-refresh :is(button,input,a,summary,pre):focus-visible{outline:3px solid #005e72;outline-offset:3px}
+#frontend-auto-refresh .afr-status{font-weight:700;margin:.7rem 0 .2rem}
+#frontend-auto-refresh .afr-values{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.28rem .65rem;margin:.4rem 0}
+#frontend-auto-refresh .afr-values dd{margin:0}
+#frontend-auto-refresh pre{max-width:100%;overflow:auto}
+@media(max-width:32rem){#frontend-auto-refresh .afr-values{grid-template-columns:1fr;gap:.18rem}#frontend-auto-refresh .afr-values dd{margin-bottom:.45rem}}
+
 </style></head><body><main>
 <header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
-<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#websocket-deep-dive">WebSocket 深度</a><a href="#frontend-auto-refresh">自動刷新</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
 </header>
 <section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
 <figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
@@ -210,6 +229,272 @@ python -m uvicorn python_frontend_dataflow_connection_lab:app --host 127.0.0.1 -
 </dl></details></figure>
 <p>官方參考：<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">MDN Fetch</a>、<a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG SSE／EventSource</a>、<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSocket">MDN WebSocket</a>、<a href="https://fastapi.tiangolo.com/tutorial/cors/">FastAPI CORS</a>、<a href="https://fastapi.tiangolo.com/advanced/websockets/">FastAPI WebSockets</a>。</p>
 </section>
+<section id="websocket-deep-dive" class="wsx" aria-labelledby="wsx-title">
+  <h2 id="wsx-title">WebSocket 詳解：連線、續接與慢客戶端</h2>
+  <p>WebSocket 適合兩端都需要主動發送時，例如協作、狀態訂閱切換或應用層問答。若瀏覽器只接收讀值，先評估 SSE；普通查詢與命令也能以 HTTP API 完成。不要因為用了 WebSocket，就省略應答、授權或可重建的目前狀態。</p>
+  <figure class="card wsx-figure">
+    <figcaption>架構圖：從瀏覽器連線到後端佇列，再回到可重建的畫面</figcaption>
+    <ol class="wsx-lane">
+      <li><strong>瀏覽器／畫面</strong><span>GET 快照取得水位；WebSocket 接增量、送有界訂閱指令。</span></li>
+      <li><strong>HTTPS／WSS 反向代理</strong><span>終止 TLS 或安全轉送；支援 WebSocket，設定閒置與讀寫逾時。</span></li>
+      <li><strong>FastAPI／ASGI 端點</strong><span>accept 前驗 Origin、身分與連線政策；每筆操作重新驗權。</span></li>
+      <li><strong>服務與事件層</strong><span>按資源分流；有限回補視窗、每連線有界佇列、獨立發送。</span></li>
+    </ol>
+    <p class="wsx-return">回程：有界發送佇列 → WebSocket 資料框 → 檢查 stream_id／seq → 局部更新或重抓快照。裝置讀取或控制永遠由後端契約管理。</p>
+    <p><a href="python_frontend_websocket_architecture.drawio" download>下載可編輯架構圖與連線生命週期（Draw.io）</a></p>
+  </figure>
+
+  <h3>連線生命週期：握手成功不等於應用就緒</h3>
+  <ol class="wsx-steps">
+    <li><strong>建立：</strong>HTTP/1.1 的 RFC 6455 握手以 Upgrade 請求開始；伺服器接受後回 <code>101 Switching Protocols</code>。HTTP/2 或 HTTP/3 的 extended CONNECT 是不同機制，不能用「一定要看到 101」判定所有部署。用瀏覽器 Network/WS 時先確認代理使用的協定。</li>
+    <li><strong>就緒：</strong>瀏覽器 <code>open</code> 只代表連線可送資料。若協議要訂閱，客戶端此時送 <code>subscribe</code>，等待同一請求的 <code>subscribed</code> 後才標示已訂閱。若伺服器無法驗訂閱，就回錯誤，不讓畫面誤示為正常。</li>
+    <li><strong>傳輸：</strong>在同一條連線上，接收端按 WebSocket 訊息次序取得資料，但並行生產者仍需應用端序號、明確排序和重播政策；重連不會自動還原上一條連線。</li>
+    <li><strong>終止：</strong>前端換頁或元件卸載關閉連線及重連計時器；後端離開接收迴圈時移除訂閱並取消 writer。<code>1000</code> 是正常結束、<code>1008</code> 表示政策違規；<code>1006</code> 是本端觀測到的異常中斷狀態，不能作為送出的 Close frame code。</li>
+  </ol>
+
+  <h3>實務技巧與驗收</h3>
+  <div class="wsx-tips">
+    <article><h4>連線安全</h4><p>公開站用 HTTPS/WSS。瀏覽器不能由 <code>new WebSocket()</code> 任意加入自訂 Authorization header；可設計同站安全 Cookie 加 Origin allowlist，或經 HTTPS 核發短時有效的握手憑證，避免把長期 token 放 URL、log。Origin 檢查用於瀏覽器跨來源防護，不替代身分驗證，非瀏覽器也可自填 Origin。跨租戶讀寫應每筆驗權，不依賴 CORS 自動保護握手。</p></article>
+    <article><h4>心跳與閒置逾時</h4><p>協定層 Ping/Pong 用控制框，瀏覽器 WebSocket API 不開放手動傳這類控制框。若要檢查應用是否仍能服務，可定義 JSON <code>ping</code>/<code>pong</code>、比對請求 ID 和 deadline；它和 RFC 6455 控制框不同。心跳間隔依實測代理逾時與負載調整，不能保證穿過任何中介。</p></article>
+    <article><h4>慢客戶端與背壓</h4><p>伺服器每連線配置有界佇列和獨立 writer，廣播時不逐一等待每位客戶端。滿載時先分類：儀表板快照可依測點合併或捨棄舊值，需完整告警應保留於可重播來源，或終止連線要求重新同步。瀏覽器 <code>bufferedAmount</code> 只代表尚未送出的排隊位元組，不是接收端背壓或送達確認；超過應用上限時停止新增可延緩的送出，控制台顯示狀態。</p></article>
+    <article><h4>續接與交付語意</h4><p>快照帶 <code>schema_version</code>、<code>stream_id</code>、水位 <code>seq</code>。重連以去抖動的有限退避重試，從最後確認處請求續傳；若換世代、缺號、游標超出保留窗或解析失敗，先停用增量、重抓一致快照。對命令使用獨立 request/idempotency key，沒有應用確認不等於沒執行，別重播未知狀態的操作。</p></article>
+  </div>
+  <div class="card">
+    <h3>本機實作：FastAPI 問答與瀏覽器狀態</h3>
+    <p>在<a href="#connection-depth">同源 FastAPI 實驗</a>啟動後（不是在 GitHub Pages 上），到 <code>http://127.0.0.1:8000/</code> 的瀏覽器 Console 貼上。這個 demo 只接受文字 <code>snapshot</code> 並回一筆後正常關閉；沒有訂閱、重播或正式認證。以下保守門檻只示範送出前檢查，不代表推薦生產值。</p>
+    <pre class="wsx-code" tabindex="0"><code>const url = new URL("/api/ws", location.href);
+url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+const socket = new WebSocket(url);
+socket.addEventListener("open", () =&gt; {
+  if (socket.readyState === WebSocket.OPEN &amp;&amp; socket.bufferedAmount &lt; 65536) {
+    socket.send("snapshot");
+  } else {
+    socket.close();
+  }
+}, {once: true});
+socket.addEventListener("message", event =&gt; {
+  const data = JSON.parse(event.data);
+  console.log(data.schema_version, data.seq, data.sensor_id, data.value_c);
+});
+socket.addEventListener("close", event =&gt; console.log("closed", event.code));</code></pre>
+    <p>預期先見 <code>1 1 T10 24.1</code>，再見 <code>closed 1000</code>。正式版在 parse 後驗 schema、型別、訊息大小與資料流身份；遇到錯誤與斷線把 UI 標為「舊資料」，不要清掉最後已確認值。驗收至少涵蓋代理閒置、手機網路切換、重複與缺序、慢連線佇列上限及取消清理。</p>
+  </div>
+  <p>官方參考：<a href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455</a>、<a href="https://www.rfc-editor.org/rfc/rfc8441">HTTP/2 RFC 8441</a>、<a href="https://www.rfc-editor.org/rfc/rfc9220">HTTP/3 RFC 9220</a>、<a href="https://websockets.spec.whatwg.org/">WHATWG WebSockets</a>、<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/bufferedAmount">MDN bufferedAmount</a>、<a href="https://fastapi.tiangolo.com/advanced/websockets/">FastAPI WebSockets</a>。</p>
+</section>
+<section id="frontend-auto-refresh" aria-labelledby="refresh-title">
+
+<p class="kicker">AUTO REFRESH / IMPLEMENTATION</p>
+<h2 id="refresh-title">前端自動刷新：從整頁刷新到局部更新</h2><p>本次更新：<time datetime="2026-11-25T13:51:25+08:00">2026-11-25 13:51:25（台灣時間）</time></p>
+<p>選的是更新方式，不必把所有功能都做成推播。秒級唯讀看板先用局部 Fetch；大量由伺服器推播的事件可用 SSE；真的需要雙向即時互動才評估 WebSocket。ETag 和可見性是優化策略，能與這些方式併用。</p>
+<div class="afr-wrap" role="region" aria-label="前端自動刷新技術比較" tabindex="0"><table><thead><tr><th scope="col">方法</th><th scope="col">適用</th><th scope="col">限制</th><th scope="col">最小實作重點</th></tr></thead><tbody><tr><th scope="row">整頁刷新</th><td>定時全面重載、必須重跑既有頁面初始化</td><td>表單／捲動可能重設，整頁資產與 JS 再初始化</td><td>&lt;meta http-equiv=&quot;refresh&quot; content=&quot;60&quot;&gt; 或 location.reload()；只適合允許重置的看板</td></tr><tr><th scope="row">局部 Fetch 輪詢</th><td>每隔 1–60 秒讀取最新狀態；伺服器僅提供普通 HTTP</td><td>頻率太高造成啟動洪峰；請求慢時不應堆疊</td><td>請求完成後才 setTimeout；AbortController、退避、可見性與最後成功值</td></tr><tr><th scope="row">長輪詢 Long polling</th><td>變化少、要較快看到通知；沒有事件串流介面</td><td>長連線受前置代理、LB 閒置逾時及容額影響</td><td>服務持有請求至事件／逾時；收到後再發下一個，失敗退避</td></tr><tr><th scope="row">SSE</th><td>伺服器單向推播告警、進度與時間序列</td><td>代理可能緩衝、長連線要規劃復原，傳統 EventSource 不適合任意自訂 headers</td><td>EventSource 接 text/event-stream；規劃事件 ID、重連、心跳與快照回補</td></tr><tr><th scope="row">WebSocket</th><td>雙向高頻互動、現場會話狀態</td><td>要自行設計重連、心跳、權限與積壓限制；不能視為慢資料的預設選項</td><td>以 WebSocket 接 wss 服務；重連後以快照或版本重新同步</td></tr><tr><th scope="row">ETag／條件式請求</th><td>快照很少改變；想減少 JSON 傳輸和處理</td><td>不等於停止輪詢；驗證依表示版本，304 無回應正文</td><td>If-None-Match → 304 時保留同一已驗證快照；不要對空內存做 json()</td></tr><tr><th scope="row">Page Visibility</th><td>切換分頁、螢幕休眠時減少不必要流量</td><td>只是一種前端排程策略，不是隱藏即銷毀，也不是保證準時</td><td>監聽 visibilitychange；隱藏取消讀取，可見再受控更新，不能決定警報是否持續運作</td></tr></tbody></table></div>
+<div class="afr-demo" id="auto-refresh-demo">
+  <h3>離線示範｜單一請求、可見性與退避</h3>
+  <p>以固定延遲模擬唯讀讀數，不呼叫 CDN 或後端。勾選故障，觀察保留讀值與重試等待；再取消並手動重試。</p>
+  <div class="afr-control" hidden>
+    <button type="button" data-refresh="start">開始更新</button><button type="button" data-refresh="pause" disabled>暫停</button>
+    <button type="button" data-refresh="retry" disabled>立即重試</button>
+    <label><input type="checkbox" data-refresh="fault">模擬連線失敗</label>
+  </div>
+  <p class="afr-status" role="status" aria-live="polite" aria-atomic="true">待開始</p>
+  <dl class="afr-values"><dt>最後成功值</dt><dd data-refresh="value">無</dd><dt>資料狀態</dt><dd data-refresh="freshness">尚未取得</dd>
+    <dt>同時在途</dt><dd data-refresh="active">0</dd><dt>連續失敗</dt><dd data-refresh="fails">0</dd><dt>下次重試等待</dt><dd data-refresh="delay">—</dd></dl>
+  <noscript><p>未啟用 JavaScript。仍可閱讀技術比較與下方實作，不會發送請求。</p></noscript>
+</div>
+<details><summary>展開可用範本：Vanilla JS 撈取唯讀快照</summary>
+<p>把下列腳本放在輸出與重試按鈕之後（或以 defer 載入），並由同源 API 提供 <code>{"temperature":25.2}</code>，伺服器需正確產生 ETag。背景分頁會取消在途讀取；可見後恢復。429 或 503 若有 Retry-After 應遵守，跨大量客戶端要加入退避抖動。多次收到同值／304 只證明表示未變，資料在 PLC 的實際年齡仍看 source timestamp。</p>
+<pre tabindex="0"><code>// 搭配同源唯讀 /api/latest；範例服務需自行提供。
+const output = document.querySelector(&quot;#reading&quot;);   // 例如 &lt;output id=&quot;reading&quot;&gt;
+const reload = document.querySelector(&quot;#retry&quot;);     // 例如 &lt;button id=&quot;retry&quot;&gt;
+let timer, controller, etag, lastGood, failures = 0;
+let enabled = true;
+const visible = () =&gt; enabled &amp;&amp; !document.hidden;
+
+function schedule(delay) {
+  clearTimeout(timer);
+  if (visible()) timer = setTimeout(run, delay);
+}
+
+async function run() {
+  if (!visible() || controller) return;             // 全程一次一個請求
+  clearTimeout(timer);
+  const owner = new AbortController();
+  controller = owner;
+  const deadline = setTimeout(() =&gt; owner.abort(), 3500);
+  try {
+    const response = await fetch(&quot;/api/latest&quot;, {
+      cache: &quot;no-store&quot;,
+      headers: etag ? {&quot;If-None-Match&quot;: etag} : {},
+      signal: owner.signal
+    });
+    if (response.status !== 304) {
+      if (!response.ok) throw new Error(&quot;HTTP &quot; + response.status);
+      const data = await response.json();
+      if (!Number.isFinite(data.temperature)) throw new Error(&quot;Invalid reading&quot;);
+      if (!visible() || owner.signal.aborted) return;
+      lastGood = data.temperature;
+      etag = response.headers.get(&quot;ETag&quot;);
+    } else if (lastGood === undefined) {
+      throw new Error(&quot;304 without a validated previous value&quot;);
+    }
+    if (!visible() || owner.signal.aborted) return;
+    output.textContent = lastGood.toFixed(1) + &quot; °C&quot;;
+    failures = 0;
+  } catch (error) {
+    if (visible()) {
+      failures++;
+      output.textContent = lastGood === undefined ? &quot;沒有可用資料&quot;
+        : lastGood.toFixed(1) + &quot; °C（上次成功值，可能過舊）&quot;;
+    }
+  } finally {
+    clearTimeout(deadline);
+    controller = undefined;
+    if (visible()) schedule(Math.min(30000, 1000 * 2 ** Math.min(failures, 5)));
+  }
+}
+
+document.addEventListener(&quot;visibilitychange&quot;, () =&gt; {
+  if (!visible()) {
+    clearTimeout(timer);
+    controller?.abort();
+  } else if (!controller) schedule(0);
+});
+reload.addEventListener(&quot;click&quot;, () =&gt; { if (visible() &amp;&amp; !controller) schedule(0); });
+window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+  enabled = false;
+  clearTimeout(timer);
+  controller?.abort();
+});
+window.addEventListener(&quot;pageshow&quot;, () =&gt; {
+  enabled = true;
+  if (!controller) schedule(0);
+});
+schedule(0);</code></pre>
+</details>
+<p><strong>規範：</strong><a href="https://fetch.spec.whatwg.org/">WHATWG Fetch</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2">HTTP If-None-Match</a> · <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG SSE</a>。</p>
+</section>
+<script>
+(() => {
+  "use strict";
+  const box = document.getElementById("auto-refresh-demo");
+  if (!box) return;
+  const ui = (name) => box.querySelector('[data-refresh="' + name + '"]');
+  const status = box.querySelector(".afr-status");
+  let enabled = false, presented = true, inFlight, timer;
+  let lastValue, lastOkAt, successful = 0, failures = 0;
+  const staleAfter = 4200;
+  const canRun = () => enabled && presented && !document.hidden;
+  function cleanupTimer() { clearTimeout(timer); timer = undefined; }
+  function setStatus(text) { if (text !== status.textContent) status.textContent = text; }
+
+  function render() {
+    const age = lastOkAt === undefined ? undefined : performance.now() - lastOkAt;
+    ui("value").textContent = lastValue === undefined ? "無" : lastValue.toFixed(1) + " °C";
+    ui("freshness").textContent = age === undefined ? "尚未取得"
+      : (!canRun() || age > staleAfter || failures > 0) ? "更新暫停或資料可能過舊（保留上次成功值）"
+      : "已有最近成功值（" + (age / 1000).toFixed(1) + " 秒前）";
+    ui("active").textContent = inFlight ? "1" : "0";
+    ui("fails").textContent = String(failures);
+    ui("start").disabled = enabled;
+    ui("pause").disabled = !enabled;
+    ui("retry").disabled = !canRun() || !!inFlight;
+  }
+
+  function schedule(delay) {
+    cleanupTimer();
+    ui("delay").textContent = delay >= 1000 && failures > 0 ? (delay / 1000).toFixed(1) + " 秒" : "—";
+    if (canRun()) timer = setTimeout(poll, delay);
+  }
+
+  function readOffline(signal, failed) {
+    return new Promise((resolve, reject) => {
+      if (signal.aborted) return reject(new DOMException("Cancelled", "AbortError"));
+      const end = () => {
+        clearTimeout(id);
+        signal.removeEventListener("abort", cancel);
+      };
+      const cancel = () => {
+        end();
+        reject(new DOMException("Cancelled", "AbortError"));
+      };
+      const id = setTimeout(() => {
+        end();
+        if (failed) reject(new Error("Simulated offline"));
+        else resolve(24 + ((successful + 1) % 8) * .3);
+      }, 350);
+      signal.addEventListener("abort", cancel, { once: true });
+    });
+  }
+
+  async function poll() {
+    cleanupTimer();
+    if (!canRun() || inFlight) return;
+    const owner = new AbortController();
+    inFlight = owner;
+    setStatus("正在取得唯讀快照");
+    ui("delay").textContent = "—";
+    render();
+    try {
+      const value = await readOffline(owner.signal, ui("fault").checked);
+      if (!canRun() || owner.signal.aborted) return;
+      lastValue = value;
+      lastOkAt = performance.now();
+      successful++;
+      failures = 0;
+      setStatus("成功更新；等完成後再排下次");
+    } catch (error) {
+      if (!owner.signal.aborted && canRun()) {
+        failures++;
+        setStatus("連線失敗；不清空上次成功值，稍後退避重試");
+      }
+    } finally {
+      inFlight = undefined;
+      render();
+      if (canRun()) schedule(Math.min(12000, 1300 * 2 ** Math.min(failures, 4)));
+    }
+  }
+
+  function suspend(label) {
+    cleanupTimer();
+    inFlight?.abort();
+    ui("delay").textContent = "—";
+    setStatus(label);
+    render();
+  }
+
+  ui("start").addEventListener("click", () => {
+    enabled = true;
+    render();
+    schedule(0);
+  });
+  ui("pause").addEventListener("click", () => {
+    enabled = false;
+    suspend("已暫停；不再排程新請求");
+  });
+  ui("retry").addEventListener("click", () => {
+    if (canRun() && !inFlight) schedule(0);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (enabled) suspend("頁籤在背景；暫停並取消在途讀取");
+    } else {
+      render();
+      if (canRun() && !inFlight) schedule(0);
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    presented = false;
+    if (enabled) suspend("已離開；取消排程與在途讀取");
+  });
+  window.addEventListener("pageshow", () => {
+    presented = true;
+    render();
+    if (canRun() && !inFlight) schedule(0);
+  });
+  box.querySelector(".afr-control").hidden = false;
+  render();
+})();
+</script>
+
 <section id="origin"><h2>7. 同源、CORS、Cookie 與 API 安全</h2>
 <div class="card"><ul>
 <li><strong>同源：</strong>協定、主機、埠都相同才同源。http://127.0.0.1:8765 和 http://localhost:8765 主機不同；同主機不同埠也是跨來源。請照終端機顯示的位址，以相對路徑存取 API。</li>

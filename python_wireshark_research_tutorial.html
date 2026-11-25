@@ -1,0 +1,40 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wireshark 封包解析｜離線證據、篩選與交叉驗證</title>
+<style>
+:root{font:1rem/1.68 system-ui,"Noto Sans TC",sans-serif;color:#172c44;background:#edf4f9;--line:#c7d9e7}*{box-sizing:border-box}body{margin:0}main{max-width:91rem;padding:clamp(.75rem,2.7vw,2.5rem);margin:auto}a{color:#185b85;text-underline-offset:.17em;overflow-wrap:anywhere}a:focus-visible{outline:3px solid #12666f;outline-offset:.18rem}
+header,section{border:1px solid var(--line);border-radius:.7rem;background:#fff;padding:clamp(.85rem,2.3vw,1.8rem);margin-bottom:1rem;min-width:0;overflow-wrap:anywhere}header{color:#edf7ff;background:#152e48;border-bottom:5px solid #5abcbb}header a{color:#d7f6fc}h1,h2,h3{line-height:1.3}h1{font-size:clamp(1.65rem,4vw,2.85rem);margin:.45rem 0}p{max-width:84ch}.label{letter-spacing:.085em;font-weight:750;font-size:.82rem;color:#a8e1de}.links{display:flex;flex-wrap:wrap;gap:.6rem}.links a{border:1px solid #86a9c1;border-radius:.35rem;padding:.24rem .55rem}.callout{padding:.6rem .75rem;border-left:4px solid #36828b;background:#edf7f8}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.65rem}.card{border:1px solid var(--line);border-radius:.5rem;background:#f5f9fc;padding:.6rem .75rem;min-width:0}.card h3{margin:.2rem 0;color:#214d6a}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:.45rem;margin:.6rem 0}table{width:100%;min-width:35rem;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:.5rem .65rem;border-bottom:1px solid var(--line)}thead th{background:#e4f0f6}.table-wrap:focus-visible{outline:3px solid #12666f;outline-offset:.12rem}
+pre{overflow:auto;max-width:100%;padding:.75rem .95rem;background:#142d46;color:#f1f6ff;border-radius:.5rem}code{font-family:ui-monospace,monospace;font-size:.92em}
+</style></head><body><main>
+<header><span class="label">NETWORK EVIDENCE / WIRESHARK</span><h1>Wireshark 封包解析：從看懂欄位到提出可驗證的結論</h1><p>用三筆合成 classic PCAP 做一個可重做的研究：分辨「框架沒有被完整擷取」與「看到的 UDP 資料不完整」，再用 Python、Wireshark 畫面和欄位輸出對照。</p><nav aria-label="教材章節" class="links"><a href="python_network_packet_analysis_tutorial.html#research-study">回 Python 封包研究</a><a href="#design">研究設計</a><a href="#desktop">桌面操作</a><a href="#filters">篩選與匯出</a><a href="#interpretation">判讀與效度</a></nav></header>
+<section id="design"><h2>1｜研究設計：先固定樣本、再選觀測條件</h2>
+<p>研究問題：同一組 Ethernet／802.1Q、IPv4、UDP 資料，在抓到完整框架或只抓到前綴時，GUI、欄位匯出和 Python 解析各能建立什麼證據？以主要結果「能否驗到 UDP 長度與 4-byte payload」核對。</p>
+<div class="cards"><article class="card"><h3>輸入</h3><p>三筆相隔一秒的合成紀錄：無 VLAN、單標籤 VLAN 100、同標籤只保留 30 bytes。兩端都是文件示例 IP，沒有真實機房資料。</p></article><article class="card"><h3>控制與作業順序</h3><p>固定同一 PCAP 雜湊、停用名稱解析、記錄版本及設定檔。先看完整紀錄，再套用篩選，最後對照 Python 匯出。</p></article><article class="card"><h3>輸出證據</h3><p>畫面筆號、觀測欄位、未解碼欄位、篩選式與原因。報告只描述已捕獲可觀察的資料，缺值不補零。</p></article></div>
+<p><a href="wireshark_research_sample.pcap" download>下載合成 PCAP</a> · <a href="wireshark_expected_python.json" download>下載 Python 核對輸出</a> · <a href="python_offline_pcap_lab.py" download>下載產生器與解析程式</a>。</p>
+<pre tabindex="0"><code>python python_offline_pcap_lab.py --read wireshark_research_sample.pcap
+python python_offline_pcap_lab.py --self-test
+tshark --version</code></pre>
+<p class="callout">已用 Python 及 Linux TShark 4.4.19 實跑同一份 PCAP：四個篩選、欄位匯出及 UDP 交談統計皆核對通過；GUI 步驟依官方使用手冊，沒有在桌面版操作。<a href="wireshark_tshark_observed.csv" download>下載實測欄位 CSV</a>。</p></section>
+<section id="desktop"><h2>2｜Wireshark GUI：三個窗格交叉核對</h2>
+<ol><li>用 <strong>File → Open</strong> 開啟合成 PCAP。不選擷取介面，不需要管理員或即時抓包權限。</li><li>在<strong>封包清單</strong>選 No.1。它應是一筆 60-byte 紀錄；若 Info 欄的文字受設定檔影響，以下方正確的欄位和值核對，不依摘要字串判斷。</li><li>在<strong>封包詳細資料</strong>逐層展開 Frame → Ethernet II → IPv4 → UDP：查 Frame Length／Capture Length、IPv4 Total Length、UDP Length、兩端埠。可將關鍵欄位佈置為自訂欄位，並記下欄位名稱。</li><li>在<strong>封包位元組</strong>選 EtherType 或 UDP Length，看高亮的實際 bytes。比較 No.1 的 IPv4 位移 14 與 No.2 的 18；再查 No.3 值從哪層開始無法成立。</li><li>從 <strong>Statistics</strong> 檢查 Protocol Hierarchy、Conversations／Endpoints 與 I/O Graphs。自行記錄是否只計顯示篩選後的樣本；同一圖表需有視窗寬度及選到的顯示篩選式。</li></ol>
+<div class="table-wrap" role="region" tabindex="0" aria-label="逐筆對照預期"><table><thead><tr><th scope="col">No.</th><th scope="col">捕獲／原始 bytes</th><th scope="col">VLAN ID</th><th scope="col">IPv4 total／UDP length</th><th scope="col">Python 預期證據</th></tr></thead><tbody>
+<tr><th scope="row">1</th><td>60／60</td><td>無</td><td>32／12</td><td>UDP 12345 → 8080，payload 4 bytes。</td></tr>
+<tr><th scope="row">2</th><td>64／64</td><td>100</td><td>32／12</td><td>L3 位移多 4 bytes，應用內容不變。</td></tr>
+<tr><th scope="row">3</th><td>30／64</td><td>100</td><td>IPv4 完整標頭不可確認／無完整 UDP</td><td>只取得部分欄位；不同 dissector 仍可能顯示 IP 長度的原始值，不能因此說資料完整。</td></tr>
+</tbody></table></div></section>
+<section id="filters"><h2>3｜顯示篩選與 TShark：把同一個觀測做成可重跑指令</h2>
+<p><strong>擷取篩選</strong>在擷取時決定保留哪些封包；丟掉的資料事後不能復原。<strong>顯示篩選</strong>只選擇已錄下的封包來閱讀。本例只用 Offline File 與顯示篩選，原始 PCAP 不會被修改。</p>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Wireshark 顯示篩選"><table><thead><tr><th scope="col">顯示篩選</th><th scope="col">回答什麼</th><th scope="col">合成檔的預期</th></tr></thead><tbody>
+<tr><th scope="row"><code>frame.number == 3</code></th><td>以原始筆號定位一筆，不因篩選後列表而重編。</td><td>No.3。</td></tr>
+<tr><th scope="row"><code>frame.cap_len &lt; frame.len</code></th><td>找只錄到前綴的紀錄，不是計算重傳或網路丟包率。</td><td>No.3。</td></tr>
+<tr><th scope="row"><code>vlan.id == 100</code></th><td>找具有這個 802.1Q VLAN ID 的觀測資料。</td><td>No.2、No.3。</td></tr>
+<tr><th scope="row"><code>udp.dstport == 8080 &amp;&amp; udp.length == 12</code></th><td>縮到可辨識的 UDP 欄位，不把埠號當成應用協定證明。</td><td>No.1、No.2。</td></tr>
+</tbody></table></div>
+<pre tabindex="0"><code>tshark -n -r wireshark_research_sample.pcap -Y 'frame.cap_len &lt; frame.len'
+tshark -n -r wireshark_research_sample.pcap -Y 'udp.dstport == 8080 &amp;&amp; udp.length == 12'
+tshark -n -r wireshark_research_sample.pcap -T fields -E header=y -E separator=, -e frame.number -e frame.cap_len -e frame.len -e vlan.id -e ip.len -e udp.length
+tshark -n -r wireshark_research_sample.pcap -q -z conv,udp</code></pre>
+<p><strong>實測差異：</strong>No.3 的 TShark 仍列 <code>ip.len=32</code>，因該欄位所在的 bytes 已落在捕獲前綴；<code>udp.length</code> 則留空。Python 實作在完整 IPv4 標頭未驗證前提早停止，沒有回傳 IP 長度。兩種行為可以並存，「讀到欄位」不等於「整層資料完整」。</p><p><code>-n</code> 不查名稱；<code>-r</code> 指定檔；<code>-Y</code> 套顯示篩選；<code>-T fields</code> 加 <code>-e</code> 選輸出欄；<code>-z conv,udp</code> 以 UDP 交談彙整。先保存全檔欄位，再算條件分組；若欄位空白，保存空白與解析狀態，不替換成 0。</p></section>
+<section id="interpretation"><h2>4｜研究生等級的判讀：現象、推論、排除</h2>
+<ul><li><strong>先建立可重現紀錄：</strong>檔案 SHA-256、Wireshark/TShark 版本、解析設定檔、時間格式、篩選原文、匯出欄、測點位置和樣本數。比較 Python 與 Wireshark 時，分開報告兩者的支持範圍與截斷策略。</li><li><strong>封包可解碼不等於通訊完成：</strong>同一合成檔可見兩筆 UDP，無法從來源埠/目的埠推斷應用身分、對端是否收到，或回覆是否正常。TLS 的可見資料不包含未被解密的應用內容。</li><li><strong>Wireshark 的分析標記是提示：</strong>例如 TCP 重傳解讀依賴視角、順序及捕獲是否完整；一個封包的 TCP payload 不一定是一條完整應用層訊息。這份 UDP 檔沒有 TCP，不能用它驗證 TCP 重組。</li><li><strong>校驗和不等於資料來源可靠：</strong>主機端擷取的 checksum 可能受卸載影響；IPv4 UDP 的 0 欄位表示未提供 UDP checksum，不能以 0 直接推為損壞或實測遺失。</li><li><strong>一般化必須新增證據：</strong>時戳對時、交換器鏡像掉包、捕獲機使用率、取樣偏差都會改變統計。若需分析真實資料，先確認授權、去識別、保存原因與留存週期，再設計可對照的觀測。</li></ul>
+<p>官方參考：<a href="https://www.wireshark.org/docs/wsug_html_chunked/">Wireshark 使用手冊</a>、<a href="https://www.wireshark.org/docs/man-pages/wireshark-filter.html">顯示篩選語法</a>、<a href="https://www.wireshark.org/docs/man-pages/tshark.html">TShark 參數</a>、<a href="https://www.wireshark.org/docs/dfref/f/frame.html">Frame 欄位</a>、<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChAdvChecksums.html">校驗和行為</a>。</p>
+</section></main></body></html>
