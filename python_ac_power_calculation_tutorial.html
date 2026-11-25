@@ -1,0 +1,123 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>交流電力與電力角｜P、Q、S、PF 與 Python 計算</title>
+<style>
+:root{--ink:#162a40;--blue:#17497a;--line:#cddcea;--sub:#485f77}*{box-sizing:border-box}body{margin:0;background:#f2f6fb;color:var(--ink);font:1rem/1.7 system-ui,sans-serif}main{max-width:70rem;margin:auto;padding:clamp(1rem,4vw,2.6rem)}a{color:var(--blue);text-underline-offset:3px}a:focus-visible,summary:focus-visible{outline:3px solid #2f79b3;outline-offset:3px}header{margin-top:.75rem;background:#163c66;color:white;padding:clamp(1rem,4vw,2.3rem);border-radius:12px}header small{color:#d2e9fd;letter-spacing:.08em;font-weight:750}h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.14;margin:.4rem 0}header p{max-width:58ch;margin-bottom:0}nav{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin:1rem 0}section{border:1px solid var(--line);border-radius:9px;background:#fff;padding:clamp(1rem,3vw,1.65rem);margin-top:1rem}h2{color:#21476e;line-height:1.24;margin:0 0 .55rem}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.55rem;padding:0;list-style-position:inside}.flow li{padding:.6rem;background:#ecf5fe;border:1px solid var(--line);border-radius:7px}.flow span{display:block;color:var(--sub);font-size:.9rem}.scroll,pre{overflow:auto}table{width:100%;min-width:36rem;border-collapse:collapse}th,td{padding:.55rem;text-align:left;vertical-align:top;border:1px solid var(--line)}th{background:#e9f2fa}.note{padding:.7rem .9rem;border-left:4px solid #2374ac;background:#ebf5ff}figure{margin:.8rem 0}.triangle{display:block;width:100%;max-width:420px;height:auto;background:#eef5fd;border-radius:8px}.legend{display:flex;gap:.55rem 1.15rem;flex-wrap:wrap}.legend b{border-bottom:3px solid var(--c);padding-bottom:.13rem}pre{padding:.95rem;background:#142940;color:#edf6ff;border-radius:8px;font-size:.86rem}summary{cursor:pointer}p,li{overflow-wrap:anywhere}
+</style></head><body><main><a href="index.html">← 回 Python 教材入口</a>
+<header><small>電力資料分析 · AC POWER</small><h1>交流電力與電力角</h1><p>從電壓、電流、相角算有功、無功與視在功率；以一致的方向和時間窗彙整負載，區分功率因數角與發電機功角。</p></header>
+<nav aria-label="章節導覽"><a href="#architecture">資料架構</a><a href="#calculation">計算流程</a><a href="#triangle">三角形與算例</a><a href="#angle">兩種角度</a><a href="#harmonics">諧波與限制</a><a href="#lab">Python</a></nav>
+<section id="architecture"><h2>01｜量測邊界和資料流</h2><ol class="flow"><li>電力支路<span>合成的電壓、電流 RMS 與相角</span></li><li>統一口徑<span>量測邊界、方向、相數、品質與時間</span></li><li>邊界計算<span>先計 P／Q，再求 S、PF、φ</span></li><li>報表核對<span>比較支路和總表；電費另看電能與需量定義</span></li></ol><p>本課約定吸收有功為正、感性（電流落後）Q 為正、容性（電流超前）Q 為負。不同電表可能以進／出電或不同象限命名；接資料時先讀設備文件，不能從單一 PF 符號猜測超前或落後。本頁只以合成資料說明，不含帶電量測、調整或補償選型。</p></section>
+<section id="calculation"><h2>02｜從 RMS 到 P、Q、S 和 PF</h2><ol class="flow"><li>選相數<span>單相或平衡三相</span></li><li>先求視在功率<span>單相 VI；三相 √3 × 線電壓 × 線電流</span></li><li>分解有功與無功<span>依 φ 的 cos 與 sin 得到 P、Q</span></li><li>彙整同窗負載<span>各自加總 P 與帶正負號的 Q，再重算 S／PF</span></li></ol><div class="scroll" tabindex="0" role="region" aria-label="功率公式"><table><thead><tr><th>量</th><th>理想正弦、吸收有功負載</th><th>單位及解讀</th></tr></thead><tbody>
+<tr><td>S 視在功率</td><td>單相 V<sub>RMS</sub>I<sub>RMS</sub> ÷ 1000；平衡三相 √3 V<sub>LL</sub>I<sub>L</sub> ÷ 1000</td><td>kVA；三相 V<sub>LL</sub> 是線對線電壓，I<sub>L</sub> 為線電流</td></tr>
+<tr><td>P 有功功率</td><td>S cos φ</td><td>kW；平均能量轉換率，不是 kWh</td></tr>
+<tr><td>Q 無功功率</td><td>S sin φ</td><td>kvar；按方向保留正負號</td></tr>
+<tr><td>PF 與 φ</td><td>PF = P/S；φ = atan2(Q,P)</td><td>PF 無因次；atan2 回傳弧度，顯示時轉角度。S=0 不報角度與 PF。</td></tr></tbody></table></div><p>三相式的 φ 是相電壓與對應相電流的角；以平衡總量使用線電壓、線電流時，不是直接取任意線對線電壓角和線電流角相減。PF 單獨無法判斷 Q 正負，宜同時顯示 kvar 或超前／落後。時間累積用各段 kW × 小時求 kWh；不要從 kVA 直接當成 kWh 或套入帳單。</p></section>
+<section id="triangle"><h2>03｜功率三角形：用複功率加總，不能直接把 kVA 相加</h2>
+<figure><figcaption>負載 A 的正弦功率三角形，斜邊與直角邊共用比例尺；圖中 φ 為感性正角。</figcaption>
+<svg class="triangle" viewBox="0 0 420 290" role="img" aria-label="負載 A：有功向右 55.426 kW、無功向上 41.569 kvar；視在 69.282 kVA 為斜邊">
+<path d="M55 247H343" fill="none" stroke="#216192" stroke-width="6"/><path d="M343 247V31" fill="none" stroke="#287351" stroke-width="6" transform="translate(0 0)"/><path d="M55 247L343 31" fill="none" stroke="#a36e29" stroke-width="6"/>
+</svg><div class="legend"><b style="--c:#216192">P：55.426 kW</b><b style="--c:#287351">Q：+41.569 kvar</b><b style="--c:#a36e29">S：69.282 kVA</b><span>φ：+36.87°</span></div></figure>
+<div class="scroll" tabindex="0" role="region" aria-label="平衡三相合成算例"><table><thead><tr><th>案例，400 V 線電壓</th><th>P（kW）</th><th>Q（kvar）</th><th>S（kVA）</th><th>PF</th><th>φ</th></tr></thead><tbody><tr><th scope="row">A：100 A，感性</th><td>55.426</td><td>+41.569</td><td>69.282</td><td>0.8000</td><td>+36.87°</td></tr>
+<tr><th scope="row">B：60 A，容性</th><td>36.000</td><td>-20.785</td><td>41.569</td><td>0.8660</td><td>-30.00°</td></tr>
+<tr><th scope="row">同窗合計</th><td>91.426</td><td>+20.785</td><td>93.758</td><td>0.9751</td><td>+12.81°</td></tr></tbody></table></div>
+<p>A、B 同一時段，同一邊界，且均以理想平衡正弦模型計算。P 合計保留正值；B 負 Q 抵銷部分 A 正 Q。合計 S 用 hypot(ΣP,ΣQ)，不是 69.282 + 41.569；PF 也不是兩筆簡單平均。這是計算示意，不是實際電容裝置或調整建議。</p></section>
+<section id="angle"><h2>04｜「電力角」可能指不同量</h2><ul><li><strong>功率因數角 φ：</strong>在正弦負載是對應相電壓與相電流的相位差，帶方向的功率三角形用 atan2(Q,P) 表達。</li><li><strong>同步機功角 δ：</strong>描述同步機內電勢與端／參考匯流排電壓的相位差，取決於選用等效模型與參考。它不是電流相角，也不能只靠 kW、kvar、PF 或 φ 推回。匯流排間相角也需說明是哪兩個電壓相量。本頁不拿理想機組模型做發電機操作或穩定度整定。</li></ul></section>
+<section id="harmonics"><h2>05｜諧波、不平衡與電表讀值</h2><p>單相總真實 PF＝同窗平均有功（v(t)×i(t) 的平均）÷（總電壓 RMS × 總電流 RMS）。位移 PF＝基波相差的 cos φ<sub>1</sub>。畸變電流可能讓真實 PF 低於位移 PF；有諧波或不平衡時，不把所有非有功成分都算成同一個 Q，也不直接套 S²=P²+Q²、單一 φ 或平衡三相公式。</p><p class="note">查明電表對三相 S、PF、無功與需量的演算法、方向及時間窗；比對帳單時另查費率與計費口徑。可接續閱讀 <a href="python_taiwan_electricity_billing_tutorial.html">台灣電費計算教材</a>。</p></section>
+<section id="lab"><h2>06｜Python 標準庫實作</h2><p><a href="python_ac_power_calculation_lab.py" download>下載完整 Python</a>。測試正／負 Q、資料加總、單相、零負載、非法輸入及真實 PF 邊界；純離線無硬體。</p><pre><code>python python_ac_power_calculation_lab.py
+python python_ac_power_calculation_lab.py --test</code></pre><details><summary>展開 Python 原始碼</summary><pre><code>&quot;&quot;&quot;理想正弦、供電側正向合成算例；不接電表、不操作電力設備。&quot;&quot;&quot;
+from dataclasses import dataclass
+import math
+import unittest
+
+
+@dataclass(frozen=True)
+class Power:
+    p_kw: float
+    q_kvar: float
+
+    @property
+    def s_kva(self):
+        return math.hypot(self.p_kw, self.q_kvar)
+
+    @property
+    def pf(self):
+        return self.p_kw / self.s_kva if self.s_kva else None
+
+    @property
+    def phi_deg(self):
+        return math.degrees(math.atan2(self.q_kvar, self.p_kw)) if self.s_kva else None
+
+
+def sinusoidal(volts_rms, amps_rms, phi_deg, *, balanced_3ph=False):
+    values = (volts_rms, amps_rms, phi_deg)
+    if not all(math.isfinite(x) for x in values):
+        raise ValueError(&quot;只能接受有限數值&quot;)
+    if min(volts_rms, amps_rms) &lt; 0 or not -90 &lt;= phi_deg &lt;= 90:
+        raise ValueError(&quot;RMS 不可為負；本例僅涵蓋吸收有功的負載&quot;)
+    # 三相的 volts 是線對線、amps 是線電流；phi 是相電壓/相電流角。
+    s = (math.sqrt(3) if balanced_3ph else 1) * volts_rms * amps_rms / 1000
+    phi = math.radians(phi_deg)
+    # 消除 cos(±90°) 的微小浮點殘留。
+    return Power(0.0 if abs(phi_deg) == 90 else s * math.cos(phi),
+                 s * math.sin(phi))
+
+
+def aggregate(loads):
+    &quot;&quot;&quot;同一時間窗與邊界；此例限可用單一複功率表示的正弦系統。&quot;&quot;&quot;
+    loads = tuple(loads)
+    if any(not (math.isfinite(x.p_kw) and math.isfinite(x.q_kvar))
+           for x in loads):
+        raise ValueError(&quot;P、Q 必須為有限值&quot;)
+    return Power(math.fsum(x.p_kw for x in loads), math.fsum(x.q_kvar for x in loads))
+
+
+def true_pf_1ph(p_kw, volts_rms, amps_rms):
+    &quot;&quot;&quot;P 已由同窗平均 v(t)*i(t) 取得；V、I 為總 RMS。&quot;&quot;&quot;
+    if not all(math.isfinite(x) for x in (p_kw, volts_rms, amps_rms)):
+        raise ValueError(&quot;只能接受有限數值&quot;)
+    if min(volts_rms, amps_rms) &lt; 0:
+        raise ValueError(&quot;RMS 不可為負&quot;)
+    s = volts_rms * amps_rms / 1000
+    if abs(p_kw) &gt; s and not math.isclose(abs(p_kw), s, rel_tol=1e-12):
+        raise ValueError(&quot;|P| 不可大於 S，請核對時間窗和量測定義&quot;)
+    return max(-1, min(1, p_kw / s)) if s else None
+
+
+def example():
+    a = sinusoidal(400, 100, math.degrees(math.acos(.8)), balanced_3ph=True)
+    b = sinusoidal(400, 60, -30, balanced_3ph=True)
+    return a, b, aggregate((a, b))
+
+
+class Tests(unittest.TestCase):
+    def test_balanced_and_sum(self):
+        a, b, total = example()
+        self.assertAlmostEqual(a.s_kva, 69.2820323028)
+        self.assertAlmostEqual(a.pf, .8)
+        self.assertGreater(a.q_kvar, 0)
+        self.assertLess(b.phi_deg, 0)
+        self.assertAlmostEqual(total.q_kvar, 20.7846096908)
+        self.assertLess(total.s_kva, a.s_kva + b.s_kva)
+
+    def test_single_phase_and_bad_input(self):
+        self.assertAlmostEqual(sinusoidal(230, 10, 0).p_kw, 2.3)
+        self.assertIsNone(sinusoidal(230, 0, 0).phi_deg)
+        for v, i, phi in ((-1, 10, 10), (230, 10, 110), (math.nan, 10, 0)):
+            with self.assertRaises(ValueError):
+                sinusoidal(v, i, phi)
+
+    def test_harmonic_pf_and_limit(self):
+        self.assertAlmostEqual(true_pf_1ph(1.84, 230, 10), .8)
+        self.assertIsNone(true_pf_1ph(0, 230, 0))
+        with self.assertRaises(ValueError):
+            true_pf_1ph(2.31, 230, 10)
+
+
+if __name__ == &quot;__main__&quot;:
+    import sys
+    if &quot;--test&quot; in sys.argv:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        for label, x in zip((&quot;A 感性&quot;, &quot;B 容性&quot;, &quot;合計&quot;), example()):
+            print(f&quot;{label}: P={x.p_kw:.3f} kW, Q={x.q_kvar:+.3f} kvar, &quot;
+                  f&quot;S={x.s_kva:.3f} kVA, PF={x.pf:.4f}, φ={x.phi_deg:+.2f}°&quot;)
+        print(&quot;單相示意真實 PF:&quot;, true_pf_1ph(1.84, 230, 10))</code></pre></details>
+<p>依據：<a href="https://www.electrical-installation.org/enwiki/Definition_of_reactive_power">Schneider Electric 電氣安裝指南：有功、無功、視在功率</a> · <a href="https://www.electrical-installation.org/enwiki/Power_factor">Schneider Electric：功率因數</a> · <a href="https://web.mit.edu/6.685/6.685/www/chapter7.pdf">MIT 6.685：同步機模型與功角</a>。</p></section></main></body></html>

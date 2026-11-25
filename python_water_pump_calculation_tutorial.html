@@ -1,0 +1,180 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>水泵計算｜流量、揚程、功率、VFD 與 NPSH</title>
+<style>
+:root{--ink:#152f46;--muted:#466179;--nav:#122c44;--blue:#005d7b;--line:#b9cdd9;--paper:#eef5f8;--soft:#e5f2f8;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper)}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{background:var(--nav);color:#f4faff;padding:clamp(1rem,4vw,3rem)}header a{color:#a4e7f6}header>div,main,footer{max-width:74rem;margin:auto}main,footer{padding:clamp(.75rem,3vw,1.8rem)}h1{font-size:clamp(2rem,6vw,4.15rem);line-height:1.12;margin:.5rem 0 1rem}h2{font-size:clamp(1.3rem,4vw,1.95rem);line-height:1.27;margin:.3rem 0 .6rem}a{color:var(--blue);text-underline-offset:.2em}nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1rem}nav a,.button{display:inline-block;padding:.3rem .65rem;background:var(--soft);border:1px solid var(--line);border-radius:.5rem}section{background:#fff;padding:clamp(.75rem,2.6vw,1.65rem);border:1px solid var(--line);border-radius:.85rem;margin-bottom:1rem}.kicker,figcaption{color:var(--blue);font-weight:800}header .kicker{color:#a4e7f6}figure{margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:#f2f8fb}.flow{list-style:none;margin:.65rem 0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem;counter-reset:step}.flow li{counter-increment:step;position:relative;padding:.65rem;border:1px solid #8fb0c2;background:#fff;border-radius:.55rem;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:var(--blue)}.flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .15rem);top:39%;color:var(--blue);font-weight:800}.table-wrap{max-width:100%;overflow:auto;margin:.7rem 0;border:1px solid var(--line);border-radius:.55rem}table{min-width:40rem;width:100%;border-collapse:collapse;text-align:left}th,td{padding:.55rem .65rem;vertical-align:top;border-bottom:1px solid #d2dfe7}thead th{background:var(--soft)}tbody tr:nth-child(even){background:#f3f9fb}.warn{border-left:.3rem solid #a56514;background:#fff1da;padding:.6rem .8rem}.formula{font-family:ui-monospace,monospace;color:var(--blue);font-weight:650;overflow-wrap:anywhere}svg{max-width:100%;height:auto;display:block;margin:.65rem auto}pre{max-width:100%;overflow:auto;background:#102b43;color:#e8f8ff;padding:.8rem;border-radius:.55rem}details{padding:.65rem;border:1px solid var(--line);border-radius:.55rem;margin:.6rem 0}summary{cursor:pointer;font-weight:750}:focus-visible{outline:2px solid #087f9c;outline-offset:3px}@media(max-width:800px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";left:50%;top:100%}}
+</style></head><body id="top"><header><div><p class="kicker">HYDRONICS / PYTHON FIELD GUIDE</p><h1>水泵計算：從流量、揚程到實際運轉點</h1><p>以合成冰水迴路教會你畫出系統曲線、估算電力並理解汽蝕裕量；不以樓層高度或泵浦最大流量代替完整計算。</p><p><a href="index.html#facility-metrics">回機房與設備教材</a> · <a href="python_flowmeter_calculation_tutorial.html">流量計計算</a> · <a href="python_chiller_efficiency_tutorial.html">冰機能效指標</a></p></div></header>
+<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#head">流量與揚程</a><a href="#curves">曲線</a><a href="#power">功率與變頻</a><a href="#npsh">NPSH</a><a href="#lab">實驗</a><a href="#checklist">驗收</a></nav>
+<section id="architecture"><p class="kicker">01 / SYSTEM BOUNDARY</p><h2>閉式冰水迴路有哪些計量點？</h2>
+<figure><figcaption>圖一｜閉式單泵水側，最後回到同一吸入口</figcaption><ol class="flow"><li><strong>吸入口</strong><br>壓力、溫度、參考高程；補水與膨脹系統維持充水與靜壓。</li><li><strong>泵／馬達／VFD</strong><br>電表看輸入，泵前後查壓差與能量提升。</li><li><strong>供水總管</strong><br>量流量與供水溫、記有效內徑；分歧後流量需平衡。</li><li><strong>指標末端</strong><br>盤管、控制閥、過濾器及末端差壓；沿最不利路徑算損失。</li><li><strong>回水總管</strong><br>回水溫與循環流量匯集，再回吸入口。</li></ol>
+<p>供回水管段、閥門狀態、流量與壓差要對同一時刻。分支是並聯，不能把多條同起點終點的支路壓損一股腦串加。合成案例等效成一條指標路徑，非實場管路模型。</p></figure>
+<figure><figcaption>圖二｜計算流程</figcaption><ol class="flow"><li><strong>定義範圍</strong><br>流體、溫度、流量、開式或閉式、參考面。</li><li><strong>列揚程需求</strong><br>高程及壓力差、管件與設備壓降、控制差壓。</li><li><strong>畫曲線求交點</strong><br>泵曲線與系統曲線在同單位同轉速相交。</li><li><strong>核對輸入功率</strong><br>液壓 → 泵軸 → 馬達、變頻器電力。</li><li><strong>核對汽蝕與限制</strong><br>用廠牌曲線與條件驗證 NPSH、允許區與流量邊界。</li></ol></figure></section>
+<section id="head"><p class="kicker">02 / HEAD CALCULATION</p><h2>Q、流速、壓力差與總揚程</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="水泵計算公式"><table><thead><tr><th>計算</th><th>式子</th><th>要件</th></tr></thead><tbody>
+<tr><th scope="row">連續方程式</th><td><span class="formula">Q = A × v，A = πD²/4</span></td><td>D 是管內徑；Q 換成 m³/s：m³/h ÷ 3,600。支路流量相加為總流量，不同管徑不會有同樣流速。</td></tr>
+<tr><th scope="row">壓差轉揚程</th><td><span class="formula">H_Δp = Δp/(ρg)</span></td><td>Pa / (kg/m³ × m/s²) = m；kPa 先 ×1,000。取壓口高度或管徑不同，加 Δz 及 (v₂²−v₁²)/(2g) 才是泵總揚程。</td></tr>
+<tr><th scope="row">管路、管件</th><td><span class="formula">H_loss = (f·L/D + ΣK)·v²/(2g)</span></td><td>f 為 Darcy 摩擦因子，不是 Fanning。實體多種管徑／流量，應各段分開算；閥位、粗糙度、雷諾數都能改變係數。</td></tr>
+<tr><th scope="row">盤管、濾網、末端需求</th><td><span class="formula">H_eq = ΣΔp_eq/(ρg)</span></td><td>用設備資料及污堵工況定壓降。若給末端 DP 要求，先釐清其已含閥／盤管與否，避免雙計。</td></tr>
+<tr><th scope="row">系統需求</th><td><span class="formula">H_system = Δz + Δp_boundary/(ρg) + Δ(v²)/(2g) + ΣH_loss</span></td><td>式子沿選定入口與出口，項目依實際邊界取捨；固定速度、固定閥位及近穩態才適合用常係數模型。</td></tr>
+</tbody></table></div>
+<p><strong>閉式循環：</strong>整個充滿水的回路走回同一點時，幾何高程上升及回降抵銷；泵仍需克服管路／設備損失與所需差壓。靜壓在高點、吸入口、膨脹及充水方面仍然重要。<strong>開式轉移：</strong>兩槽都通大氣且液面速度近零時，高差仍存在；有出口槽壓或異管徑邊界再加壓力與速度項。冷卻塔如果有開放排放點，要按真實液面和出流邊界，不套用閉式經驗。</p>
+</section>
+<section id="curves"><p class="kicker">03 / CURVES</p><h2>泵 ∩ 系統，才是流量與揚程</h2>
+<p>合成清水 ρ=998 kg/m³、g=9.80665 m/s²。單一路徑：管內徑 150 mm、長 150 m、Darcy f=0.022、ΣK=14；盤管、濾網和其他設備在 120 m³/h 合計壓降 130 kPa，教學近似依 Q² 變化。合成泵在基準轉速：<span class="formula">H_p(Q)=32−12·(Q/120)²</span>，Q 取 m³/h。在指定範圍做二分法，沒有正交點就報錯，不外插。</p>
+<figure><figcaption>圖三｜同一流量 Q 下比較泵提供的揚程與系統需要的揚程</figcaption><svg viewBox="0 0 710 390" role="img" aria-label="水泵曲線與系統曲線，交點數值見下表" preserveAspectRatio="xMidYMid meet"><rect x="65" y="40" width="605" height="300" fill="white"/><path d="M65 340.0H670" stroke="#d0dce6"/><text x="55" y="345.0" text-anchor="end" font-size="16">0</text><path d="M65 285.45454545454544H670" stroke="#d0dce6"/><text x="55" y="290.45454545454544" text-anchor="end" font-size="16">10</text><path d="M65 230.9090909090909H670" stroke="#d0dce6"/><text x="55" y="235.9090909090909" text-anchor="end" font-size="16">20</text><path d="M65 176.36363636363637H670" stroke="#d0dce6"/><text x="55" y="181.36363636363637" text-anchor="end" font-size="16">30</text><path d="M65 121.81818181818181H670" stroke="#d0dce6"/><text x="55" y="126.81818181818181" text-anchor="end" font-size="16">40</text><path d="M65 67.27272727272731H670" stroke="#d0dce6"/><text x="55" y="72.27272727272731" text-anchor="end" font-size="16">50</text><path d="M65.0 40V340" stroke="#d0dce6"/><text x="65.0" y="362" text-anchor="middle" font-size="16">0</text><path d="M165.83333333333331 40V340" stroke="#d0dce6"/><text x="165.83333333333331" y="362" text-anchor="middle" font-size="16">30</text><path d="M266.66666666666663 40V340" stroke="#d0dce6"/><text x="266.66666666666663" y="362" text-anchor="middle" font-size="16">60</text><path d="M367.5 40V340" stroke="#d0dce6"/><text x="367.5" y="362" text-anchor="middle" font-size="16">90</text><path d="M468.3333333333333 40V340" stroke="#d0dce6"/><text x="468.3333333333333" y="362" text-anchor="middle" font-size="16">120</text><path d="M569.1666666666667 40V340" stroke="#d0dce6"/><text x="569.1666666666667" y="362" text-anchor="middle" font-size="16">150</text><path d="M670.0 40V340" stroke="#d0dce6"/><text x="670.0" y="362" text-anchor="middle" font-size="16">180</text><path d="M65 40V340H670" stroke="#122c44" fill="none" stroke-width="2"/><text x="12" y="25" font-size="17">H [m]</text><text x="612" y="385" font-size="17">Q [m³/h]</text><polyline points="65.00,165.45 78.44,165.53 91.89,165.75 105.33,166.11 118.78,166.62 132.22,167.27 145.67,168.07 159.11,169.02 172.56,170.11 186.00,171.35 199.44,172.73 212.89,174.25 226.33,175.93 239.78,177.75 253.22,179.71 266.67,181.82 280.11,184.07 293.56,186.47 307.00,189.02 320.44,191.71 333.89,194.55 347.33,197.53 360.78,200.65 374.22,203.93 387.67,207.35 401.11,210.91 414.56,214.62 428.00,218.47 441.44,222.47 454.89,226.62 468.33,230.91 481.78,235.35 495.22,239.93 508.67,244.65 522.11,249.53 535.56,254.55 549.00,259.71 562.44,265.02 575.89,270.47 589.33,276.07 602.78,281.82 616.22,287.71 629.67,293.75 643.11,299.93 656.56,306.25 670.00,312.73" fill="none" stroke="#005979" stroke-width="3" stroke-dasharray=""/><polyline points="65.00,340.00 78.44,339.88 91.89,339.52 105.33,338.92 118.78,338.08 132.22,337.00 145.67,335.68 159.11,334.12 172.56,332.31 186.00,330.27 199.44,327.99 212.89,325.47 226.33,322.71 239.78,319.71 253.22,316.46 266.67,312.98 280.11,309.26 293.56,305.30 307.00,301.09 320.44,296.65 333.89,291.97 347.33,287.04 360.78,281.88 374.22,276.48 387.67,270.83 401.11,264.95 414.56,258.82 428.00,252.46 441.44,245.86 454.89,239.01 468.33,231.93 481.78,224.60 495.22,217.04 508.67,209.23 522.11,201.18 535.56,192.90 549.00,184.37 562.44,175.61 575.89,166.60 589.33,157.35 602.78,147.87 616.22,138.14 629.67,128.17 643.11,117.97 656.56,107.52 670.00,96.83" fill="none" stroke="#a93617" stroke-width="3" stroke-dasharray=""/><polyline points="65.00,228.29 78.44,228.36 91.89,228.58 105.33,228.95 118.78,229.45 132.22,230.11 145.67,230.91 159.11,231.85 172.56,232.95 186.00,234.18 199.44,235.56 212.89,237.09 226.33,238.76 239.78,240.58 253.22,242.55 266.67,244.65 280.11,246.91 293.56,249.31 307.00,251.85 320.44,254.55 333.89,257.38 347.33,260.36 360.78,263.49 374.22,266.76 387.67,270.18 401.11,273.75 414.56,277.45 428.00,281.31 441.44,285.31 454.89,289.45 468.33,293.75 481.78,298.18 495.22,302.76 508.67,307.49 522.11,312.36 535.56,317.38 549.00,322.55" fill="none" stroke="#086750" stroke-width="3" stroke-dasharray="9 6"/><polyline points="65.00,296.36 78.44,296.24 91.89,295.88 105.33,295.28 118.78,294.44 132.22,293.36 145.67,292.04 159.11,290.48 172.56,288.68 186.00,286.64 199.44,284.36 212.89,281.83 226.33,279.07 239.78,276.07 253.22,272.83 266.67,269.35 280.11,265.62 293.56,261.66 307.00,257.46 320.44,253.01 333.89,248.33 347.33,243.41 360.78,238.24 374.22,232.84 387.67,227.20 401.11,221.31 414.56,215.19 428.00,208.82 441.44,202.22 454.89,195.37 468.33,188.29 481.78,180.96 495.22,173.40 508.67,165.59 522.11,157.55 535.56,149.26 549.00,140.74 562.44,131.97 575.89,122.96 589.33,113.72 602.78,104.23 616.22,94.50 629.67,84.54 643.11,74.33 656.56,63.88 670.00,53.20" fill="none" stroke="#6c479b" stroke-width="3" stroke-dasharray="3 6"/><circle cx="469.51289032538574" cy="231.29249717712372" r="5" fill="#122c44" stroke="white" stroke-width="2"/><text x="482.51289032538574" y="223.29249717712372" text-anchor="start" font-size="17" font-weight="700">1</text><circle cx="388.61031226030855" cy="270.42719819335923" r="5" fill="#122c44" stroke="white" stroke-width="2"/><text x="375.61031226030855" y="288.42719819335923" text-anchor="end" font-size="17" font-weight="700">2</text><circle cx="415.31843918005256" cy="214.83300924647918" r="5" fill="#122c44" stroke="white" stroke-width="2"/><text x="402.31843918005256" y="206.83300924647918" text-anchor="end" font-size="17" font-weight="700">3</text></svg><p>藍實線：泵 100%；橘實線：閉式系統；綠虛線：泵 80%；紫點線：有 8 m 靜揚程系統。圓點標出三個數值解。</p><div class="table-wrap" tabindex="0" role="region" aria-label="圖三交點座標"><table><thead><tr><th>點</th><th>條件</th><th>流量 [m³/h]</th><th>揚程 [m]</th></tr></thead><tbody><tr><th scope="row">1</th><td>閉式、100%</td><td>120.35</td><td>19.93</td></tr><tr><th scope="row">2</th><td>閉式、80%</td><td>96.28</td><td>12.76</td></tr><tr><th scope="row">3</th><td>加 8 m 靜揚程、100%</td><td>104.23</td><td>22.95</td></tr></tbody></table></div><p>點 1：流速 1.892 m/s；等效壓差 195.05 kPa；液壓 6.52 kW → 泵軸 8.58 kW → 電輸入 9.61 kW。</p></figure>
+<p>看圖不要把泵的零流量揚程當設計流量揚程。系統曲線會隨閥位、濾網水阻或分支更動；並聯多泵在共同揚程下加流量，串聯在共同流量下加揚程，仍要再與系統曲線求交點。</p></section>
+
+<section id="power"><p class="kicker">04 / POWER &amp; SPEED</p><h2>輸入功率要分清液壓、軸、電三層</h2>
+<p><span class="formula">P_hyd = ρgQH / 1,000 [kW]</span>（Q 以 m³/s）；<span class="formula">P_shaft = P_hyd/η_pump</span>；<span class="formula">P_elec = P_shaft/(η_motor · η_VFD)</span>。合成基準點以 η_pump=0.76、η_motor=0.92、η_VFD=0.97 估算，結果見圖表。效率在真實機組隨工況改變，馬達銘牌功率不是實際耗電。算能耗時以同口徑電 kW 對時間積分，勿用單點乘整年。</p>
+<p>相似律在同轉子、相似工況近似 <strong>Q ∝ n、H ∝ n²、軸功率 ∝ n³</strong>；它是換算泵曲線，不保證系統點照比例移動。80% 轉速，合成純摩擦閉式回路才恰好有 80% 流量；有 8 m 靜揚程時比例不同，若關閉揚程低過靜揚程甚至無有效輸送。別直接宣稱降速 20% 一定節省 48.8% 電力；實際還要看控制點、負載、泵及驅動效率、最小流量、溫升與共振限制。</p>
+</section>
+
+<section id="npsh"><p class="kicker">05 / SUCTION</p><h2>NPSHa 是現場可用值；NPSHr／NPSH3 看廠牌</h2>
+<p>在泵吸入口指定參考面，若壓力表量的是<strong>靜壓</strong>，<span class="formula">NPSHa = p_abs/(ρg) + v_s²/(2g) − p_vapor/(ρg)</span>。表壓須加當地大氣壓才成絕對壓；蒸氣壓同用絕對壓並依液溫，在入口壓力低、高海拔、熱水與堵濾網工況都要核對。若從上游儲槽計算，應以液面絕對壓與液位高差扣吸入管損；別把吸入口量測已反映的管損再扣一次。</p>
+<p>合成吸入口 135 kPa(a)、液體蒸氣壓假設 1.230 kPa(a)，速度由案例內徑求得：NPSHa 約 <strong>13.85 m</strong>。這只驗算可用值；沒有指定廠牌的泵浦 NPSHr 曲線、實際最低液位及溫度，就不能判定汽蝕裕量是否足夠。把 NPSHa 與同流量、轉速、工作液的廠商需求比較；NPSH3 通常指揚程降低 3% 的測試點，不是零汽蝕。實際裕量由用途、廠商與設計審查決定，本頁不提供通用倍數。</p>
+</section>
+
+<section id="lab"><p class="kicker">06 / PYTHON LAB</p><h2>用標準函式庫求交並回歸測試</h2>
+<p>Python 3.11+，不連網、不接設備。JSON 輸出包含基準點、80% 轉速、有 8 m 靜揚程案例與繪圖點；圖表由同一份輸出生成。</p>
+<p><a class="button" href="python_water_pump_calculation_lab.py" download>下載水泵計算 Python</a></p><pre><code>python3 python_water_pump_calculation_lab.py
+python3 python_water_pump_calculation_lab.py --self-test</code></pre>
+<details><summary>展開完整 Python 程式</summary><pre><code>&quot;&quot;&quot;Synthetic single water pump; validates arithmetic, not equipment selection.&quot;&quot;&quot;
+import argparse
+import json
+import math
+import unittest
+
+G = 9.80665
+RHO = 998.0
+
+
+def checked(x, label, *, zero=False):
+    if not math.isfinite(x) or x &lt; 0 or (not zero and x == 0):
+        raise ValueError(f&quot;invalid {label}&quot;)
+    return x
+
+
+def area(diameter_m):
+    return math.pi * checked(diameter_m, &quot;inside diameter&quot;) ** 2 / 4
+
+
+def velocity(flow_m3h, diameter_m):
+    return checked(flow_m3h, &quot;flow&quot;, zero=True) / 3600 / area(diameter_m)
+
+
+def pressure_head(delta_pa, rho=RHO):
+    return checked(delta_pa, &quot;pressure drop&quot;, zero=True) / (checked(rho, &quot;density&quot;) * G)
+
+
+def system_head(q, static_m=0):
+    # Representative closed loop: 150 m of pipe, ID 150 mm, Darcy f=.022,
+    # sum K=14. Coil, filter and other equipment cost 130 kPa at 120 m3/h.
+    v = velocity(q, 0.15)
+    pipe = (0.022 * 150 / 0.15 + 14) * v * v / (2 * G)
+    equipment = pressure_head(130_000) * (q / 120) ** 2
+    return checked(static_m, &quot;static head&quot;, zero=True) + pipe + equipment
+
+
+def pump_head(q, speed=1):
+    # Synthetic reference curve, not valid beyond its declared plot domain.
+    checked(q, &quot;flow&quot;, zero=True)
+    if not 0.7 &lt;= speed &lt;= 1 or q &gt; 180 * speed:
+        raise ValueError(&quot;outside synthetic pump curve range&quot;)
+    return speed ** 2 * (32 - 12 * (q / speed / 120) ** 2)
+
+
+def operating_point(speed=1, static_m=0):
+    lo, hi = 0.0, 180 * speed
+    def residual(q):
+        return pump_head(q, speed) - system_head(q, static_m)
+    if not residual(lo) &gt; 0 &gt; residual(hi):
+        raise ValueError(&quot;no positive intersection in curve range&quot;)
+    for _ in range(65):
+        mid = (lo + hi) / 2
+        if residual(mid) &gt; 0:
+            lo = mid
+        else:
+            hi = mid
+    q = (lo + hi) / 2
+    return q, system_head(q, static_m)
+
+
+def powers(q, head, pump_eta, motor_eta, drive_eta):
+    if any(not 0 &lt; eta &lt;= 1 for eta in (pump_eta, motor_eta, drive_eta)):
+        raise ValueError(&quot;efficiency must be &gt;0 and &lt;=1&quot;)
+    hydraulic = RHO * G * (checked(q, &quot;flow&quot;, zero=True) / 3600) * checked(head, &quot;head&quot;, zero=True) / 1000
+    shaft = hydraulic / pump_eta
+    return hydraulic, shaft, shaft / motor_eta / drive_eta
+
+
+def npsha(suction_abs_pa, vapor_abs_pa, suction_velocity_m_s):
+    # Suction static pressure at the pump reference plane; same elevation datum.
+    head = pressure_head(suction_abs_pa) - pressure_head(vapor_abs_pa)
+    return head + checked(suction_velocity_m_s, &quot;suction velocity&quot;, zero=True) ** 2 / (2 * G)
+
+
+def model():
+    q, h = operating_point()
+    q8, h8 = operating_point(.8)
+    p = powers(q, h, .76, .92, .97)
+    v = velocity(q, .15)
+    return {
+        &quot;point&quot;: {&quot;flow_m3h&quot;: q, &quot;head_m&quot;: h, &quot;velocity_m_s&quot;: v,
+                  &quot;delta_kpa&quot;: h * RHO * G / 1000,
+                  &quot;hydraulic_kw&quot;: p[0], &quot;shaft_kw&quot;: p[1], &quot;electrical_kw&quot;: p[2],
+                  &quot;npsha_m&quot;: npsha(135_000, 1_230, v)},
+        &quot;speed_80&quot;: {&quot;flow_m3h&quot;: q8, &quot;head_m&quot;: h8},
+        &quot;open_8m_point&quot;: dict(zip((&quot;flow_m3h&quot;,&quot;head_m&quot;), operating_point(1,8))),
+        &quot;curve&quot;: [{&quot;q&quot;: q, &quot;pump_100&quot;: pump_head(q), &quot;system&quot;: system_head(q),
+                   &quot;system_with_8m_static&quot;: system_head(q,8),
+                   &quot;pump_80&quot;: pump_head(q,.8) if q &lt;= 144 else None}
+                  for q in range(0,181,4)],
+    }
+
+
+class LabTests(unittest.TestCase):
+    def test_continuity_and_pressure(self):
+        self.assertAlmostEqual(velocity(120, .15) * area(.15) * 3600, 120)
+        self.assertAlmostEqual(pressure_head(RHO * G * 10), 10)
+
+    def test_point_residual(self):
+        q, h = operating_point()
+        self.assertAlmostEqual(h, pump_head(q))
+        self.assertEqual(system_head(0), 0)
+        self.assertEqual(system_head(0, 8), 8)
+        self.assertLess(operating_point(static_m=8)[0], q)
+
+    def test_affinity_closed_not_open(self):
+        self.assertAlmostEqual(operating_point(.8)[0] / operating_point()[0], .8)
+        self.assertNotAlmostEqual(
+            operating_point(.8, 8)[0] / operating_point(1, 8)[0], .8)
+
+    def test_power_and_suction(self):
+        hydraulic, shaft, electrical = powers(120, 20, .76, .92, .97)
+        self.assertTrue(hydraulic &lt; shaft &lt; electrical)
+        self.assertLess(npsha(135_000, 10_000, 2), npsha(135_000, 1230, 2))
+
+    def test_reject_invalid(self):
+        for call in (lambda: velocity(-1,.15), lambda: velocity(5,0),
+                     lambda: pressure_head(float(&quot;nan&quot;)), lambda: powers(2, 2, 0, .9, .9),
+                     lambda: pump_head(150,.8), lambda: operating_point(1,40)):
+            with self.assertRaises(ValueError):
+                call()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--self-test&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    if args.self_test:
+        unittest.main(argv=[&quot;lab&quot;], verbosity=2)
+    else:
+        print(json.dumps(model(), indent=2, allow_nan=False))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details></section>
+
+<section id="checklist"><p class="kicker">07 / VERIFICATION</p><h2>用現場證據驗算，而不是拿合成值選泵</h2>
+<ol><li>確認兩端點、高程、吸排壓位置、管內徑、流體、最高溫／最低液位、實際閥位與管件；沿最不利路徑重算。</li><li>以需求流量、負載／壓差範圍校核廠牌曲線和效率，含低負載與備援工況；檢查允許運轉區、最小流量、NPSH 需求及馬達負載。</li><li>依核可程序對照同時刻流量、泵進出壓、頻率、電功率與水溫；區分感測器校準、路徑損失與設備狀態。計算教材不能當作現場選型、壓力安全、控制設定或驗收簽證。</li></ol>
+<p>第一手來源：<a href="https://www.energy.gov/sites/prod/files/2014/05/f16/pump.pdf">美國能源部 Pumping System Sourcebook：系統揚程、曲線與變頻</a> · <a href="https://www.grundfos.com/uk/learn/research-and-insights/npsh-net-positive-suction-head">Grundfos：NPSH 與泵浦曲線</a> · <a href="https://datatool.pumps.org/pump-fundamentals/pump-principles">Hydraulic Institute：NPSHA、NPSHR 與 NPSH3</a>。</p></section>
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>
