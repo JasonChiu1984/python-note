@@ -7,27 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="stylesheet" href="assets/python315-labs.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    if (window.tailwind) window.tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', 'sans-serif'],
-            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
-          },
-          colors: {
-            pyblue: '#306998',
-            pyyellow: '#FFD43B',
-          }
-        }
-      }
-    };
-  </script>
-  <style>
+<style>
     html { scroll-behavior: smooth; }
+    canvas { max-width: 100%; }
     body {
       font-family: 'Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
       background-color: #f8fafc;
@@ -449,7 +434,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button type="button" data-sentinel-op="omit" class="sentinel-op-btn px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold">省略參數 (MISSING)</button>
             <button type="button" data-sentinel-op="none" class="sentinel-op-btn px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold">傳入 None (清除)</button>
-            <button type="button" data-sentinel-op="deepcopy" class="sentinel-op-btn px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-xs font-semibold col-span-2 sm:col-span-1">實測 deepcopy / pickle</button>
+            <button type="button" data-sentinel-op="deepcopy" class="sentinel-op-btn px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-xs font-semibold col-span-2 sm:col-span-1">模擬 deepcopy / pickle</button>
           </div>
 
           <div class="bg-slate-900 rounded-xl p-3.5 text-xs font-mono text-slate-100 h-44 overflow-y-auto space-y-2 code-block" id="sentinel-terminal"></div>
@@ -1015,7 +1000,7 @@ if __name__ == "__main__":
         category: 'builtin',
         badge: '內建型別',
         color: 'emerald',
-        desc: '取代 _MISSING = object() 慣用法。具備可讀 repr、支援 int | MISSING 聯集型別標註，且在 deepcopy() 與 pickle 往返後維持 is 身分一致，無 __dict__。',
+        desc: '取代 _MISSING = object() 慣用法。具備可讀 repr、支援 int | MISSING 聯集型別標註，且 deepcopy() 保留身分；pickle 往返則須能從定義模組以名稱取得，無 __dict__。',
         snippet: 'UNSET = sentinel("UNSET")\ndef patch(val: str | None | UNSET = UNSET): ...',
         url: 'https://peps.python.org/pep-0661/'
       },
@@ -1317,13 +1302,13 @@ if __name__ == "__main__":
 
       // Update Structural Metrics
       const hasDict = !useSlots && !isProtocol;
-      const hashable = isFrozen ? '是 (值雜湊)' : (isProtocol ? '依實作決定' : (isDataclass ? '否 (可變)' : '依物件身分'));
-      const threadSafe = (isFrozen && useFrozenDict) ? '高 (無鎖不可變)' : (isFrozen ? '中高 (不可變)' : '需自行加鎖');
+      const hashable = isFrozen ? '看欄位是否可雜湊' : (isProtocol ? '依實作決定' : (isDataclass ? '否 (可變)' : '依物件身分'));
+      const threadSafe = (isFrozen && useFrozenDict) ? '唯讀外層；仍須檢查巢狀值' : (isFrozen ? '屬性唯讀；巢狀值仍可能可變' : '依介面限制或同步');
 
       const metricsHtml = [
         { label: '實例 __dict__', val: hasDict ? '存在' : '無 (__slots__)', tone: hasDict ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200' },
         { label: '可雜湊 (Hashable)', val: hashable, tone: isFrozen ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-700 bg-slate-50 border-slate-200' },
-        { label: '3.15t 並行安全', val: threadSafe, tone: (isFrozen && useFrozenDict) ? 'text-indigo-700 bg-indigo-50 border-indigo-200' : 'text-slate-700 bg-slate-50 border-slate-200' },
+        { label: '共享狀態檢查', val: threadSafe, tone: (isFrozen && useFrozenDict) ? 'text-indigo-700 bg-indigo-50 border-indigo-200' : 'text-slate-700 bg-slate-50 border-slate-200' },
         { label: '欄位 / 方法數', val: `${orderedFields.length + (useFrozenDict ? 1 : 0)} / ${methodList.length}`, tone: 'text-cyan-700 bg-cyan-50 border-cyan-200' }
       ].map(m => `
         <div class="rounded-xl border p-3 ${m.tone}">
@@ -1815,7 +1800,7 @@ if __name__ == "__main__":
         } else if (op === 'deepcopy') {
           appendTerminal(
             'sentinel-terminal',
-            'OLD = object(); NEW = sentinel("MISSING")\n(deepcopy(OLD) is OLD, deepcopy(NEW) is NEW, pickle.loads(pickle.dumps(NEW)) is NEW)',
+            'from copy import deepcopy\nimport pickle\nOLD = object(); NEW = sentinel("NEW")\n(deepcopy(OLD) is OLD, deepcopy(NEW) is NEW, pickle.loads(pickle.dumps(NEW)) is NEW)',
             '(False, True, True)  # object() 複製後身分失效，PEP 661 sentinel 完美保持唯一身分！',
             'text-emerald-300'
           );

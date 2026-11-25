@@ -4,10 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Python 3.15 語法、平行運算與執行緒互動實驗室</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="stylesheet" href="assets/python315-labs.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <style>
+    main, main > section, main .grid > *, main .flex > pre { min-width: 0; }
+    main svg, main canvas { max-width: 100%; }
+    main pre { max-width: 100%; overflow-x: auto; }
+    @media (max-width: 480px) { main .flex > * { min-width: 0; } }
+
     :root {
       --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -527,7 +532,7 @@ async def main():
             <select id="tachyonMode" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
               <option value="wall">wall (真實牆鐘時間含 I/O)</option>
               <option value="cpu">cpu (僅純 CPU 運算時間)</option>
-              <option value="gil" selected>gil (鎖定 GIL 時間，揪出爭用)</option>
+              <option value="gil" selected>gil (持有 GIL 的樣本)</option>
               <option value="exception">exception (僅取樣處理例外期間)</option>
             </select>
           </div>
@@ -1083,7 +1088,7 @@ async def main():
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
               <div class="text-xs font-bold text-cyan-400">型別系統強化 (PEP 728 / 747 / 800) & re.prefixmatch</div>
-              <p class="text-xs text-slate-300">新增 <code>typing.TypeForm</code>、<code>TypedDict(closed=True, extra_items=...)</code>、<code>@typing.disjoint_base</code> 與更語意明確的 <code>re.prefixmatch()</code>。</p>
+              <p class="text-xs text-slate-300">新增 <code>typing.TypeForm</code>、<code>TypedDict</code> 的 <code>closed=True</code> 或 <code>extra_items=...</code>（同一定義不能並用）、<code>@typing.disjoint_base</code> 與更語意明確的 <code>re.prefixmatch()</code>。</p>
             </div>
           </div>
         `;
@@ -1097,35 +1102,35 @@ async def main():
         gilColor: 'text-rose-400',
         memLabel: '共享 Heap (pymalloc)',
         note: '傳統 CPython 建置中，所有執行緒必須爭奪同一把 GIL。執行 CPU 密集運算時同一時間只有 1 顆核心能執行 Python 位元組碼；但遇到 I/O 等待時會釋放 GIL 讓其他執行緒前進。',
-        code: `from concurrent.futures import ThreadPoolExecutor\nimport sys\n\nprint("GIL enabled:", sys._is_gil_enabled())  # True\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(work_fn, range(8)))`
+        code: `from concurrent.futures import ThreadPoolExecutor\nimport sys\n\ndef work(n):\n    return sum(i * i for i in range(n))\n\nprint("GIL enabled:", sys._is_gil_enabled())\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    print(list(pool.map(work, [100_000] * 8)))`
       },
       free_thread: {
         gilLabel: '已停用 (No-GIL)',
         gilColor: 'text-cyan-300',
         memLabel: '共享 Heap (mimalloc)',
-        note: 'Python 3.15t 自由執行緒建置停用 GIL，多個執行緒可同時在所有可用 CPU 核心上真正平行執行位元組碼！搭配 mimalloc、PEP 803 abi3t 與 frozendict 減少鎖爭用。',
-        code: `# 以 python3.15t 或 PYTHON_GIL=0 執行\nfrom concurrent.futures import ThreadPoolExecutor\nimport sys, sysconfig\n\nassert sysconfig.get_config_var("Py_GIL_DISABLED") == 1\nassert not sys._is_gil_enabled()  # False：真正多核心平行\n\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(cpu_heavy_fn, range(8)))`
+        note: 'Python 3.15 自由執行緒建置通常停用 GIL，但不相容的 C 擴充可重新啟用。確認 GIL 確實停用後，執行緒才可平行執行純 Python；abi3t 是擴充模組的 ABI，不是效能保證。',
+        code: `# 用自由執行緒版（如 python3.15t）執行；一般建置不能靠環境變數停用 GIL\nfrom concurrent.futures import ThreadPoolExecutor\nimport sys, sysconfig\n\nassert sysconfig.get_config_var("Py_GIL_DISABLED") == 1\nassert not sys._is_gil_enabled()\n\ndef work(n):\n    return sum(i * i for i in range(n))\n\nwith ThreadPoolExecutor(max_workers=4) as pool:\n    print(list(pool.map(work, [100_000] * 8)))`
       },
       subinterp: {
         gilLabel: '每直譯器獨立 GIL',
         gilColor: 'text-violet-300',
         memLabel: '同行程隔離記憶體',
-        note: '透過 concurrent.futures.InterpreterPoolExecutor 在同一個行程內建立多個子直譯器，每個子直譯器擁有獨立 GIL 與狀態，無需切換至 3.15t 建置也能多核平行，啟動比多行程更輕量。',
+        note: '透過 concurrent.futures.InterpreterPoolExecutor 在同一個行程內建立多個子直譯器，每個子直譯器擁有獨立 GIL 與狀態，無需切換至 3.15t 建置也能多核平行，啟動與記憶體成本則需用工作負載實測。',
         code: `from concurrent.futures import InterpreterPoolExecutor\n\ndef compute(n: int) -> int:\n    return sum(i * i for i in range(n))\n\nwith InterpreterPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(compute, [500_000] * 8))`
       },
       multiproc: {
         gilLabel: '各行程獨立 GIL',
         gilColor: 'text-emerald-300',
         memLabel: '獨立 OS 行程 (IPC)',
-        note: 'ProcessPoolExecutor 透過多個獨立作業系統行程繞過 GIL，具備最強故障隔離與舊版 C 擴充相容性，但行程啟動與資料序列化 (pickle) 具有明顯開銷。Python 3.15 在子行程異常終止時會明確回報 PID 與 exit code。',
+        note: 'ProcessPoolExecutor 透過多個獨立作業系統行程繞過 GIL，可透過獨立行程限制部份故障影響，亦可沿用在一般建置可執行的 C 擴充，但行程啟動與資料序列化 (pickle) 具有明顯開銷。Python 3.15 在子行程異常終止時會明確回報 PID 與 exit code。',
         code: `from concurrent.futures import ProcessPoolExecutor\n\ndef compute(n: int) -> int:\n    return sum(i * i for i in range(n))\n\nif __name__ == "__main__":\n    with ProcessPoolExecutor(max_workers=4) as pool:\n        results = list(pool.map(compute, [500_000] * 8))`
       },
       asyncio: {
         gilLabel: '單執行緒事件迴圈',
         gilColor: 'text-amber-300',
         memLabel: '單緒共享狀態 (無鎖)',
-        note: 'asyncio 在單一執行緒上透過協作式多工處理海量 I/O 等待，零執行緒切換成本；但若在協程內執行純 CPU 運算會阻塞整個事件迴圈。Python 3.15 新增 TaskGroup.cancel() 簡化提早終止。',
-        code: `import asyncio\n\nasync def fetch_item(i: int) -> str:\n    await asyncio.sleep(0.2)\n    return f"item-{i}"\n\nasync def main():\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch_item(i)) for i in range(8)]\n    return [t.result() for t in tasks]`
+        note: 'asyncio 在單一執行緒上透過協作式多工處理海量 I/O 等待，不需為每個 I/O 建立執行緒，但仍有協程排程開銷；但若在協程內執行純 CPU 運算會阻塞整個事件迴圈。Python 3.15 新增 TaskGroup.cancel() 簡化提早終止。',
+        code: `import asyncio\n\nasync def fetch_item(i: int) -> str:\n    await asyncio.sleep(0.2)\n    return f"item-{i}"\n\nasync def main():\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch_item(i)) for i in range(8)]\n    return [t.result() for t in tasks]\n\nprint(asyncio.run(main()))`
       }
     };
 
@@ -1513,32 +1518,37 @@ async def main():
     }
 
     function updateTachyonBuilder() {
-      const target = document.getElementById('tachyonTarget').value;
-      const mode = document.getElementById('tachyonMode').value;
-      const out = document.getElementById('tachyonOutput').value;
-      const allThreads = document.getElementById('tachyonAllThreads').checked;
+      const [command, operand] = document.getElementById('tachyonTarget').value.split(' ');
+      const modeControl = document.getElementById('tachyonMode');
+      const outControl = document.getElementById('tachyonOutput');
       const asyncAware = document.getElementById('tachyonAsync').checked;
-      const opcodes = document.getElementById('tachyonOpcodes').checked;
+      const allThreads = document.getElementById('tachyonAllThreads').checked;
+      const opcodeControl = document.getElementById('tachyonOpcodes');
+      const isDump = command === 'dump';
+      const mode = asyncAware ? 'wall' : modeControl.value;
+      const out = outControl.value;
+      modeControl.disabled = isDump || asyncAware;
+      outControl.disabled = isDump;
+      opcodeControl.disabled = !isDump && out === '--pstats';
 
-      const isDump = target.startsWith('dump');
-      const parts = ['python3.15 -m profiling.sampling', target];
-      if (!isDump) {
-        parts.push(`--mode ${mode}`);
-        parts.push(out);
-      }
-      if (allThreads && !isDump) parts.push('-a');
+      const parts = ['python3.15 -m profiling.sampling', command];
+      if (!isDump) parts.push('--mode', mode, out);
+      if (allThreads) parts.push('-a');
       if (asyncAware) parts.push('--async-aware');
-      if (opcodes && !isDump) parts.push('--opcodes');
-
-      const cmd = parts.join(' ');
-      document.getElementById('tachyonCmd').textContent = cmd;
+      if (opcodeControl.checked && !opcodeControl.disabled) parts.push('--opcodes');
+      // Put profiler options before the script/PID. After the script, arguments
+      // belong to the target program rather than the profiler.
+      parts.push(operand);
+      document.getElementById('tachyonCmd').textContent = parts.join(' ');
 
       let explain = isDump
-        ? '立即擷取目標 PID 所有執行緒（或協程任務）的堆疊快照，適合排查死結或卡死行程，不需重啟服務。'
-        : `以 ${mode} 模式進行高頻統計取樣（最高支援 1,000,000 Hz），無需修改原始碼即可產生 ${out.split(' ')[0]} 報告。`;
+        ? '擷取指定 PID 的 Python 堆疊快照；勾選 -a 才包含其他執行緒。只分析有權檢查的行程。'
+        : `以 ${mode} 模式統計取樣，輸出 ${out.split(' ')[0]}。`;
       if (mode === 'gil' && !isDump) {
-        explain += '（--mode gil 專門用來找出佔用 GIL 最久的熱點函式與執行緒。）';
+        explain += ' GIL 模式觀察持有 GIL 的樣本，不等同直接量測鎖等待時間。';
       }
+      if (asyncAware && !isDump) explain += ' 協程堆疊取樣使用 wall。';
+      if (opcodeControl.disabled) explain += ' pstats 不支援位元組碼取樣。';
       document.getElementById('tachyonExplain').textContent = explain;
     }
 
@@ -1546,6 +1556,7 @@ async def main():
     const wizState = { bottleneck: 'cpu', cext: 'ready', state: 'shared' };
 
     function renderWizard() {
+      // This wizard shows architecture snippets, not standalone scripts.
       document.querySelectorAll('.wiz-btn').forEach(b => {
         b.classList.toggle('active', wizState[b.dataset.wq] === b.dataset.wv);
       });
@@ -1557,7 +1568,7 @@ async def main():
 
       if (wizState.bottleneck === 'io') {
         title = 'asyncio + TaskGroup.cancel()（搭配非同步驅動）';
-        desc = '高併發 I/O 任務最適合單執行緒事件迴圈，能以極低記憶體同時維持數千條連線。Python 3.15 新增 TaskGroup.cancel()，讓超時、競速或提早達標時的任務取消更乾淨。';
+        desc = '高併發 I/O 任務最適合單執行緒事件迴圈，能以極較少執行緒處理多個連線（容量仍受檔案描述符、記憶體與上游限制）。Python 3.15 新增 TaskGroup.cancel()，讓超時、競速或提早達標時的任務取消更乾淨。';
         caveat = '注意：若呼叫阻塞式同步函式，請以 asyncio.to_thread() 交給背景執行緒，避免卡住事件迴圈。';
         code = `import asyncio\n\nasync def run_all(urls: list[str]):\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch(u)) for u in urls]\n    return [t.result() for t in tasks]`;
       } else if (wizState.bottleneck === 'mixed') {
@@ -1565,7 +1576,7 @@ async def main():
         desc = '外層以 asyncio 處理高併發網路 I/O，將重度 CPU 解析或運算委派至無 GIL 執行緒池（3.15t）或子直譯器池，兼顧吞吐量與多核心利用率。';
         caveat = wizState.cext === 'legacy'
           ? '因專案依賴舊版未適配 C 擴充，建議 CPU 階段優先選用 ProcessPoolExecutor 或確認套件是否已支援 abi3t。'
-          : '搭配 PEP 814 frozendict 傳遞不可變設定，可零拷貝且執行緒安全地跨工作執行緒共享。';
+          : '一般工作執行緒可共享同一個 frozendict 參照；它只限制外層修改，內含的可變資料仍須同步。子直譯器池另有 pickle 序列化。';
         code = `import asyncio\nfrom concurrent.futures import ThreadPoolExecutor\n\nasync def pipeline(payloads: list[bytes]):\n    loop = asyncio.get_running_loop()\n    with ThreadPoolExecutor(max_workers=4) as pool:\n        return await asyncio.gather(*[\n            loop.run_in_executor(pool, parse_heavy, p) for p in payloads\n        ])`;
       } else {
         // CPU-bound
@@ -1576,12 +1587,12 @@ async def main():
           code = `from concurrent.futures import ThreadPoolExecutor\nimport sys\n\nCONFIG = frozendict(threshold=0.95, precision=64)\nassert not sys._is_gil_enabled()\n\nwith ThreadPoolExecutor(max_workers=8) as pool:\n    results = list(pool.map(lambda x: compute(x, CONFIG), dataset))`;
         } else if (wizState.cext === 'ready' && wizState.state === 'isolated') {
           title = '多直譯器（concurrent.futures.InterpreterPoolExecutor）';
-          desc = '在單一行程中啟用多個隔離的 Python 子直譯器，每個子直譯器擁有獨立 GIL 與物件空間，無需切換 3.15t 建置也能多核加速，且記憶體開銷低於多行程。';
-          caveat = '提醒：跨直譯器傳遞的物件須為可共享或可序列化型別（如基礎型別、bytes、memoryview）。';
+          desc = '在單一行程中啟用多個隔離的 Python 子直譯器，每個子直譯器擁有獨立 GIL 與物件空間，無需切換 3.15t 建置也能多核加速，記憶體占用是否低於多行程需實測。';
+          caveat = '提醒：Executor 會以 pickle 序列化工作函式、引數與回傳值；可傳 bytes，不可直接傳 memoryview。';
           code = `from concurrent.futures import InterpreterPoolExecutor\n\nwith InterpreterPoolExecutor(max_workers=4) as pool:\n    results = list(pool.map(cpu_worker, chunks))`;
         } else {
           title = '多行程（concurrent.futures.ProcessPoolExecutor）';
-          desc = '當專案依賴尚未支援自由執行緒（未宣告 Py_MOD_GIL_NOT_USED / abi3t）的舊版 C 擴充套件，或需要最嚴格的行程級容錯隔離時，ProcessPoolExecutor 是最穩健的選擇。';
+          desc = '當專案依賴尚未支援自由執行緒（未宣告 Py_MOD_GIL_NOT_USED / abi3t）的舊版 C 擴充套件，或需要最嚴格的行程級容錯隔離時，可先評估 ProcessPoolExecutor，並以實際序列化、啟動與記憶體開銷驗證。';
           caveat = 'Python 3.15 強化了子行程異常終止的錯誤追蹤，會直接顯示崩潰子行程的 PID 與 exit code 方便除錯。';
           code = `from concurrent.futures import ProcessPoolExecutor\n\nif __name__ == "__main__":\n    with ProcessPoolExecutor(max_workers=4) as pool:\n        results = list(pool.map(legacy_c_ext_job, batches))`;
         }
@@ -1590,10 +1601,11 @@ async def main():
       document.getElementById('wizTitle').textContent = title;
       document.getElementById('wizDesc').textContent = desc;
       document.getElementById('wizCaveat').textContent = caveat;
-      document.getElementById('wizCode').textContent = code;
+      document.getElementById('wizCode').textContent = '# 架構片段：請先補齊應用程式的資料和工作函式\n' + code;
     }
 
     function initBenchChart() {
+      if (typeof Chart === 'undefined') return;
       const ctx = document.getElementById('benchChart').getContext('2d');
       const labels = [
         'Windows 64-bit 尾呼叫直譯器',
@@ -1858,6 +1870,7 @@ print(f"Wall: {wall:.2f}s | CPU: {cpu:.2f}s | Busy CPUs: {cpu / wall:.2f}")`;
       if (timingChartInstance) {
         timingChartInstance.destroy();
       }
+      if (typeof Chart === 'undefined') return;
       timingChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {

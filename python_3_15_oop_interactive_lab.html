@@ -7,26 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="stylesheet" href="assets/python315-labs.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', 'sans-serif'],
-            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
-          },
-          colors: {
-            pyblue: '#306998',
-            pyyellow: '#FFD43B',
-          }
-        }
-      }
-    };
-  </script>
   <style>
+    main, main > section, main .grid > *, main .flex > pre { min-width: 0; }
+    main svg, main canvas { max-width: 100%; }
+    main pre { max-width: 100%; overflow-x: auto; }
+    main :not(pre) > code { overflow-wrap: anywhere; }
+    @media (max-width: 480px) { html, body { overflow-x: clip; } main .flex > * { min-width: 0; } main h1, main h2, main h3, main p { overflow-wrap: anywhere; } }
+
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Inter', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
@@ -276,7 +266,7 @@
               <input id="opt-disjoint" type="checkbox" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
               <div class="text-xs">
                 <div class="font-semibold text-slate-800">PEP 800 <code class="font-mono text-indigo-600">@disjoint_base</code> 互斥基底標記</div>
-                <div class="text-slate-500">標示此類別不可與其他 <code class="font-mono">@disjoint_base</code> 類別進行多重繼承</div>
+                <div class="text-slate-500">標示靜態型別檢查器應檢查互斥基底；無繼承關係的互斥基底不得合併，裝飾器本身不在執行期禁止繼承</div>
               </div>
             </label>
             <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
@@ -346,7 +336,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 class="text-lg font-bold text-slate-900">繼承體系、C3 MRO 演算法與 PEP 800 Disjoint Base 模擬器</h2>
-            <p class="text-xs text-slate-500 mt-0.5">真實執行 Python C3 線性化演算法，並即時偵測 PEP 800 <code class="font-mono">@disjoint_base</code> 多重繼承衝突</p>
+            <p class="text-xs text-slate-500 mt-0.5">以 JavaScript 模擬 Python C3 線性化，並示範 PEP 800 <code class="font-mono">@disjoint_base</code> 多重繼承衝突</p>
           </div>
           <div class="flex flex-wrap gap-2" id="mro-presets">
             <button type="button" data-preset="diamond" class="mro-preset-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">鑽石繼承 (Diamond)</button>
@@ -687,7 +677,7 @@
         category: 'builtin',
         badge: '內建型別',
         color: 'emerald',
-        desc: '取代 _MISSING = object() 慣用法。具備可讀 repr、支援 int | MISSING 聯集型別標註，且在 deepcopy() 與 pickle 往返後維持 is 身分一致，無 __dict__。',
+        desc: '取代 _MISSING = object() 慣用法。具備可讀 repr、支援 int | MISSING 聯集型別標註，且 deepcopy() 保留身分；pickle 往返需能從模組依名稱取得同一物件，無 __dict__。',
         snippet: 'UNSET = sentinel("UNSET")\ndef patch(val: str | None | UNSET = UNSET): ...',
         url: 'https://peps.python.org/pep-0661/'
       },
@@ -697,7 +687,7 @@
         category: 'typing',
         badge: '型別系統',
         color: 'purple',
-        desc: '標記底層記憶體結構不相容的類別（如內建 str 與 int），讓靜態型別檢查器在編譯前攔截非法多重繼承並強化 assert_never 窮舉檢查。',
+        desc: '標記底層記憶體結構不相容的類別（如內建 str 與 int），讓支援的靜態型別檢查器提示不相容的共同子類別並強化 assert_never 窮舉檢查。',
         snippet: '@disjoint_base\nclass SolidBaseA: ...',
         url: 'https://peps.python.org/pep-0800/'
       },
@@ -707,7 +697,7 @@
         category: 'typing',
         badge: '型別系統',
         color: 'cyan',
-        desc: '為字典結構類別新增 closed=True（禁止未宣告額外鍵）與 extra_items=<type>（統一約束額外鍵值型別），讓 API JSON 契約更嚴謹。',
+        desc: '為字典結構類別新增 closed=True（禁止未宣告額外鍵）與 extra_items=<type>（統一約束額外鍵值型別），兩者不能在同一定義並用；實際收到的 JSON 仍須另外做執行期驗證。',
         snippet: 'class Payload(TypedDict, extra_items=int):\n    host: str',
         url: 'https://peps.python.org/pep-0728/'
       },
@@ -717,7 +707,7 @@
         category: 'typing',
         badge: '型別系統',
         color: 'amber',
-        desc: '允許撰寫接受「型別運算式本身」作為參數的泛型工廠與驗證函式（如 TypeForm[T]），在執行期直接回傳原物件，簡化框架與序列化類別設計。',
+        desc: '允許撰寫接受「型別運算式本身」作為參數的泛型工廠與驗證函式（如 TypeForm[T]），只限制靜態型別標註，不會自動轉型或驗證輸入。',
         snippet: 'def cast[T](typ: TypeForm[T], val: Any) -> T: ...',
         url: 'https://docs.python.org/3/whatsnew/3.15.html'
       },
@@ -779,6 +769,7 @@
     });
 
     function initPerfChart() {
+      if (typeof Chart === 'undefined') return;
       const ctx = document.getElementById('perf-chart');
       if (!ctx || !window.Chart) return;
       new Chart(ctx, {
@@ -989,7 +980,7 @@
 
       // Update Structural Metrics
       const hasDict = !useSlots && !isProtocol;
-      const hashable = isFrozen ? '是 (值雜湊)' : (isProtocol ? '依實作決定' : (isDataclass ? '否 (可變)' : '依物件身分'));
+      const hashable = isFrozen ? '視欄位是否可雜湊' : (isProtocol ? '依實作決定' : (isDataclass ? '否 (可變)' : '依物件身分'));
       const threadSafe = (isFrozen && useFrozenDict) ? '高 (無鎖不可變)' : (isFrozen ? '中高 (不可變)' : '需自行加鎖');
 
       const metricsHtml = [
@@ -1487,7 +1478,7 @@
         } else if (op === 'deepcopy') {
           appendTerminal(
             'sentinel-terminal',
-            'OLD = object(); NEW = sentinel("MISSING")\n(deepcopy(OLD) is OLD, deepcopy(NEW) is NEW, pickle.loads(pickle.dumps(NEW)) is NEW)',
+            'from copy import deepcopy\nimport pickle\nOLD = object()\nNEW = sentinel("NEW")  # 模組層的名稱必須一致\nprint(deepcopy(OLD) is OLD, deepcopy(NEW) is NEW, pickle.loads(pickle.dumps(NEW)) is NEW)',
             '(False, True, True)  # object() 複製後身分失效，PEP 661 sentinel 完美保持唯一身分！',
             'text-emerald-300'
           );
@@ -1660,6 +1651,7 @@
     }
 
     function renderCsvChart() {
+      if (typeof Chart === 'undefined') return;
       const ctx = document.getElementById('csv-stats-chart');
       if (!ctx || !window.Chart) return;
       const parsedAll = csvRecords.map(parseRecord);

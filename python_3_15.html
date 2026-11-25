@@ -6,34 +6,14 @@
   <title>Python 3.15 無鎖多執行緒平行通道（Free-Threaded Parallel Channels）</title>
 
   <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/python315-labs.css">
 
   <!-- Google Fonts: Inter, Noto Sans TC, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Inter"', '"Noto Sans TC"', 'system-ui', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-          },
-          colors: {
-            slate: {
-              925: '#0b1120',
-              950: '#060a14',
-            }
-          }
-        }
-      }
-    };
-  </script>
-
-  <style>
+<style>
     .channel-diagram-frame { min-width:0; max-width:100%; overflow: hidden; border: 1px solid #34445a; border-radius: 8px; background: #111b2a; }
     .channel-architecture, .channel-case-diagram { display: block; width: 100%; height: auto; }
     main section, pre, #usecase-content, #usecase-content .grid > div { min-width:0; }
@@ -1528,7 +1508,7 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
         interp.close()
     return results`,
         tips: [
-          '跨子直譯器傳遞 `bytes`、`str`、`int`、`float`、`tuple` 與 `memoryview` 成本最低；避免頻繁傳遞龐大自訂類別物件以免 Pickle 成為瓶頸。',
+          '直譯器 Queue 對部分型別提供特殊傳遞支援（包括 memoryview）；若共享可變緩衝區須自行同步。InterpreterPoolExecutor 另以 pickle 傳遞參數與結果，不能直接傳 memoryview。成本須實測。',
           '跨直譯器可使用 ("stop", None) 等可序列化的結束訊息，避免依賴原程序的物件身分。',
           '先結束工作及接收結果，再關閉子直譯器。實際服務需加上逾時、失敗回報與擴充模組相容性測試。'
         ]

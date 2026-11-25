@@ -94,6 +94,15 @@
       display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
       gap: 1rem;
     }
+    .charts-row > *, .demo-wrap > *, .grid > *, .search-row > *, .csv-controls > * { min-width: 0; }
+    .svg-stage svg, .donut-wrap svg, input[type="file"] { max-width: 100%; }
+    .op-card, .demo-wrap > * { overflow-wrap: anywhere; }
+    @media (max-width: 440px) {
+      body { padding: 1rem .75rem; }
+      .toolbar, .panel { padding-inline: .8rem; }
+      .grid { grid-template-columns: minmax(0, 1fr) !important; }
+      .bar-item { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 26px; }
+    }
     .op-card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 12px; padding: 1rem 1.1rem;
@@ -231,7 +240,7 @@
 
     <section class="panel">
       <div class="panel-title">
-        <span>CSV 應用工作台（載入本機 CSV 即時預覽，或下載範例 CSV）</span>
+        <span>CSV 工作台（UTF-8、逗號分隔；至多預覽 50 列）</span>
         <span id="csvInfo" style="font-size:0.84rem;color:var(--muted);font-weight:400;"></span>
       </div>
       <div class="csv-controls">
@@ -348,30 +357,56 @@
       triggerCsvDownload("pandas_sales_sample.csv", SAMPLE_CSV_TEXT);
     }
 
-    function parseCsvLine(line) {
-      const res = [];
-      let cur = "", inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-          else inQuotes = !inQuotes;
-        } else if (ch === ',' && !inQuotes) {
-          res.push(cur); cur = "";
+    function parseCsv(text) {
+      const records = [];
+      let row = [], field = "", quoted = false, closed = false, hasData = false;
+      function finishField() { row.push(field); field = ""; closed = false; }
+      function finishRow() {
+        if (hasData) { finishField(); records.push(row); }
+        row = []; hasData = false;
+      }
+      const source = text.replace(/^\uFEFF/, "");
+      for (let i = 0; i < source.length; i++) {
+        const ch = source[i];
+        if (quoted) {
+          if (ch !== '"') field += ch;
+          else if (source[i + 1] === '"') { field += '"'; i++; }
+          else { quoted = false; closed = true; }
+        } else if (ch === '\n' || ch === '\r') {
+          finishRow();
+          if (ch === '\r' && source[i + 1] === '\n') i++;
+        } else if (ch === ',') {
+          hasData = true;
+          finishField();
+        } else if (ch === '"' && field === "" && !closed) {
+          hasData = true;
+          quoted = true;
         } else {
-          cur += ch;
+          if (closed || ch === '"') throw new Error("引號欄位格式不正確");
+          hasData = true;
+          field += ch;
         }
       }
-      res.push(cur);
-      return res;
+      if (quoted) throw new Error("引號欄位未結束");
+      finishRow();
+      return records;
+    }
+
+    function csvError(message) {
+      csvInfoEl.textContent = message;
+      csvPreviewEl.replaceChildren();
     }
 
     function renderCsvText(text, sourceLabel) {
-      const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
-      if (!lines.length) return;
-      const headers = parseCsvLine(lines[0]);
-      const rows = lines.slice(1).map(parseCsvLine);
-      csvInfoEl.textContent = `${sourceLabel}｜${rows.length} 列 × ${headers.length} 欄`;
+      let headers, rows;
+      try {
+        [headers, ...rows] = parseCsv(text);
+        if (!headers) return csvError("CSV 沒有可預覽的資料。");
+        if (rows.some((r) => r.length !== headers.length)) {
+          return csvError("欄數不一致，請確認欄位分隔符號與引號。");
+        }
+      } catch (error) { return csvError(error.message); }
+      csvInfoEl.textContent = `${sourceLabel}｜${rows.length} 列 × ${headers.length} 欄${rows.length > 50 ? "（預覽前 50 列）" : ""}`;
       const thead = "<thead><tr>" + headers.map((h) => `<th>${esc(h)}</th>`).join("") + "</tr></thead>";
       const tbody = "<tbody>" + rows.slice(0, 50).map((r) =>
         "<tr>" + headers.map((_, idx) => `<td>${esc(r[idx] ?? "")}</td>`).join("") + "</tr>"
@@ -619,7 +654,9 @@
     document.getElementById("csvInput").addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
+      if (file.size > 5 * 1024 * 1024) return csvError("預覽僅支援 5 MiB 以內的 UTF-8 CSV。");
       const reader = new FileReader();
+      reader.onerror = () => csvError("無法讀取本機 CSV。");
       reader.onload = () => renderCsvText(String(reader.result || ""), file.name);
       reader.readAsText(file, "utf-8");
     });

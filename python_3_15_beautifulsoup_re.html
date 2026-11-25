@@ -869,7 +869,7 @@
               <span id="weather-source-badge" class="badge-pill badge-cyan">⏳ 準備載入即時資料...</span>
             </div>
             <h2 style="font-size:18px; color:#fff;">🌤️ 目前地區空氣品質 (AQI)、溫度、濕度爬蟲實戰</h2>
-            <p class="text-xs text-muted mt-2">串接免 API Key 的 <code class="mono text-cyan">Open-Meteo Weather &amp; Air Quality API</code>，動態組裝擬真「環境部 / 氣象署 HTML」，並以 BeautifulSoup + re 解析視覺化儀表板。</p>
+            <p class="text-xs text-muted mt-2">串接免 API Key 的 <code class="mono text-cyan">Open-Meteo Weather &amp; Air Quality API</code>，動態組裝擬真「環境部 / 氣象署 HTML」，再以瀏覽器模擬 Python 解析流程；這不是環境部或氣象署的實際資料格式。選擇定位並同意瀏覽器提示後，經緯度會傳給 Open-Meteo；可只用預設城市。</p>
           </div>
           <div class="flex-row">
             <button id="btn-geo-locate" class="btn btn-cyan">📍 偵測我的目前位置</button>
@@ -1169,7 +1169,7 @@ merged = {**d for d in ds}</pre>
         <div class="card-header">
           <div>
             <h2 style="font-size:18px; color:#fff;">🍜 BeautifulSoup 即時 DOM 解析沙盒</h2>
-            <p class="text-xs text-muted mt-2">透過瀏覽器原生 <code class="mono text-cyan">DOMParser</code> 模擬 BeautifulSoup4 查詢，支援 CSS 選擇器與文字正規表達式篩選。</p>
+            <p class="text-xs text-muted mt-2">瀏覽器以 <code class="mono text-cyan">&lt;template&gt;</code> 和 JavaScript 示範查詢：它不執行 Python，HTML 解析、CSS 選擇器與正規表達式結果不保證與 BeautifulSoup4／Python <code>re</code> 相同。</p>
           </div>
           <div class="flex-row">
             <button class="btn btn-sm active-chip bs-tpl-btn" data-tpl="ecommerce">🛒 電商商品</button>
@@ -1920,11 +1920,15 @@ def save_log_utf8(record: frozendict, path: str = "taiwan_env_log.json") -> None
         weatherJsonPre.textContent = JSON.stringify(parsedObj, null, 2);
       }
 
+      let weatherRequest = 0, weatherController = null;
       async function fetchLiveWeatherAndAqi(lat, lon, label) {
+        const request = ++weatherRequest;
+        weatherController?.abort();
         weatherSourceBadge.textContent = '⏳ 連線 Open-Meteo 即時 API...';
         weatherSourceBadge.className = 'badge-pill badge-cyan';
 
         const controller = new AbortController();
+        weatherController = controller;
         const timeoutId = setTimeout(() => controller.abort(), 6500);
 
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
@@ -1935,9 +1939,9 @@ def save_log_utf8(record: frozendict, path: str = "taiwan_env_log.json") -> None
             fetch(weatherUrl, { signal: controller.signal }),
             fetch(aqiUrl, { signal: controller.signal })
           ]);
-          clearTimeout(timeoutId);
           if (!wRes.ok || !aRes.ok) throw new Error('API 回應異常');
           const [wJson, aJson] = await Promise.all([wRes.json(), aRes.json()]);
+          if (request !== weatherRequest) return;
 
           const wc = wJson.current || {};
           const ac = aJson.current || {};
@@ -1962,7 +1966,7 @@ def save_log_utf8(record: frozendict, path: str = "taiwan_env_log.json") -> None
           weatherSourceBadge.className = 'badge-pill badge-emerald';
           renderWeatherDashboardAndParse();
         } catch (err) {
-          clearTimeout(timeoutId);
+          if (request !== weatherRequest) return;
           const fb = FALLBACK_BY_CITY[label] || FALLBACK_BY_CITY['台北市大安區'];
           currentWeatherData = {
             location: label,
@@ -1975,6 +1979,9 @@ def save_log_utf8(record: frozendict, path: str = "taiwan_env_log.json") -> None
           weatherSourceBadge.textContent = '🟡 離線模擬備援資料';
           weatherSourceBadge.className = 'badge-pill badge-amber';
           renderWeatherDashboardAndParse();
+        } finally {
+          clearTimeout(timeoutId);
+          if (request === weatherRequest) weatherController = null;
         }
       }
 
