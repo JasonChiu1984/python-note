@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python 資料庫工程教學 - SQLite、交易、遷移與 Repository</title>
+  <title>Python 資料庫工程教學 - SQL、SQLite、MySQL、SQL Server、PostgreSQL、TimescaleDB</title>
   <style>
     :root {
       --ink: #172033;
@@ -25,6 +25,7 @@
     html { scroll-behavior: smooth; }
     body { margin: 0; color: var(--ink); background: linear-gradient(180deg, #e7f0fb 0, var(--paper) 34rem); line-height: 1.72; }
     code, pre { font-family: var(--mono); }
+    :not(pre) > code { overflow-wrap: anywhere; }
     .layout { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); min-height: 100vh; }
     aside { position: sticky; top: 0; height: 100vh; padding: 1.2rem; border-right: 1px solid var(--line); background: rgba(255,255,255,0.92); overflow-y: auto; }
     .brand { display: grid; grid-template-columns: 2.75rem 1fr; gap: 0.75rem; align-items: center; color: inherit; text-decoration: none; }
@@ -73,6 +74,65 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+
+    /* Diagram text participates in normal layout: no fixed SVG text boxes. */
+    .hero { grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); }
+    .hero > *, .lesson-card, .step, .lesson-top > *, .db-node { min-width: 0; }
+    h1, h2, h3, p, .button, .brand, .tag, .db-node { overflow-wrap: anywhere; }
+    pre { min-width: 0; max-width: 100%; }
+    .tag { white-space: normal; }
+    .db-architecture { margin: 0; padding: clamp(1rem,2vw,1.5rem); }
+    .db-architecture figcaption { font-weight: 900; font-size: 1.1rem; margin-bottom: 1rem; }
+    .db-chain, .txn-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 1.65rem; }
+    .db-node, .txn-steps li { position: relative; border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 9px; padding: .85rem 1rem; background: #f3f7fd; }
+    .db-node strong, .db-node span { display: block; }
+    .db-node span { font-size: .9rem; color: var(--muted); }
+    .db-node:not(:last-child)::after, .txn-steps li:not(:last-child)::after { content:'↓'; position:absolute; left:calc(50% - .5rem); bottom:-1.65rem; height:1.65rem; line-height:1.65rem; color:var(--green); font-size:1.2rem; }
+    .db-node:nth-child(3) { background:#eee9f8; border-left-color:var(--violet); }
+    .db-node:nth-child(4) { background:#fff6df; border-left-color:var(--orange); }
+    .db-node:last-child { background:#e6f5ef; border-left-color:var(--green); }
+    .db-caption { margin-top:1rem; font-size:.9rem; }
+    .deep-reading { display:grid; gap:1rem; }
+    .deep-reading h3 { margin:0 0 .5rem; }
+    .reading-card { min-width:0; padding:clamp(1rem,2vw,1.5rem); background:white; border:1px solid var(--line); border-radius:10px; }
+    .reading-card p + p { margin-top:.75rem; }
+    .reading-card li { margin-bottom:.5rem; overflow-wrap:anywhere; }
+    .txn-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:start; }
+    .txn-outcomes { display:grid; gap:1rem; }
+    .txn-outcome { padding:1rem; border:1px solid var(--green); border-radius:8px; background:#e6f5ef; }
+    .txn-outcome.failure { border-color:var(--red); background:#fff0f0; }
+    .txn-outcome h4 { margin:0 0 .5rem; }
+    .lesson-note { border-left:4px solid var(--orange); padding:1rem; background:#fff6df; }
+    .code-details { min-width:0; }
+    .code-details summary { cursor:pointer; font-weight:900; padding:.75rem 0; }
+    .reading-card pre { margin-top:.75rem; }
+    .reference-links { display:flex; flex-wrap:wrap; gap:.75rem; }
+    @media (max-width:1200px) { .hero { grid-template-columns:1fr; } }
+    @media (max-width:680px) { .txn-layout { grid-template-columns:1fr; } .lesson-top { grid-template-columns:1fr; } .section-head { display:block; } }
+  
+    .db-figure {margin:1rem 0; border:1px solid var(--line); border-radius:1rem; padding:clamp(.7rem,2vw,1.25rem); background:#f5faff}
+    .db-figure figcaption {font-weight:750; color:var(--blue); margin-bottom:.75rem}
+    .db-map {list-style:none; padding:0; margin:.5rem 0; display:grid; gap:1.25rem; grid-template-columns:repeat(5,minmax(0,1fr)); counter-reset:db}
+    .db-map.db-flow {grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))}
+    .db-map li {position:relative; border:1px solid #94b9d4; border-radius:.75rem; padding:.65rem; background:white; overflow-wrap:anywhere; counter-increment:db}
+    .db-map li strong::before {content:counter(db) "　"; color:var(--blue)}
+    .db-map:not(.db-flow) li:not(:last-child)::after {content:"→";position:absolute; left:calc(100% + .2rem);top:40%;color:var(--blue);font-weight:bold}
+    .db-caption {font-size:.94rem; margin:.5rem 0 0}
+    .db-branches {display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr)); gap:.75rem}
+    .db-branches article {border:1px solid var(--line); border-left:.25rem solid var(--orange); padding:.6rem .75rem; border-radius:.5rem; background:white}
+    .db-branches p {margin:.35rem 0 0}
+    .db-table {max-width:100%; overflow:auto; margin:1rem 0; border:1px solid var(--line); border-radius:.7rem; background:white}
+    .db-table:focus-visible {outline:2px solid var(--blue)}
+    .db-table table {border-collapse:collapse; min-width:47rem; width:100%; text-align:left}
+    .db-table th,.db-table td {vertical-align:top; padding:.65rem .75rem; border-bottom:1px solid var(--line); overflow-wrap:anywhere}
+    .db-table thead th {background:#e8f1fc}
+    .db-table tbody tr:nth-child(even) {background:#f8fafe}
+    #sql-dialects details,#cross-engine-lab details {border:1px solid var(--line); border-radius:.7rem; padding:.65rem; margin:.65rem 0; background:white}
+    #sql-dialects summary,#cross-engine-lab summary {cursor:pointer;font-weight:700}
+    @media (max-width:1000px) {
+      .db-map:not(.db-flow) {grid-template-columns:1fr}
+      .db-map:not(.db-flow) li:not(:last-child)::after {content:"↓"; top:100%; left:50%}
+    }
   </style>
 </head>
 <body>
@@ -81,13 +141,19 @@
       <a class="brand" href="#top"><span class="logo">DB</span><span><strong>Database Engineering</strong><br><small>交易、遷移與 Repository</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
+        <a href="#engine-selection">架構與引擎選型</a>
+        <a href="#sql-dialects">SQL 與方言對照</a>
+        <a href="#cross-engine-lab">跨引擎實驗</a>
+        <a href="#migration-playbook">上線與回復</a>
         <a href="#modeling">資料模型</a>
         <a href="#migration">遷移</a>
         <a href="#transaction">交易</a>
+        <a href="#transaction-walkthrough">交易流程詳解</a>
         <a href="#repository">Repository</a>
         <a href="#testing">測試</a>
         <a href="#delivery">交付</a>
         <a href="#sample">範例專案</a>
+        <a href="#runnable-lab">可執行實驗</a>
       </nav>
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
     </aside>
@@ -97,45 +163,430 @@
           <span class="eyebrow">Python Database Engineering</span>
           <h1>把資料庫做成可維護的專案邊界</h1>
           <p>這條路線補齊 production Python 專案最常見的斷層：schema 設計、migration、transaction、repository、unit of work、seed data、查詢效能、測試隔離與 rollback。範例使用標準庫 SQLite，觀念可遷移到 SQLAlchemy、Alembic 與 PostgreSQL。</p>
-          <div class="status-strip"><span>v1.1.0</span><span>28 張互動卡</span><span>sqlite3 sample</span><span>Repository + Unit of Work</span></div>
-          <div class="hero-actions"><a class="button primary" href="#modeling">開始資料模型</a><a class="button blue" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+          <div class="status-strip"><span>v1.2.0</span><span>28 張互動卡</span><span>sqlite3 sample</span><span>Repository + Unit of Work</span></div>
+          <div class="hero-actions"><a class="button primary" href="#engine-selection">先看架構與選型</a><a class="button blue" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 760 430" role="img" aria-label="Python 資料庫工程分層圖">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2d8a69"></path></marker></defs>
-            <rect x="30" y="42" width="700" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <rect x="82" y="86" width="160" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect>
-            <text x="162" y="130" text-anchor="middle" font-size="22" font-weight="900">API / CLI</text>
-            <path d="M250 122h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-            <rect x="322" y="86" width="160" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect>
-            <text x="402" y="130" text-anchor="middle" font-size="22" font-weight="900">Service</text>
-            <path d="M490 122h58" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-            <rect x="562" y="86" width="130" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect>
-            <text x="627" y="130" text-anchor="middle" font-size="22" font-weight="900">UoW</text>
-            <path d="M627 168v45" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-            <rect x="512" y="230" width="230" height="76" rx="12" fill="#fff4cf" stroke="#d16b28" stroke-width="4"></rect>
-            <text x="627" y="276" text-anchor="middle" font-size="22" font-weight="900">Repository</text>
-            <path d="M504 268H278" stroke="#2d8a69" stroke-width="4" marker-end="url(#arrow)"></path>
-            <ellipse cx="176" cy="244" rx="96" ry="28" fill="#fae8e8" stroke="#c34848" stroke-width="4"></ellipse>
-            <path d="M80 244v64c0 15 43 28 96 28s96-13 96-28v-64" fill="#fae8e8" stroke="#c34848" stroke-width="4"></path>
-            <text x="176" y="294" text-anchor="middle" font-size="22" font-weight="900">Database</text>
-            <text x="380" y="364" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">交易邊界由 Unit of Work 控制，Repository 不自行 commit</text>
-          </svg>
-        </div>
+        <figure class="surface db-architecture" aria-labelledby="db-architecture-title">
+          <figcaption id="db-architecture-title">一次業務操作，五個清楚的責任</figcaption>
+          <ol class="db-chain">
+            <li class="db-node"><strong>01 · API / CLI</strong><span>接收請求、解析輸入，把結果轉成回應。</span></li>
+            <li class="db-node"><strong>02 · Service</strong><span>執行使用案例：新增筆記，同時寫入稽核紀錄。</span></li>
+            <li class="db-node"><strong>03 · Unit of Work（UoW）</strong><span>開啟同一條連線與交易；正常離開才提交，例外則回滾。</span></li>
+            <li class="db-node"><strong>04 · Repository</strong><span>封裝 SQL 與參數綁定；所有操作共用 UoW 連線，不自行 commit。</span></li>
+            <li class="db-node"><strong>05 · Database / SQLite</strong><span>執行 SQL、檢查約束，保存已提交的資料。</span></li>
+          </ol>
+          <p class="db-caption">箭頭表示呼叫／資料存取方向，不代表五個獨立程序。UoW 是交易邊界；成功或失敗都必須關閉連線。</p>
+        </figure>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：schema、migration、transaction、repository、unit of work、seed、rollback、SQLite">
         <div class="quick-links"><a href="#modeling">模型</a><a href="#migration">遷移</a><a href="#transaction">交易</a><a href="#repository">Repo</a><a href="#testing">測試</a></div>
       </div>
+      <section class="section-block" id="engine-selection">
+        <div class="section-head"><div><span class="eyebrow">Boundary · Architecture · Decision</span><h2>把資料庫做成可維護的專案邊界</h2><p>以下以機房冷卻感測一次入庫為例：量測列與稽核列必須同時成立，重送不得多算，讀取報表不能拖長寫入交易。SQL 是語言；SQLite、MySQL、Microsoft SQL Server、PostgreSQL 是引擎，TimescaleDB 是 PostgreSQL 擴充。</p></div></div>
+        <figure class="db-figure"><figcaption>圖一｜應用架構：交易由 Service 決定，驅動與 SQL 留在 Adapter</figcaption>
+          <ol class="db-map"><li><strong>資料入口</strong><br>PLC／閘道／API 將來源點位對應為 device_id，驗證範圍與 UTC。</li><li><strong>Application Service</strong><br>決定一次交易包含量測與稽核；重送鍵由呼叫端保存。</li><li><strong>Unit of Work</strong><br>向連線池借一條連線；兩個寫入共用同一交易。</li><li><strong>Repository / Adapter</strong><br>使用驅動綁定值，轉成各引擎方言；不在 Repository 裡 commit。</li><li><strong>資料庫</strong><br>PK / FK / CHECK 保護不變條件；由遷移帳號管理 schema。</li></ol>
+          <p class="db-caption">旁路 A：維護者 → 遷移工具 → schema 版本紀錄。旁路 B：排程／報表 → 唯讀查詢；新鮮度要求高的查詢讀主庫，不把副本延遲誤當資料遺失。</p>
+        </figure>
+        <figure class="db-figure"><figcaption>圖二｜交易流程：提交、回滾與失聯分三條路</figcaption>
+          <ol class="db-map db-flow"><li><strong>驗證</strong><br>確認點位、時區、範圍與重送鍵；錯誤不開交易。</li><li><strong>寫入</strong><br>量測 → 稽核；都走同一條連線。</li><li><strong>確認</strong><br>Commit 成功才回覆；不把 HTTP 呼叫放在交易內。</li></ol>
+          <div class="db-branches"><article><strong>失敗／可回滾</strong><p>約束錯誤 → 整筆 rollback → 回報衝突；可重試暫時性錯誤須新開整筆交易並限制次數。</p></article><article><strong>Commit 送出後失聯</strong><p>結果可能未知。先用新連線查同一重送鍵；只有確認未完成後才用同一鍵有限重跑，不盲目新建事件。</p></article></div>
+          <p class="db-caption">要在提交後送訊息時，可在同一交易寫 Outbox；由背景程式投遞並允許消費者去重。這不是跨服務 exactly-once 保證。</p>
+        </figure>
+        <h3>引擎選型矩陣｜依部署邊界、資料模型與保留需求選，不是速度排名</h3>
+        <div class="db-table" tabindex="0" role="region" aria-label="資料庫選型矩陣"><table><thead><tr><th scope="col">引擎</th><th scope="col">優先用於</th><th scope="col">上線前問什麼</th><th scope="col">Python</th></tr></thead><tbody>
+          <tr><th scope="row">SQLite</th><td>邊緣單機、離線緩衝、CLI</td><td>同時只會有一個 writer；WAL 不會讓多個 writer 同時提交。備份須理解 WAL／使用備份 API。</td><td><code>sqlite3</code> · <code>?</code></td></tr>
+          <tr><th scope="row">MySQL 8.4 / InnoDB</th><td>團隊已運行 MySQL 的交易型 Web／設備設定</td><td>確認 InnoDB、字元排序、線上 DDL 鎖定及隱含提交。</td><td><code>mysql-connector-python</code> · <code>%s</code></td></tr>
+          <tr><th scope="row">Microsoft SQL Server</th><td>既有 T-SQL、身分識別、企業報表生態</td><td>確認 ODBC 版本、TLS／身分驗證、交易日誌、HA／線上操作支援。</td><td><code>pyodbc</code> · <code>?</code></td></tr>
+          <tr><th scope="row">PostgreSQL</th><td>關聯交易、複雜查詢、JSONB 輔助欄位</td><td>確認連線池上限、VACUUM、長交易、鎖等待與還原點。</td><td><code>psycopg</code> · <code>%s</code></td></tr>
+          <tr><th scope="row">TimescaleDB</th><td>高密度工控遙測、時間視窗彙總與保留</td><td>確認 PG／擴充相容版本、chunk、晚到資料與保留策略；不因此另建第二套 OLTP。</td><td><code>psycopg</code> · <code>%s</code></td></tr>
+        </tbody></table></div>
+      </section>
       <section class="section-block" id="modeling" data-group="modeling"><div class="section-head"><div><span class="eyebrow">Modeling</span><h2>先定義資料契約，再寫查詢</h2><p>資料庫不是儲存細節，而是專案契約的一部分。schema、constraint、index 與資料生命週期都要能被 review。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="migration" data-group="migration"><div class="section-head"><div><span class="eyebrow">Migration</span><h2>把 schema 演進做成可回放流程</h2><p>正式專案不能靠手動改資料表。每次欄位、索引與約束都要有版本、驗收與 rollback 思路。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="transaction" data-group="transaction"><div class="section-head"><div><span class="eyebrow">Transaction</span><h2>交易邊界要比函式邊界更清楚</h2><p>commit、rollback、retry、idempotency 與 lock 行為決定資料是否可靠。</p></div></div><div class="cards"></div></section>
+
+      <section class="section-block deep-reading" id="transaction-walkthrough">
+        <div class="section-head"><div><span class="eyebrow">Transaction Walkthrough</span><h2>從請求到提交：交易生命週期</h2><p>目標不是「每句 SQL 都成功」，而是「新增筆記＋稽核紀錄」兩步一起成立。下面的流程對應本頁可下載、可執行的 Python 程式。</p></div></div>
+        <div class="txn-layout">
+          <div class="reading-card"><h3>共同路徑</h3><ol class="txn-steps">
+            <li><strong>1. 驗證輸入</strong><p>Service 拒絕空標題；先做不需要資料庫的檢查，縮短持鎖時間。</p></li>
+            <li><strong>2. 建立連線</strong><p>UoW 設定 timeout 與 foreign_keys，確保每次連線的約束設定一致。</p></li>
+            <li><strong>3. BEGIN IMMEDIATE</strong><p>明確開始寫入交易。若其他寫入者仍持鎖，等待到 timeout 後可能失敗，不會自動重試。</p></li>
+            <li><strong>4. Repository 寫入兩張表</strong><p>先 INSERT notes，再 INSERT audit；兩次 SQL 共用同一個 connection。</p></li>
+            <li><strong>5. 離開 with，交給 UoW 判斷</strong><p>正常結束走提交；任何步驟拋出例外走回滾。如下方兩條結果路徑。</p></li>
+          </ol></div>
+          <div class="txn-outcomes">
+            <div class="txn-outcome"><h4>成功路徑 → COMMIT → CLOSE → 回傳 ID</h4><p>兩筆資料一起提交。Service 在 with 區塊外才回傳成功，避免 commit 尚未完成就宣告操作成功。</p></div>
+            <div class="txn-outcome failure"><h4>失敗路徑 → ROLLBACK → CLOSE → 拋出例外</h4><p>若稽核寫入失敗，已執行的筆記 INSERT 也要撤回；先前其他交易已提交的筆記仍保留。COMMIT 本身若失敗，也嘗試 rollback，再把錯誤傳回呼叫者。</p></div>
+            <div class="reading-card"><h3>為什麼 Repository 不提交？</h3><p>假如 add() 立刻 commit，接著 audit 寫入失敗，第一筆已提交的資料就無法由這次 rollback 撤回。Repository 負責「怎麼寫」，Service 決定「做哪些事」，UoW 負責「什麼時候一起生效」。</p></div>
+            <div class="lesson-note"><strong>本頁採「正常離開自動提交」契約。</strong><p>下方舊概念卡也展示顯式 uow.commit() 風格。兩者都是設計選項，但不可混用：本頁單檔實驗沒有公開 commit() 方法；例外不能在 with 裡悄悄吞掉，否則 UoW 會當成正常結束。</p></div>
+          </div>
+        </div>
+        <div class="reading-card"><h3>原子性，不等於萬用復原</h3><p>這個交易只涵蓋同一個 SQLite 資料庫中的 SQL 寫入。寄信、HTTP 呼叫、設備控制或寫入另一個資料庫，不會跟著 rollback。要處理外部副作用，可用 transactional outbox 先在同一交易寫入待發送事件，另由工作程序發送並以冪等鍵防重。</p><p>BEGIN IMMEDIATE 適合本範例的短寫入交易；不是所有查詢都應搶寫入鎖。SQLite 同時只允許一個寫入交易，WAL 也不會變成多寫入者。不要在交易中等待人員輸入或慢速網路；正式系統仍要測量競爭、錯誤與重試上限。</p></div>
+      </section>
       <section class="section-block" id="repository" data-group="repository"><div class="section-head"><div><span class="eyebrow">Repository</span><h2>讓業務邏輯不依賴 SQL 細節</h2><p>Repository 與 Unit of Work 讓 service 能被測試，也讓資料庫實作可以演進。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="testing" data-group="testing"><div class="section-head"><div><span class="eyebrow">Testing</span><h2>資料庫測試要隔離、可重跑、可診斷</h2><p>測試不是只跑 happy path，要覆蓋 constraint、rollback、concurrency 與 query regression。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="delivery" data-group="delivery"><div class="section-head"><div><span class="eyebrow">Delivery</span><h2>交付時要保留資料庫證據</h2><p>release note 應包含 migration、seed、backup、restore drill、query plan 與 rollback 限制。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>SQLite Unit of Work 範例專案</h2><p>`範例程式碼/database_unit_of_work/` 示範如何用標準庫 sqlite3 建立 schema、repository、transaction boundary 與 unittest。 <a href="範例程式碼/database_unit_of_work/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/database_unit_of_work
 PYTHONPATH=src python3 -m database_unit_of_work.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="cards"></div></section>
+
+      <section class="section-block deep-reading" id="runnable-lab">
+        <div class="section-head"><div><span class="eyebrow">Run · Observe · Explain</span><h2>完整實驗：筆記與稽核一起寫入</h2><p>Python 3.10 以上，僅用 sqlite3、tempfile、unittest 與 pathlib。每個測試建立獨立暫存資料庫並自動清理，不會連到你的正式資料庫。瀏覽器只展示教材，真正的交易在下載的 Python 程式執行。</p></div></div>
+        <div class="reading-card"><h3>1. 下載與執行</h3><a class="button primary" href="database_uow_walkthrough.py" download>下載完整 Python 範例與 7 個測試</a><pre><code>python3 --version
+python3 database_uow_walkthrough.py
+# Windows 也可以：py -3 database_uow_walkthrough.py</code></pre><p>預期看到 Ran 7 tests 與 OK。若無 sqlite3 模組，請使用含 SQLite 支援的 Python 安裝；不用 pip 安裝第三方套件。此頁既有多檔專案連結保留在上方「範例專案」，與這個自足的單檔實驗分開。</p></div>
+        <div class="reading-card"><h3>2. 讀懂程式的四個邊界</h3><ol>
+          <li><strong>initialize：</strong>建 notes 與 audit 表。NOT NULL、UNIQUE、CHECK 和 foreign key 防止錯誤資料落地。建表獨立於業務交易；executescript 不應直接搬進這個 UoW 的交易區塊。</li>
+          <li><strong>NoteRepository：</strong>add() 回傳 lastrowid；record() 用該 ID 寫稽核。SQL 中的 ? 只綁定值，不可用來綁定表名、欄位名；動態識別字必須來自明確允許清單。</li>
+          <li><strong>UnitOfWork：</strong>isolation_level=None 搭配明確 BEGIN IMMEDIATE，不依賴 INSERT 的隱式 BEGIN；foreign_keys 在 BEGIN 前開啟。__enter__ 若失敗會關閉連線，__exit__ 無論成功與否都釋放連線。</li>
+          <li><strong>create_note：</strong>驗證後在同一 with 裡完成兩次寫入。測試旗標故意在第一次 INSERT 後丟錯，觀察第一筆是否真的消失。</li>
+        </ol><p>sqlite3.connect() 在這份程式未設定 Python 3.12 新增的 autocommit 參數，使用目前預設的 legacy transaction control 配合 isolation_level=None。若改用 autocommit=True，不能直接照抄這裡的 connection.commit()/rollback()，應重新設計並驗證交易控制方式。</p></div>
+        <div class="reading-card"><h3>3. 七個測試各自證明什麼？</h3><ol>
+          <li>正常提交：一筆 notes 和一筆 audit 都能從新連線讀到。</li>
+          <li>中途例外：第一次 INSERT 不會殘留，兩張表仍為空。</li>
+          <li>參數綁定：包含引號與 DROP TABLE 字樣的標題只是文字，資料表不會被刪除。</li>
+          <li>唯一約束：同一交易先新增、再插入重複標題時，新筆記也撤回；舊資料保留。</li>
+          <li>外鍵約束：不存在的 note_id 使交易失敗，先前 INSERT 同樣撤回。</li>
+          <li>Service 驗證：空白標題在開始交易前被拒絕。</li>
+          <li>資料庫防線：繞過 Service 直接插入空字串，CHECK 仍拒絕寫入。</li>
+        </ol><p>read_state() 每次開啟新連線，不只檢查寫入連線自己的未提交視圖。測試未涵蓋斷電、磁碟已滿、COMMIT 故障注入或多程序寫入競爭；正式部署前需另外驗證，不能把七個單元測試當成所有可靠性證明。</p></div>
+        <div class="reading-card code-details"><details><summary>展開完整程式碼（與下載檔相同）</summary><pre><code>&quot;&quot;&quot;Python 3.10+ / standard library only. Run: python3 database_uow_walkthrough.py&quot;&quot;&quot;
+import sqlite3
+import tempfile
+import unittest
+from pathlib import Path
+
+
+def initialize(path):
+    # Schema setup is separate from business transactions.
+    conn = sqlite3.connect(path, isolation_level=None)
+    try:
+        conn.executescript(&#x27;&#x27;&#x27;
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL UNIQUE CHECK(length(trim(title)) &gt; 0)
+        );
+        CREATE TABLE IF NOT EXISTS audit (
+            id INTEGER PRIMARY KEY,
+            note_id INTEGER NOT NULL REFERENCES notes(id),
+            action TEXT NOT NULL
+        );
+        &#x27;&#x27;&#x27;)
+    finally:
+        conn.close()
+
+
+class NoteRepository:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def add(self, title):
+        # Values are bound, never interpolated into SQL.
+        cursor = self.conn.execute(&#x27;INSERT INTO notes(title) VALUES (?)&#x27;, (title,))
+        return cursor.lastrowid
+
+    def record(self, note_id):
+        self.conn.execute(
+            &#x27;INSERT INTO audit(note_id, action) VALUES (?, ?)&#x27;,
+            (note_id, &#x27;created&#x27;),
+        )
+
+
+class UnitOfWork:
+    def __init__(self, path):
+        self.path = path
+
+    def __enter__(self):
+        # Explicit SQL transactions avoid reliance on implicit BEGIN behavior.
+        self.conn = sqlite3.connect(self.path, timeout=5.0, isolation_level=None)
+        try:
+            self.conn.execute(&#x27;PRAGMA foreign_keys = ON&#x27;)
+            self.conn.execute(&#x27;BEGIN IMMEDIATE&#x27;)
+            self.notes = NoteRepository(self.conn)
+            return self
+        except BaseException:
+            self.conn.close()
+            raise
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is None:
+                try:
+                    self.conn.commit()
+                except BaseException:
+                    self.conn.rollback()
+                    raise
+            else:
+                self.conn.rollback()
+        finally:
+            self.conn.close()
+        return False  # Never hide the original business exception.
+
+
+def create_note(path, title, fail_after_insert=False):
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError(&#x27;title must not be empty&#x27;)
+    with UnitOfWork(path) as uow:
+        note_id = uow.notes.add(title)
+        if fail_after_insert:
+            raise RuntimeError(&#x27;simulated failure before audit&#x27;)
+        uow.notes.record(note_id)
+    # Return success only after __exit__ commits successfully.
+    return note_id
+
+
+def read_state(path):
+    # A fresh connection proves what another reader can actually observe.
+    conn = sqlite3.connect(path)
+    try:
+        return (conn.execute(&#x27;SELECT title FROM notes ORDER BY id&#x27;).fetchall(),
+                conn.execute(&#x27;SELECT COUNT(*) FROM audit&#x27;).fetchone()[0])
+    finally:
+        conn.close()
+
+
+class TransactionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.db = Path(self.temp.name) / &#x27;lesson.db&#x27;
+        initialize(self.db)
+
+    def test_commit_both_writes(self):
+        create_note(self.db, &#x27;pump inspection&#x27;)
+        self.assertEqual(read_state(self.db), ([(&#x27;pump inspection&#x27;,)], 1))
+
+    def test_failure_rolls_back_first_write(self):
+        with self.assertRaises(RuntimeError):
+            create_note(self.db, &#x27;must disappear&#x27;, fail_after_insert=True)
+        self.assertEqual(read_state(self.db), ([], 0))
+
+    def test_bound_parameter_is_literal_text(self):
+        text = &quot;x&#x27;); DROP TABLE notes; --&quot;
+        create_note(self.db, text)
+        self.assertEqual(read_state(self.db), ([(text,)], 1))
+
+    def test_unique_violation_rolls_back_whole_transaction(self):
+        create_note(self.db, &#x27;existing&#x27;)
+        with self.assertRaises(sqlite3.IntegrityError):
+            with UnitOfWork(self.db) as uow:
+                uow.notes.add(&#x27;must disappear&#x27;)
+                uow.notes.add(&#x27;existing&#x27;)
+        self.assertEqual(read_state(self.db), ([(&#x27;existing&#x27;,)], 1))
+
+    def test_foreign_key_failure_rolls_back(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            with UnitOfWork(self.db) as uow:
+                uow.notes.add(&#x27;must disappear&#x27;)
+                uow.notes.record(999)
+        self.assertEqual(read_state(self.db), ([], 0))
+
+    def test_empty_title_rejected(self):
+        with self.assertRaises(ValueError):
+            create_note(self.db, &#x27;   &#x27;)
+        self.assertEqual(read_state(self.db), ([], 0))
+
+    def test_database_check_constraint(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            with UnitOfWork(self.db) as uow:
+                uow.notes.add(&#x27;&#x27;)
+        self.assertEqual(read_state(self.db), ([], 0))
+
+
+if __name__ == &#x27;__main__&#x27;:
+    unittest.main(verbosity=2)
+</code></pre></details></div>
+        <div class="reading-card"><h3>4. 練習與工程取捨</h3><p>練習把 create_note 改成「新增兩筆筆記」，在第二筆使用重複標題，預測資料庫最後狀態，再寫 assertion 驗證。下一步加入請求冪等鍵，不要把 UNIQUE(title) 誤認為通用的請求去重設計。</p><p>遷移到 PostgreSQL 或 ORM 時，可以保留 Service／Repository／UoW 的責任分工，但鎖、隔離級別、佔位符、連線池、交易重試和 migration 都要重新驗證。沒有 Repository 類別也能寫出可靠交易；當查詢分散、測試難隔離時，這個邊界才特別有價值。</p></div>
+        <div class="reading-card"><h3>官方延伸閱讀</h3><div class="reference-links"><a href="https://docs.python.org/3/library/sqlite3.html#transaction-control">Python sqlite3 交易控制</a><a href="https://www.sqlite.org/lang_transaction.html">SQLite BEGIN / COMMIT / ROLLBACK</a><a href="https://www.sqlite.org/foreignkeys.html">SQLite 外鍵約束</a></div></div>
+      </section>
+      <section class="section-block" id="sql-dialects">
+        <div class="section-head"><div><span class="eyebrow">SQL · Dialects</span><h2>同樣的資料契約，五種實作方言</h2><p>共同契約：<code>(device_id, observed_at)</code> 唯一，溫度用定點型別（SQLite 若要精確可存百分之一度整數），觀測時間以 UTC 表示，稽核鍵不可重複。SQL 中的動態值交給驅動；表名、欄名、排序方向不接受使用者拼接，改採固定映射或安全識別字 API。</p></div></div>
+        <div class="db-table" tabindex="0" role="region" aria-label="SQL 方言差異"><table><thead><tr><th scope="col">議題</th><th scope="col">SQLite</th><th scope="col">MySQL</th><th scope="col">SQL Server</th><th scope="col">PostgreSQL / TimescaleDB</th></tr></thead><tbody>
+          <tr><th scope="row">時間</th><td>約定統一格式的 UTC TEXT 或整數，不依賴混合格式排序</td><td><code>DATETIME(6)</code> 搭配應用 UTC 契約；不是具時區型別</td><td><code>datetimeoffset(6)</code>，驗證 offset 轉換</td><td><code>timestamptz</code> 保存時間點；顯示依 session 時區，不保存原輸入時區名稱</td></tr>
+          <tr><th scope="row">分頁</th><td><code>LIMIT ?</code></td><td><code>LIMIT %s</code></td><td><code>ORDER BY … OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY</code></td><td><code>LIMIT %s</code>；Timescale 同 PostgreSQL</td></tr>
+          <tr><th scope="row">Upsert</th><td><code>ON CONFLICT (…) DO UPDATE</code></td><td><code>ON DUPLICATE KEY UPDATE</code>；任一唯一鍵衝突可能觸發，勿當成指定衝突鍵</td><td>本教材用 <code>INSERT</code>＋唯一約束＋回滾；不要用無鎖 SELECT→INSERT 判斷不存在</td><td><code>ON CONFLICT (…) DO UPDATE</code>；hypertable 唯一鍵含全部分割欄</td></tr>
+          <tr><th scope="row">隔離與失敗</th><td>單 writer、鎖忙 timeout；每條連線開啟 FK</td><td>InnoDB 預設通常為 REPEATABLE READ；不要假設 deadlock／lock timeout 作用範圍相同</td><td>確認 READ COMMITTED 與 RCSI 設定；交易不可提交時完整回滾</td><td>預設 READ COMMITTED；一般 SQL 錯誤後 rollback，或回到明確 savepoint</td></tr>
+        </tbody></table></div>
+        <details open><summary>SQL 基礎：先寫時間視窗與穩定排序，再看查詢計畫</summary>
+<pre><code>-- PostgreSQL / Psycopg；其他引擎替換參數及分頁方言。
+SELECT observed_at, temperature_c
+FROM public.lab_reading
+WHERE device_id = %s
+  AND observed_at &gt;= %s AND observed_at &lt; %s
+ORDER BY observed_at DESC
+LIMIT %s;</code></pre>
+          <p>範圍用半開區間 <code>[start, end)</code>，相鄰批次不漏不重；在固定 device_id 下觀測時間是唯一鍵，排序可重現。多裝置一併分頁時，排序加上 <code>device_id</code> 並用雙欄遊標。用真實分布資料比對索引、掃描列數、鎖等待和 p95；小資料表走掃描未必是問題。</p>
+        </details>
+        <details><summary>TimescaleDB：一小時資料分桶、來源晚到、原始資料保留</summary>
+<pre><code>-- PostgreSQL + TimescaleDB / Psycopg
+SELECT time_bucket(INTERVAL '1 hour', observed_at) AS bucket,
+       COUNT(*) AS sample_count, AVG(temperature_c) AS avg_c
+FROM public.lab_reading
+WHERE device_id = %s AND observed_at &gt;= %s AND observed_at &lt; %s
+GROUP BY bucket ORDER BY bucket;</code></pre>
+          <p>時間條件可減少不相關 chunk 掃描；bucket 無事件時不會產生零值列。只有查詢壓力需要且量測過才改用 continuous aggregate；刷新範圍涵蓋可接受的晚到區間。原始讀值與稽核設定不同保留期，備份／還原驗證先於任何自動淘汰；停用保留政策不會使已移除的資料復活。範例不啟動淘汰政策。</p>
+        </details>
+      </section>
+      <section class="section-block" id="cross-engine-lab">
+        <div class="section-head"><div><span class="eyebrow">Experiment · Repeatable Checks</span><h2>四種伺服器方言實驗：同一份 Python 交易驗證</h2><p>本機 SQLite 七項驗收已通過。以下四種伺服器範例的 Python 已語法檢查，但沒有已連線的對應引擎，DDL、驅動轉型與執行結果須在目標版本驗證。只用新建的一次性資料庫；不要在正式環境執行。</p></div></div>
+        <ol><li>由遷移帳號以引擎客戶端執行且只執行對應的建表檔。TimescaleDB 先由管理者確認擴充已裝妥，不能先套 PostgreSQL 檔再套 Timescale 檔。</li><li>用僅有本實驗資料表讀寫權的帳號執行。連線秘密經環境／秘密管理服務傳入，不放進 Git；SQL Server ODBC Driver 18 連線字串啟用 <code>Encrypt=yes;TrustServerCertificate=no</code>。PostgreSQL 遠端使用 <code>sslmode=verify-full</code> 和對應 CA。</li><li>執行後應看到 <code>PASS</code>：第一筆量測及稽核提交；第二筆量測先插入，但因稽核鍵重複而一起回滾。重新執行前重建測試資料庫，以免固定測試裝置留下紀錄。</li></ol>
+        <p><a class="button" href="database-learning-kit/verify_database.py" download>下載 Python 驗證程式</a></p>
+        <p><a href="database-learning-kit/mysql.sql" download>MySQL DDL</a> · <a href="database-learning-kit/sqlserver.sql" download>SQL Server DDL</a> · <a href="database-learning-kit/postgresql.sql" download>PostgreSQL DDL</a> · <a href="database-learning-kit/timescale.sql" download>TimescaleDB DDL</a></p>
+<pre><code># 各引擎只安裝相應套件；請先依前述步驟準備測試 schema 與秘密。
+python -m pip install mysql-connector-python
+python verify_database.py mysql     # DB_HOST, DB_PORT(選填), DB_USER, DB_PASSWORD, DB_NAME, DB_CA
+
+python -m pip install pyodbc        # 系統另裝 Microsoft ODBC Driver 18
+python verify_database.py sqlserver # DB_ODBC
+
+python -m pip install "psycopg[binary]"
+python verify_database.py postgresql  # DB_DSN 指向 PostgreSQL 實驗庫
+python verify_database.py timescale   # DB_DSN 改指向 TimescaleDB 實驗庫</code></pre>
+        <details><summary>展開完整 Python 程式（也可下載）</summary><pre><code>&quot;&quot;&quot;Run once against a fresh disposable schema; never target production.&quot;&quot;&quot;
+import argparse
+import os
+from contextlib import closing
+from datetime import UTC, datetime
+from decimal import Decimal
+from uuid import uuid4
+
+
+def connect(engine):
+    if engine == &quot;mysql&quot;:
+        import mysql.connector as db
+
+        conn = db.connect(
+            host=os.environ[&quot;DB_HOST&quot;], port=int(os.getenv(&quot;DB_PORT&quot;, &quot;3306&quot;)),
+            user=os.environ[&quot;DB_USER&quot;], password=os.environ[&quot;DB_PASSWORD&quot;],
+            database=os.environ[&quot;DB_NAME&quot;], autocommit=False,
+            ssl_ca=os.environ[&quot;DB_CA&quot;], ssl_verify_cert=True, ssl_verify_identity=True,
+        )
+        return conn, db.IntegrityError
+    if engine == &quot;sqlserver&quot;:
+        import pyodbc as db
+
+        # Use SQL Server ODBC Driver 18; enable encryption and validate the certificate.
+        return db.connect(os.environ[&quot;DB_ODBC&quot;], autocommit=False), db.IntegrityError
+    import psycopg as db
+
+    # Supply sslmode=verify-full and sslrootcert in PG settings for remote use.
+    return db.connect(os.environ[&quot;DB_DSN&quot;], autocommit=False), db.IntegrityError
+
+
+class ReadingRepository:
+    def __init__(self, cursor, namespace, marker):
+        self.cursor = cursor
+        self.ns = namespace  # selected from source-code constants only
+        self.marker = marker
+
+    def insert(self, device_id, observed_at, temperature):
+        params = &quot;, &quot;.join([self.marker] * 3)
+        self.cursor.execute(
+            f&quot;INSERT INTO {self.ns}lab_reading &quot;
+            f&quot;(device_id, observed_at, temperature_c) VALUES ({params})&quot;,
+            (device_id, observed_at, temperature),
+        )
+
+    def audit(self, event_id, device_id, observed_at):
+        params = &quot;, &quot;.join([self.marker] * 3)
+        self.cursor.execute(
+            f&quot;INSERT INTO {self.ns}lab_audit &quot;
+            f&quot;(event_id, device_id, observed_at) VALUES ({params})&quot;,
+            (event_id, device_id, observed_at),
+        )
+
+    def exists(self, table, key, value):
+        # Table/column come from these exact allowlisted pairs.
+        if (table, key) not in {(&quot;lab_reading&quot;, &quot;device_id&quot;), (&quot;lab_audit&quot;, &quot;event_id&quot;)}:
+            raise ValueError(&quot;unsupported check&quot;)
+        self.cursor.execute(
+            f&quot;SELECT COUNT(*) FROM {self.ns}{table} WHERE {key} = {self.marker}&quot;,
+            (value,),
+        )
+        return self.cursor.fetchone()[0] &gt; 0
+
+
+def save_reading(conn, repo, device_id, observed_at, value, event_id):
+    try:
+        repo.insert(device_id, observed_at, value)
+        repo.audit(event_id, device_id, observed_at)
+        conn.commit()
+    except Exception:
+        # If rollback itself fails, the caller closes/discards the connection.
+        # A network error during COMMIT can leave the outcome unknown.
+        conn.rollback()
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;engine&quot;, choices=(&quot;mysql&quot;, &quot;sqlserver&quot;, &quot;postgresql&quot;, &quot;timescale&quot;))
+    args = parser.parse_args()
+    ns = {&quot;mysql&quot;: &quot;&quot;, &quot;sqlserver&quot;: &quot;dbo.&quot;, &quot;postgresql&quot;: &quot;public.&quot;, &quot;timescale&quot;: &quot;public.&quot;}
+    marker = &quot;?&quot; if args.engine == &quot;sqlserver&quot; else &quot;%s&quot;
+    now = datetime.now(UTC)
+    if args.engine == &quot;mysql&quot;:
+        now = now.replace(tzinfo=None)  # DATETIME uses the app&#x27;s UTC contract
+    if args.engine == &quot;sqlserver&quot;:
+        # ISO 8601 string with explicit offset, converted to datetimeoffset by SQL Server.
+        now = now.isoformat(timespec=&quot;microseconds&quot;)
+    event_id = str(uuid4())
+    conn, conflict = connect(args.engine)
+    with closing(conn), closing(conn.cursor()) as cur:
+        if args.engine == &quot;sqlserver&quot;:
+            cur.execute(&quot;SET XACT_ABORT ON&quot;)
+        repo = ReadingRepository(cur, ns[args.engine], marker)
+        save_reading(conn, repo, 101, now, Decimal(&quot;12.50&quot;), event_id)
+        try:
+            # A fresh reading passes first; duplicate audit PK must roll it back.
+            save_reading(conn, repo, 102, now, Decimal(&quot;13.25&quot;), event_id)
+        except conflict:
+            pass
+        else:
+            raise RuntimeError(&quot;expected duplicate audit primary key&quot;)
+        if not repo.exists(&quot;lab_reading&quot;, &quot;device_id&quot;, 101):
+            raise RuntimeError(&quot;committed reading is missing&quot;)
+        if not repo.exists(&quot;lab_audit&quot;, &quot;event_id&quot;, event_id):
+            raise RuntimeError(&quot;committed audit is missing&quot;)
+        if repo.exists(&quot;lab_reading&quot;, &quot;device_id&quot;, 102):
+            raise RuntimeError(&quot;second reading leaked through rollback&quot;)
+        conn.rollback()  # end the verification&#x27;s read transaction explicitly
+    print(f&quot;PASS {args.engine}: commit visible, duplicate audit rolled back reading&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details>
+        <details><summary>SQL Server 補充：由 T-SQL 自己管理交易時的錯誤分支</summary>
+<pre><code>-- 只在 T-SQL 服務端擁有交易時使用；不要和 Python 的 UoW 再包一層。
+SET XACT_ABORT ON;
+BEGIN TRY
+    BEGIN TRANSACTION;
+    -- 在同一批次執行量測與稽核兩個已參數化的 INSERT。
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() &lt;&gt; 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;</code></pre>
+          <p><code>XACT_STATE() = -1</code> 時交易無法提交、也不能回滾至 savepoint，只能完整回滾。節錄展示交易框架而非完整插入；正式 Python 範例擁有 commit／rollback。</p>
+        </details>
+      </section>
+      <section class="section-block" id="migration-playbook">
+        <div class="section-head"><div><span class="eyebrow">Delivery · Recovery</span><h2>遷移流程：Expand → Backfill → Verify → Contract</h2><p>案例：為量測表的取樣來源新增 <code>source_quality</code>。先加可空欄位／相容介面，舊程式仍能寫；再部署新程式、分批回填、驗證缺值與延遲；最後才加強約束並在舊版本不再可回退後清掉舊路徑。每步都有變更單、版本紀錄、前置檢查與監控門檻。</p></div></div>
+        <ol class="db-map db-flow"><li><strong>Expand</strong><br>允許舊版、新版並存。</li><li><strong>Backfill</strong><br>小批、可重入、記錄游標。</li><li><strong>Verify</strong><br>比對總數、缺值、p95 和副本延遲。</li><li><strong>Contract</strong><br>確認無舊讀寫端與還原演練後收斂。</li></ol>
+        <div class="db-table" tabindex="0" role="region" aria-label="各引擎遷移與回復"><table><thead><tr><th scope="col">引擎</th><th scope="col">遷移策略</th><th scope="col">失敗時的回復</th></tr></thead><tbody>
+          <tr><th scope="row">SQLite</th><td>使用短、顯式 DDL 交易；修改限制較多時在停寫視窗重建表，做 <code>foreign_key_check</code>。不要把既有交易和 <code>executescript()</code> 誤當同一原子單位。</td><td>未提交 rollback；提交後走 forward fix 或還原一致性的 DB 備份並補資料。</td></tr>
+          <tr><th scope="row">MySQL</th><td>先查 DDL 是否隱含提交，再選受版本和操作支援的 ALTER 演算法；交易式 DML 回填與 DDL 分開。</td><td>許多 DDL 即使 atomic DDL 也不能由使用者 rollback；用前向修補、切回相容版本或備份＋binlog 還原。</td></tr>
+          <tr><th scope="row">SQL Server</th><td>先驗證操作能否在顯式交易內執行；即使支援 rollback 也要評估 schema lock、日誌成長與阻塞。設定有限鎖等時間。</td><td>能回滾且尚未提交時依交易狀態 rollback；已提交用相容應用／修補遷移，必要時依復原模式還原。</td></tr>
+          <tr><th scope="row">PostgreSQL</th><td>多數一般 DDL 可放短交易；<code>CREATE INDEX CONCURRENTLY</code> 必須分開不包 transaction block。排查未完成的無效索引後再重跑。</td><td>交易式且未提交可 rollback；跨交易步驟須先查實際 schema 狀態。PITR 要先驗證 WAL 與備份。</td></tr>
+          <tr><th scope="row">TimescaleDB</th><td>先檢查 PG／擴充版本矩陣；非空表轉 hypertable 需評估 <code>migrate_data</code> 與鎖，較大庫先演練新表＋分批搬遷。</td><td>保留政策刪除的 chunk 不靠 DDL rollback 還原。測試重新建立索引、彙總刷新與政策啟停後的資料缺口。</td></tr>
+        </tbody></table></div>
+        <h3>上線閘門與證據</h3><p>CI 在各目標引擎測試 <strong>空庫 → 最新、前一版 → 最新、版本共存、交易失敗及注入重送</strong>，再用平行連線測 deadlock／時間上限。收集遷移耗時、交易 p95、阻塞秒數、副本延遲、查詢計畫、資料列比對與還原演練紀錄。避免對正式庫直接跑會實際執行寫入的分析指令。先訂 RPO/RTO，再決定整庫還原或前向修補；還原不是「資料沒差別」的同義詞。</p>
+        <p><strong>官方文件：</strong> <a href="https://docs.python.org/3/library/sqlite3.html">Python sqlite3</a> · <a href="https://www.sqlite.org/lang_transaction.html">SQLite 交易</a> · <a href="https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html">MySQL 隱含提交</a> · <a href="https://dev.mysql.com/doc/connector-python/en/connector-python-example-cursor-transaction.html">MySQL 驅動交易</a> · <a href="https://learn.microsoft.com/en-us/sql/t-sql/functions/xact-state-transact-sql">SQL Server 交易狀態</a> · <a href="https://learn.microsoft.com/en-us/sql/connect/python/mssql-python/migrate-from-pyodbc">Microsoft 驅動參數對照</a> · <a href="https://www.postgresql.org/docs/18/sql-createindex.html">PostgreSQL 線上索引</a> · <a href="https://www.psycopg.org/psycopg3/docs/basic/transactions.html">Psycopg 交易</a> · <a href="https://www.psycopg.org/psycopg3/docs/basic/params.html">Psycopg 綁定</a> · <a href="https://github.com/timescale/Tiger-Data-Docs/blob/main/src/content/docs/reference/timescaledb/hypertables/create_hypertable.mdx">TimescaleDB hypertable</a> · <a href="https://github.com/timescale/docs/blob/latest/api/data-retention/add_retention_policy.md">TimescaleDB 保留政策</a>。</p>
+      </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>
@@ -150,7 +601,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="
       migration: [
         ["migration-version-table", "Version", "Migration 要有版本表", "用 schema_migrations 記錄已執行版本，讓部署可重跑且可診斷。", "CREATE TABLE schema_migrations(version TEXT PRIMARY KEY);", "migration history is queryable."],
         ["migration-forward-only", "Forward", "優先設計 forward-only migration", "production rollback 常常回退程式，不一定回退資料。破壞性變更要用 expand/contract。", "ALTER TABLE notes ADD COLUMN archived_at TEXT;", "old app can still run during rollout."],
-        ["migration-backfill", "Backfill", "資料補值要分批且可重入", "大量 UPDATE 應該有 batch、checkpoint 與重試，不和 schema change 綁死。", "UPDATE notes SET status = 'active' WHERE status IS NULL LIMIT 500;", "backfill can resume safely."],
+        ["migration-backfill", "Backfill", "資料補值要分批且可重入", "大量 UPDATE 應該有 batch、checkpoint 與重試，不和 schema change 綁死。", "UPDATE notes SET status = 'active' WHERE id IN (SELECT id FROM notes WHERE status IS NULL ORDER BY id LIMIT 500);", "backfill can resume safely."],
         ["migration-drift-check", "Drift", "偵測 schema drift", "本機、CI、staging、production 的 schema 不一致會讓 bug 很難追。", "SELECT name, sql FROM sqlite_master WHERE type = 'table';", "schema diff is visible."]
       ],
       transaction: [
@@ -212,6 +663,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="
         if (root) root.innerHTML = lessons.map(renderLesson).join("");
       });
       updateProgress();
+      applyLessonSearch();
     }
     document.addEventListener("click", (event) => {
       const button = event.target.closest("[data-complete]");
@@ -221,10 +673,11 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre><div class="
       saveCompleted(done);
       renderAll();
     });
-    document.getElementById("lessonSearch").addEventListener("input", (event) => {
-      const query = event.target.value.trim().toLowerCase();
+    function applyLessonSearch() {
+      const query = document.getElementById("lessonSearch").value.trim().toLowerCase();
       document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", query && !item.dataset.search.includes(query)));
-    });
+    }
+    document.getElementById("lessonSearch").addEventListener("input", applyLessonSearch);
     renderAll();
   </script>
 </body>
