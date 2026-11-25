@@ -42,9 +42,15 @@ section{box-shadow:0 .3rem 1.1rem #274e7310}
 .demand-panel p{margin:.55rem 0 0;color:#385a74;font-size:.88rem}
 @media(max-width:850px){.dashboard-grid{grid-template-columns:1fr}}
 @media(max-width:390px){#dashboard .card{padding-inline:.5rem}.demand-scale{margin-inline:3.25rem 4.25rem}.demand-panel .barlist li{grid-template-columns:2.75rem minmax(0,1fr) 3.75rem;font-size:.84rem}}
+
+/* Formula reference keeps the existing dashboard palette and typography. */
+.ff-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.7rem;max-width:54rem}
+.ff-controls label{display:grid;gap:.25rem;min-width:0;font-weight:750}.ff-controls input,.ff-controls select{min-width:0;width:100%;font:inherit;color:#142b40;padding:.5rem;border:1px solid #52748d;border-radius:.4rem;background:#fff}.ff-controls :focus-visible{outline:3px solid #256797;outline-offset:2px}
+.ff-group{margin-block:1rem 1.3rem}.ff-group h3 small{font-size:.8em;font-weight:500}.ff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:.65rem}
+.ff-card{min-width:0;margin:0;border:1px solid var(--line);border-radius:.65rem;padding:.75rem;background:#f6fafd}.ff-card h4{margin:0 0 .45rem;color:#174c7e}.ff-card p{margin:.3rem 0;overflow-wrap:anywhere}.ff-expression{font-weight:750;background:var(--soft);border-radius:.4rem;padding:.4rem .55rem;font-variant-numeric:tabular-nums}
 </style></head><body><main id="top">
 <header class="operations-hero"><div class="hero-top"><span class="tag">FACTORY ENERGY / OPERATIONS</span><span class="demo-status">合成資料 · 離線教材</span></div><h1>工廠能效指標：從分電表到單位良品能耗</h1><p>用一條產線、兩種產品和四個 15 分鐘區間，從原始資料算出用電、需量、負載率、耗電強度與相同產品組合的基準偏差。全部數值為合成教學資料。</p>
-<nav class="links" aria-label="章節導覽"><a href="index.html#facility-metrics">回機房與 HVAC 指標</a><a href="#dashboard">儀表板</a><a href="#architecture">架構與流程</a><a href="#metrics">公式與算例</a><a href="#apis">API 與實作</a><a href="#acceptance">驗收</a></nav></header>
+<nav class="links" aria-label="章節導覽"><a href="index.html#facility-metrics">回機房與 HVAC 指標</a><a href="#dashboard">儀表板</a><a href="#architecture">架構與流程</a><a href="#metrics">公式與算例</a><a href="#formula-library">完整公式庫</a><a href="#apis">API 與實作</a><a href="#acceptance">驗收</a></nav></header>
 <section id="dashboard" aria-labelledby="dash-title"><div class="dashboard-heading"><div><span class="section-kicker">01 / PERFORMANCE SNAPSHOT</span><h2 id="dash-title">產線能效總覽</h2></div><p>資料區間：08:00–09:00（UTC+08:00）<br>指標邊界：單一產線分電表與良品數</p></div><div class="dashboard-grid"><div class="cards" aria-label="算例主要結果"><div class="card"><b>210 kWh</b>一小時用電<span>分電表累計</span></div><div class="card"><b>0.75 kWh／件</b>單位良品能耗<span>210 kWh／280 件</span></div><div class="card"><b>260 kW</b>15 分鐘尖峰需量<span>08:15 起始窗</span></div><div class="card"><b>80.77%</b>本時窗負載率<span>平均 210 kW／尖峰 260 kW</span></div></div><figure class="demand-panel"><figcaption>需量長條圖｜每窗平均功率（0–300 kW）</figcaption>
 <div class="demand-scale" aria-hidden="true"><span>0</span><span>100</span><span>200</span><span>300 kW</span></div><ol class="barlist"><li><span>08:00</span><span class="track" aria-hidden="true"><span class="fill" style="--value:68%"></span></span><strong>204 kW</strong></li><li class="peak"><span>08:15</span><span class="track" aria-hidden="true"><span class="fill" style="--value:86.6667%"></span></span><strong>260 kW</strong></li><li><span>08:30</span><span class="track" aria-hidden="true"><span class="fill" style="--value:73.3333%"></span></span><strong>220 kW</strong></li><li><span>08:45</span><span class="track" aria-hidden="true"><span class="fill" style="--value:52%"></span></span><strong>156 kW</strong></li></ol>
 <p>本窗尖峰在 08:15（260 kW）；08:45 無良品仍用 39 kWh。先查設備同時啟動與待機紀錄，不為壓需量犧牲製程安全。</p></figure></div></section>
@@ -69,6 +75,96 @@ section{box-shadow:0 .3rem 1.1rem #274e7310}
 </tbody></table></div>
 
 <p><strong>實際基準怎麼做：</strong>用改善前的代表性資料建立基準，先選產品組合、運轉工時、溫度等相關變數；以不同時段驗證誤差、檢查資料超出模型範圍，廠線或計量變更時記錄重設規則。耗電強度、總用電、成本與排放是不同指標。見 <a href="https://www.iso.org/standard/79367.html">ISO 50006:2023</a> 與 <a href="https://service.taipower.com.tw/ebpps2/web-content/about-us">台電電子帳單用語</a>。</p></section>
+
+<section id="formula-library" aria-labelledby="formula-library-title">
+<span class="section-kicker">REFERENCE / FORMULA LIBRARY</span>
+<h2 id="formula-library-title">工廠能效公式庫：41 個常用計算項目</h2>
+<p>從製程到公用系統分類。各卡註明分子、分母、輸出單位與使用限制。這是跨場域的工作清單，不是所有產業的法定指標；廠別沒有量測時標「資料不足」，不補造設備數字。八項產線數字仍沿用<a href="#metrics">上方同一套合成算例</a>。</p>
+<div class="ff-controls"><label for="formula-query">搜尋名稱、公式或單位<input type="search" id="formula-query" placeholder="例如：kWh、空壓、基準、COP"></label>
+<label for="formula-category">分類<select id="formula-category"><option value="">全部分類</option><option value="f-0">帳界、資源與碳</option><option value="f-1">製程強度、基準與改善</option><option value="f-2">需量、電氣、電價</option><option value="f-3">馬達、泵與風機</option><option value="f-4">空壓、冰水與熱源</option></select></label></div>
+<p id="formula-count" role="status" aria-live="polite">顯示 41 項</p>
+<div id="formula-list"><div class="ff-group" data-category="f-0"><h3>帳界、資源與碳 <small>· 8 項</small></h3><div class="ff-grid"><article class="ff-card"><h4>累積電表增量 ΔE</h4><p class="ff-expression">E_end − E_start；若原始值未換算，再乘登錄倍率</p><p><strong>單位：</strong>kWh</p><p><strong>適用與限制：</strong>同一表、同方向及同計數器。計數器回轉、歸零、換表先依資料品質規則分段；倍率不可重乘。</p></article>
+<article class="ff-card"><h4>工廠母線總用電</h4><p class="ff-expression">E_外購進口 ＋ E_現場發電 − E_出口 − ΔE_儲能</p><p><strong>單位：</strong>kWh</p><p><strong>適用與限制：</strong>簡化閉合邊界、ΔE_儲能為期末減期初儲存能量；此口徑將邊界內儲能及線路損失保留在場內用電。若採終端負載口徑用同邊界負載表，不拿淨購電當用電。</p></article>
+<article class="ff-card"><h4>分表電量覆蓋率</h4><p class="ff-expression">Σ E_互斥分表 ÷ E_同邊界母表 × 100%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>只加互斥末端，不加母表和子表；&gt;100% 先查倍率、時鐘、重疊或跨界。</p></article>
+<article class="ff-card"><h4>用能轉換能量</h4><p class="ff-expression">燃料量 × 選定熱值；1 kWh＝3.6 MJ</p><p><strong>單位：</strong>MJ、GJ</p><p><strong>適用與限制：</strong>天然氣體積須對齊參考狀態。全表固定高位或低位熱值，保留原始品項單位；源端與終端能源勿混加。</p></article>
+<article class="ff-card"><h4>用水強度</h4><p class="ff-expression">V_取水 ÷ 良品數；另列 V_消耗 ÷ 良品數</p><p><strong>單位：</strong>m³／件或 m³／t</p><p><strong>適用與限制：</strong>取水與消耗不等義，補水和回用水分列；不是能源效率或機房 WUE。</p></article>
+<article class="ff-card"><h4>廠內光電自用率</h4><p class="ff-expression">E_自發光電被廠內消費 ÷ E_光電總發出 × 100%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>標記電池與電能來源；出口不算自用，跨期儲存電量須追蹤來源。沒有發電則比例未定義。</p></article>
+<article class="ff-card"><h4>用電再生能源占比</h4><p class="ff-expression">E_具合格來源證據的再生電力 ÷ E_同邊界總用電 × 100%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>物理供應及憑證宣稱應分清、不可重複。沒有合格證明應標待核。</p></article>
+<article class="ff-card"><h4>用電碳強度／良品碳強度</h4><p class="ff-expression">Σ(E_已分配 × 係數) ÷ 相同總 kWh；或同邊界排放量 ÷ 良品</p><p><strong>單位：</strong>kgCO₂e／kWh、kgCO₂e／件</p><p><strong>適用與限制：</strong>使用適用年度與方法。所在地與市場法不得相加；完整組織排放另看碳排篇。</p></article>
+</div></div>
+<div class="ff-group" data-category="f-1"><h3>製程強度、基準與改善 <small>· 8 項</small></h3><div class="ff-grid"><article class="ff-card"><h4>單位用能 SEC</h4><p class="ff-expression">Σ E ÷ Σ Q_良品；例 210 ÷ 280＝0.75</p><p><strong>單位：</strong>kWh／件或 GJ／t</p><p><strong>適用與限制：</strong>分子包含同邊界不良品及返工耗能；分母非良品時另命名、不可平均各班比例，零良品未定義。</p></article>
+<article class="ff-card"><h4>能源生產力</h4><p class="ff-expression">Σ Q_良品 ÷ Σ E；例 280 ÷ 210＝1.333</p><p><strong>單位：</strong>件／kWh 或 t／GJ</p><p><strong>適用與限制：</strong>SEC 的倒數前提是同一分子分母及正值，跨製程需對齊產品與邊界。</p></article>
+<article class="ff-card"><h4>等效良品強度</h4><p class="ff-expression">E ÷ Σ(Q_i × w_i)</p><p><strong>單位：</strong>kWh／等效件</p><p><strong>適用與限制：</strong>w_i 為事前核定、無量綱的產品等效權重，不是當期實測能效；保留權重及版本。</p></article>
+<article class="ff-card"><h4>單批能耗</h4><p class="ff-expression">Σ E_批次有效時間與設備</p><p><strong>單位：</strong>kWh／批</p><p><strong>適用與限制：</strong>分攤暖機、重疊批次和共用公設前先定規則；缺表不得填 0。</p></article>
+<article class="ff-card"><h4>非產出能耗比</h4><p class="ff-expression">E_零良品窗 ÷ E_全部窗 × 100%；39 ÷ 210＝18.57%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>零產出也可能在暖機、清洗或保護。待機能耗需依狀態訊號另篩。</p></article>
+<article class="ff-card"><h4>基準模型 EnB</h4><p class="ff-expression">E_預期＝a＋Σ(b_i × x_i)；既有算例為 195 kWh</p><p><strong>單位：</strong>kWh</p><p><strong>適用與限制：</strong>於代表性基準期擬合；報告期以實際產品組合、工時或環境重算，超出模型範圍標記。</p></article>
+<article class="ff-card"><h4>能效比值 EnPI</h4><p class="ff-expression">E_實際 ÷ E_預期；例 210 ÷ 195＝1.0769</p><p><strong>單位：</strong>無量綱</p><p><strong>適用與限制：</strong>此口徑 &lt;1 表示低於調整基準；須同能源品項、同邊界且 E_預期&gt;0。不是全部 EnPI 的唯一定義。</p></article>
+<article class="ff-card"><h4>節能量／節能率</h4><p class="ff-expression">E_預期 − E_實際；再 ÷ E_預期 × 100%；195−210＝−15 kWh／−7.69%</p><p><strong>單位：</strong>kWh、%</p><p><strong>適用與限制：</strong>負值就是多用。停產、設備變更與品質差異先審查；需說明基準調整與不確定度。</p></article>
+</div></div>
+<div class="ff-group" data-category="f-2"><h3>需量、電氣、電價 <small>· 9 項</small></h3><div class="ff-grid"><article class="ff-card"><h4>平均功率／區間需量</h4><p class="ff-expression">Σ E ÷ T；例 65 ÷ 0.25＝260</p><p><strong>單位：</strong>kW</p><p><strong>適用與限制：</strong>T 以小時；需量按規定窗計算。台電需量契約用十五分鐘平均口徑，帳單以實際計量為準。</p></article>
+<article class="ff-card"><h4>最大需量</h4><p class="ff-expression">同一計量窗規則下 max(E_i ÷ T_i)</p><p><strong>單位：</strong>kW</p><p><strong>適用與限制：</strong>最大區間不是瞬間尖峰；廠內設備須先對齊時窗再加總。不同時間發生的峰值不可直接相加。</p></article>
+<article class="ff-card"><h4>負載率</h4><p class="ff-expression">平均 kW ÷ 同期間尖峰 kW × 100%；210 ÷ 260＝80.77%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>完整期間，尖峰須為正；不可用 kVA 代替 kW；與設備稼動率不同。</p></article>
+<article class="ff-card"><h4>相對契約需量／超出量</h4><p class="ff-expression">峰值 kW ÷ 契約 kW × 100%；max(0, 峰值 − 契約)</p><p><strong>單位：</strong>%、kW</p><p><strong>適用與限制：</strong>本式只作單一契約容量監測，不是帳單超約金額；依用戶類別、分段契約與費率核對。</p></article>
+<article class="ff-card"><h4>有效功率 P（平衡正弦三相）</h4><p class="ff-expression">√3 × V_LL × I_L × PF ÷ 1,000</p><p><strong>單位：</strong>kW</p><p><strong>適用與限制：</strong>V 為線電壓、I 為線電流，有諧波或不平衡時用合格真功率計與各相資料。</p></article>
+<article class="ff-card"><h4>視在功率 S（平衡正弦三相）</h4><p class="ff-expression">√3 × V_LL × I_L ÷ 1,000</p><p><strong>單位：</strong>kVA</p><p><strong>適用與限制：</strong>勿用 kVA 當 kWh；取真有效值與正確接線口徑。</p></article>
+<article class="ff-card"><h4>功率因數 PF／無功 Q</h4><p class="ff-expression">PF＝P÷S；正弦時無功量值 Q 量值＝√(S²−P²)</p><p><strong>單位：</strong>無量綱、kvar</p><p><strong>適用與限制：</strong>PF≠馬達效率；諧波時 √(S²−P²) 不宜直接解讀成基波無功。感、容方向由合適電表辨認。</p></article>
+<article class="ff-card"><h4>時間電價能源費／平均電價</h4><p class="ff-expression">Σ(E_時段 × 單價_時段)；總金額 ÷ 計費 kWh</p><p><strong>單位：</strong>元、元／kWh</p><p><strong>適用與限制：</strong>能源費不含需量、功因、稅金或調整項；平均電價須說明分子選能源費或全帳單。</p></article>
+<article class="ff-card"><h4>生產電費強度</h4><p class="ff-expression">C_可歸屬電費 ÷ Σ Q_良品</p><p><strong>單位：</strong>元／件</p><p><strong>適用與限制：</strong>分攤共用需量費與公設時需版本化；電量不降也可能因移峰而降費。</p></article>
+</div></div>
+<div class="ff-group" data-category="f-3"><h3>馬達、泵與風機 <small>· 7 項</small></h3><div class="ff-grid"><article class="ff-card"><h4>馬達軸功率</h4><p class="ff-expression">P_shaft＝2π × rpm × T_Nm ÷ 60,000</p><p><strong>單位：</strong>kW</p><p><strong>適用與限制：</strong>轉矩及轉速同時量測；銘牌額定值不是實際軸功率。</p></article>
+<article class="ff-card"><h4>馬達效率／負載率</h4><p class="ff-expression">P_軸輸出 ÷ P_馬達輸入；P_軸輸出 ÷ P_銘牌額定軸輸出</p><p><strong>單位：</strong>無量綱或 %</p><p><strong>適用與限制：</strong>兩個分母不同。馬達輸入用合適電表；電流百分比不是負載率。</p></article>
+<article class="ff-card"><h4>變頻器效率</h4><p class="ff-expression">P_輸出 ÷ P_輸入 × 100%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>兩端同步、適合 PWM 波形的功率儀；系統效率還含馬達與負載。</p></article>
+<article class="ff-card"><h4>離心泵／風機相似律</h4><p class="ff-expression">Q₂/Q₁≈n₂/n₁；H₂/H₁≈(n₂/n₁)²；P₂/P₁≈(n₂/n₁)³</p><p><strong>單位：</strong>無量綱比值</p><p><strong>適用與限制：</strong>近似同葉輪與相似工況、效率變化小；高靜揚程、節流、限速與工況轉移不可直接套立方當節電量。</p></article>
+<article class="ff-card"><h4>泵水力功率</h4><p class="ff-expression">ρ × g × Q × H ÷ 1,000</p><p><strong>單位：</strong>kW</p><p><strong>適用與限制：</strong>ρ kg/m³、g m/s²、Q m³/s、H m；H 是總動揚程，不只壓力錶讀值；壓差、速度與位能項按量測點處理。</p></article>
+<article class="ff-card"><h4>泵效率／線到水效率</h4><p class="ff-expression">P_水力 ÷ P_泵軸；P_水力 ÷ P_整組電輸入</p><p><strong>單位：</strong>無量綱或 %</p><p><strong>適用與限制：</strong>第二項包含驅動與馬達，適用總輸入表；勿把兩種效率混寫。</p></article>
+<article class="ff-card"><h4>風機空氣功率／整組效率</h4><p class="ff-expression">Q × Δp ÷ 1,000；再 ÷ P_整組電輸入</p><p><strong>單位：</strong>kW、無量綱或 %</p><p><strong>適用與限制：</strong>Q m³/s、Δp Pa；用靜壓或全壓要明列，與風機等級、測法、密度邊界一致。</p></article>
+</div></div>
+<div class="ff-group" data-category="f-4"><h3>空壓、冰水與熱源 <small>· 9 項</small></h3><div class="ff-grid"><article class="ff-card"><h4>空壓比功率／單位氣量電耗</h4><p class="ff-expression">P_站房電 ÷ Q_自由空氣；或 E_站房電 ÷ V_同基準空氣</p><p><strong>單位：</strong>kW／(m³/min)、kWh／m³</p><p><strong>適用與限制：</strong>含乾燥機等設備須註明；對齊出口壓力、空氣參考狀態、量測點及品質。</p></article>
+<article class="ff-card"><h4>離峰漏氣估算（單台載入／卸載）</h4><p class="ff-expression">Q_滿載自由空氣 × t_載入 ÷ (t_載入＋t_卸載)</p><p><strong>單位：</strong>m³/min</p><p><strong>適用與限制：</strong>只適用充分穩定、已確認無有效用氣的簡化定速載卸工況；VFD 多機應實測夜間流量。勿混入必要待機負載。</p></article>
+<article class="ff-card"><h4>冰水冷量</h4><p class="ff-expression">ρ × cₚ × Q × (T_回−T_供)</p><p><strong>單位：</strong>kW 熱</p><p><strong>適用與限制：</strong>ρ kg/m³、cₚ kJ/(kg·K)、Q m³/s；共測點與同步，乙二醇用對應性質。</p></article>
+<article class="ff-card"><h4>冷凍噸 RT</h4><p class="ff-expression">冷量 kW 熱 ÷ 3.516853</p><p><strong>單位：</strong>RT</p><p><strong>適用與限制：</strong>冷噸是冷量，不是重量；沒有有效冷量則不計後續效率。</p></article>
+<article class="ff-card"><h4>冰機／冰水廠 COP</h4><p class="ff-expression">Q_冷量 kW 熱 ÷ P_冰機或全廠輸入 kW</p><p><strong>單位：</strong>無量綱</p><p><strong>適用與限制：</strong>全廠需依邊界納冰機、泵、冷卻塔與周邊；不得把機組 COP 假裝全廠 COP。</p></article>
+<article class="ff-card"><h4>冷卻能效 kW/RT</h4><p class="ff-expression">P_輸入 ÷ 冷凍噸；時段可用 kWh 電 ÷ RT·h</p><p><strong>單位：</strong>kW／RT</p><p><strong>適用與限制：</strong>時段須先積分後求比，勿平均瞬時比值。等邊界下 kW/RT＝3.516853/COP。</p></article>
+<article class="ff-card"><h4>鍋爐燃料至蒸汽效率</h4><p class="ff-expression">m_蒸汽 × (h_蒸汽−h_給水) ÷ (m_燃料 × 熱值) × 100%</p><p><strong>單位：</strong>%</p><p><strong>適用與限制：</strong>質量與焓值單位需一致，適用簡化穩態直接法；壓力、蒸汽乾度與排污／除氧系統依盤點邊界處理。此值不同煙道燃燒效率。</p></article>
+<article class="ff-card"><h4>蒸汽單耗／餘熱可用功率</h4><p class="ff-expression">m_蒸汽 ÷ Q_良品；或 ṁ × (h_熱源入口−h_出口)</p><p><strong>單位：</strong>kg／件、kW 熱</p><p><strong>適用與限制：</strong>若 ṁ 以 kg/s、h 以 kJ/kg，得 kW；可回收不等於實際交付，另計利用率、損失和受熱端需求。</p></article>
+<article class="ff-card"><h4>冷卻塔溫差與逼近</h4><p class="ff-expression">範圍＝T_熱水−T_冷水；逼近＝T_冷水−T_環境濕球</p><p><strong>單位：</strong>K 或 °C 溫差</p><p><strong>適用與限制：</strong>用相同時刻與合理測點，比較先控制濕球、負荷與水量；都不是 COP。</p></article>
+</div></div>
+</div>
+<p id="formula-empty" hidden>找不到符合的公式，請換個關鍵字或選全部分類。</p>
+<p class="note"><strong>開始前的四項核對：</strong>同場址與設備邊界、同時窗、同物理量與換算、分母大於零。用電量 kWh、需量 kW、燃料熱量、成本與 CO₂e 不能不加說明地互換。若以比率比較，先加總分子、分母再相除；異常值與估計值應留記錄及覆蓋率。</p>
+<h3>官方依據與延伸教材</h3>
+<ul>
+<li><a href="https://www.iso.org/standard/79367.html">ISO 50006:2023：能源績效指標與基準</a>、<a href="https://www.energy.gov/cmei/femp/measurement-and-verification-activities-required-energy-savings-performance-contract">美國能源部 FEMP：基準與節能量查證</a>。此處查閱公開摘要及官方說明，未把自行整理的算式當成標準逐字條文。</li>
+<li><a href="https://service.taipower.com.tw/ebpps2/web-content/about-us">台電：契約容量、用電最高需量與帳單用語</a>；<a href="python_ac_power_calculation_tutorial.html">交流功率教材</a>、<a href="python_taiwan_electricity_billing_tutorial.html">台灣電費教材</a>。</li>
+<li><a href="https://www.energy.gov/sites/default/files/2014/04/f15/amo_motors_guidebook_web.pdf">美國能源部：馬達驅動系統手冊</a>、<a href="https://betterbuildingssolutioncenter.energy.gov/better-plants/pumps">泵系統</a>、<a href="https://betterbuildingssolutioncenter.energy.gov/better-plants/compressed-air">空壓系統與源冊</a>。</li>
+<li><a href="https://www.energy.gov/cmei/femp/purchasing-energy-efficient-electric-chillers">美國能源部 FEMP：冰機效率</a>、<a href="https://www.energy.gov/sites/prod/files/2014/05/f16/steam4_boiler_efficiency.pdf">蒸汽鍋爐效率與損失</a>。採購額定績效與現場整廠績效不可互換。</li>
+<li><a href="https://ghgprotocol.org/scope-2-guidance">GHG Protocol 範疇二方法</a>及<a href="python_carbon_emissions_calculation_tutorial.html">碳排放計算專篇</a>。</li>
+</ul></section>
+<script>
+(() => {
+  const q=document.getElementById("formula-query"), sel=document.getElementById("formula-category");
+  const groups=[...document.querySelectorAll("#formula-list .ff-group")];
+  const normalize=s=>s.normalize("NFKC").toLowerCase().trim();
+  function update(){
+    const tokens=normalize(q.value).split(/\s+/).filter(Boolean);
+    let found=0;
+    for(const group of groups){
+      let n=0;
+      const matchGroup=!sel.value||sel.value===group.dataset.category;
+      for(const card of group.querySelectorAll(".ff-card")){
+        const s=normalize(card.textContent);
+        card.hidden=!matchGroup||!tokens.every(token=>s.includes(token));
+        if(!card.hidden) n++;
+      }
+      group.hidden=n===0;
+      found+=n;
+    }
+    document.getElementById("formula-count").textContent="顯示 "+found+" ／ 41 項";
+    document.getElementById("formula-empty").hidden=found!==0;
+  }
+  q.addEventListener("input",update);sel.addEventListener("change",update);update();
+})();
+</script>
 <section id="apis"><h2>4｜Python API 與實作：CSV、JSON、批次檢算</h2>
 <p>只需 Python 3.10+ 標準函式庫，不連 PLC、MES 或其他網路。可下載 <a href="python_factory_energy_metrics_lab.py" download>完整程式及 6 項自測</a>、<a href="python_factory_energy_metrics_sample.csv" download>四區間合成 CSV</a>。</p>
 <pre><code>python python_factory_energy_metrics_lab.py
