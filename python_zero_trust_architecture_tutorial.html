@@ -1,0 +1,90 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>零信任架構：IT/API 與工控遠端維護</title><style>
+:root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#163049;background:#eaf2f8;line-height:1.68}*{box-sizing:border-box}body{margin:0}main{width:min(100%,74rem);margin:auto;padding:clamp(.8rem,3vw,2rem)}header,.panel{min-width:0;border:1px solid #bed1e4;background:white;border-radius:14px;padding:clamp(.85rem,3vw,1.55rem);margin:0 0 .95rem;overflow-wrap:anywhere}header{background:#12304b;color:#eff8ff;border-color:#12304b}header p{color:#dceafb;max-width:75ch}.tag{color:#afeee5;letter-spacing:.07em;font-weight:800}h1,h2,h3{line-height:1.2;margin:.45rem 0 .68rem}h1{font-size:clamp(1.9rem,5.5vw,3.55rem)}h2{font-size:clamp(1.45rem,4vw,2.1rem)}h3{font-size:1.16rem}p{margin:.55rem 0 .83rem}a{color:#155a88;text-underline-offset:.16em}header a{color:#d4edff}nav{display:flex;gap:.4rem;flex-wrap:wrap}nav a{border:1px solid #7da0ba;border-radius:6px;padding:.25rem .48rem}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #3c81a5;outline-offset:2px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.62rem;margin:.75rem 0;padding:0;list-style:none;counter-reset:n}.cards li{min-width:0;background:#ebf5ff;border:1px solid #91afcb;border-inline-start:4px solid #3972a0;border-radius:7px;padding:.55rem;counter-increment:n}.cards li::before{content:counter(n,decimal-leading-zero);font-weight:800;color:#25697c;font-size:.8rem}.cards li strong,.cards li span{display:block}.cards li span{font-size:.92rem;color:#365271}.plane{display:flex;flex-wrap:wrap;gap:.45rem;margin:.45rem 0}.plane span{padding:.35rem .55rem;background:#dff2ed;border:1px solid #80afa6;border-radius:6px}.notice{padding:.56rem .75rem;background:#e7f5f8;border-inline-start:4px solid #2b7c86}.scroll{max-width:100%;overflow:auto;margin:.65rem 0;border:1px solid #c6d6e6;border-radius:7px}table{border-collapse:collapse;width:100%;min-width:42rem}thead{background:#e9f2fe}th,td{text-align:start;vertical-align:top;padding:.58rem;border-block-end:1px solid #dce6f1}th{white-space:nowrap}pre{max-width:100%;overflow:auto;background:#122b47;color:#edf5ff;border-radius:8px;padding:.72rem;font-size:.875rem;line-height:1.5}details{padding:.55rem;border:1px solid #c6d6e6;border-radius:7px}summary{font-weight:750;cursor:pointer}footer{padding:0 0 1.75rem}
+</style></head><body><main><header id="top"><div class="tag">資安架構研究｜身分、應用與 OT</div><h1>零信任架構：從政策決策到系統驗收</h1><p>內網位置、公司所有的裝置或曾經通過登入，都不能自動取得所有資源。零信任是圍繞資源、以可驗證訊號控制請求和工作階段的做法；不是取消信任、不設防火牆，也不是買一套產品就完成。</p><nav aria-label="章節導覽"><a href="python_information_security_tutorial.html#ot">回資訊安全教材</a><a href="#model">架構</a><a href="#flow">授權流程</a><a href="#api">IT／API</a><a href="#ot">HVAC／OT</a><a href="#acceptance">遷移與驗收</a><a href="#lab">離線程式</a></nav></header><section id="model" class="panel"><h2>架構圖｜政策控制與資料傳輸分開</h2><ol class="cards"><li><strong>身分與脈絡</strong><span>身分服務、裝置狀態、工作負載識別與資源標籤供決策。</span></li><li><strong>PE 政策引擎</strong><span>對主體、目標、動作與風險條件判斷允許、拒絕或終止。</span></li><li><strong>PA 政策管理元件</strong><span>依 PE 決策協調建立或終止通道，向 PEP 傳達控制指令。</span></li><li><strong>PEP 政策執行點</strong><span>實際管制請求與通道；只放行符合政策的流量，並回報遙測。</span></li></ol>
+<p class="plane"><span><strong>控制平面：</strong>可信訊號 → PE → PA → PEP（決策及路徑控制）</span><span><strong>資料平面：</strong>主體 → PEP → 資源（僅在授權條件成立時）</span></p>
+<p>PE 與 PA 在 NIST SP 800-207 的邏輯模型共同構成政策決策點（PDP）。此處 PA 是執行 PE 決策、協調通道的元件，不是管理員手動寫政策的同義詞。PEP 可以是代理、閘道或由多個協同元件組成；這是責任劃分，不是要求部署三台主機。IdP 提供身分訊號，但不是單獨的授權裁決。政策控制平面需保護完整性、授權管理、時鐘與可用性；把策略或執行點故障視為設計情境，而不是預設放行。</p>
+<p>常見名詞不可互換：MFA 增強身分驗證，不證明裝置健康；網路分區限制傳播，不等於每個資源都授權；ZTNA 可能是遠端存取的落實方式，不代表完整 ZTA；mTLS 可驗證連線端點及保護傳輸，不保證呼叫者有權讀某筆資料。資源標籤、擁有者、允許動作及風險訊號需要持續維護。<a href="python_zero_trust_architecture.drawio">下載可編輯 Draw.io 架構圖及授權流程</a></p></section><section id="flow" class="panel"><h2>流程圖｜最小權限不只決定「能不能登入」</h2><ol class="cards"><li><strong>提出請求</strong><span>由受管裝置或工作負載要求特定資源和動作。</span></li><li><strong>取得可信訊號</strong><span>驗證身分與裝置／工作負載證據，核對資源與情境。</span></li><li><strong>判定與執行</strong><span>PE 作決策，PA 協調由 PEP 建立、限制或拒絕通道。</span></li><li><strong>持續評估</strong><span>收到撤銷、姿態過期或風險變動，重新判斷並執行回收。</span></li><li><strong>記錄與驗收</strong><span>記錄決策理由、政策版本與時鐘，查有效回收與本地持續運轉。</span></li></ol>
+<p>把決策單位寫成「主體 × 資源 × 動作 × 條件」。身分須區分人、服務與裝置；動態條件可能含資產健康度、憑證與裝置證據時效、工作單、資源敏感度、登入風險，以及本地主管批准的時間窗。網路位置可作風險訊號，不能當成充分證明。記錄實際用哪些訊號與缺失處理；持續評估依工作階段壽命、事件與適用風險實行，不代表每封封包都要人工重新登入。</p></section><section id="api" class="panel"><h2>IT／API：把登入、OAuth 授權與每筆資源檢查切開</h2>
+<p>OIDC 是常用的登入身分層；OAuth access token 用於授權存取 API，ID token 不應當作 API access token。互動式客戶端依情境採授權碼搭配 PKCE；無人服務使用部署平台支援的工作負載身分及短效憑證，不共用人員帳號或長效密鑰。API 應遵循自己的 token profile：例如驗 JWT 的簽章、允許演算法、可信 issuer、audience 及有效期間；不透明 token 按受信任授權伺服器提供的機制核驗。不可只解碼字串便信任 claims。<a href="https://www.rfc-editor.org/rfc/rfc9700">IETF OAuth 2.0 安全最佳實務</a>。</p>
+<p>入口閘道以 audience、scope 與身分做粗粒度限制；實際 API 仍應依使用者或服務能否存取該客戶／廠區／對象及讀寫型別判斷。服務間存取另用工作負載身分、適用時採 mTLS 與服務策略；不要把用戶層權限不受控地轉授下游。NIST SP 800-207A 討論雲原生多地環境的應用和服務層做法，並不規定所有 PLC 或每個環境都採服務網格。</p>
+<p>拒絕原因應對外保持適當抽象、內部可追溯；日誌記決策、policy version、資源代碼、時間與關聯 ID，不留原始 token、密鑰或不必要個資。權限更新與 JWT 存續應分開設計：短效 token 並不等於即時撤銷，須量測會話終止、撤銷傳播、政策快取生命週期和重連後失效邊界。</p></section><section id="ot" class="panel"><h2>HVAC／OT：遠端維護失效，不應使本地迴路停擺</h2>
+<figure><figcaption>假設工廠 BMS／冰水站的遠端維護路徑；箭頭代表授權與資料流向，不是控制連線部署指令。</figcaption><ol class="cards"><li><strong>境外／外部工程師</strong><span>企業登入、MFA、受管裝置、核准工單與限時權限。</span></li><li><strong>IT／OT DMZ</strong><span>受控維護閘道／跳板 PEP；只放行指定目的、服務與動作。</span></li><li><strong>維護平面</strong><span>優先讀取趨勢與診斷；改參數經另行核准、現場協作及回復計畫。</span></li><li><strong>本地控制區</strong><span>PLC/DDC 執行 PID、控制保護與本地操作；獨立安全聯鎖不靠雲端 IAM。</span></li></ol></figure><p>不要要求壽命長或資源有限的 PLC 配合雲端身分代理；可在設備群的信任邊界施行 PEP，保留能驗證的分區與本地操作流程。斷開 IdP 或政策服務時，遠端新增會話依政策拒絕／隔離，既有會話只能依事前核准的限定策略及上限處置；不能自動放寬為永久信任。現場連續性透過獨立的本地 PLC、PID、操作員站及安全設計驗證。測試時用隔離台或核准維護窗，不直接在生產環境拔線。</p>
+<p><strong>破窗不是共用永遠可用的管理員帳號。</strong>預先定義角色、啟用條件、受保護的憑證保管與緊急授權，鎖定資源／動作／期限、雙人核准或按現場緊急程序確認，啟動即告警與保留審計。完成後終止工作階段、回收權限、必要時輪替憑證並獨立檢討。若平常連不上 IAM，也須有經演練的本地維運方式；不把現場安全依賴遠端破窗服務。</p></section><section id="acceptance" class="panel"><h2>遷移、驗收與證據：以可重做的事件判斷是否成功</h2>
+<p>CISA Zero Trust Maturity Model v2.0 用身分、裝置、網路、應用與工作負載、資料五支柱，加上可視性與分析、自動化與協調、治理三項橫向能力。Traditional、Initial、Advanced、Optimal 是規劃與自評階段，不是認證、等保判定或必須追求最高等級的要求。<a href="https://www.cisa.gov/resources-tools/resources/zero-trust-maturity-model">CISA ZTMM</a></p>
+<ol><li>先盤點資源、資料流與責任人；標示不可停止的 OT 控制與人員安全依賴。</li><li>先試點唯讀 API 或低風險遠端維護，在測試環境比較允許與拒絕的影響；配置可回復政策版。</li><li>再移轉寫入與服務間身分，按資產風險分區逐步強制；每一批均有回復條件、授權人、時間窗與舊例外到期日。</li><li>將證據納入變更管理：政策測試、APP/API 判斷、PEP 執行記錄、故障演練和憑證更新成果；例外要重審或到期收回。</li></ol><div class="scroll" role="region" tabindex="0" aria-label="驗收表，可局部橫移"><table><thead><tr><th scope="col">驗收情境</th><th scope="col">應確認的結果</th><th scope="col">證據</th></tr></thead><tbody><tr><th scope="row">拒絕與資源界線</th><td>同身分跨廠、輸出寫入、scope/audience 不符或裝置證據過期不得放行。</td><td>決策碼、無資料回傳、無狀態變更、可交叉比對的 request ID。</td></tr><tr><th scope="row">撤銷與輪替</th><td>撤銷權限後，新舊通道停止於已約定時限。憑證輪替保有授權合法通道，過渡期後拒絕舊憑證。</td><td>撤銷發出與生效時間、策略／憑證版本及重連結果。</td></tr><tr><th scope="row">決策依賴或網路故障</th><td>遠端新增存取依預案停止、告警；本地 PLC/PID、操作員站與安全聯鎖在核准測試中維持要求。</td><td>實際控制迴路趨勢、警報延遲、回復時間與驗收紀錄。</td></tr><tr><th scope="row">破窗與復歸</th><td>僅在核准資源／時間使用，完成後自動或人工回收並驗證沒有殘留權限。</td><td>核准紀錄、工單、會話關閉／憑證輪替及獨立複核。</td></tr></tbody></table></div>
+<p class="notice">指標用可量測的拒絕命中、誤拒、撤銷上界、恢復時間、輪替成功、實際遙測覆蓋去驗收，不以啟用 MFA 或採購產品充當完成證據。</p></section><section id="lab" class="panel"><h2>Python 離線範例：只判斷既有可信上下文</h2><p><a href="python_zero_trust_architecture_lab.py">下載 Python 範例與單元測試</a>。固定合成資料，只示範預設拒絕、部門內單一資源唯讀、裝置證據過期、撤銷、跨廠與政策依賴故障。程式傳入的是合成身分與裝置證據；正式 PEP 必須從已驗證的身分服務、可信裝置證明及政策來源建構上下文，不接受瀏覽器自填 HTTP 標頭。沒有實作 OAuth token 驗證、撤銷通知或現場控制，不可直接接到正式系統。</p><pre tabindex="0"><code>python3 python_zero_trust_architecture_lab.py
+python3 python_zero_trust_architecture_lab.py --test</code></pre><details><summary>展開完整程式碼與自測</summary><pre tabindex="0"><code>&quot;&quot;&quot;Evaluate fictional authorization records offline; no token processing or network.&quot;&quot;&quot;
+
+from dataclasses import dataclass, replace
+import argparse
+import json
+import unittest
+
+
+@dataclass(frozen=True)
+class Context:
+    subject: str = &quot;maintenance-reader&quot;
+    device_compliant: bool = True
+    posture_age_s: int = 20
+    audience: str = &quot;hvac-support&quot;
+    action: str = &quot;trend:read&quot;
+    resource: str = &quot;site-a/ahu-01&quot;
+    expires_at: int = 150
+    now: int = 100
+    revoked: bool = False
+    dependency_available: bool = True
+    approved_ticket: bool = True
+
+
+def evaluate(c: Context) -&gt; tuple[bool, str]:
+    &quot;&quot;&quot;Input is an already verified context, not raw or application-supplied claims.&quot;&quot;&quot;
+    if not c.dependency_available:
+        return False, &quot;policy_dependency_unavailable&quot;
+    if c.revoked or not 0 &lt;= c.now &lt; c.expires_at:
+        return False, &quot;revoked_or_expired&quot;
+    if c.audience != &quot;hvac-support&quot;:
+        return False, &quot;wrong_audience&quot;
+    if not c.device_compliant or not 0 &lt;= c.posture_age_s &lt;= 60:
+        return False, &quot;posture_missing_or_stale&quot;
+    if not c.approved_ticket:
+        return False, &quot;ticket_not_approved&quot;
+    if (c.subject, c.action, c.resource) != (
+        &quot;maintenance-reader&quot;, &quot;trend:read&quot;, &quot;site-a/ahu-01&quot;
+    ):
+        return False, &quot;outside_policy&quot;
+    return True, &quot;allowed_read_only&quot;
+
+
+class DemoTests(unittest.TestCase):
+    def test_only_approved_read(self):
+        self.assertEqual(evaluate(Context()), (True, &quot;allowed_read_only&quot;))
+        for change in (dict(action=&quot;output:write&quot;), dict(resource=&quot;site-b/ahu-01&quot;),
+                       dict(subject=&quot;other&quot;), dict(approved_ticket=False)):
+            with self.subTest(change=change):
+                self.assertFalse(evaluate(replace(Context(), **change))[0])
+
+    def test_session_revocation_and_expiry(self):
+        for change in (dict(revoked=True), dict(now=150), dict(audience=&quot;other-api&quot;)):
+            self.assertFalse(evaluate(replace(Context(), **change))[0])
+
+    def test_stale_posture_and_dependency(self):
+        for change in (dict(posture_age_s=61), dict(posture_age_s=-1),
+                       dict(device_compliant=False), dict(dependency_available=False)):
+            self.assertFalse(evaluate(replace(Context(), **change))[0])
+
+
+if __name__ == &quot;__main__&quot;:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(&quot;--test&quot;, action=&quot;store_true&quot;)
+    if p.parse_args().test:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        for name, c in [
+            (&quot;approved&quot;, Context()),
+            (&quot;stale&quot;, replace(Context(), posture_age_s=61)),
+            (&quot;revoked&quot;, replace(Context(), revoked=True)),
+            (&quot;different_site&quot;, replace(Context(), resource=&quot;site-b/ahu-01&quot;)),
+            (&quot;policy_unavailable&quot;, replace(Context(), dependency_available=False)),
+        ]:
+            allowed, reason = evaluate(c)
+            print(json.dumps({&quot;case&quot;: name, &quot;allowed&quot;: allowed, &quot;reason&quot;: reason}))</code></pre></details><h3>官方引用與版本</h3><p>截至 2026-11-25，OT 指南採 NIST SP 800-82 Rev. 3 正式版；<a href="https://csrc.nist.gov/pubs/sp/800/82/r4/ipd">Rev. 4 是初版公開草案</a>，不當成已生效要求。<a href="https://csrc.nist.gov/pubs/sp/1800/35/final">NCCoE SP 1800-35</a> 提供示範部署，不是認證。臺灣政府機關可參考<a href="https://www.nics.nat.gov.tw/core_business/cybersecurity_defense/ZTA/Related_Documents_and_Forms/">國家資通安全研究院專區</a>；不應推論成所有產業的統一法規。</p><ul><li><a href="https://csrc.nist.gov/pubs/sp/800/207/final">NIST SP 800-207：零信任架構</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/207/a/final">NIST SP 800-207A：多雲應用與服務存取控制</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev. 3：OT 資訊安全</a></li><li><a href="https://www.cisa.gov/resources-tools/resources/zero-trust-maturity-model">CISA ZTMM v2.0</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9700">IETF RFC 9700：OAuth 2.0 安全最佳實務</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_information_security_tutorial.html#ot">回 OT 資訊安全教材</a></footer></main></body></html>
