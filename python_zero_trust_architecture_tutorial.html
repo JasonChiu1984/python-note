@@ -1,6 +1,42 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>零信任架構：IT/API 與工控遠端維護</title><style>
 :root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#163049;background:#eaf2f8;line-height:1.68}*{box-sizing:border-box}body{margin:0}main{width:min(100%,74rem);margin:auto;padding:clamp(.8rem,3vw,2rem)}header,.panel{min-width:0;border:1px solid #bed1e4;background:white;border-radius:14px;padding:clamp(.85rem,3vw,1.55rem);margin:0 0 .95rem;overflow-wrap:anywhere}header{background:#12304b;color:#eff8ff;border-color:#12304b}header p{color:#dceafb;max-width:75ch}.tag{color:#afeee5;letter-spacing:.07em;font-weight:800}h1,h2,h3{line-height:1.2;margin:.45rem 0 .68rem}h1{font-size:clamp(1.9rem,5.5vw,3.55rem)}h2{font-size:clamp(1.45rem,4vw,2.1rem)}h3{font-size:1.16rem}p{margin:.55rem 0 .83rem}a{color:#155a88;text-underline-offset:.16em}header a{color:#d4edff}nav{display:flex;gap:.4rem;flex-wrap:wrap}nav a{border:1px solid #7da0ba;border-radius:6px;padding:.25rem .48rem}a:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:3px solid #3c81a5;outline-offset:2px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.62rem;margin:.75rem 0;padding:0;list-style:none;counter-reset:n}.cards li{min-width:0;background:#ebf5ff;border:1px solid #91afcb;border-inline-start:4px solid #3972a0;border-radius:7px;padding:.55rem;counter-increment:n}.cards li::before{content:counter(n,decimal-leading-zero);font-weight:800;color:#25697c;font-size:.8rem}.cards li strong,.cards li span{display:block}.cards li span{font-size:.92rem;color:#365271}.plane{display:flex;flex-wrap:wrap;gap:.45rem;margin:.45rem 0}.plane span{padding:.35rem .55rem;background:#dff2ed;border:1px solid #80afa6;border-radius:6px}.notice{padding:.56rem .75rem;background:#e7f5f8;border-inline-start:4px solid #2b7c86}.scroll{max-width:100%;overflow:auto;margin:.65rem 0;border:1px solid #c6d6e6;border-radius:7px}table{border-collapse:collapse;width:100%;min-width:42rem}thead{background:#e9f2fe}th,td{text-align:start;vertical-align:top;padding:.58rem;border-block-end:1px solid #dce6f1}th{white-space:nowrap}pre{max-width:100%;overflow:auto;background:#122b47;color:#edf5ff;border-radius:8px;padding:.72rem;font-size:.875rem;line-height:1.5}details{padding:.55rem;border:1px solid #c6d6e6;border-radius:7px}summary{font-weight:750;cursor:pointer}footer{padding:0 0 1.75rem}
-</style></head><body><main><header id="top"><div class="tag">資安架構研究｜身分、應用與 OT</div><h1>零信任架構：從政策決策到系統驗收</h1><p>內網位置、公司所有的裝置或曾經通過登入，都不能自動取得所有資源。零信任是圍繞資源、以可驗證訊號控制請求和工作階段的做法；不是取消信任、不設防火牆，也不是買一套產品就完成。</p><nav aria-label="章節導覽"><a href="python_information_security_tutorial.html#ot">回資訊安全教材</a><a href="#model">架構</a><a href="#flow">授權流程</a><a href="#api">IT／API</a><a href="#ot">HVAC／OT</a><a href="#acceptance">遷移與驗收</a><a href="#lab">離線程式</a></nav></header><section id="model" class="panel"><h2>架構圖｜政策控制與資料傳輸分開</h2><ol class="cards"><li><strong>身分與脈絡</strong><span>身分服務、裝置狀態、工作負載識別與資源標籤供決策。</span></li><li><strong>PE 政策引擎</strong><span>對主體、目標、動作與風險條件判斷允許、拒絕或終止。</span></li><li><strong>PA 政策管理元件</strong><span>依 PE 決策協調建立或終止通道，向 PEP 傳達控制指令。</span></li><li><strong>PEP 政策執行點</strong><span>實際管制請求與通道；只放行符合政策的流量，並回報遙測。</span></li></ol>
+/* Deep-dive evidence tables wrap into labelled cards on small screens. */
+.zt-deep-wrap{max-width:100%;overflow:auto;border:1px solid #c3d3e3;border-radius:.55rem;margin:.65rem 0 1rem}
+.zt-deep-table{width:100%;border-collapse:collapse;text-align:left}
+.zt-deep-table thead th{background:#e8f4fa}
+.zt-deep-table td,.zt-deep-table th{padding:.55rem .65rem;vertical-align:top;overflow-wrap:anywhere;border-bottom:1px solid #d3e1ec}
+.zt-deep-table tbody tr:nth-child(even){background:#f5fafd}
+.zt-deep-note{background:#e7f5f7;border-left:.32rem solid #17677b;padding:.6rem .75rem;border-radius:.4rem}
+.zt-deep-sm-label{display:none}
+@media(max-width:730px){
+ .zt-deep-wrap{border:0;border-radius:0}
+ .zt-deep-table,.zt-deep-table tbody,.zt-deep-table tr{display:block}
+ .zt-deep-table thead{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .zt-deep-table tbody tr{border:1px solid #c3d3e3;border-radius:.5rem;margin-bottom:.5rem;background:#fff}
+ .zt-deep-table td,.zt-deep-table tbody th{display:block;min-width:0}
+ .zt-deep-table tbody th{background:#e8f4fa;border-radius:.45rem .45rem 0 0}
+ .zt-deep-table td:last-child{border-bottom:0}
+ .zt-deep-sm-label{display:block;color:#193955;font-weight:760}
+}
+
+
+#factory-interface{min-width:0;border:1px solid #405873;border-radius:1rem;background:#0e2032;color:#f0f7ff;padding:clamp(.8rem,2.3vw,1.5rem);overflow-wrap:anywhere}
+#factory-interface :is(h2,h3,p){color:inherit}
+#factory-interface .zfi-note{border-inline-start:3px solid #78d8e9;padding-inline-start:.75rem}
+#factory-interface .zfi-grid,#factory-interface .zfi-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.75rem;min-width:0}
+#factory-interface .zfi-controls label{display:grid;gap:.28rem;font-weight:700}
+#factory-interface select{width:100%;min-width:0;min-height:2.75rem;border:1px solid #779ab8;border-radius:.42rem;background:#162b40;color:#f0f7ff;padding:.45rem;font:inherit}
+#factory-interface :focus-visible{outline:2px solid #88ddeb;outline-offset:3px}
+#factory-interface .zfi-grid article{min-width:0;background:#142d43;border:1px solid #45617a;padding:.7rem;border-radius:.65rem}
+#factory-interface .zfi-badge{display:inline-flex;align-items:center;gap:.35rem;border-radius:.4rem;color:#ffe6e6;background:#572833;padding:.15rem .45rem;font-weight:700}
+#factory-interface .zfi-badge::before{content:"";width:.58rem;height:.58rem;flex:none;border-radius:50%;background:currentColor}
+#factory-interface .zfi-badge[data-kind="view"]{color:#c0f7d6;background:#205243}
+#factory-interface .zfi-badge[data-kind="readonly"]{color:#fff0b6;background:#5b4a1d}
+#factory-interface .zfi-audit{border:1px solid #45617a;border-radius:.6rem;padding:.7rem;margin:.8rem 0 0;background:#0c1b2a}
+#factory-interface .zfi-value{font-weight:800}
+#factory-interface [hidden]{display:none!important}
+
+</style></head><body><main><header id="top"><div class="tag">資安架構研究｜身分、應用與 OT</div><h1>零信任架構：從政策決策到系統驗收</h1><p>內網位置、公司所有的裝置或曾經通過登入，都不能自動取得所有資源。零信任是圍繞資源、以可驗證訊號控制請求和工作階段的做法；不是取消信任、不設防火牆，也不是買一套產品就完成。</p><nav aria-label="章節導覽"><a href="python_information_security_tutorial.html#ot">回資訊安全教材</a><a href="#model">架構</a><a href="#flow">授權流程</a><a href="#api">IT／API</a><a href="#ot">HVAC／OT</a><a href="#acceptance">遷移與驗收</a><a href="#lab">離線程式</a><a href="#request-trace">工單追蹤</a><a href="#factory-interface">工廠介面</a><a href="#failure-playbook">撤銷與故障</a><a href="#acceptance-evidence">驗收證據</a></nav></header><section id="model" class="panel"><h2>架構圖｜政策控制與資料傳輸分開</h2><ol class="cards"><li><strong>身分與脈絡</strong><span>身分服務、裝置狀態、工作負載識別與資源標籤供決策。</span></li><li><strong>PE 政策引擎</strong><span>對主體、目標、動作與風險條件判斷允許、拒絕或終止。</span></li><li><strong>PA 政策管理元件</strong><span>依 PE 決策協調建立或終止通道，向 PEP 傳達控制指令。</span></li><li><strong>PEP 政策執行點</strong><span>實際管制請求與通道；只放行符合政策的流量，並回報遙測。</span></li></ol>
 <p class="plane"><span><strong>控制平面：</strong>可信訊號 → PE → PA → PEP（決策及路徑控制）</span><span><strong>資料平面：</strong>主體 → PEP → 資源（僅在授權條件成立時）</span></p>
 <p>PE 與 PA 在 NIST SP 800-207 的邏輯模型共同構成政策決策點（PDP）。此處 PA 是執行 PE 決策、協調通道的元件，不是管理員手動寫政策的同義詞。PEP 可以是代理、閘道或由多個協同元件組成；這是責任劃分，不是要求部署三台主機。IdP 提供身分訊號，但不是單獨的授權裁決。政策控制平面需保護完整性、授權管理、時鐘與可用性；把策略或執行點故障視為設計情境，而不是預設放行。</p>
 <p>常見名詞不可互換：MFA 增強身分驗證，不證明裝置健康；網路分區限制傳播，不等於每個資源都授權；ZTNA 可能是遠端存取的落實方式，不代表完整 ZTA；mTLS 可驗證連線端點及保護傳輸，不保證呼叫者有權讀某筆資料。資源標籤、擁有者、允許動作及風險訊號需要持續維護。<a href="python_zero_trust_architecture.drawio">下載可編輯 Draw.io 架構圖及授權流程</a></p></section><section id="flow" class="panel"><h2>流程圖｜最小權限不只決定「能不能登入」</h2><ol class="cards"><li><strong>提出請求</strong><span>由受管裝置或工作負載要求特定資源和動作。</span></li><li><strong>取得可信訊號</strong><span>驗證身分與裝置／工作負載證據，核對資源與情境。</span></li><li><strong>判定與執行</strong><span>PE 作決策，PA 協調由 PEP 建立、限制或拒絕通道。</span></li><li><strong>持續評估</strong><span>收到撤銷、姿態過期或風險變動，重新判斷並執行回收。</span></li><li><strong>記錄與驗收</strong><span>記錄決策理由、政策版本與時鐘，查有效回收與本地持續運轉。</span></li></ol>
@@ -9,7 +45,102 @@
 <p>入口閘道以 audience、scope 與身分做粗粒度限制；實際 API 仍應依使用者或服務能否存取該客戶／廠區／對象及讀寫型別判斷。服務間存取另用工作負載身分、適用時採 mTLS 與服務策略；不要把用戶層權限不受控地轉授下游。NIST SP 800-207A 討論雲原生多地環境的應用和服務層做法，並不規定所有 PLC 或每個環境都採服務網格。</p>
 <p>拒絕原因應對外保持適當抽象、內部可追溯；日誌記決策、policy version、資源代碼、時間與關聯 ID，不留原始 token、密鑰或不必要個資。權限更新與 JWT 存續應分開設計：短效 token 並不等於即時撤銷，須量測會話終止、撤銷傳播、政策快取生命週期和重連後失效邊界。</p></section><section id="ot" class="panel"><h2>HVAC／OT：遠端維護失效，不應使本地迴路停擺</h2>
 <figure><figcaption>假設工廠 BMS／冰水站的遠端維護路徑；箭頭代表授權與資料流向，不是控制連線部署指令。</figcaption><ol class="cards"><li><strong>境外／外部工程師</strong><span>企業登入、MFA、受管裝置、核准工單與限時權限。</span></li><li><strong>IT／OT DMZ</strong><span>受控維護閘道／跳板 PEP；只放行指定目的、服務與動作。</span></li><li><strong>維護平面</strong><span>優先讀取趨勢與診斷；改參數經另行核准、現場協作及回復計畫。</span></li><li><strong>本地控制區</strong><span>PLC/DDC 執行 PID、控制保護與本地操作；獨立安全聯鎖不靠雲端 IAM。</span></li></ol></figure><p>不要要求壽命長或資源有限的 PLC 配合雲端身分代理；可在設備群的信任邊界施行 PEP，保留能驗證的分區與本地操作流程。斷開 IdP 或政策服務時，遠端新增會話依政策拒絕／隔離，既有會話只能依事前核准的限定策略及上限處置；不能自動放寬為永久信任。現場連續性透過獨立的本地 PLC、PID、操作員站及安全設計驗證。測試時用隔離台或核准維護窗，不直接在生產環境拔線。</p>
-<p><strong>破窗不是共用永遠可用的管理員帳號。</strong>預先定義角色、啟用條件、受保護的憑證保管與緊急授權，鎖定資源／動作／期限、雙人核准或按現場緊急程序確認，啟動即告警與保留審計。完成後終止工作階段、回收權限、必要時輪替憑證並獨立檢討。若平常連不上 IAM，也須有經演練的本地維運方式；不把現場安全依賴遠端破窗服務。</p></section><section id="acceptance" class="panel"><h2>遷移、驗收與證據：以可重做的事件判斷是否成功</h2>
+<p><strong>破窗不是共用永遠可用的管理員帳號。</strong>預先定義角色、啟用條件、受保護的憑證保管與緊急授權，鎖定資源／動作／期限、雙人核准或按現場緊急程序確認，啟動即告警與保留審計。完成後終止工作階段、回收權限、必要時輪替憑證並獨立檢討。若平常連不上 IAM，也須有經演練的本地維運方式；不把現場安全依賴遠端破窗服務。</p></section><section id="request-trace" class="panel" aria-labelledby="zt-trace-heading">
+<h2 id="zt-trace-heading">深度追蹤｜一張 HVAC 唯讀工單如何變成一筆 API 決策</h2>
+<p><strong>假設情境：</strong>外部維保人員以公司受管裝置提交工單 <code>WO-412</code>，准許 09:00–09:15 UTC 讀 A 廠冰水站一個趨勢資源。不允許變更設定值、瀏覽 B 廠或直接連 PLC。全段是合成教材，工單時窗及間隔不是現場設定。</p>
+<h3>決策憑證包：哪些訊號有效、誰提供、什麼時候到期？</h3>
+<div class="zt-deep-wrap" role="region" tabindex="0" aria-label="決策輸入及證據"><table class="zt-deep-table"><thead><tr><th scope="col">輸入</th><th scope="col">可信來源及需記錄欄位</th><th scope="col">不可當成充分證明</th></tr></thead><tbody>
+<tr><th scope="row">人與工作負載</th><td><span class="zt-deep-sm-label" aria-hidden="true">可信來源及需記錄欄位</span>IdP 已簽身分訊號與驗證強度、可撤銷人員識別、授權時效；DMZ 代理使用獨立服務身分。</td><td><span class="zt-deep-sm-label" aria-hidden="true">不可當成充分證明</span>HTTP 傳入的身分 header、顯示名稱、同一機房來源 IP。</td></tr>
+<tr><th scope="row">裝置</th><td><span class="zt-deep-sm-label" aria-hidden="true">可信來源及需記錄欄位</span>受管理的資產 ID、裝置憑證或 health 憑證、發行與到期、證據版本及採集時間。</td><td><span class="zt-deep-sm-label" aria-hidden="true">不可當成充分證明</span>「公司電腦」字串；成功 MFA 不等於裝置仍受管。</td></tr>
+<tr><th scope="row">資源及動作</th><td><span class="zt-deep-sm-label" aria-hidden="true">可信來源及需記錄欄位</span>以伺服器解析的 <code>plant-a/chw/trend</code>、所有者與分類；將請求映射為 <code>trend.read</code>，不是任意標籤。</td><td><span class="zt-deep-sm-label" aria-hidden="true">不可當成充分證明</span>僅有 <code>GET</code> 不等於可讀任何對象；不信任呼叫者聲稱的站點或替代 ID。</td></tr>
+<tr><th scope="row">環境及工單</th><td><span class="zt-deep-sm-label" aria-hidden="true">可信來源及需記錄欄位</span>工作單歸屬、指定範圍、核准人、時間窗、撤銷狀態及 UTC 時間；地點、風險分屬輔助訊號。</td><td><span class="zt-deep-sm-label" aria-hidden="true">不可當成充分證明</span>快取訊號不可無限延長；無時鐘依據、工單與資源版本不符時標為未知。</td></tr>
+</tbody></table></div>
+<h3>追蹤 <code>TRACE-412</code>：把控制平面與資料平面分開驗證</h3>
+<div class="zt-deep-wrap" role="region" tabindex="0" aria-label="工單請求逐步追蹤"><table class="zt-deep-table"><thead><tr><th scope="col">階段</th><th scope="col">負責點與可驗證結果</th><th scope="col">記錄證據</th></tr></thead><tbody>
+<tr><th scope="row">1．入口攔截</th><td><span class="zt-deep-sm-label" aria-hidden="true">負責點與可驗證結果</span>PEP 接住請求，正規化目標及操作，不直接開通資料路徑。用 request ID 串聯，不接受使用者自行指定內部 trace 身分。</td><td><span class="zt-deep-sm-label" aria-hidden="true">記錄證據</span>接收時間、trace ID、資源代碼、入口 PEP。</td></tr>
+<tr><th scope="row">2．決策</th><td><span class="zt-deep-sm-label" aria-hidden="true">負責點與可驗證結果</span>PE 依 <code>policy-17</code> 評估。符合條件才允許；不符或無法安全驗證則拒絕；若只是驗證強度不足，可要求再驗，資料仍不可流通。再驗是此實作的中間處理，不是 NIST 定義的第三種放行結果；成功後重新評估全部條件。</td><td><span class="zt-deep-sm-label" aria-hidden="true">記錄證據</span>政策版本、訊號新鮮度、允許／拒絕／再驗、內部原因碼。</td></tr>
+<tr><th scope="row">3．布建</th><td><span class="zt-deep-sm-label" aria-hidden="true">負責點與可驗證結果</span>PA 依決策只開短效、限資源及動作的路徑；PEP 回報已套用的政策世代和許可期限。無回執不宣告放行，不能在半部署時降級放行。</td><td><span class="zt-deep-sm-label" aria-hidden="true">記錄證據</span>決策 ID、PA 下達時間、執行點套用時間、範圍與有效期。</td></tr>
+<tr><th scope="row">4．資料傳輸</th><td><span class="zt-deep-sm-label" aria-hidden="true">負責點與可驗證結果</span>PEP 接受通道後，資源 API 再核對每筆對象級與動作級權限。人員只讀 DMZ 提供的已批准趨勢，查 B 廠或寫入仍拒絕；不能只靠保護畫面的按鈕。</td><td><span class="zt-deep-sm-label" aria-hidden="true">記錄證據</span>請求與對象授權、下游工作負載身分、回應狀態，不記 token 或私鑰。</td></tr>
+<tr><th scope="row">5．重決策／撤銷</th><td><span class="zt-deep-sm-label" aria-hidden="true">負責點與可驗證結果</span>工單撤回、裝置過期或到時即向 PE 重新決策；PA 停止授權、PEP 拒絕新要求並終止或限制既有通道。回頭驗證持續資料流、替代入口、重連及本地迴路是否按設計運作。</td><td><span class="zt-deep-sm-label" aria-hidden="true">記錄證據</span>撤銷指令、各 PEP 回執、最後允許與第一筆拒絕、仍流量的介面及模式。</td></tr>
+</tbody></table></div>
+<p><strong>資料實際流向：</strong>外部人員 → 受控入口／DMZ PEP → 趨勢 API；OT 站內以獨立工作負載依核可資料流提供必要資料。批准角色看的是趨勢物件，不會取得全網層連線、設備寫入或 PLC 路徑。要把存取期限同時落實在入口與資源層；入口失效或人員停權時，PLC/DDC 的 PID、保護連鎖、看門狗及本地操作仍獨立。查核兩側允許的流向、資料新鮮度及本地告警，不靠一次入口登入判定分區完成。</p>
+<p>依據：<a href="https://csrc.nist.gov/pubs/sp/800/207/final">NIST SP 800-207 的邏輯元件</a>、<a href="https://csrc.nist.gov/pubs/sp/800/207/a/final">800-207A 應用／服務身分</a>、<a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">800-82 Rev.3 的 OT、安全與可用性</a>。</p>
+</section>
+<section id="factory-interface" aria-labelledby="factory-interface-title">
+
+<h2 id="factory-interface-title">工廠介面｜零信任權限模擬</h2>
+<p class="zfi-note"><strong>離線合成示例：</strong>不連 PLC、SCADA 或任何工廠網路，也沒有操作設備、寫入設定、核准工單或緊急停止功能。緊急停機依現場獨立安全系統與程序，不能依賴本 HMI。</p>
+<div class="zfi-controls">
+<label for="zfi-role">角色<select id="zfi-role"><option value="operator">現場操作員</option><option value="vendor">外部維護商</option><option value="supervisor">值班主管</option></select></label>
+<label for="zfi-ticket">工單狀態<select id="zfi-ticket"><option value="pending">未核可</option><option value="active">有效（已核可）</option><option value="expired">已過期</option><option value="revoked">已撤銷</option></select></label>
+</div>
+<div class="zfi-grid" aria-label="三項資源權限">
+<article><h3>冰水站摘要</h3><span class="zfi-badge" id="zfi-summary-badge">拒絕</span><p class="zfi-value" id="zfi-summary-value" hidden>供水 7.2°C／回水 12.8°C（合成）</p><p id="zfi-summary-reason">等待示意規則評估。</p></article>
+<article><h3>AHU-01 歷史趨勢</h3><span class="zfi-badge" id="zfi-trend-badge">拒絕</span><p class="zfi-value" id="zfi-trend-value" hidden>09:00 24.8°C → 09:05 24.6°C → 09:10 24.5°C（合成）</p><p id="zfi-trend-reason">等待示意規則評估。</p></article>
+<article><h3>稽核摘要</h3><span class="zfi-badge" id="zfi-audit-badge">拒絕</span><p class="zfi-value" id="zfi-audit-value" hidden>OPS-EX-101｜示範稽核編號（合成）</p><p id="zfi-audit-reason">等待示意規則評估。</p></article>
+</div>
+<p id="zfi-live" class="zfi-audit" role="status" aria-live="polite" aria-atomic="true">等待評估。</p>
+<noscript><p>互動需啟用 JavaScript；未啟用時不顯示資料。</p></noscript>
+<p>示例策略：維護商僅在工單有效時唯讀指定設備的趨勢；過期或撤銷就拒絕。操作員依班別僅看所屬站點資訊；值班主管可查看稽核摘要，不代表可越權操作。實務須由後端逐次驗證身分、班別、資源、工單、授權期限與撤銷狀態；畫面隱藏不是授權，稽核也不能只留在瀏覽器。</p>
+<script>
+(() => {
+  const root = document.getElementById("factory-interface");
+  const el = suffix => root.querySelector("#zfi-" + suffix);
+  const labels = {view:"可見（狀態）",readonly:"唯讀",deny:"拒絕"};
+  const withinShift = {
+    operator: {summary:["view","班別與站點範圍相符；僅顯示運轉資訊。"],trend:["readonly","班別與 AHU-01 範圍相符；僅允許查閱。"],audit:["deny","操作員無稽核查閱角色。"]},
+    supervisor: {summary:["view","值班主管可見所屬站點狀態。"],trend:["readonly","值班主管可查閱所屬設備趨勢。"],audit:["readonly","值班主管可查閱示範稽核摘要。"]}
+  };
+  function decide(role,ticket,key) {
+    if (Object.hasOwn(withinShift,role)) return withinShift[role][key];
+    if (role !== "vendor") return ["deny","未知角色；預設拒絕。"];
+    if (key !== "trend") return ["deny","不在維護工單的資源範圍。"];
+    if (ticket === "active") return ["readonly","有效工單且資源吻合；僅允許 AHU-01 趨勢。"];
+    return ["deny",(({pending:"工單未核可",expired:"工單已過期",revoked:"工單已撤銷"})[ticket] ?? "工單狀態不明") + "；不提供資料。"];
+  }
+  function render() {
+    const role = el("role"), ticket = el("ticket");
+    const keys = [["summary","冰水站"],["trend","AHU 趨勢"],["audit","稽核摘要"]];
+    const notes = keys.map(([key, name]) => {
+      const [kind,reason] = decide(role.value,ticket.value,key);
+      const badge = el(key + "-badge");
+      badge.textContent = labels[kind];
+      badge.dataset.kind = kind;
+      el(key + "-reason").textContent = reason;
+      el(key + "-value").hidden = kind === "deny";
+      return name + " " + labels[kind] + "（" + reason + "）";
+    });
+    el("live").textContent = "模擬稽核｜" + (role.selectedOptions[0]?.textContent ?? "未知角色") + "／" +
+      (ticket.selectedOptions[0]?.textContent ?? "未知工單") + "｜" + notes.join(" ");
+  }
+  el("role").addEventListener("change",render);
+  el("ticket").addEventListener("change",render);
+  render();
+})();
+</script>
+</section>
+<section id="failure-playbook" class="panel" aria-labelledby="zt-failure-heading">
+<h2 id="zt-failure-heading">故障與撤銷｜停止授權、已發 token、推送通道是三個時鐘</h2>
+<h3>OAuth 不保證一撤回就立即拒絕所有舊會話</h3>
+<p>登入後仍每筆驗授權；資源伺服器要檢查 token 簽章／issuer、audience、scope、效期及適用的發送端綁定，再以可信物件查詢與政策檢查「哪個廠區、哪筆資料、哪種操作」。<strong>token 還沒到期與工單仍能執行是兩件事。</strong>IdP 停用帳號或撤回 refresh token 主要阻止後續簽發，不能假定各 API 對已發且離線驗簽的 JWT 立刻拒絕。強制撤銷需可驗的策略更新／拒絕清單、即時檢查或內省、PEP 終止通道與資源單筆檢查，並處理快取、訊號不同步及失效時的策略。內省快取與阻塞及可用性要一起評估。</p>
+<div class="zt-deep-note"><strong>撤銷算例（非標準）：</strong>以工單取消成功寫入的 <code>t₀=09:04:00</code> 起算，事件派送 ≤2 s、PA 到所有必要 PEP 完成套用 ≤3 s、既有讀取串流重新檢查／終止 ≤5 s、量測時鐘誤差預算 ≤1 s。若這些步驟串行且各上界都能證明，則此示例的保守預算是 <strong>2+3+5+1=11 s</strong>。一次合成 trace：09:04:02 決策收到、09:04:05 PEP 套用、新請求拒絕，09:04:10 舊串流停止，預算含誤差到 09:04:11。收到 PA 回執不等於資料流已停止；量的是最慢必要執行點的最後允許資料、既有串流停止及使用舊憑證重新連線被拒。若替代路徑只離線驗 token、會話繞過執行點或推送無硬上界，就不能報 11 s；較長的 token 殘餘壽命或持續資料流需另量。</div>
+<p>防禦參考：<a href="https://www.rfc-editor.org/rfc/rfc9700">RFC 9700：受眾限制與 sender-constrained token</a>、<a href="https://www.rfc-editor.org/rfc/rfc7009">RFC 7009：撤銷與傳播可能延遲</a>、<a href="https://www.rfc-editor.org/rfc/rfc7662">RFC 7662：內省及結果快取取捨</a>。</p>
+<h3>故障矩陣：別把遠端 fail-closed 誤作現場停機</h3>
+<div class="zt-deep-wrap" role="region" tabindex="0" aria-label="零信任故障策略矩陣"><table class="zt-deep-table"><thead><tr><th scope="col">故障</th><th scope="col">新連線／新請求</th><th scope="col">既有階段</th><th scope="col">安全回復與證據</th></tr></thead><tbody>
+<tr><th scope="row">IAM／IdP 不可用</th><td><span class="zt-deep-sm-label" aria-hidden="true">新連線／新請求</span>無新身分證據時拒絕或等待恢復，不能發通用暫時密鑰。</td><td><span class="zt-deep-sm-label" aria-hidden="true">既有階段</span>示例僅可讓預先核准的低風險唯讀在短時界、證據有效且仍可撤銷時繼續；無法確認條件就停。</td><td><span class="zt-deep-sm-label" aria-hidden="true">安全回復與證據</span>記 token、快取世代的時效及拒絕優先順序，不記 token 原文；恢復後先重新驗證。</td></tr>
+<tr><th scope="row">PE／PA 或冗餘訊號失效</th><td><span class="zt-deep-sm-label" aria-hidden="true">新連線／新請求</span>不批准新路徑或升權；缺回執不視為成功。</td><td><span class="zt-deep-sm-label" aria-hidden="true">既有階段</span>只允許經明文政策核准的有界情境。撤銷狀態失聯時，以可驗的本地期限關閉遠端路徑。</td><td><span class="zt-deep-sm-label" aria-hidden="true">安全回復與證據</span>記最後成功的政策世代、備援及重新同步；不能默默喚回舊有授權。</td></tr>
+<tr><th scope="row">PEP 失效／分區</th><td><span class="zt-deep-sm-label" aria-hidden="true">新連線／新請求</span>不可繞過 PEP；備援執行點未完成同步則不轉流。</td><td><span class="zt-deep-sm-label" aria-hidden="true">既有階段</span>受影響遠端通道按設計關閉；監控既有串流是否另尋繞路。控制器本地保護保留。</td><td><span class="zt-deep-sm-label" aria-hidden="true">安全回復與證據</span>驗切換至最新政策、負向健康檢查、撤銷複核及本地迴路仍持續。</td></tr>
+<tr><th scope="row">裝置健康過期／金鑰異常</th><td><span class="zt-deep-sm-label" aria-hidden="true">新連線／新請求</span>區分資料過期、金鑰正常輪替及疑似外洩；重新查證，否則拒絕。</td><td><span class="zt-deep-sm-label" aria-hidden="true">既有階段</span>過期或洩漏風險按政策收回必要會話。不要無限延長舊公鑰或快取。</td><td><span class="zt-deep-sm-label" aria-hidden="true">安全回復與證據</span>測輪替重疊期、未知發行者／金鑰、重連；恢復時以受控信任來源重驗。</td></tr>
+<tr><th scope="row">稽核儲存／傳輸中斷</th><td><span class="zt-deep-sm-label" aria-hidden="true">新連線／新請求</span>高風險寫入若無法保住必要證據則拒絕；是否准許有界低風險唯讀須明文核准。</td><td><span class="zt-deep-sm-label" aria-hidden="true">既有階段</span>低風險假設採可持久的有界緩衝與告警；緩衝滿或記錄不完整時停止受影響遠端用途。</td><td><span class="zt-deep-sm-label" aria-hidden="true">安全回復與證據</span>以序號、落地回執及補送查出缺口；驗資料最小化、權限限制、不可擅改。</td></tr>
+</tbody></table></div>
+<p>故障策略需由設施營運、IT、資安及安全工程共同核定；不把有界降級、MFA 或預備通道當成默許的永久旁路。現場分區與安全保護不以此教材替代。設計參考 <a href="https://csrc.nist.gov/pubs/sp/1800/35/final">NCCoE SP 1800-35 的實作組合</a>（不是認證）。</p>
+</section>
+<section id="acceptance-evidence" class="panel" aria-labelledby="zt-evidence-heading">
+<h2 id="zt-evidence-heading">驗收與漸進導入｜測拒絕、撤銷、效能，以及本地能不能繼續</h2>
+<ul><li><strong>拒絕：</strong>同廠讀成功、跨廠讀拒絕、同工單寫拒絕、舊裝置驗證拒絕；利用合成條件或核可測試環境，保留 request ID、政策版號、預期與實際受影響資源。另測直接資源、代理及舊入口是否都受相同限制。</li><li><strong>撤銷：</strong>在低、尖峰和備援切換負載下，分別跑新請求、已發 token、既有串流及重連；記最末允許、最先拒絕與所有節點的約定時鐘誤差。未能驗證端到端上界，不把第 95 百分位當保證。</li><li><strong>效能和可用性：</strong>固定資源、裝置及流量組合，量 PE 延遲、PA 套用時間、PEP 每筆處理、整體 p95/p99、樣本數、逾時、誤拒與可用性；同時檢查授權失效時遠端拒絕與本地 PLC 圈仍在安全狀態。</li><li><strong>復原和稽核：</strong>演練 IAM、政策同步與記錄通道失效，記 RTO 目標及實測；確認復原不恢復舊授權、到期工單或遺失的稽核事件未被當完備。測試 log 去除 token、密鑰與不必要個資。</li></ul>
+<p><strong>導入順序：</strong>先盤點資源與本地安全邊界 → 在測試環境用 shadow 評估誤拒（不等於已防護）→ 小範圍強制核准的唯讀工單與趨勢 API → 擴至服務身分、跨區及更高風險動作。每批先寫驗收界線及叫停條件，保留已核可版號與可稽核回復程序，不回到無限制放行。</p>
+</section>
+<section id="acceptance" class="panel"><h2>遷移、驗收與證據：以可重做的事件判斷是否成功</h2>
 <p>CISA Zero Trust Maturity Model v2.0 用身分、裝置、網路、應用與工作負載、資料五支柱，加上可視性與分析、自動化與協調、治理三項橫向能力。Traditional、Initial、Advanced、Optimal 是規劃與自評階段，不是認證、等保判定或必須追求最高等級的要求。<a href="https://www.cisa.gov/resources-tools/resources/zero-trust-maturity-model">CISA ZTMM</a></p>
 <ol><li>先盤點資源、資料流與責任人；標示不可停止的 OT 控制與人員安全依賴。</li><li>先試點唯讀 API 或低風險遠端維護，在測試環境比較允許與拒絕的影響；配置可回復政策版。</li><li>再移轉寫入與服務間身分，按資產風險分區逐步強制；每一批均有回復條件、授權人、時間窗與舊例外到期日。</li><li>將證據納入變更管理：政策測試、APP/API 判斷、PEP 執行記錄、故障演練和憑證更新成果；例外要重審或到期收回。</li></ol><div class="scroll" role="region" tabindex="0" aria-label="驗收表，可局部橫移"><table><thead><tr><th scope="col">驗收情境</th><th scope="col">應確認的結果</th><th scope="col">證據</th></tr></thead><tbody><tr><th scope="row">拒絕與資源界線</th><td>同身分跨廠、輸出寫入、scope/audience 不符或裝置證據過期不得放行。</td><td>決策碼、無資料回傳、無狀態變更、可交叉比對的 request ID。</td></tr><tr><th scope="row">撤銷與輪替</th><td>撤銷權限後，新舊通道停止於已約定時限。憑證輪替保有授權合法通道，過渡期後拒絕舊憑證。</td><td>撤銷發出與生效時間、策略／憑證版本及重連結果。</td></tr><tr><th scope="row">決策依賴或網路故障</th><td>遠端新增存取依預案停止、告警；本地 PLC/PID、操作員站與安全聯鎖在核准測試中維持要求。</td><td>實際控制迴路趨勢、警報延遲、回復時間與驗收紀錄。</td></tr><tr><th scope="row">破窗與復歸</th><td>僅在核准資源／時間使用，完成後自動或人工回收並驗證沒有殘留權限。</td><td>核准紀錄、工單、會話關閉／憑證輪替及獨立複核。</td></tr></tbody></table></div>
 <p class="notice">指標用可量測的拒絕命中、誤拒、撤銷上界、恢復時間、輪替成功、實際遙測覆蓋去驗收，不以啟用 MFA 或採購產品充當完成證據。</p></section><section id="lab" class="panel"><h2>Python 離線範例：只判斷既有可信上下文</h2><p><a href="python_zero_trust_architecture_lab.py">下載 Python 範例與單元測試</a>。固定合成資料，只示範預設拒絕、部門內單一資源唯讀、裝置證據過期、撤銷、跨廠與政策依賴故障。程式傳入的是合成身分與裝置證據；正式 PEP 必須從已驗證的身分服務、可信裝置證明及政策來源建構上下文，不接受瀏覽器自填 HTTP 標頭。沒有實作 OAuth token 驗證、撤銷通知或現場控制，不可直接接到正式系統。</p><pre tabindex="0"><code>python3 python_zero_trust_architecture_lab.py
