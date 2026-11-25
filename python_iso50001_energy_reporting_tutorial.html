@@ -30,9 +30,18 @@
 <div class="bar"><span>目標上限</span><span class="track" aria-hidden="true"><span class="fill" style="--size:86.56%"></span></span><strong>77,900</strong></div></div></figure>
 <ul><li><strong>相關變數</strong>會隨期間變動並影響績效，例如良品、冷房度日、機台工時。<strong>靜態因素</strong>相對穩定，例如產線規模、建築面積、主要設備與配置。產線擴建後先確認模型是否仍適用，再使用預先規定的基線調整規則，記錄舊／新版本和理由。</li><li>模型要有代表性基期、留出或交叉驗證、誤差與殘差檢查、變數合理性和外推限制。比較前核對資料窗、誤差及量測不確定性。若未驗證、變數明顯外推或有效資料不足，標為「不可比／待補驗」而不是把未量測的改善寫成 0%。</li><li>有模型時報告估計差額並附適用範圍、誤差與合適的不確定性區間；若配適與獨立性假設不成立，不應編造信賴區間或宣稱顯著改善。應區分基線平均反應的不確定性與單期實際結果的預測區間。</li></ul>
 </section>
+<section id="meter-reconciliation"><h2>發布前：主電表與分表先對帳</h2>
+<p>同期間、同邊界且分表互斥時，主表為零但分表為正，或主表減分表小於 −1,000 kWh，就標為「不可比」。保留讀值、覆蓋率和殘差供查核；調整後基線、節能量及節能率留空，報表也不判定是否達標。1,000 kWh 是範例的可設定容差，不是 ISO 規定。</p>
+<div class="tablebox" role="region" tabindex="0" aria-label="主分表對帳案例"><table><thead><tr><th scope="col">主表</th><th scope="col">分表合計</th><th scope="col">殘差</th><th scope="col">節能率</th></tr></thead><tbody>
+<tr><th scope="row">78,720 kWh</th><td>76,000 kWh</td><td>2,720 kWh</td><td>4.00%</td></tr>
+<tr><th scope="row">70,000 kWh</th><td>76,000 kWh</td><td>−6,000 kWh</td><td>不可比</td></tr>
+<tr><th scope="row">0 kWh</th><td>76,000 kWh</td><td>−76,000 kWh</td><td>不可比</td></tr></tbody></table></div>
+<p>遇到異常先查時間窗、換表或重設、倍率、分表重複，以及是否有自發自用、外送或獨立供電。最後三者需重新整理量測邊界，不能套用此例的單一主表假設。</p></section>
 <section id="lab"><h2>4｜Python API 與可重跑實驗</h2><p>只用 Python 標準庫。下載 <a href="python_iso50001_reporting_lab.py" download>離線報表程式</a> 後執行：</p><pre><code>python python_iso50001_reporting_lab.py
+python python_iso50001_reporting_lab.py --scenario mismatch
+python python_iso50001_reporting_lab.py --scenario zero-main
 python python_iso50001_reporting_lab.py --test</code></pre>
-<ul><li><code>Decimal(str(value))</code> 做十進位數值處理；拒絕 NaN、Inf、負值與無效筆數。</li><li><code>sheet(...)</code> 驗證並輸出用電、燃料換算、殘差、簡單指標和正規化比較。模型域與覆蓋門檻 99.5% 是此算例的政策，不等於符合標準或統計驗證。</li><li><code>json.dumps(default=str)</code> 將 Decimal 輸出成字串；不可比欄位輸出 <code>null</code>。正式服務應在 schema 定義數值格式、單位、電表來源、時間、模型／資料版本與不可比原因。</li></ul>
+<ul><li><code>Decimal(str(value))</code> 做十進位數值處理；拒絕 NaN、Inf、負值與無效筆數。</li><li><code>sheet(...)</code> 驗證並輸出用電、燃料換算、殘差、簡單指標和正規化比較。模型域與覆蓋門檻 99.5% 是此算例的政策，不等於符合標準或統計驗證。</li><li><code>json.dumps(default=str)</code> 將 Decimal 輸出成字串；不可比欄位輸出 <code>null</code>，並用 <code>comparison_hold_reasons</code> 提供原因。正式服務應在 schema 定義數值格式、單位、電表來源、時間、模型／資料版本與不可比原因。</li></ul>
 <details><summary>檢查缺值時會不會錯算節省</summary><pre><code>from python_iso50001_reporting_lab import example
 r = example(valid_intervals=2800)
 assert r["normalization_status"] == "not_comparable"

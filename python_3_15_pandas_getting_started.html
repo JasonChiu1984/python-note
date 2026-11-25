@@ -211,7 +211,7 @@
         </div>
       </div>
       <div class="demo-wrap">
-        <div id="demoSvg" class="svg-stage"></div>
+        <div id="demoSvg" class="svg-stage"></div><p id="sample-grain">與「下載範例 CSV」使用同一份資料。季增率＝（Q2 − Q1）÷ Q1；季度缺值或 Q1 為零時顯示「—」，不補零。CSV 的 growth_pct 是逐筆示例欄位，不用來算地區季增率。將下載檔放在執行目錄，先安裝 <code>pandas</code>、<code>matplotlib</code> 與 <code>Jinja2</code>；若要在 Python 腳本顯示或輸出，分別加上 <code>plt.show()</code> 或 <code>styled.to_html()</code>。</p>
         <div class="code-wrap">
           <pre><code id="demoCode"></code></pre>
           <button class="copy-btn" data-copy-target="demoCode">複製</button>
@@ -257,15 +257,6 @@
   <script>
     const OPS = [{"id": "gs-dataframe-series", "category": "1. 資料結構與讀取寫入", "name": "認識 DataFrame 與 Series 結構", "api": "pd.DataFrame() / pd.Series()", "level": "基礎", "sql_excel_equiv": "Excel 工作表 / SQL 資料表", "py315_feature": "PEP 798 推導式解包", "summary": "官方第 1 課：二維表格為 DataFrame，單一欄位為 Series；可用 `*batch` 推導式直接展平多組紀錄。", "code": "rows = [*batch for batch in raw_batches]\ndf = pd.DataFrame(rows)\nrevenues: pd.Series = df['revenue']", "sample_output": "DataFrame (7 rows x 5 cols) | Series dtype: int64"}, {"id": "gs-read-write", "category": "1. 資料結構與讀取寫入", "name": "讀取與寫入表格式資料 (read_* / to_*)", "api": "pd.read_csv() / df.to_csv() / pd.read_parquet()", "level": "基礎", "sql_excel_equiv": "Excel 開啟/另存 CSV、SQL IMPORT", "py315_feature": "PEP 810 lazy import + PEP 814 frozendict", "summary": "官方第 2 課：支援 CSV、Excel、SQL、JSON、Parquet 等格式；用 frozendict 鎖定欄位型別，輸出 utf-8-sig 供 Excel 開啟。", "code": "import pandas as pd\n\nDTYPES = frozendict({'region': 'string', 'revenue': 'int64'})\ndf = pd.read_csv('sales.csv', dtype=dict(DTYPES))\ndf.to_csv('out.csv', index=False, encoding='utf-8-sig')", "sample_output": "已讀取 sales.csv 並輸出 Excel 相容的 out.csv"}, {"id": "gs-subset-loc", "category": "2. 子集選取與條件篩選", "name": "選取特定欄位、列與條件過濾", "api": "df.loc[] / df.iloc[] / df.query()", "level": "基礎", "sql_excel_equiv": "SQL SELECT ... WHERE / Excel 自動篩選", "py315_feature": "PEP 798 推導式解包", "summary": "官方第 3 課：使用標籤 loc、位置 iloc 或布林條件篩選子集，並可用 `[*groups]` 動態組合欄位。", "code": "cols = [*g for g in [['region', 'category'], ['revenue', 'growth_pct']]]\nsubset = df.loc[df['revenue'] >= 400, cols]\nhigh_growth = df.query('growth_pct > 15 and region == \"台北\"')", "sample_output": "選出台北高成長 AI 平台與雲端服務紀錄"}, {"id": "gs-isin-notna", "category": "2. 子集選取與條件篩選", "name": "多值比對與非空值過濾", "api": "Series.isin() / Series.notna()", "level": "基礎", "sql_excel_equiv": "SQL IN (...) AND col IS NOT NULL", "py315_feature": "標準 Python 3.15", "summary": "同時檢查欄位是否屬於指定集合且不為缺失值。", "code": "valid = df[df['region'].isin(['台北', '新竹']) & df['revenue'].notna()]", "sample_output": "過濾出有效地區與非空營收紀錄"}, {"id": "gs-summary-stats", "category": "3. 統計摘要與分組聚合", "name": "計算摘要統計與 Split-Apply-Combine", "api": "df.describe() / df.groupby().agg()", "level": "基礎", "sql_excel_equiv": "SQL GROUP BY + AVG/SUM / Excel 樞紐摘要", "py315_feature": "PEP 661 sentinel", "summary": "官方第 6 課：計算 mean、median、min、max 與分組具名聚合；用 sentinel 區分未傳入分組欄位。", "code": "UNSET = sentinel('UNSET')\n\ndef agg_revenue(df: pd.DataFrame, by: list[str] | UNSET = UNSET):\n    keys = ['region', 'quarter'] if by is UNSET else by\n    return df.groupby(keys, as_index=False).agg(total=('revenue', 'sum'), avg=('growth_pct', 'mean'))", "sample_output": "台北 2026-Q1 -> total: 1000, avg: 21.35"}, {"id": "gs-value-counts", "category": "3. 統計摘要與分組聚合", "name": "類別次數統計與唯讀比例表", "api": "df['col'].value_counts(normalize=True)", "level": "基礎", "sql_excel_equiv": "SQL SELECT col, COUNT(*) GROUP BY col", "py315_feature": "PEP 814 frozendict", "summary": "快速統計各類別筆數與佔比，並封裝成不可變 frozendict 供多執行緒查詢。", "code": "share = frozendict(df['region'].value_counts(normalize=True).round(3).to_dict())", "sample_output": "frozendict({'台北': 0.571, '台中': 0.143, '新竹': 0.143, '高雄': 0.143})"}, {"id": "gs-derived-columns", "category": "4. 衍生欄位與資料清理", "name": "由現有欄位衍生新欄位（免寫迴圈）", "api": "df.assign() / 向量化運算", "level": "基礎", "sql_excel_equiv": "Excel 公式欄 / SQL 計算欄位 AS", "py315_feature": "標準向量化運算", "summary": "官方第 5 課：欄位運算預設即為 elementwise 向量化，可用 assign() 鏈式建立衍生欄位。", "code": "df_next = df.assign(\n    est_next=lambda d: (d['revenue'] * (1 + d['growth_pct'] / 100)).round(1),\n    tier=lambda d: pd.cut(d['revenue'], bins=[0, 350, 550, 1000], labels=['C', 'B', 'A'])\n)", "sample_output": "自動新增 est_next 預估營收與 tier 分級欄位"}, {"id": "gs-clean-na", "category": "4. 衍生欄位與資料清理", "name": "缺失值填補與重複紀錄清理", "api": "df.fillna() / df.drop_duplicates()", "level": "基礎", "sql_excel_equiv": "SQL COALESCE() / SELECT DISTINCT", "py315_feature": "PEP 814 frozendict", "summary": "以 frozendict 鎖定各欄預設填補值，避免清理規則在程式執行期間被意外改動。", "code": "DEFAULTS = frozendict({'growth_pct': 0.0, 'category': '未分類'})\ncleaned = df.fillna(dict(DEFAULTS)).drop_duplicates(subset=['region', 'category', 'quarter'])", "sample_output": "補齊缺失值並移除重複鍵資料"}, {"id": "gs-reshape-pivot-melt", "category": "5. 表格重塑與多表合併", "name": "長寬表重塑與樞紐分析", "api": "df.melt() / df.pivot() / df.pivot_table()", "level": "進階", "sql_excel_equiv": "Excel 樞紐分析表 / 取消樞紐", "py315_feature": "PEP 661 sentinel", "summary": "官方第 7 課：用 melt() 將寬表轉為長表，用 pivot() 或含聚合功能的 pivot_table() 轉回交叉報表。", "code": "pt = df.pivot_table(index='region', columns='quarter', values='revenue', aggfunc='sum', fill_value=0)\nlong_df = pt.reset_index().melt(id_vars='region', var_name='quarter', value_name='revenue')", "sample_output": "完成 地區 × 季度 交叉表與長格式互轉"}, {"id": "gs-combine-tables", "category": "5. 表格重塑與多表合併", "name": "多表串接與資料庫風格合併", "api": "pd.concat() / pd.merge()", "level": "進階", "sql_excel_equiv": "SQL UNION ALL (concat) / JOIN (merge)", "py315_feature": "PEP 798 推導式解包", "summary": "官方第 8 課：使用 concat() 依列或欄串接多張表，並用 merge() 執行 left/inner join。", "code": "combined = pd.concat([q1_df, q2_df], ignore_index=True)\nenriched = pd.merge(combined, region_meta, on='region', how='left')", "sample_output": "合併 Q1/Q2 並關聯各區負責人資訊"}, {"id": "gs-timeseries", "category": "6. 時間序列與文字處理", "name": "時間序列解析、屬性擷取與重採樣", "api": "pd.to_datetime() / .dt / df.resample()", "level": "進階", "sql_excel_equiv": "SQL DATE_TRUNC / Excel 日期群組", "py315_feature": "PEP 686 預設 UTF-8", "summary": "官方第 9 課：將字串轉為 datetime 型別，透過 .dt 擷取季/月/星期，並以 resample('ME').sum() 按時間區間彙總。", "code": "ts = df.assign(date=pd.to_datetime(df['date'])).set_index('date')\nmonthly = ts['revenue'].resample('ME').sum()\ndf['weekday'] = pd.to_datetime(df['date']).dt.day_name()", "sample_output": "依月底重採樣加總營收並擷取星期名稱"}, {"id": "gs-textual-data", "category": "6. 時間序列與文字處理", "name": "文字資料清理與字串向量化處理", "api": "Series.str.lower() / .str.split() / .str.contains()", "level": "基礎", "sql_excel_equiv": "Excel 文字函數 / SQL LIKE & SPLIT_PART", "py315_feature": "標準 Python 3.15", "summary": "官方第 10 課：透過 .str 存取器對整欄文字進行大小寫轉換、去除空白、分割擷取與正規比對。", "code": "df['clean_cat'] = df['category'].str.strip().str.replace('平台', 'Platform', regex=False)\ndf['is_ai'] = df['clean_cat'].str.contains('AI', case=False, na=False)", "sample_output": "完成文字標準化並標記 AI 相關產品線"}, {"id": "gs-plots-overview", "category": "7. 應用圖表與表格視覺化", "name": "內建繪圖與 Plotly 互動圖表匯出", "api": "df.plot() / px.bar().to_html()", "level": "實戰", "sql_excel_equiv": "Excel 插入長條圖 / 折線圖 / 散佈圖", "py315_feature": "PEP 810 lazy import", "summary": "官方第 4 課：支援 bar、line、scatter、box 等圖表；搭配 lazy import plotly.express 可匯出互動網頁圖表。", "code": "lazy import plotly.express as px\n\nfig = px.bar(df, x='region', y='revenue', color='quarter', barmode='group')\nPath('chart.html').write_text(fig.to_html(include_plotlyjs='cdn'))", "sample_output": "產生可縮放與懸停檢視數值的互動圖表網頁"}, {"id": "gs-table-viz", "category": "7. 應用圖表與表格視覺化", "name": "Table Visualization 表格視覺化", "api": "df.style.background_gradient() / .bar() / .to_html()", "level": "實戰", "sql_excel_equiv": "Excel 條件式格式設定（色階與資料橫條）", "py315_feature": "PEP 814 frozendict + PEP 686 UTF-8", "summary": "透過 pandas Styler 為表格加上熱力漸層、儲存格內嵌長條圖與極值標記，直接輸出成 HTML 報表。", "code": "FMT = frozendict({'revenue': '${:,.0f}', 'growth_pct': '{:.1f}%'})\nhtml_table = (\n    df.style.format(dict(FMT))\n      .background_gradient(subset=['revenue'], cmap='Blues')\n      .bar(subset=['growth_pct'], color='#bae6fd')\n      .highlight_max(subset=['revenue'], color='#bbf7d0')\n      .to_html()\n)", "sample_output": "輸出含色階漸層、儲存格長條與極值高亮的 HTML 表格"}];
     const CAT_COLORS = {"1. 資料結構與讀取寫入": "#2563eb", "2. 子集選取與條件篩選": "#7c3aed", "3. 統計摘要與分組聚合": "#d97706", "4. 衍生欄位與資料清理": "#059669", "5. 表格重塑與多表合併": "#db2777", "6. 時間序列與文字處理": "#0891b2", "7. 應用圖表與表格視覺化": "#0284c7"};
-    const CHART_CODES = {"bar": "lazy import plotly.express as px\n\nPALETTE = frozendict({\"2026-Q1\": \"#93c5fd\", \"2026-Q2\": \"#2563eb\"})\nfig = px.bar(\n    pivot_df, x=\"region\", y=[\"2026-Q1\", \"2026-Q2\"],\n    barmode=\"group\", color_discrete_map=dict(PALETTE)\n)\nPath(\"bar_chart.html\").write_text(fig.to_html(include_plotlyjs=\"cdn\"))", "line": "trend = df.pivot_table(index=\"region\", columns=\"quarter\", values=\"revenue\", aggfunc=\"sum\")\nax = trend.plot(kind=\"line\", marker=\"o\", title=\"各地區季度營收趨勢\")\nax.get_figure().savefig(\"trend.svg\")", "scatter": "corr = df[[\"revenue\", \"growth_pct\"]].corr().round(3)\nfig = px.scatter(\n    df, x=\"revenue\", y=\"growth_pct\", size=\"revenue\",\n    color=\"region\", hover_name=\"category\"\n)"};
-    const STYLER_CODES = {"gradient": "# 熱力漸層著色，快速凸顯數值高低分布\nstyled = sales_df.style.background_gradient(subset=[\"2026-Q2\"], cmap=\"Blues\")\nPath(\"styled_table.html\").write_text(styled.to_html())", "bar": "# 儲存格內嵌水平長條圖，免開圖表庫即可比較比例\nstyled = sales_df.style.bar(subset=[\"growth\"], color=\"#bae6fd\")\nPath(\"styled_bar.html\").write_text(styled.to_html())", "highlight": "# 高亮標示各欄最大值與最小值\nstyled = (\n    sales_df.style\n    .highlight_max(subset=[\"2026-Q2\"], color=\"#bbf7d0\")\n    .highlight_min(subset=[\"2026-Q2\"], color=\"#fecaca\")\n)", "combo": "# PEP 814 frozendict 鎖定格式 + Styler 鏈式視覺化\nFMT = frozendict({\"2026-Q1\": \"{:,.0f}\", \"2026-Q2\": \"${:,.0f}\", \"growth\": \"{:.1f}%\"})\nstyled = (\n    sales_df.style.format(dict(FMT))\n    .background_gradient(subset=[\"2026-Q2\"], cmap=\"Blues\")\n    .bar(subset=[\"growth\"], color=\"#bae6fd\")\n)\nPath(\"styled_report.html\").write_text(styled.to_html())"};
-    const LEVEL_COLORS = { "基礎": "#2563eb", "進階": "#d97706", "實戰": "#059669" };
-    const SALES = [
-      { region: "台北", q1: 1000, q2: 1155, growth: 30.8 },
-      { region: "新竹", q1: 310,  q2: 365,  growth: 17.7 },
-      { region: "台中", q1: 250,  q2: 295,  growth: 18.0 },
-      { region: "高雄", q1: 210,  q2: 240,  growth: 14.3 },
-    ];
     const SAMPLE_CSV_TEXT = [
       "region,category,quarter,revenue,growth_pct",
       "台北,雲端服務,2026-Q1,420,14.2",
@@ -277,6 +268,51 @@
       "高雄,資料分析,2026-Q2,240,7.8"
     ].join("\n");
 
+    const LEVEL_COLORS = { "基礎": "#2563eb", "進階": "#d97706", "實戰": "#059669" };
+    const quarterOrder = ["2026-Q1", "2026-Q2"];
+    const grouped = new Map();
+    for (const [region, _category, quarter, revenue] of parseCsv(SAMPLE_CSV_TEXT).slice(1)) {
+      if (!grouped.has(region)) grouped.set(region, {});
+      const quarters = grouped.get(region);
+      quarters[quarter] = (quarters[quarter] ?? 0) + Number(revenue);
+    }
+    const SALES = Array.from(grouped, ([region, quarters]) => {
+      const [q1, q2] = quarterOrder.map(q => quarters[q] ?? null);
+      return {region, q1, q2, growth: q1 !== null && q1 !== 0 && q2 !== null ? (q2 - q1) / q1 * 100 : null};
+    });
+    const shown = n => n === null ? "—" : n.toLocaleString("zh-TW");
+    const pctText = n => n === null ? "—" : n.toFixed(1) + "%";
+    const PY_AGG = `import pandas as pd
+
+df = pd.read_csv("pandas_sales_sample.csv")
+quarters = ["2026-Q1", "2026-Q2"]
+sales_df = (df.groupby(["region", "quarter"], sort=False)["revenue"]
+              .sum(min_count=1).unstack("quarter").reindex(columns=quarters))
+base = sales_df[quarters[0]]
+sales_df["growth"] = ((sales_df[quarters[1]] - base)
+                      .div(base.where(base.ne(0))).mul(100))
+`;
+    const CHART_CODES = {
+      bar: `import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+for i, quarter in enumerate(quarters):
+    observed = sales_df[quarter].dropna()
+    x = [sales_df.index.get_loc(region) + (i - 0.5) * 0.36 for region in observed.index]
+    ax.bar(x, observed, width=0.36, label=quarter)
+ax.set_xticks(range(len(sales_df)), sales_df.index)
+ax.set_ylabel("營收")
+ax.legend()
+fig.tight_layout()`,
+      line: 'sales_df[quarters].T.plot(marker="o", ylabel="營收")',
+      scatter: 'sales_df.dropna(subset=["growth"]).plot.scatter(x=quarters[1], y="growth", ylabel="季增率 (%)")'
+    };
+    const STYLER_CODES = {
+      gradient: 'styled = sales_df.style.format(precision=1, na_rep="—").background_gradient(subset=[quarters[1]], cmap="Blues")',
+      bar: 'styled = sales_df.style.format(precision=1, na_rep="—").bar(subset=["growth"], color="#bae6fd")',
+      highlight: 'styled = sales_df.style.format(precision=1, na_rep="—").highlight_max(subset=[quarters[1]]).highlight_min(subset=[quarters[1]])',
+      combo: 'styled = (sales_df.style.format({"growth": "{:.1f}%"}, na_rep="—")\n          .background_gradient(subset=[quarters[1]], cmap="Blues")\n          .bar(subset=["growth"], color="#bae6fd"))'
+    };
     let activeCat = "";
     let activeChart = "bar";
     let activeStyle = "gradient";
@@ -480,8 +516,8 @@
           const h1 = (d.q1 / maxVal) * 140;
           const h2 = (d.q2 / maxVal) * 140;
           return `
-            <rect x="${x}" y="${170 - h1}" width="26" height="${h1}" rx="4" fill="#93c5fd" />
-            <rect x="${x + 30}" y="${170 - h2}" width="26" height="${h2}" rx="4" fill="#2563eb" />
+            ${d.q1 === null ? "" : `<rect x="${x}" y="${170 - h1}" width="26" height="${h1}" rx="4" fill="#93c5fd" />`}
+            ${d.q2 === null ? "" : `<rect x="${x + 30}" y="${170 - h2}" width="26" height="${h2}" rx="4" fill="#2563eb" />`}
             <text x="${x + 28}" y="190" text-anchor="middle" font-size="12" fill="#334155">${d.region}</text>`;
         }).join("");
         demoSvgEl.innerHTML = `
@@ -492,32 +528,27 @@
             <rect x="340" y="12" width="10" height="10" fill="#2563eb" /><text x="355" y="21" font-size="11" fill="#475569">Q2</text>
           </svg>`;
       } else if (activeChart === "line") {
-        const pts1 = SALES.map((d, i) => `${65 + i * 100},${170 - (d.q1 / 1200) * 140}`).join(" ");
-        const pts2 = SALES.map((d, i) => `${65 + i * 100},${170 - (d.q2 / 1200) * 140}`).join(" ");
-        const dots = SALES.map((d, i) => {
-          const x = 65 + i * 100;
-          const y1 = 170 - (d.q1 / 1200) * 140;
-          const y2 = 170 - (d.q2 / 1200) * 140;
-          return `
-            <circle cx="${x}" cy="${y1}" r="4" fill="#0891b2" />
-            <circle cx="${x}" cy="${y2}" r="4" fill="#2563eb" />
-            <text x="${x}" y="190" text-anchor="middle" font-size="12" fill="#334155">${d.region}</text>`;
+        const colors = ["#2563eb", "#059669", "#a16207", "#7c3aed"];
+        const traces = SALES.map((d, i) => {
+          const color = colors[i];
+          const points = [d.q1, d.q2].flatMap((v, j) => v === null ? [] : [[100 + j * 220, 170 - v / 1200 * 140]]);
+          return `${points.length === 2 ? `<polyline fill="none" stroke="${color}" stroke-width="2" points="${points.map(p => p.join(",")).join(" ")}" />` : ""}
+            ${points.map(([x,y]) => `<circle cx="${x}" cy="${y}" r="${4 + i}" fill="${color}" fill-opacity=".6"><title>${esc(d.region)}</title></circle>`).join("")}
+            <text x="${45 + i * 95}" y="20" font-size="12" fill="${color}">${esc(d.region)}</text>`;
         }).join("");
-        demoSvgEl.innerHTML = `
-          <svg viewBox="0 0 440 210" width="100%" height="210">
-            <line x1="36" y1="170" x2="420" y2="170" stroke="#cbd5e1" />
-            <polyline fill="none" stroke="#0891b2" stroke-width="2.5" points="${pts1}" />
-            <polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="${pts2}" />
-            ${dots}
-          </svg>`;
+        demoSvgEl.innerHTML = `<svg viewBox="0 0 440 210" width="100%" height="210">
+          <line x1="36" y1="170" x2="420" y2="170" stroke="#cbd5e1" />
+          ${traces}
+          <text x="100" y="195" text-anchor="middle" font-size="12">Q1</text>
+          <text x="320" y="195" text-anchor="middle" font-size="12">Q2</text></svg>`;
       } else {
-        const pts = SALES.map((d) => {
+        const pts = SALES.filter(d => d.growth !== null).map((d) => {
           const x = 50 + (d.q2 / 1250) * 340;
           const y = 165 - (d.growth / 35) * 130;
           const r = 7 + d.q2 / 140;
           return `
             <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="#7c3aed" fill-opacity="0.72" />
-            <text x="${x.toFixed(1)}" y="${(y - r - 4).toFixed(1)}" text-anchor="middle" font-size="11" fill="#334155">${d.region} (${d.growth}%)</text>`;
+            <text x="${x.toFixed(1)}" y="${(y - r - 4).toFixed(1)}" text-anchor="middle" font-size="11" fill="#334155">${d.region} (${pctText(d.growth)})</text>`;
         }).join("");
         demoSvgEl.innerHTML = `
           <svg viewBox="0 0 440 210" width="100%" height="210">
@@ -527,46 +558,46 @@
             <text x="230" y="195" text-anchor="middle" font-size="11" fill="#64748b">Q2 營收規模 →</text>
           </svg>`;
       }
-      demoCodeEl.textContent = CHART_CODES[activeChart] || "";
+      demoCodeEl.textContent = PY_AGG + "\n" + CHART_CODES[activeChart];
     }
 
     function renderStylerTable() {
       const maxQ2 = Math.max(...SALES.map((d) => d.q2));
       const minQ2 = Math.min(...SALES.map((d) => d.q2));
-      const maxGrowth = Math.max(...SALES.map((d) => d.growth));
+      const maxGrowth = Math.max(1, ...SALES.map(d => Math.abs(d.growth ?? 0)));
 
       const rowsHtml = SALES.map((d) => {
         const ratio = (d.q2 - minQ2) / Math.max(1, maxQ2 - minQ2);
-        let q2Cell = `<td class="num">${d.q2.toLocaleString()}</td>`;
-        let growthCell = `<td class="num">${d.growth.toFixed(1)}%</td>`;
+        let q2Cell = `<td class="num">${shown(d.q2)}</td>`;
+        let growthCell = `<td class="num">${pctText(d.growth)}</td>`;
 
-        if (activeStyle === "gradient") {
+        if (activeStyle === "gradient" && d.q2 !== null) {
           const bg = `rgba(37, 99, 235, ${(0.08 + ratio * 0.65).toFixed(2)})`;
           const fg = ratio > 0.55 ? "#ffffff" : "#0f172a";
-          q2Cell = `<td class="num" style="background:${bg};color:${fg};font-weight:600">${d.q2.toLocaleString()}</td>`;
-        } else if (activeStyle === "bar") {
-          const w = (d.growth / maxGrowth) * 100;
-          growthCell = `<td><div class="cell-bar-wrap"><div class="cell-bar-fill" style="width:${w.toFixed(1)}%"></div><span class="cell-bar-text">${d.growth.toFixed(1)}%</span></div></td>`;
+          q2Cell = `<td class="num" style="background:${bg};color:${fg};font-weight:600">${shown(d.q2)}</td>`;
+        } else if (activeStyle === "bar" && d.growth !== null) {
+          const w = (Math.abs(d.growth) / maxGrowth) * 100;
+          if (d.growth !== null) growthCell = `<td><div class="cell-bar-wrap"><div class="cell-bar-fill" style="width:${w.toFixed(1)}%"></div><span class="cell-bar-text">${pctText(d.growth)}</span></div></td>`;
         } else if (activeStyle === "highlight") {
-          if (d.q2 === maxQ2) q2Cell = `<td class="num" style="background:#bbf7d0;font-weight:700">${d.q2.toLocaleString()} (Max)</td>`;
-          if (d.q2 === minQ2) q2Cell = `<td class="num" style="background:#fecaca;font-weight:700">${d.q2.toLocaleString()} (Min)</td>`;
-        } else {
+          if (d.q2 === maxQ2) q2Cell = `<td class="num" style="background:#bbf7d0;font-weight:700">${shown(d.q2)} (Max)</td>`;
+          if (d.q2 === minQ2) q2Cell = `<td class="num" style="background:#fecaca;font-weight:700">${shown(d.q2)} (Min)</td>`;
+        } else if (activeStyle === "combo" && d.q2 !== null) {
           const bg = `rgba(37, 99, 235, ${(0.08 + ratio * 0.55).toFixed(2)})`;
           const fg = ratio > 0.6 ? "#ffffff" : "#0f172a";
-          const w = (d.growth / maxGrowth) * 100;
-          q2Cell = `<td class="num" style="background:${bg};color:${fg};font-weight:600">$${d.q2.toLocaleString()}</td>`;
-          growthCell = `<td><div class="cell-bar-wrap"><div class="cell-bar-fill" style="width:${w.toFixed(1)}%"></div><span class="cell-bar-text">${d.growth.toFixed(1)}%</span></div></td>`;
+          const w = (Math.abs(d.growth) / maxGrowth) * 100;
+          q2Cell = `<td class="num" style="background:${bg};color:${fg};font-weight:600">$${shown(d.q2)}</td>`;
+          if (d.growth !== null) growthCell = `<td><div class="cell-bar-wrap"><div class="cell-bar-fill" style="width:${w.toFixed(1)}%"></div><span class="cell-bar-text">${pctText(d.growth)}</span></div></td>`;
         }
 
-        return `<tr><td>${esc(d.region)}</td><td class="num">${d.q1.toLocaleString()}</td>${q2Cell}${growthCell}</tr>`;
+        return `<tr><td>${esc(d.region)}</td><td class="num">${shown(d.q1)}</td>${q2Cell}${growthCell}</tr>`;
       }).join("");
 
       stylerTableEl.innerHTML = `
         <table>
-          <thead><tr><th>地區</th><th class="num">2026-Q1</th><th class="num">2026-Q2</th><th class="num">成長率</th></tr></thead>
+          <thead><tr><th>地區</th><th class="num">2026-Q1</th><th class="num">2026-Q2</th><th class="num">季增率</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>`;
-      stylerCodeEl.textContent = STYLER_CODES[activeStyle] || "";
+      stylerCodeEl.textContent = PY_AGG + "\n" + STYLER_CODES[activeStyle];
     }
 
     function render() {

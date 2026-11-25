@@ -18,7 +18,8 @@ def nonnegative(value, name):
 
 
 def sheet(*, good_output, cdd, actual_kwh, electric_submeters, gas_nm3,
-          gas_lhv_mj_nm3, expected_intervals, valid_intervals):
+          gas_lhv_mj_nm3, expected_intervals, valid_intervals,
+          reconciliation_tolerance_kwh="1000"):
     prod = nonnegative(good_output, "良品")
     degree = nonnegative(cdd, "CDD")
     actual = nonnegative(actual_kwh, "用電")
@@ -29,15 +30,26 @@ def sheet(*, good_output, cdd, actual_kwh, electric_submeters, gas_nm3,
         raise ValueError("區間筆數無效")
     if not lhv:
         raise ValueError("低位熱值必須大於零")
+    tolerance = nonnegative(reconciliation_tolerance_kwh, "電表對帳容差")
     coverage = D(valid_intervals) / D(expected_intervals)
     gas = volume * lhv / D("3.6")
     raw = sum((nonnegative(v, name) for name, v in electric_submeters.items()), D(0))
     adjusted = D(20000) + D(5)*prod + D(80)*degree
     # 合成示例的模型驗證範圍及發布門檻；不是 ISO 指定數值。
     in_domain = D(8000) <= prod <= D(12000) and D(80) <= degree <= D(220)
-    eligible = in_domain and coverage >= D(".995")
-    variance = adjusted - actual if eligible else None
     residual = actual - raw
+    reasons = []
+    if not in_domain:
+        reasons.append("outside_model_domain")
+    if coverage < D(".995"):
+        reasons.append("insufficient_interval_coverage")
+    # 合成例題：主分表同期間、同邊界，且分表互斥。
+    if actual == 0 and raw > 0:
+        reasons.append("zero_main_with_positive_submeters")
+    elif residual < -tolerance:
+        reasons.append("submeters_exceed_main_beyond_tolerance")
+    eligible = not reasons
+    variance = adjusted - actual if eligible else None
     return {"electric_actual_kwh": actual, "gas_lhv_kwh": gas,
             "site_energy_kwh": actual + gas,
             "electric_submeters_kwh": raw, "electric_balance_residual_kwh": residual,
@@ -45,6 +57,8 @@ def sheet(*, good_output, cdd, actual_kwh, electric_submeters, gas_nm3,
             "good_output": prod, "electric_intensity_kwh_per_unit": actual / prod if prod else None,
             "adjusted_electric_baseline_kwh": adjusted if eligible else None,
             "normalization_status": "synthetic_comparable" if eligible else "not_comparable",
+            "comparison_hold_reasons": reasons,
+            "reconciliation_tolerance_kwh": tolerance,
             "delta_kwh": variance, "improvement_ratio": variance / adjusted if eligible else None,
             "coverage": coverage}
 
@@ -78,6 +92,34 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 example(**args)
 
+    def test_conflicting_meters_withhold_comparison(self):
+        for actual, residual, reason in (
+            (70000, -6000, "submeters_exceed_main_beyond_tolerance"),
+            (0, -76000, "zero_main_with_positive_submeters"),
+            (74999, -1001, "submeters_exceed_main_beyond_tolerance"),
+        ):
+            with self.subTest(actual=actual):
+                r = example(actual_kwh=actual)
+                self.assertEqual(r["electric_actual_kwh"], D(actual))
+                self.assertEqual(r["electric_submeters_kwh"], D(76000))
+                self.assertEqual(r["electric_balance_residual_kwh"], D(residual))
+                self.assertEqual(r["comparison_hold_reasons"], [reason])
+                self.assertEqual(r["coverage"], D(2872) / D(2880))
+                self.assertEqual(r["normalization_status"], "not_comparable")
+                for field in ("adjusted_electric_baseline_kwh", "delta_kwh", "improvement_ratio"):
+                    self.assertIsNone(r[field])
+
+    def test_tolerance_boundary(self):
+        self.assertEqual(example(actual_kwh=75000)["normalization_status"], "synthetic_comparable")
+        with self.assertRaises(ValueError):
+            example(reconciliation_tolerance_kwh=-1)
+
+    def test_zero_main_hold_even_with_small_subtotal(self):
+        r = example(actual_kwh=0, electric_submeters={"製程": 1}, valid_intervals=2800)
+        self.assertEqual(r["comparison_hold_reasons"],
+                         ["insufficient_interval_coverage", "zero_main_with_positive_submeters"])
+        self.assertIsNone(r["improvement_ratio"])
+
     def test_zero_denominator(self):
         r=example(good_output=0, actual_kwh=0, electric_submeters={})
         self.assertIsNone(r["electric_intensity_kwh_per_unit"])
@@ -87,12 +129,16 @@ class Tests(unittest.TestCase):
 def main():
     p = ArgumentParser(description=__doc__)
     p.add_argument("--test", action="store_true")
+    p.add_argument("--scenario", choices=("nominal", "mismatch", "zero-main"), default="nominal",
+                   help="切換正常、主分表差額過大或主表為零的教學案例")
     args=p.parse_args()
     if args.test:
         return 0 if unittest.TextTestRunner().run(
             unittest.defaultTestLoader.loadTestsFromTestCase(Tests)).wasSuccessful() else 1
     # Decimal 以明確十進位字串輸出；消費端依 schema 解析，不偷偷轉二進位 float。
-    print(json.dumps(example(), ensure_ascii=False, default=str, indent=2))
+    scenario = {"nominal": {}, "mismatch": {"actual_kwh": 70000},
+                "zero-main": {"actual_kwh": 0}}[args.scenario]
+    print(json.dumps(example(**scenario), ensure_ascii=False, default=str, indent=2))
     return 0
 
 
