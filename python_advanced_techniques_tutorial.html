@@ -1,4 +1,1166 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 神乎其技｜五種進階技巧</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f5f7fb;color:#182238;font:1rem/1.7 system-ui,sans-serif}header{background:#132039;color:#f2f6ff;padding:clamp(1rem,5vw,3rem)}header a{color:#a9dafa}main{width:min(100%,70rem);margin:auto;padding:clamp(.8rem,3vw,2rem)}h1,h2,h3{line-height:1.22}h1{font-size:clamp(2rem,6vw,4.4rem);margin:.3em 0}p{margin:.65rem 0}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}nav a,.badge{background:#e8f2ff;border:1px solid #c4d9ee;border-radius:.5rem;padding:.28rem .58rem;color:#184c77;text-decoration:none}section{background:white;border:1px solid #d5dfed;border-radius:.8rem;padding:clamp(.8rem,3vw,1.6rem);margin:1rem 0;min-width:0;overflow-wrap:anywhere}section h2{margin:.35rem 0}.flow{list-style:none;margin:1rem 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}.flow li{padding:.6rem;background:#ecf5ff;border:1px solid #c4d9ee;border-radius:.4rem;position:relative}.flow li>span{display:block;min-width:0;overflow-wrap:anywhere}.flow li:not(:last-child)::after{content:'→';position:absolute;inset-inline-end:-.8rem;inset-block-start:50%;translate:0 -50%;color:#2f6fbb;font-weight:700}.pit{background:#fff5dd;border-inline-start:.3rem solid #ae650e;padding:.6rem .8rem}pre{overflow:auto;background:#132039;color:#eff6ff;padding:.85rem;border-radius:.5rem;line-height:1.5;font-size:.87rem}button{border:1px solid #9ab9d8;border-radius:.4rem;padding:.45rem .68rem;background:#ecf5ff;color:#14395e;font:inherit;cursor:pointer}a:focus-visible,button:focus-visible{outline:.2rem solid #f07b28;outline-offset:.18rem}.status{margin-left:.5rem}.decision{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.6rem;list-style:none;padding:0}.decision li{background:#edf5fb;padding:.55rem .7rem;border-radius:.4rem}@media(max-width:640px){.flow{grid-template-columns:1fr;gap:1.12rem}.flow li:not(:last-child)::after{content:'↓';inset-inline-end:auto;inset-inline-start:50%;inset-block-start:100%;translate:-50% 0;line-height:1.1rem}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}</style></head><body><header><a href="index.html#advanced">回 Python 教材入口</a><p>PYTHON ENGINEERING · 進階篇</p><h1>Python 神乎其技</h1><p>從可讀的語法走到可驗證的資料處理。五個獨立範例均只用標準函式庫，支援 Python 3.11 及以上。</p><nav aria-label="本頁導覽"><a href="#lazy">惰性資料流</a><a href="#context">用上下文保證收尾</a><a href="#snapshot">不可變資料快照</a><a href="#match">結構式分派</a><a href="#async">結構化非同步</a></nav></header><main id="techniques">
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 神乎其技｜第 2–8 章 46 項技巧</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f5f7fb;color:#182238;font:1rem/1.7 system-ui,sans-serif}header{background:#132039;color:#f2f6ff;padding:clamp(1rem,5vw,3rem)}header a{color:#a9dafa}main{width:min(100%,70rem);margin:auto;padding:clamp(.8rem,3vw,2rem)}h1,h2,h3{line-height:1.22}h1{font-size:clamp(2rem,6vw,4.4rem);margin:.3em 0}p{margin:.65rem 0}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}nav a,.badge{background:#e8f2ff;border:1px solid #c4d9ee;border-radius:.5rem;padding:.28rem .58rem;color:#184c77;text-decoration:none}section{background:white;border:1px solid #d5dfed;border-radius:.8rem;padding:clamp(.8rem,3vw,1.6rem);margin:1rem 0;min-width:0;overflow-wrap:anywhere}section h2{margin:.35rem 0}.flow{list-style:none;margin:1rem 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}.flow li{padding:.6rem;background:#ecf5ff;border:1px solid #c4d9ee;border-radius:.4rem;position:relative}.flow li>span{display:block;min-width:0;overflow-wrap:anywhere}.flow li:not(:last-child)::after{content:'→';position:absolute;inset-inline-end:-.8rem;inset-block-start:50%;translate:0 -50%;color:#2f6fbb;font-weight:700}.pit{background:#fff5dd;border-inline-start:.3rem solid #ae650e;padding:.6rem .8rem}pre{overflow:auto;background:#132039;color:#eff6ff;padding:.85rem;border-radius:.5rem;line-height:1.5;font-size:.87rem}button{border:1px solid #9ab9d8;border-radius:.4rem;padding:.45rem .68rem;background:#ecf5ff;color:#14395e;font:inherit;cursor:pointer}a:focus-visible,button:focus-visible{outline:.2rem solid #f07b28;outline-offset:.18rem}.status{margin-left:.5rem}.decision{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.6rem;list-style:none;padding:0}.decision li{background:#edf5fb;padding:.55rem .7rem;border-radius:.4rem}@media(max-width:640px){.flow{grid-template-columns:1fr;gap:1.12rem}.flow li:not(:last-child)::after{content:'↓';inset-inline-end:auto;inset-inline-start:50%;inset-block-start:100%;translate:-50% 0;line-height:1.1rem}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}} .deep-note h3{margin:1rem 0 .25rem}.tech-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:.75rem 0}.tech-table caption{text-align:left;font-weight:800;margin:.25rem 0}.tech-table th,.tech-table td{border:1px solid #c8d9ea;text-align:left;vertical-align:top;padding:.4rem;overflow-wrap:anywhere}.tech-table th{background:#eaf4ff}.lab-layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.65rem;list-style:none;padding:0}.lab-layers li{padding:.5rem .65rem;border:1px solid #b5cae1;background:#edf5ff;border-radius:.5rem}.lab-layers strong{display:block}.fixture-bars{list-style:none;padding:0}.fixture-bars li{display:grid;grid-template-columns:minmax(0,10rem) minmax(0,1fr) 1.6rem;align-items:center;gap:.35rem;margin:.4rem 0}.fixture-bars span{display:block;height:1rem;background:#3974a4;border-radius:.2rem;width:calc(var(--count) * 100% / 3)} @media(max-width:410px){.tech-table{font-size:.89rem}.tech-table th,.tech-table td{padding:.26rem}} .kicker{font-size:.84rem;letter-spacing:.09em;color:#285c89;font-weight:800;margin:0}.chapter,.topic{scroll-margin-top:1rem}.topic{margin:1.35rem 0;padding:clamp(.62rem,2vw,1rem);border:1px solid #cfdae7;border-radius:.55rem;background:#fbfdff}.topic h3{margin:.25rem 0 .65rem;font-size:clamp(1.2rem,2.8vw,1.55rem)}.topic h4{margin:.75rem 0 .25rem}.topic-note{font-size:.9rem;color:#425975}.chapter .chapter-table th:first-child{width:34%}.topic-flow,.chapter-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.6rem;list-style:none;margin:.55rem 0;padding:0;counter-reset:stage}.topic-flow li,.chapter-flow li{counter-increment:stage;min-width:0;border:1px solid #c1d4e6;border-inline-start:3px solid #2f6fbb;background:#edf6ff;border-radius:.4rem;padding:.42rem .56rem;display:grid;grid-template-columns:1.2rem minmax(0,1fr);gap:.16rem}.topic-flow li::before,.chapter-flow li::before{content:counter(stage) '.';font-weight:800;color:#245986}.toc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13.5rem),1fr));gap:.7rem}.toc-group{min-width:0;background:#eef5ff;border:1px solid #c1d4e6;border-radius:.5rem;padding:.55rem .65rem}.toc-group h3{margin:.3rem 0 .5rem;font-size:1rem}.toc-group ul{padding-inline-start:1.15rem;margin:.25rem 0}.toc-group li{padding:.1rem 0}.topic pre{max-inline-size:100%}</style></head><body><header><a href="index.html#advanced">回 Python 教材入口</a><p>PYTHON ENGINEERING · 進階篇</p><h1>Python 神乎其技</h1><p>從可讀的語法走到可驗證的資料處理。第 2–8 章各技巧逐項拆解，再以補充技巧與只讀 HVAC 演練串成完整流程。全部範例只用標準函式庫，支援 Python 3.11 及以上。</p><nav aria-label="本頁導覽"><a href="#chapter-index">第 2–8 章總覽</a><a href="#techniques">技巧延伸</a><a href="#lazy">惰性資料流</a><a href="#context">用上下文保證收尾</a><a href="#snapshot">不可變資料快照</a><a href="#match">結構式分派</a><a href="#async">結構化非同步</a><a href="#hvac-lab">HVAC 整合演練</a></nav></header><main><section id="chapter-index"><p class="kicker">CHAPTER INDEX · 02–08</p><h2>分章索引</h2><p>46 項指定技巧＋命名規則補充，另附 5 項工程慣用法及 HVAC 完整專案。每一項都在本頁直接顯示適用情境、機制、流程、限制與可執行範例，不必另開說明頁。</p><div class="toc-grid"><div class="toc-group"><h3><a href="#chapter-2">第 2 章 · 寫出清楚明瞭的 Python 程式</a></h3><ul><li><a href="#skill-2-1">2-1 assert：檢查內部不變條件</a></li><li><a href="#skill-2-2">2-2 容器逗號：尾逗號、單項 tuple 與字串串接</a></li><li><a href="#skill-2-3">2-3 with：用 context manager 管理資源</a></li><li><a href="#skill-2-4">2-4 底線命名：約定、名稱改寫與特殊名稱</a></li><li><a href="#skill-2-5">2-5 四種字串格式化：依使用邊界選工具</a></li><li><a href="#skill-2-6">2-6 指派運算式 :=：在條件中保存結果</a></li><li><a href="#skill-2-7">2-7 Python 之禪：把設計取捨落到可驗證行為</a></li><li><a href="#naming">補充 · Python 命名規則：識別字、長度與格式</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-3">第 3 章 · 函式的一級物件特性、參數設定與修飾器</a></h3><ul><li><a href="#skill-3-1">3-1 函式是一級物件：傳遞策略與回呼</a></li><li><a href="#skill-3-2">3-2 lambda：短小且只包含一個運算式</a></li><li><a href="#skill-3-3">3-3 修飾器：保留原呼叫契約，抽出橫切責任</a></li><li><a href="#skill-3-4">3-4 *args 與 **kwargs：接收額外呼叫引數</a></li><li><a href="#skill-3-5">3-5 引數解包：在呼叫端展開 iterable 與 mapping</a></li><li><a href="#skill-3-6">3-6 隱含 return：None 不是失敗或數字零</a></li><li><a href="#skill-3-7">3-7 位置限定 / 與關鍵字限定 *</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-4">第 4 章 · 解密類別與物件的特性、行為並加以運用</a></h3><ul><li><a href="#skill-4-1">4-1 物件比較：==（相等）與 is（同一物件）</a></li><li><a href="#skill-4-2">4-2 __str__ 與 __repr__：讓類別更善於自我表述</a></li><li><a href="#skill-4-3">4-3 定義自訂例外類別來協助除錯</a></li><li><a href="#skill-4-4">4-4 複製物件：淺拷貝與深拷貝</a></li><li><a href="#skill-4-5">4-5 抽象基礎類別（ABC）：要求子類別實作方法</a></li><li><a href="#skill-4-6">4-6 物件、類別與靜態方法</a></li><li><a href="#skill-4-7">4-7 類別變數與物件變數的陷阱</a></li><li><a href="#skill-4-8">4-8 用物件實作修飾器</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-5">第 5 章 · Python 的好用資料結構比一比</a></h3><ul><li><a href="#skill-5-1">5-1 各種 Python 字典</a></li><li><a href="#skill-5-2">5-2 各種 Python 陣列</a></li><li><a href="#skill-5-3">5-3 各種儲存記錄用的資料結構</a></li><li><a href="#skill-5-4">5-4 set（集合）與多重集合</a></li><li><a href="#skill-5-5">5-5 堆疊（stack，LIFO）</a></li><li><a href="#skill-5-6">5-6 佇列（queue，FIFO）</a></li><li><a href="#skill-5-7">5-7 優先佇列（priority queue）</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-6">第 6 章 · 迴圈、list 切片、走訪器與產生器</a></h3><ul><li><a href="#skill-6-1">6-1 寫出符合 Python 風格的 for 迴圈</a></li><li><a href="#skill-6-2">6-2 生成式：Comprehension</a></li><li><a href="#skill-6-3">6-3 List 切片：所謂「壽司算符」其實是 slice</a></li><li><a href="#skill-6-4">6-4 Iterator：掌握走訪器協定</a></li><li><a href="#skill-6-5">6-5 產生器函式：以 yield 暫停後再繼續</a></li><li><a href="#skill-6-6">6-6 產生器運算式：把延遲求值寫成一個表達式</a></li><li><a href="#skill-6-7">6-7 走訪器串聯：串接來源，再分層轉換</a></li><li><a href="#skill-6-8">6-8 itertools：組合有限與無限走訪器</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-7">第 7 章 · dict 取值、排序、合併與輸出技巧</a></h3><ul><li><a href="#skill-7-1">7-1 找不到鍵時，選對 dict 的預設值</a></li><li><a href="#skill-7-2">7-2 按鍵、值或複合條件排序 dict</a></li><li><a href="#skill-7-3">7-3 用 dict 分派固定命令（模擬 switch）</a></li><li><a href="#skill-7-4">7-4 更新字典鍵值時，避開迭代與共用物件陷阱</a></li><li><a href="#skill-7-5">7-5 合併 dict：右邊優先不是遞迴合併</a></li><li><a href="#skill-7-6">7-6 依輸出用途美觀呈現 dict</a></li></ul></div><div class="toc-group"><h3><a href="#chapter-8">第 8 章 · 探索 Python 開發環境與 bytecode</a></h3><ul><li><a href="#skill-8-1">8-1 用 dir() 與 help() 查詢物件能力</a></li><li><a href="#skill-8-2">8-2 用 venv 建立不同 Python 版本的環境</a></li><li><a href="#skill-8-3">8-3 用 dis 看 bytecode，但別硬綁指令名稱</a></li></ul></div></div>
+<p><a href="#techniques">技巧延伸</a>　<a href="#hvac-lab">HVAC 整合練習</a></p><p>這是依你提供的章節主題重新撰寫的原創工程教材，不重製書籍原文。例程只用標準函式庫；每章驗證器以隔離子程序跑各題，失敗才印出詳細錯誤。</p></section><section id="chapter-2" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 02</p>
+<h2>第 2 章　寫出清楚明瞭的 Python 程式</h2><p>用語法表達意圖，不將可讀性換成短行數。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>辨識意圖</span></li><li><span>選明確寫法</span></li><li><span>驗證結果</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-2-1">2-1 assert：檢查內部不變條件</a></th><td>測試和開發時，用斷言指出「若到這裡不成立，就是程式自己的錯」。例如正規化後的時間窗不應倒轉；來自使用者、設備或網路的錯誤則要有正常且不會被移除的驗證路徑。</td></tr><tr><th scope="row"><a href="#skill-2-2">2-2 容器逗號：尾逗號、單項 tuple 與字串串接</a></th><td>多行設定每列各留一個尾逗號，新加設備只修改自己那一列，Git diff 可直接比對；同時避免相鄰字串常值被合成一個欄位。</td></tr><tr><th scope="row"><a href="#skill-2-3">2-3 with：用 context manager 管理資源</a></th><td>讀取點表或占用鎖時，要保證例外路徑也釋放資源。with 將進場、工作與退場明確分開，免得每個呼叫處重寫 try/finally。</td></tr><tr><th scope="row"><a href="#skill-2-4">2-4 底線命名：約定、名稱改寫與特殊名稱</a></th><td>模組內部輔助函式與子類別私有儲存欄位的需求不同。前綴單底線是 API 約定，前綴雙底線是避免名稱碰撞的機制，兩者都不是存取控制。</td></tr><tr><th scope="row"><a href="#skill-2-5">2-5 四種字串格式化：依使用邊界選工具</a></th><td>溫度狀態列要固定兩位小數，而可由其他人提供的郵件樣板則不應任意執行 Python。依格式是否在原始碼、是否需延後插值來選工具。</td></tr><tr><th scope="row"><a href="#skill-2-6">2-6 指派運算式 :=：在條件中保存結果</a></th><td>解析遙測一批行時，可能同時要知道是否成功，以及使用解析出來的值。:= 適合避免重複呼叫，但不應把一段複雜流程壓進條件。</td></tr><tr><th scope="row"><a href="#skill-2-7">2-7 Python 之禪：把設計取捨落到可驗證行為</a></th><td>PEP 20 提供程式碼審查時可用的偏好，而非直譯器規則。以告警資料為例，將「缺測」與數字 0 分開，比把兩者都交給真假值判定更容易讀懂與測試。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch2.py" download>下載第 2 章範例與驗證器（7 項＋1 項補充）</a></p><pre><code>python3 python_advanced_techniques_ch2.py
+python3 python_advanced_techniques_ch2.py --case 2-1</code></pre>
+<article class="topic topic-core" id="skill-2-1" aria-labelledby="skill-2-1-title">
+<p class="kicker">TECHNIQUE 2-1</p><h3 id="skill-2-1-title">2-1　assert：檢查內部不變條件</h3>
+<p><strong>用在哪裡：</strong>測試和開發時，用斷言指出「若到這裡不成立，就是程式自己的錯」。例如正規化後的時間窗不應倒轉；來自使用者、設備或網路的錯誤則要有正常且不會被移除的驗證路徑。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>拒絕外部壞資料</span></li><li><span>運算整理資料</span></li><li><span>檢查內部不變條件</span></li></ol>
+<h4>機制解析</h4><p>語法是 assert condition, message；只有條件為假時才求值訊息並拋出 AssertionError。Python 在 -O 模式移除 assert，本例的明確 raise 仍然執行。參考 Python 語言參考〈The assert statement〉。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要在 assert 內做寫檔、更新計數或權限驗證，因最佳化時連副作用都消失。assert (condition, message) 建出非空 tuple，通常永遠為真；正確寫法是讓逗號放在斷言的兩個運算式之間。</p>
+<button type="button" data-copy="skill-2-1-code">複製 2-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-1 Python 範例"><code id="skill-2-1-code">def window(start: int, end: int) -&gt; tuple[int, int]:
+    if end &lt; start:
+        raise ValueError(&quot;end must not precede start&quot;)
+    span = end - start
+    assert span &gt;= 0, &quot;window length invariant&quot;
+    return start, span
+
+assert window(3, 8) == (3, 5)
+try:
+    window(8, 3)
+except ValueError:
+    pass
+else:
+    raise RuntimeError(&quot;invalid input was accepted&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-2" aria-labelledby="skill-2-2-title">
+<p class="kicker">TECHNIQUE 2-2</p><h3 id="skill-2-2-title">2-2　容器逗號：尾逗號、單項 tuple 與字串串接</h3>
+<p><strong>用在哪裡：</strong>多行設定每列各留一個尾逗號，新加設備只修改自己那一列，Git diff 可直接比對；同時避免相鄰字串常值被合成一個欄位。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>一項一行</span></li><li><span>加上尾逗號</span></li><li><span>驗證元素清單</span></li></ol>
+<h4>機制解析</h4><p>tuple 是由逗號形成的，(value) 只是分組；單項 tuple 寫 (value,)，空 tuple 寫 ()。list、dict、set 多行常值允許尾逗號；相鄰字串常值則由語法直接串接，不會報錯。</p>
+<p class="pit"><strong>限制與踩坑：</strong>只靠 formatter 不能找出已經合法串接成一個字串的漏逗號。欄位清單需要元素數量／名稱測試；-O 移除驗證示例的 assert，但不會改變常值語法。</p>
+<button type="button" data-copy="skill-2-2-code">複製 2-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-2 Python 範例"><code id="skill-2-2-code">channels = [
+    &quot;supply&quot;,
+    &quot;return&quot;,
+]
+single = (&quot;supply&quot;,)
+grouped = (&quot;supply&quot;)
+accidental = [
+    &quot;supply&quot;
+    &quot;return&quot;,
+]
+assert channels == [&quot;supply&quot;, &quot;return&quot;]
+assert isinstance(single, tuple) and isinstance(grouped, str)
+assert accidental == [&quot;supplyreturn&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-3" aria-labelledby="skill-2-3-title">
+<p class="kicker">TECHNIQUE 2-3</p><h3 id="skill-2-3-title">2-3　with：用 context manager 管理資源</h3>
+<p><strong>用在哪裡：</strong>讀取點表或占用鎖時，要保證例外路徑也釋放資源。with 將進場、工作與退場明確分開，免得每個呼叫處重寫 try/finally。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>取得資源</span></li><li><span>執行區塊</span></li><li><span>清理後傳出例外</span></li></ol>
+<h4>機制解析</h4><p>__enter__() 回傳給 as；成功進入後，__exit__(exc_type, exc, traceback) 在區塊結束時被呼叫。回傳真值可吞掉區塊例外；None 或 False 讓例外傳出。對輕量案例也可用 contextlib.contextmanager 搭配 try/finally。</p>
+<p class="pit"><strong>限制與踩坑：</strong>__enter__() 途中失敗不會呼叫同一個管理器的 __exit__；多資源取得需要局部清理或 ExitStack。不要回傳 True 只為了安靜，否則讀取失敗會看起來像成功。</p>
+<button type="button" data-copy="skill-2-3-code">複製 2-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-3 Python 範例"><code id="skill-2-3-code">from io import StringIO
+
+class Buffer:
+    def __enter__(self):
+        self.stream = StringIO()
+        return self.stream
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.stream.close()
+        return False
+
+try:
+    with Buffer() as stream:
+        stream.write(&quot;CHW01&quot;)
+        raise ValueError(&quot;invalid sample&quot;)
+except ValueError as exc:
+    assert str(exc) == &quot;invalid sample&quot;
+else:
+    raise RuntimeError(&quot;exception was suppressed&quot;)
+assert stream.closed
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-4" aria-labelledby="skill-2-4-title">
+<p class="kicker">TECHNIQUE 2-4</p><h3 id="skill-2-4-title">2-4　底線命名：約定、名稱改寫與特殊名稱</h3>
+<p><strong>用在哪裡：</strong>模組內部輔助函式與子類別私有儲存欄位的需求不同。前綴單底線是 API 約定，前綴雙底線是避免名稱碰撞的機制，兩者都不是存取控制。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>選公開或內部 API</span></li><li><span>判斷是否須避免子類碰撞</span></li><li><span>用行為測試契約</span></li></ol>
+<h4>機制解析</h4><p>_name 表示內部；沒有 __all__ 時，from module import * 會跳過底線開頭的名稱。類別內 __name（沒有兩個結尾底線）文字式改寫為 _ClassName__name；__len__ 等前後雙底線是定義好的特殊方法。class_ 可避開保留字。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要以 __name 保護密碼：改寫後仍能存取。也不要自行編造 __something__ 當公用 API。_ 常作不使用的繫結或互動環境的上一結果；它不是語言保留的丟棄符號。</p>
+<button type="button" data-copy="skill-2-4-code">複製 2-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-4 Python 範例"><code id="skill-2-4-code">class Base:
+    def __init__(self):
+        self.__rate = 6
+
+    def base_rate(self):
+        return self.__rate
+
+class Pump(Base):
+    def __init__(self):
+        super().__init__()
+        self.__rate = 9
+
+    def pump_rate(self):
+        return self.__rate
+
+pump = Pump()
+assert (pump.base_rate(), pump.pump_rate()) == (6, 9)
+assert pump._Base__rate == 6  # demonstrates that it is not private access
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-5" aria-labelledby="skill-2-5-title">
+<p class="kicker">TECHNIQUE 2-5</p><h3 id="skill-2-5-title">2-5　四種字串格式化：依使用邊界選工具</h3>
+<p><strong>用在哪裡：</strong>溫度狀態列要固定兩位小數，而可由其他人提供的郵件樣板則不應任意執行 Python。依格式是否在原始碼、是否需延後插值來選工具。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>選固定或可替換樣板</span></li><li><span>定義欄位與精度</span></li><li><span>驗證產出與下游逸出</span></li></ol>
+<h4>機制解析</h4><p>f-string（3.6+）直接執行內嵌運算式；str.format() 以欄位與格式規格重用樣板；% 常見於既有程式及 logging 的訊息加參數介面；string.Template 支援較小的 $name 替代語法。一般數值輸出可用 :.2f。</p>
+<p class="pit"><strong>限制與踩坑：</strong>把 logging 的格式字串與參數分開可推遲訊息插值，但參數運算仍在呼叫前發生。不要為外部模板使用 eval；Template 也不負責 HTML 逸出或 SQL 安全，SQL 值須交給驅動參數。</p>
+<button type="button" data-copy="skill-2-5-code">複製 2-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-5 Python 範例"><code id="skill-2-5-code">from string import Template
+
+device, value = &quot;CHW01&quot;, 7.25
+a = &quot;%s %.2f&quot; % (device, value)
+b = &quot;{} {:.2f}&quot;.format(device, value)
+c = f&quot;{device} {value:.2f}&quot;
+d = Template(&quot;$device $value&quot;).substitute(device=device, value=f&quot;{value:.2f}&quot;)
+assert a == b == c == d == &quot;CHW01 7.25&quot;
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-6" aria-labelledby="skill-2-6-title">
+<p class="kicker">TECHNIQUE 2-6</p><h3 id="skill-2-6-title">2-6　指派運算式 :=：在條件中保存結果</h3>
+<p><strong>用在哪裡：</strong>解析遙測一批行時，可能同時要知道是否成功，以及使用解析出來的值。:= 適合避免重複呼叫，但不應把一段複雜流程壓進條件。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>解析一次</span></li><li><span>比較明確哨兵</span></li><li><span>保存有效結果</span></li></ol>
+<h4>機制解析</h4><p>:= 從 Python 3.8 起，把右側結果指定到名稱，同時保留運算式的值。標的是單一名稱，不是屬性或索引。視上下文可能要加括號；在 if/while 內常見。</p>
+<p class="pit"><strong>限制與踩坑：</strong>if value := parse(raw) 會把有效的 0 丟掉；以 (value := parse(raw)) is not None 區分缺測。不要過度利用生成式中的名稱繫結，當讀者須追蹤副作用時改成明確迴圈。</p>
+<button type="button" data-copy="skill-2-6-code">複製 2-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-6 Python 範例"><code id="skill-2-6-code">def parse(raw: str) -&gt; int | None:
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+values = []
+for raw in [&quot;0&quot;, &quot;bad&quot;, &quot;12&quot;]:
+    if (value := parse(raw)) is not None:
+        values.append(value)
+assert values == [0, 12]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-2-7" aria-labelledby="skill-2-7-title">
+<p class="kicker">TECHNIQUE 2-7</p><h3 id="skill-2-7-title">2-7　Python 之禪：把設計取捨落到可驗證行為</h3>
+<p><strong>用在哪裡：</strong>PEP 20 提供程式碼審查時可用的偏好，而非直譯器規則。以告警資料為例，將「缺測」與數字 0 分開，比把兩者都交給真假值判定更容易讀懂與測試。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>分開現場語意</span></li><li><span>用明確狀態回應</span></li><li><span>測缺值、零與一般值</span></li></ol>
+<h4>機制解析</h4><p>標準直譯器執行 import this 可顯示彩蛋；正式文本是 PEP 20。實作上，用具名的狀態與回應取代隱藏預設，再以邊界案例建測試，將風格原則轉為可比對證據。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要為符合單一句原則到處加入抽象層。若簡單與可讀性衝突，優先讓錯誤路徑清楚；import this 有匯入時輸出副作用，不應出現在服務啟動模組。</p>
+<button type="button" data-copy="skill-2-7-code">複製 2-7 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="2-7 Python 範例"><code id="skill-2-7-code">def classify(flow: int | None) -&gt; str:
+    if flow is None:
+        return &quot;missing&quot;
+    if flow == 0:
+        return &quot;stopped&quot;
+    return &quot;running&quot;
+
+assert [classify(x) for x in (None, 0, 35)] == [
+    &quot;missing&quot;, &quot;stopped&quot;, &quot;running&quot;,
+]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-extra" id="naming" aria-labelledby="naming-title">
+<p class="kicker">第 2 章補充</p><h3 id="naming-title">Python 命名規則：識別字、長度與格式</h3>
+<p><strong>用在哪裡：</strong>名字要讓裝置、量測值、單位與狀態一眼可辨，也要區分合法語法、PEP 8 風格與團隊自訂規範。讀到 supply_air_temp_c，應能知道用途與單位，不必先追相鄰程式碼。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先驗證語法與關鍵字</span></li><li><span>依用途挑選命名格式</span></li><li><span>依作用域和生命週期補語意</span></li><li><span>檢查縮寫、單位與可讀性</span></li><li><span>格式化程式行，不靠工具改名</span></li></ol>
+<h4>機制解析</h4><p>語法：識別字可使用底線與規範接受的 Unicode 字元；開頭不能是一般數字，後續可含數字，大小寫有別，空白和連字號不合法；保留關鍵字不能作一般名稱。Python 語法沒有固定的識別字字元數上限。Python 剖析原始碼時按 NFKC 正規化識別字。PEP 8 標準格式：函式、一般變數和參數用 snake_case，類別用 CapWords，模組常用短小寫名（需要時可用底線），套件偏好短小寫且盡量避免底線，模組層級常數用 UPPER_CASE。CapWords 中縮寫整段大寫，如 HTTPServer、MQTTClient；一般變數可用 mqtt_topic、http_status。PEP 8 的 79 字元程式行、72 字元註解／文件字串行是排版建議，不是變數名稱上限。選名長度可依語境：小範圍的迴圈索引用 i；一般局部值可先用 1–3 個詞；跨函式／跨模組名稱優先保留業務語意與必要單位，如果描述太長，考慮拆責任或把欄位放到具名物件。這些是可採用的團隊原則，不是 Python 強制規則。 作用域：函式區域名稱應貼合有限生命週期；跨模組公開名稱視為 API，改名要考量相容性。Python 依可見作用域解析名稱；不要假設區域變數和同名全域變數是同一份資料。格式化工具主要調整空白、引號和斷行，並非識別字重命名；需要一致命名時交由 lint 規則、程式碼審查和保留相容性的重構。</p>
+<p class="pit"><strong>限制與踩坑：</strong>str.isidentifier() 只檢查識別字形式，也會接受 class；應再用 keyword.iskeyword() 排除保留字。match／case 是特定文法位置才有意義的軟關鍵字，keyword.issoftkeyword() 可做提示，不代表平常不能作變數。單前置底線 _name 只是非公開慣例；沒有 __all__ 時，from module import * 預設略過它，不是權限機制。類別內的 __name（開頭至少兩個底線、結尾不到兩個）會觸發名稱改寫以減少子類碰撞，仍可存取，不是私有保護。__name__ 這類雙前後底線保留給既有語言／函式庫協定，不為一般變數自創。既有命名與框架衝突可用 class_，避免 list、id 等遮蔽內建名稱。Unicode 可讀性因團隊而異：專案可自訂只用 ASCII，避免形似字元；此限制不應誤稱為語法，也不要對外部字典鍵直接套用識別字規則。</p><table class="tech-table"><caption>命名用途、格式與例子</caption><thead><tr><th scope="col">用途</th><th scope="col">建議格式</th><th scope="col">例子</th></tr></thead><tbody><tr><td>短小局部索引</td><td>有明確上下文才用單字母</td><td>i；更複雜時用 channel_index</td></tr><tr><td>參數與欄位</td><td>snake_case；同名欄位在契約內一致</td><td>retry_count、supply_air_temp_c</td></tr><tr><td>布林值</td><td>布林問題或狀態；團隊慣例</td><td>is_connected、has_alarm</td></tr><tr><td>函式與方法</td><td>snake_case；動詞加目標</td><td>read_temperature、normalize_payload</td></tr><tr><td>類別</td><td>CapWords；縮寫整段大寫</td><td>SensorReading、MQTTClient</td></tr><tr><td>模組</td><td>短小寫名，可用底線</td><td>modbus_client.py</td></tr><tr><td>套件</td><td>短小寫名；盡量避免底線</td><td>gateway</td></tr><tr><td>模組常數</td><td>UPPER_CASE；不代表執行期不可修改</td><td>MAX_RETRY_COUNT</td></tr><tr><td>非公開成員</td><td>單前置底線是慣例</td><td>_decode_register</td></tr><tr><td>減少繼承名稱碰撞</td><td>只在需要時用類別內雙前置底線</td><td>__cache → _Base__cache</td></tr><tr><td>與保留字衝突</td><td>單尾底線</td><td>class_</td></tr><tr><td>模型協定名稱</td><td>僅實作已定義的雙前後底線名稱</td><td>__len__、__iter__</td></tr></tbody></table><table class="tech-table"><caption>名稱長度怎麼抓：建議，不是字元數限制</caption><thead><tr><th scope="col">作用範圍</th><th scope="col">長度與例子</th><th scope="col">判讀原則</th></tr></thead><tbody><tr><th scope="row">很短的迴圈</th><td>有公認語境時，單字母如 i</td><td>離開迴圈仍要知道是哪種索引，就用 channel_index</td></tr><tr><th scope="row">一般區域變數</th><td>以 1–3 個語意詞起步，例如 retry_count</td><td>不要為了縮短而用不明縮寫</td></tr><tr><th scope="row">跨函式或公開欄位</th><td>按業務語意補範圍與單位，例如 supply_air_temp_c</td><td>名稱是契約；超長時優先重整資料模型，不硬縮字元</td></tr></tbody></table>
+<button type="button" data-copy="naming-code">複製 naming 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="naming Python 範例"><code id="naming-code">import keyword
+import unicodedata
+
+
+def valid_identifier(text: str, *, ascii_only: bool = False) -&gt; bool:
+    &quot;&quot;&quot;語法驗證加上可選的 ASCII 專案規範；不把軟關鍵字當禁字。&quot;&quot;&quot;
+    return (
+        text.isidentifier()
+        and not keyword.iskeyword(text)
+        and (not ascii_only or text.isascii())
+    )
+
+
+class Base:
+    def __init__(self) -&gt; None:
+        self.__cache = {&quot;SAT&quot;: 22.0}
+
+
+assert &quot;class&quot;.isidentifier() and not valid_identifier(&quot;class&quot;)
+assert valid_identifier(&quot;class_&quot;) and not valid_identifier(&quot;bad-name&quot;)
+assert not valid_identifier(&quot;2nd_floor&quot;) and valid_identifier(&quot;floor_2&quot;)
+assert keyword.issoftkeyword(&quot;match&quot;) and valid_identifier(&quot;match&quot;)
+assert valid_identifier(&quot;送風溫度&quot;) and not valid_identifier(&quot;送風溫度&quot;, ascii_only=True)
+assert valid_identifier(&quot;measurement_&quot; + &quot;x&quot; * 300)  # 行長規範不是識別字限制
+assert unicodedata.normalize(&quot;NFKC&quot;, &quot;K&quot;) == &quot;K&quot;
+assert len({&quot;K&quot;: 1, &quot;K&quot;: 2}) == 2  # 字典字串鍵不經識別字正規化
+assert vars(Base())[&quot;_Base__cache&quot;] == {&quot;SAT&quot;: 22.0}  # 改寫不是私有阻擋
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p><p class="topic-note">規格來源：<a href="https://peps.python.org/pep-0008/">PEP 8：命名慣例與行長</a>、<a href="https://peps.python.org/pep-3131/">PEP 3131：非 ASCII 識別字及 NFKC</a>、<a href="https://docs.python.org/3/reference/lexical_analysis.html#identifiers">Python 語言參考：名稱、識別字與關鍵字</a>、<a href="https://docs.python.org/3/reference/executionmodel.html#resolution-of-names">Python 語言參考：名稱解析與作用域</a>、<a href="https://docs.python.org/3/library/keyword.html">Python keyword 模組</a></p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-3" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 03</p>
+<h2>第 3 章　函式的一級物件特性、參數設定與修飾器</h2><p>降低副作用，讓呼叫邊界容易測試與替換。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>呼叫契約</span></li><li><span>包裝與組合</span></li><li><span>回傳與驗證</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-3-1">3-1 函式是一級物件：傳遞策略與回呼</a></th><td>同一批點位要依不同規則轉換時，可傳入函式，不必每次替換整段迴圈。策略是可供替換的值，呼叫順序和資料處理各自可測。</td></tr><tr><th scope="row"><a href="#skill-3-2">3-2 lambda：短小且只包含一個運算式</a></th><td>排序讀值時，可把欄位擷取規則就地交給 sorted。若要加入驗證、錯誤紀錄或跨模組重用，具名 def 更易讀、也更容易測。</td></tr><tr><th scope="row"><a href="#skill-3-3">3-3 修飾器：保留原呼叫契約，抽出橫切責任</a></th><td>跨多個函式統一記錄成功與失敗時，可把責任抽成修飾器；原函式仍保留設備資料轉換的業務目的。</td></tr><tr><th scope="row"><a href="#skill-3-4">3-4 *args 與 **kwargs：接收額外呼叫引數</a></th><td>通用轉接器與修飾器需原封保留不同函式的呼叫形狀。對公開業務函式，明列必要欄位通常比較容易建立文件與驗證。</td></tr><tr><th scope="row"><a href="#skill-3-5">3-5 引數解包：在呼叫端展開 iterable 與 mapping</a></th><td>讀到設定值後，可將位置資料及具名選項拆開傳給通用計算；不必手工逐欄傳遞，但仍需維持輸入契約。</td></tr><tr><th scope="row"><a href="#skill-3-6">3-6 隱含 return：None 不是失敗或數字零</a></th><td>程序可能只記錄事件，不需要回傳資料；但取樣函式應讓呼叫端分清有效值、缺值和例外，不靠猜測。</td></tr><tr><th scope="row"><a href="#skill-3-7">3-7 位置限定 / 與關鍵字限定 *</a></th><td>把不適合承諾名稱的基礎參數標成位置限定，讓 API 可改內部名字；把容易混淆的單位或選項標成關鍵字限定，讓呼叫者讀得出語意。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch3.py" download>下載第 3 章範例與驗證器（7 項）</a></p><pre><code>python3 python_advanced_techniques_ch3.py
+python3 python_advanced_techniques_ch3.py --case 3-1</code></pre>
+<article class="topic topic-core" id="skill-3-1" aria-labelledby="skill-3-1-title">
+<p class="kicker">TECHNIQUE 3-1</p><h3 id="skill-3-1-title">3-1　函式是一級物件：傳遞策略與回呼</h3>
+<p><strong>用在哪裡：</strong>同一批點位要依不同規則轉換時，可傳入函式，不必每次替換整段迴圈。策略是可供替換的值，呼叫順序和資料處理各自可測。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>選策略函式</span></li><li><span>當值傳給處理器</span></li><li><span>驗證兩組策略輸出</span></li></ol>
+<h4>機制解析</h4><p>def 建立函式物件並繫結名稱；可放進容器、當參數或回傳。函式參照 f 與執行 f() 不等價。閉包捕捉的是名稱繫結而非自動凍結每次迴圈值。</p>
+<p class="pit"><strong>限制與踩坑：</strong>回呼清單若在迴圈內延後執行，lambda: scale 容易全取到最後一個 scale；用工廠函式或預設參數固定該次資料。跨程序傳遞時也別假設任意區域函式都能序列化。</p>
+<button type="button" data-copy="skill-3-1-code">複製 3-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-1 Python 範例"><code id="skill-3-1-code">def scale_by(factor):
+    def scale(value):
+        return value * factor
+    return scale
+
+def convert(values, transform):
+    return [transform(value) for value in values]
+
+strategies = {&quot;raw&quot;: scale_by(1), &quot;tenths&quot;: scale_by(0.1)}
+assert convert([70, 80], strategies[&quot;raw&quot;]) == [70, 80]
+assert convert([70, 80], strategies[&quot;tenths&quot;]) == [7.0, 8.0]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-2" aria-labelledby="skill-3-2-title">
+<p class="kicker">TECHNIQUE 3-2</p><h3 id="skill-3-2-title">3-2　lambda：短小且只包含一個運算式</h3>
+<p><strong>用在哪裡：</strong>排序讀值時，可把欄位擷取規則就地交給 sorted。若要加入驗證、錯誤紀錄或跨模組重用，具名 def 更易讀、也更容易測。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>指定主次排序鍵</span></li><li><span>執行穩定排序</span></li><li><span>確認原始資料不變</span></li></ol>
+<h4>機制解析</h4><p>lambda parameters: expression 回傳函式；運算式結果會成為回傳值，不能放多條敘述。sorted(key=...) 先為元素計算 key，再做穩定排序；可用 tuple key 明確寫主次順序。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要以巨大巢狀條件假裝 lambda 很簡潔。只有取欄位時也可用 operator.itemgetter；在迴圈內共用的閉包名稱要小心晚期繫結。</p>
+<button type="button" data-copy="skill-3-2-code">複製 3-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-2 Python 範例"><code id="skill-3-2-code">readings = [(&quot;B&quot;, 8), (&quot;A&quot;, 8), (&quot;C&quot;, 7)]
+ranked = sorted(readings, key=lambda row: (-row[1], row[0]))
+assert ranked == [(&quot;A&quot;, 8), (&quot;B&quot;, 8), (&quot;C&quot;, 7)]
+assert readings[0] == (&quot;B&quot;, 8)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-3" aria-labelledby="skill-3-3-title">
+<p class="kicker">TECHNIQUE 3-3</p><h3 id="skill-3-3-title">3-3　修飾器：保留原呼叫契約，抽出橫切責任</h3>
+<p><strong>用在哪裡：</strong>跨多個函式統一記錄成功與失敗時，可把責任抽成修飾器；原函式仍保留設備資料轉換的業務目的。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>定義被包函式</span></li><li><span>包裝共同責任</span></li><li><span>驗證回傳與例外未改變</span></li></ol>
+<h4>機制解析</h4><p>@decorate 一般等價於將新建立的函式交給 decorate 後重新繫結原名稱。疊兩層時 @outer @inner 得到 outer(inner(f))；functools.wraps 保留常用中繼資料和 __wrapped__，讓 introspection 可追蹤。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不能吞掉被包住的例外或漏掉回傳值。同步 wrapper 直接包 async 函式只會取得 coroutine；如要量測實際 async 執行應用 async wrapper 並 await。正式打點也不要記錄敏感引數。</p>
+<button type="button" data-copy="skill-3-3-code">複製 3-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-3 Python 範例"><code id="skill-3-3-code">from functools import wraps
+
+events = []
+
+def observe(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            events.append(fn.__name__)
+    return wrapper
+
+@observe
+def read(value):
+    if value is None:
+        raise ValueError(&quot;missing&quot;)
+    return value
+
+assert read(7) == 7 and read.__name__ == &quot;read&quot;
+try:
+    read(None)
+except ValueError:
+    pass
+else:
+    raise AssertionError(&quot;wrapper suppressed error&quot;)
+assert events == [&quot;read&quot;, &quot;read&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-4" aria-labelledby="skill-3-4-title">
+<p class="kicker">TECHNIQUE 3-4</p><h3 id="skill-3-4-title">3-4　*args 與 **kwargs：接收額外呼叫引數</h3>
+<p><strong>用在哪裡：</strong>通用轉接器與修飾器需原封保留不同函式的呼叫形狀。對公開業務函式，明列必要欄位通常比較容易建立文件與驗證。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>繫結已宣告參數</span></li><li><span>收集額外引數</span></li><li><span>驗證位置與名稱各自保留</span></li></ol>
+<h4>機制解析</h4><p>函式定義中，*args 收集尚未繫結的位置引數成 tuple；**kwargs 收集尚未繫結的關鍵字引數成 dict。名稱 args 與 kwargs 只是約定。出現在 *args 後面的具名參數必須以關鍵字傳入。</p>
+<p class="pit"><strong>限制與踩坑：</strong>盲目接受 **kwargs 可能吞掉拼錯欄位，或將不受信任選項傳至底層。必要時明確驗證允許鍵；避免為了通用而模糊回傳和錯誤契約。</p>
+<button type="button" data-copy="skill-3-4-code">複製 3-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-4 Python 範例"><code id="skill-3-4-code">def format_batch(site, *points, precision=1, **labels):
+    return site, points, precision, labels
+
+sample = format_batch(&quot;Plant01&quot;, &quot;supply&quot;, &quot;return&quot;, precision=2, unit=&quot;C&quot;)
+assert sample == (&quot;Plant01&quot;, (&quot;supply&quot;, &quot;return&quot;), 2, {&quot;unit&quot;: &quot;C&quot;})
+assert format_batch(&quot;Plant02&quot;) == (&quot;Plant02&quot;, (), 1, {})
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-5" aria-labelledby="skill-3-5-title">
+<p class="kicker">TECHNIQUE 3-5</p><h3 id="skill-3-5-title">3-5　引數解包：在呼叫端展開 iterable 與 mapping</h3>
+<p><strong>用在哪裡：</strong>讀到設定值後，可將位置資料及具名選項拆開傳給通用計算；不必手工逐欄傳遞，但仍需維持輸入契約。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>分離位置與具名資料</span></li><li><span>解包後繫結</span></li><li><span>拒絕重複引數</span></li></ol>
+<h4>機制解析</h4><p>呼叫 f(*iterable, **mapping) 時，* 逐項展開位置值，** 以字串鍵展開關鍵字值。不同 ** 展開若產生同名鍵，呼叫會拋 TypeError；和 {**a, **b} 的後值覆蓋規則不同。</p>
+<p class="pit"><strong>限制與踩坑：</strong>對 from_config(**cfg) 的外部 dict 先驗證允許欄位與型別。重複名稱不能靠展開順序解決；真正需要覆蓋時先合併 dict 並註明優先順序，再進行呼叫。</p>
+<button type="button" data-copy="skill-3-5-code">複製 3-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-5 Python 範例"><code id="skill-3-5-code">def delta(supply, return_water, *, decimals):
+    return round(return_water - supply, decimals)
+
+samples = [7.0, 12.25]
+options = {&quot;decimals&quot;: 2}
+assert delta(*samples, **options) == 5.25
+try:
+    delta(*samples, **options, **{&quot;decimals&quot;: 1})
+except TypeError:
+    pass
+else:
+    raise AssertionError(&quot;duplicate keyword did not fail&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-6" aria-labelledby="skill-3-6-title">
+<p class="kicker">TECHNIQUE 3-6</p><h3 id="skill-3-6-title">3-6　隱含 return：None 不是失敗或數字零</h3>
+<p><strong>用在哪裡：</strong>程序可能只記錄事件，不需要回傳資料；但取樣函式應讓呼叫端分清有效值、缺值和例外，不靠猜測。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>宣告回傳契約</span></li><li><span>分開成功與缺測</span></li><li><span>測 0 及 None</span></li></ol>
+<h4>機制解析</h4><p>函式執行到結尾、使用裸 return，或明寫 return None，呼叫者都得到 None。若函式公開回傳 int | None，使用 is None 處理缺值；只做副作用可標用 -&gt; None。</p>
+<p class="pit"><strong>限制與踩坑：</strong>忘記 return 或漏掉分支不會自動報錯，因此要測每個出口。不要用 result or default 判斷缺值，因 0、False 與空字串也會被當假值。</p>
+<button type="button" data-copy="skill-3-6-code">複製 3-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-6 Python 範例"><code id="skill-3-6-code">def read(data: dict[str, int], key: str) -&gt; int | None:
+    if key in data:
+        return data[key]
+    return None
+
+def append_log(entries: list[str], event: str) -&gt; None:
+    entries.append(event)
+
+events = []
+assert append_log(events, &quot;ready&quot;) is None
+assert events == [&quot;ready&quot;]
+assert read({&quot;flow&quot;: 0}, &quot;flow&quot;) == 0
+assert read({&quot;flow&quot;: 0}, &quot;pressure&quot;) is None
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-3-7" aria-labelledby="skill-3-7-title">
+<p class="kicker">TECHNIQUE 3-7</p><h3 id="skill-3-7-title">3-7　位置限定 / 與關鍵字限定 *</h3>
+<p><strong>用在哪裡：</strong>把不適合承諾名稱的基礎參數標成位置限定，讓 API 可改內部名字；把容易混淆的單位或選項標成關鍵字限定，讓呼叫者讀得出語意。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>區分 API 參數意圖</span></li><li><span>明確標註 / 與 *</span></li><li><span>驗證錯誤呼叫被拒</span></li></ol>
+<h4>機制解析</h4><p>定義中的 / 左邊只能以位置傳入，Python 語法自 3.8 起支援；裸 * 或 *args 右邊的具名參數須以關鍵字傳入。兩者之間通常可用位置或關鍵字傳。關鍵字限定不代表必然有預設值。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要任意修改既有公開 API 從 POK 改成僅位置或僅關鍵字，否則舊程式會在叫用時得到 TypeError。錯誤消息字樣可能依版本不同，測例應驗錯誤類型。</p>
+<button type="button" data-copy="skill-3-7-code">複製 3-7 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="3-7 Python 範例"><code id="skill-3-7-code">def report(device, /, value, *, unit):
+    return f&quot;{device} {value} {unit}&quot;
+
+assert report(&quot;CHW01&quot;, value=7, unit=&quot;C&quot;) == &quot;CHW01 7 C&quot;
+for invalid in (
+    lambda: report(device=&quot;CHW01&quot;, value=7, unit=&quot;C&quot;),
+    lambda: report(&quot;CHW01&quot;, 7, &quot;C&quot;),
+):
+    try:
+        invalid()
+    except TypeError:
+        pass
+    else:
+        raise AssertionError(&quot;invalid calling convention was accepted&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-4" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 04</p>
+<h2>第 4 章　解密類別與物件的特性、行為並加以運用</h2><p>把欄位、生命週期和共享責任從呼叫端分離。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>業務狀態</span></li><li><span>物件契約</span></li><li><span>行為協作</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-4-1">4-1 物件比較：==（相等）與 is（同一物件）</a></th><td>區分同點位識別碼與同一個 Python 物件；快取、測試、缺值判斷的語意不可混用。</td></tr><tr><th scope="row"><a href="#skill-4-2">4-2 __str__ 與 __repr__：讓類別更善於自我表述</a></th><td>給操作員看的畫面和給工程師排錯的快照需要不同資訊密度。</td></tr><tr><th scope="row"><a href="#skill-4-3">4-3 定義自訂例外類別來協助除錯</a></th><td>將資料錯誤分類，讓服務有明確的處置策略而非剖析錯誤字串。</td></tr><tr><th scope="row"><a href="#skill-4-4">4-4 複製物件：淺拷貝與深拷貝</a></th><td>建立可以獨立改動的配置副本，或明確共用唯讀資料；看清巢狀別名比只看物件數量重要。</td></tr><tr><th scope="row"><a href="#skill-4-5">4-5 抽象基礎類別（ABC）：要求子類別實作方法</a></th><td>為可替換的資料讀取器建立共同契約，讓缺少實作提早被發現。</td></tr><tr><th scope="row"><a href="#skill-4-6">4-6 物件、類別與靜態方法</a></th><td>依函式需要的上下文挑選方法，避免把單純驗證和狀態操作混在一起。</td></tr><tr><th scope="row"><a href="#skill-4-7">4-7 類別變數與物件變數的陷阱</a></th><td>共用常數可以集中定義，但各設備的告警狀態不能不小心共享同一個容器。</td></tr><tr><th scope="row"><a href="#skill-4-8">4-8 用物件實作修飾器</a></th><td>把呼叫次數等狀態封裝在可呼叫物件，適用明確的測試儀表。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch4.py" download>下載第 4 章範例與驗證器（8 項）</a></p><pre><code>python3 python_advanced_techniques_ch4.py
+python3 python_advanced_techniques_ch4.py --case 4-1</code></pre>
+<article class="topic topic-core" id="skill-4-1" aria-labelledby="skill-4-1-title">
+<p class="kicker">TECHNIQUE 4-1</p><h3 id="skill-4-1-title">4-1　物件比較：==（相等）與 is（同一物件）</h3>
+<p><strong>用在哪裡：</strong>區分同點位識別碼與同一個 Python 物件；快取、測試、缺值判斷的語意不可混用。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>辨識要比值還是比身分</span></li><li><span>值比較由型別決定</span></li><li><span>只有單例／同物件用 is</span></li></ol>
+<h4>機制解析</h4><p>== 依比較協定運算；自訂 __eq__ 遇到不支援型別回傳 NotImplemented，讓 Python 嘗試另一側或走預設邏輯。is 比身分，而且不能自訂。</p>
+<p class="pit"><strong>限制與踩坑：</strong>用 is None 表達單例；不要靠字串或小整數的物件重用。若定義了相等且可雜湊，相等物件的雜湊必須一致。</p>
+<button type="button" data-copy="skill-4-1-code">複製 4-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-1 Python 範例"><code id="skill-4-1-code">from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Point:
+    tag: str
+
+a = Point(&quot;AHU1_SAT&quot;)
+b = Point(&quot;AHU1_SAT&quot;)
+alias = a
+assert a == b and a is not b and a is alias
+assert hash(a) == hash(b)
+assert {a: 240}[b] == 240
+assert {}.get(&quot;missing&quot;) is None
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-2" aria-labelledby="skill-4-2-title">
+<p class="kicker">TECHNIQUE 4-2</p><h3 id="skill-4-2-title">4-2　__str__ 與 __repr__：讓類別更善於自我表述</h3>
+<p><strong>用在哪裡：</strong>給操作員看的畫面和給工程師排錯的快照需要不同資訊密度。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>定義操作員可讀摘要</span></li><li><span>定義工程診斷識別</span></li><li><span>分開測 str、repr</span></li></ol>
+<h4>機制解析</h4><p>str() 使用 __str__，repr() 使用 __repr__；未自訂前者時通常沿用後者。!s、!r 可在格式字串明確選擇。</p>
+<p class="pit"><strong>限制與踩坑：</strong>repr 不保證可用 eval 還原；日誌代表值也不能放密碼、金鑰、連線憑證或可識別原始資料。</p>
+<button type="button" data-copy="skill-4-2-code">複製 4-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-2 Python 範例"><code id="skill-4-2-code">class Reading:
+    def __init__(self, tag, value):
+        self.tag, self.value = tag, value
+
+    def __str__(self):
+        return f&quot;{self.tag}：{self.value:.1f} °C&quot;
+
+    def __repr__(self):
+        return f&quot;Reading(tag={self.tag!r}, value={self.value!r})&quot;
+
+r = Reading(&quot;SAT&quot;, 24.125)
+assert f&quot;{r!s}&quot; == &quot;SAT：24.1 °C&quot;
+assert f&quot;{r!r}&quot; == &quot;Reading(tag=&#x27;SAT&#x27;, value=24.125)&quot;
+assert repr([r]) == &quot;[Reading(tag=&#x27;SAT&#x27;, value=24.125)]&quot;
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-3" aria-labelledby="skill-4-3-title">
+<p class="kicker">TECHNIQUE 4-3</p><h3 id="skill-4-3-title">4-3　定義自訂例外類別來協助除錯</h3>
+<p><strong>用在哪裡：</strong>將資料錯誤分類，讓服務有明確的處置策略而非剖析錯誤字串。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>解析輸入</span></li><li><span>加上領域錯誤代碼與因果鏈</span></li><li><span>上層按錯誤型別處置</span></li></ol>
+<h4>機制解析</h4><p>自訂型別繼承 Exception 或更精確的內建例外；raise ... from err 保存起因，錯誤物件可有機器可讀欄位。</p>
+<p class="pit"><strong>限制與踩坑：</strong>狹義捕捉可以處理的例外；避免 except BaseException 或吞錯。自訂錯誤的上下文應最小化，不直接放不可信敏感原文。</p>
+<button type="button" data-copy="skill-4-3-code">複製 4-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-3 Python 範例"><code id="skill-4-3-code">class InvalidSample(ValueError):
+    code = &quot;INVALID_SAMPLE&quot;
+
+def parse_centi_c(text):
+    try:
+        value = int(text)
+    except ValueError as err:
+        raise InvalidSample(&quot;量測值必須是整數&quot;) from err
+    if not -4000 &lt;= value &lt;= 10000:
+        raise InvalidSample(&quot;量測值超出工程上下限&quot;)
+    return value
+
+assert parse_centi_c(&quot;2350&quot;) == 2350
+try:
+    parse_centi_c(&quot;bad&quot;)
+except InvalidSample as err:
+    assert err.code == &quot;INVALID_SAMPLE&quot;
+    assert isinstance(err.__cause__, ValueError)
+else:
+    raise AssertionError(&quot;應拒絕無效量測&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-4" aria-labelledby="skill-4-4-title">
+<p class="kicker">TECHNIQUE 4-4</p><h3 id="skill-4-4-title">4-4　複製物件：淺拷貝與深拷貝</h3>
+<p><strong>用在哪裡：</strong>建立可以獨立改動的配置副本，或明確共用唯讀資料；看清巢狀別名比只看物件數量重要。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>查清物件內是否有共享參照</span></li><li><span>決定外層副本或獨立資料快照</span></li><li><span>改動巢狀成員驗證隔離</span></li></ol>
+<h4>機制解析</h4><p>copy.copy 複製外層，保留巢狀參照；copy.deepcopy 遞迴複製並用 memo 避免循環與保持副本內共享拓樸，但不承諾每個成員都變成不同物件。</p>
+<p class="pit"><strong>限制與踩坑：</strong>鎖、檔案、Socket 等資源不可假設能深拷貝；優先複製資料結構或利用不可變資料，避免盲目深拷貝的延遲與記憶體成本。</p>
+<button type="button" data-copy="skill-4-4-code">複製 4-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-4 Python 範例"><code id="skill-4-4-code">from copy import copy, deepcopy
+
+points = {&quot;tags&quot;: [&quot;SAT&quot;]}
+shallow, deep = copy(points), deepcopy(points)
+assert shallow is not points and shallow[&quot;tags&quot;] is points[&quot;tags&quot;]
+shallow[&quot;tags&quot;].append(&quot;RAT&quot;)
+assert points[&quot;tags&quot;] == [&quot;SAT&quot;, &quot;RAT&quot;]
+assert deep[&quot;tags&quot;] == [&quot;SAT&quot;]
+
+cycle = []
+cycle.append(cycle)
+result = deepcopy(cycle)
+assert result is not cycle and result[0] is result
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-5" aria-labelledby="skill-4-5-title">
+<p class="kicker">TECHNIQUE 4-5</p><h3 id="skill-4-5-title">4-5　抽象基礎類別（ABC）：要求子類別實作方法</h3>
+<p><strong>用在哪裡：</strong>為可替換的資料讀取器建立共同契約，讓缺少實作提早被發現。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>定義最小公開介面</span></li><li><span>填入實作才允許實例化</span></li><li><span>用相同測試查行為</span></li></ol>
+<h4>機制解析</h4><p>繼承 ABC 並用 @abstractmethod 宣告必要方法；仍有抽象方法的類別無法實例化。但 Python 不自動驗證覆寫後的簽名與業務行為。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要用 ABC 取代契約測試。若只需靜態型別支援而不管理執行期繼承，可評估 typing.Protocol。</p>
+<button type="button" data-copy="skill-4-5-code">複製 4-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-5 Python 範例"><code id="skill-4-5-code">from abc import ABC, abstractmethod
+
+class Reader(ABC):
+    @abstractmethod
+    def read(self, tag):
+        pass
+
+class MockReader(Reader):
+    def read(self, tag):
+        return {&quot;SAT&quot;: 24.5}[tag]
+
+class Incomplete(Reader):
+    pass
+
+assert MockReader().read(&quot;SAT&quot;) == 24.5
+try:
+    Incomplete()
+except TypeError:
+    pass
+else:
+    raise AssertionError(&quot;沒有實作 read 不應能建立&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-6" aria-labelledby="skill-4-6-title">
+<p class="kicker">TECHNIQUE 4-6</p><h3 id="skill-4-6-title">4-6　物件、類別與靜態方法</h3>
+<p><strong>用在哪裡：</strong>依函式需要的上下文挑選方法，避免把單純驗證和狀態操作混在一起。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>有物件狀態 → self</span></li><li><span>有類別建構 → cls</span></li><li><span>不需綁定 → 靜態或模組函式</span></li></ol>
+<h4>機制解析</h4><p>一般方法由物件綁定 self；classmethod 綁定呼叫涉及的類別 cls，可保留子類別建構；staticmethod 不注入任何參數，僅放在類別命名空間。</p>
+<p class="pit"><strong>限制與踩坑：</strong>self 和 cls 是命名慣例，不是關鍵字。替代建構方法用 cls(...) 而非寫死父類別；不涉及類別關聯的工具函式也可留在模組層。</p>
+<button type="button" data-copy="skill-4-6-code">複製 4-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-6 Python 範例"><code id="skill-4-6-code">class Equipment:
+    def __init__(self, tag):
+        self.tag = tag
+
+    def label(self):
+        return self.tag
+
+    @classmethod
+    def from_text(cls, text):
+        tag = text.strip()
+        if not cls.valid(tag):
+            raise ValueError(&quot;無效代碼&quot;)
+        return cls(tag)
+
+    @staticmethod
+    def valid(tag):
+        return bool(tag) and tag.isascii() and tag.isalnum()
+
+class Fan(Equipment):
+    pass
+
+fan = Fan.from_text(&quot; F01 &quot;)
+assert isinstance(fan, Fan)
+assert fan.label() == &quot;F01&quot; and not Equipment.valid(&quot;&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-7" aria-labelledby="skill-4-7-title">
+<p class="kicker">TECHNIQUE 4-7</p><h3 id="skill-4-7-title">4-7　類別變數與物件變數的陷阱</h3>
+<p><strong>用在哪裡：</strong>共用常數可以集中定義，但各設備的告警狀態不能不小心共享同一個容器。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>區分共用政策與逐設備狀態</span></li><li><span>逐實例建立可變容器</span></li><li><span>測試不同設備互不污染</span></li></ol>
+<h4>機制解析</h4><p>一般屬性讀取找不到同名實例值時可回退類別／繼承鏈；實例指派通常建立同名實例值而遮蔽類別值。對讀出的容器 append 是改容器，不會建立實例屬性。</p>
+<p class="pit"><strong>限制與踩坑：</strong>可變成員放在 __init__，dataclass 使用 field(default_factory=...)。有描述器時存取規則更細，不應假定所有類別屬性都能被遮蔽。</p>
+<button type="button" data-copy="skill-4-7-code">複製 4-7 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-7 Python 範例"><code id="skill-4-7-code">class AlarmBox:
+    threshold = 25
+
+    def __init__(self):
+        self.alarms = []
+
+a, b = AlarmBox(), AlarmBox()
+a.alarms.append(&quot;SAT-HIGH&quot;)
+a.threshold = 27
+assert b.alarms == [] and a.alarms == [&quot;SAT-HIGH&quot;]
+assert (a.threshold, b.threshold, AlarmBox.threshold) == (27, 25, 25)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-4-8" aria-labelledby="skill-4-8-title">
+<p class="kicker">TECHNIQUE 4-8</p><h3 id="skill-4-8-title">4-8　用物件實作修飾器</h3>
+<p><strong>用在哪裡：</strong>把呼叫次數等狀態封裝在可呼叫物件，適用明確的測試儀表。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>建構修飾器保存原函式</span></li><li><span>經 __call__ 更新統計並轉送</span></li><li><span>驗證結果、呼叫數與檢視資訊</span></li></ol>
+<h4>機制解析</h4><p>@Counter 以 Counter(fn) 取代函式；其 __call__ 轉送引數並更新狀態。update_wrapper 保留名稱與 __wrapped__ 等工具可見資訊。</p>
+<p class="pit"><strong>限制與踩坑：</strong>一般可呼叫物件不會自動有函式的實例方法綁定；修飾方法時可用函式包裝或實作描述器。計數不宣稱執行緒安全，錯誤呼叫也計入本例。</p>
+<button type="button" data-copy="skill-4-8-code">複製 4-8 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="4-8 Python 範例"><code id="skill-4-8-code">from functools import update_wrapper
+
+class Counter:
+    def __init__(self, fn):
+        update_wrapper(self, fn)
+        self.fn = fn
+        self.calls = 0
+
+    def __call__(self, *args, **kwargs):
+        self.calls += 1
+        return self.fn(*args, **kwargs)
+
+@Counter
+def scale(raw, *, divisor):
+    return raw / divisor
+
+assert scale(235, divisor=10) == 23.5
+assert scale.calls == 1
+assert scale.__name__ == &quot;scale&quot;
+assert scale.__wrapped__(420, divisor=10) == 42
+assert scale.calls == 1
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-5" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 05</p>
+<h2>第 5 章　Python 的好用資料結構比一比</h2><p>先確認資料查找、 FIFO、去重或排序需求，再選容器。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>辨識操作</span></li><li><span>選資料結構</span></li><li><span>檢查複雜度與語意</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-5-1">5-1 各種 Python 字典</a></th><td>用具名鍵而非位置查點位、歸類資料或疊加設定。一般先選 dict；有缺值分組、分層查詢或需要重排時再改工具。</td></tr><tr><th scope="row"><a href="#skill-5-2">5-2 各種 Python 陣列</a></th><td>先區分通用容器和連續、定型數值緩衝區；不同需求可能是 list、tuple、array.array，或只想檢視已有緩衝區的 memoryview。</td></tr><tr><th scope="row"><a href="#skill-5-3">5-3 各種儲存記錄用的資料結構</a></th><td>記錄是一筆具名欄位資料。選型依需要靜態型別、不可變或具行為的物件，而不是只看欄位多少。</td></tr><tr><th scope="row"><a href="#skill-5-4">5-4 set（集合）與多重集合</a></th><td>用集合處理去重、成員測試、現場點表差集；要保留每個值出現的次數時才使用多重集合。</td></tr><tr><th scope="row"><a href="#skill-5-5">5-5 堆疊（stack，LIFO）</a></th><td>使用最後進入、最先取出的順序管理巢狀符號、復原紀錄或深度優先搜尋。單執行緒最簡單的實作通常是 list。</td></tr><tr><th scope="row"><a href="#skill-5-6">5-6 佇列（queue，FIFO）</a></th><td>先進先出適合輪詢待辦、廣度優先搜尋或工作交接。分清楚本機資料結構與具阻塞語意的通道。</td></tr><tr><th scope="row"><a href="#skill-5-7">5-7 優先佇列（priority queue）</a></th><td>任務不是總按到達次序執行時，使用優先佇列。優先級相同仍要求 FIFO，就把單調遞增序號納入比較鍵。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch5.py" download>下載第 5 章範例與驗證器（7 項）</a></p><pre><code>python3 python_advanced_techniques_ch5.py
+python3 python_advanced_techniques_ch5.py --case 5-1</code></pre>
+<article class="topic topic-core" id="skill-5-1" aria-labelledby="skill-5-1-title">
+<p class="kicker">TECHNIQUE 5-1</p><h3 id="skill-5-1-title">5-1　各種 Python 字典</h3>
+<p><strong>用在哪裡：</strong>用具名鍵而非位置查點位、歸類資料或疊加設定。一般先選 dict；有缺值分組、分層查詢或需要重排時再改工具。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先定義鍵</span></li><li><span>挑選查找策略</span></li><li><span>決定缺值行為</span></li><li><span>驗證查找順序</span></li></ol>
+<h4>機制解析</h4><p>dict 的鍵必須可雜湊且相等判定在生命週期內穩定；hash 只用來找到候選，再由相等性判定鍵。Python 保證保留插入順序，更新既有鍵不移位，刪除後重插會移到末端。defaultdict 在缺鍵下標存取時呼叫工廠並插入；ChainMap 依序查找多個映射，預設只修改第一層；OrderedDict 適合頻繁 move_to_end 或從前端 popitem。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要假設插入順序等於排序；defaultdict.get() 不會建立預設值。dict.fromkeys(keys, []) 會共用同一個 list。複合變更（先檢查再寫入）不要當成具並行原子性。</p>
+<button type="button" data-copy="skill-5-1-code">複製 5-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-1 Python 範例"><code id="skill-5-1-code">from collections import ChainMap, defaultdict
+
+defaults = {&quot;poll_s&quot;: 5, &quot;timeout_s&quot;: 2}
+hvac = {&quot;poll_s&quot;: 1}
+settings = ChainMap(hvac, defaults)
+assert (settings[&quot;poll_s&quot;], settings[&quot;timeout_s&quot;]) == (1, 2)
+settings[&quot;timeout_s&quot;] = 3
+assert (hvac[&quot;timeout_s&quot;], defaults[&quot;timeout_s&quot;]) == (3, 2)
+
+points = defaultdict(list)
+assert points.get(&quot;AHU02&quot;) is None and &quot;AHU02&quot; not in points
+points[&quot;AHU01&quot;].append(&quot;SAT&quot;)
+points[&quot;AHU02&quot;].append(&quot;RAT&quot;)
+assert dict(points) == {&quot;AHU01&quot;: [&quot;SAT&quot;], &quot;AHU02&quot;: [&quot;RAT&quot;]}
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-2" aria-labelledby="skill-5-2-title">
+<p class="kicker">TECHNIQUE 5-2</p><h3 id="skill-5-2-title">5-2　各種 Python 陣列</h3>
+<p><strong>用在哪裡：</strong>先區分通用容器和連續、定型數值緩衝區；不同需求可能是 list、tuple、array.array，或只想檢視已有緩衝區的 memoryview。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>決定元素型別</span></li><li><span>選可變性</span></li><li><span>決定是否共享緩衝</span></li><li><span>以往返斷言驗證</span></li></ol>
+<h4>機制解析</h4><p>list 可改長度且可混合型別，通常尾端 append 為攤銷 O(1)，中段插入需要搬動元素。tuple 固定的是序列的參照，不是每個內含物都不可變。array.array 的元素由 typecode 約束，適合同型數值；bytes 用於不可變二進位資料，bytearray 可修改，memoryview 可在支援 buffer protocol 的物件上建立不複製資料的視圖。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要把 array.array 的原生位元組布局直接當跨機器協定；需要確定大小與端序時用 struct 或明確定義序列化。當有 memoryview 匯出時，不要伸縮原有 bytearray；release 視圖後再改長度。</p>
+<button type="button" data-copy="skill-5-2-code">複製 5-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-2 Python 範例"><code id="skill-5-2-code">from array import array
+import struct
+
+values = array(&quot;H&quot;, [400, 500])
+assert list(values) == [400, 500]
+wire = struct.pack(&quot;!2H&quot;, *values)
+assert wire.hex() == &quot;019001f4&quot;
+assert struct.unpack(&quot;!2H&quot;, wire) == (400, 500)
+
+editable = bytearray(wire)
+with memoryview(editable) as view:
+    view[0] = 0
+assert editable.hex() == &quot;009001f4&quot;
+editable.append(0)
+assert len(editable) == 5
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-3" aria-labelledby="skill-5-3-title">
+<p class="kicker">TECHNIQUE 5-3</p><h3 id="skill-5-3-title">5-3　各種儲存記錄用的資料結構</h3>
+<p><strong>用在哪裡：</strong>記錄是一筆具名欄位資料。選型依需要靜態型別、不可變或具行為的物件，而不是只看欄位多少。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>畫出欄位契約</span></li><li><span>挑執行期或靜態工具</span></li><li><span>驗證外部值</span></li><li><span>保留具名存取</span></li></ol>
+<h4>機制解析</h4><p>dict 適合動態欄位與 JSON 邊界；TypedDict 描述字典欄位給靜態檢查工具，執行時仍是 dict 而不做驗證；NamedTuple 提供具名讀取與 tuple 解包；dataclass 可自動產生初始化、比較，適合加上方法與驗證。slots=True 在一般這類類別可避免每個實例配置 __dict__，不提供完整欄位驗證。</p>
+<p class="pit"><strong>限制與踩坑：</strong>frozen=True 防止一般欄位賦值，但不會深層凍結 list/dict。可變預設應用 field(default_factory=...)；外部輸入需自行做型別、必填和範圍驗證。TypedDict 的型別註記不是安全邊界。</p>
+<button type="button" data-copy="skill-5-3-code">複製 5-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-3 Python 範例"><code id="skill-5-3-code">from dataclasses import dataclass
+from typing import NamedTuple, TypedDict
+
+class ReadingInput(TypedDict):
+    point: str
+    value_c: float
+
+class PointKey(NamedTuple):
+    unit: str
+    point: str
+
+@dataclass(frozen=True, slots=True)
+class Reading:
+    key: PointKey
+    value_c: float
+
+raw: ReadingInput = {&quot;point&quot;: &quot;SAT&quot;, &quot;value_c&quot;: 22.0}
+measurement = Reading(PointKey(&quot;AHU01&quot;, raw[&quot;point&quot;]), raw[&quot;value_c&quot;])
+assert (measurement.key.unit, measurement.value_c) == (&quot;AHU01&quot;, 22.0)
+assert tuple(measurement.key) == (&quot;AHU01&quot;, &quot;SAT&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-4" aria-labelledby="skill-5-4-title">
+<p class="kicker">TECHNIQUE 5-4</p><h3 id="skill-5-4-title">5-4　set（集合）與多重集合</h3>
+<p><strong>用在哪裡：</strong>用集合處理去重、成員測試、現場點表差集；要保留每個值出現的次數時才使用多重集合。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先比較有沒有</span></li><li><span>再比較有幾個</span></li><li><span>選擇差集或計數差</span></li><li><span>驗證零與負數</span></li></ol>
+<h4>機制解析</h4><p>set 只保留不重複的可雜湊元素，提供聯集、交集、差集，用 frozenset 可把一組成員當值鍵。collections.Counter 是計數映射：缺鍵取 0，可儲存零與負數；Counter 算術的 +、-、&amp;、| 只輸出正計數，Counter.subtract() 可保留零負計數。</p>
+<p class="pit"><strong>限制與踩坑：</strong>集合沒有保證迭代順序；不可拿 set 的文字輸出作穩定資料格式。Counter 中值為 0 的鍵可能仍存在，del 才移除；差異稽核若需要負數，不要用會丟掉負值的 Counter 減法運算子。</p>
+<button type="button" data-copy="skill-5-4-code">複製 5-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-4 Python 範例"><code id="skill-5-4-code">from collections import Counter
+
+expected = {&quot;SAT&quot;, &quot;RAT&quot;}
+received = [&quot;SAT&quot;, &quot;SAT&quot;, &quot;OAT&quot;]
+assert expected - set(received) == {&quot;RAT&quot;}
+counts = Counter(received)
+assert counts[&quot;SAT&quot;] == 2 and counts[&quot;RAT&quot;] == 0
+delta = Counter({&quot;SAT&quot;: 1, &quot;RAT&quot;: 1})
+delta.subtract(counts)
+assert delta[&quot;SAT&quot;] == -1 and delta[&quot;RAT&quot;] == 1
+assert set(+delta) == {&quot;RAT&quot;}  # 單元正號去除零與負計數
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-5" aria-labelledby="skill-5-5-title">
+<p class="kicker">TECHNIQUE 5-5</p><h3 id="skill-5-5-title">5-5　堆疊（stack，LIFO）</h3>
+<p><strong>用在哪裡：</strong>使用最後進入、最先取出的順序管理巢狀符號、復原紀錄或深度優先搜尋。單執行緒最簡單的實作通常是 list。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>讀取符號</span></li><li><span>開括號推入</span></li><li><span>關括號取出比對</span></li><li><span>結尾檢查空堆疊</span></li></ol>
+<h4>機制解析</h4><p>list.append() 推入尾端，list.pop() 從尾端取出；尾端操作一般為攤銷 O(1)。list[-1] 可觀察頂端而不移除。匹配巢狀符號時推入預期的關閉符號，掃到關閉符號時取出最內層期望值。</p>
+<p class="pit"><strong>限制與踩坑：</strong>空堆疊 pop 或索引 -1 都會拋出 IndexError。不要用 pop(0) 模擬堆疊；它從相反的端點取值且要搬動其餘項。跨執行緒堆疊考慮 queue.LifoQueue，並明確決定空或滿時的行為。</p>
+<button type="button" data-copy="skill-5-5-code">複製 5-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-5 Python 範例"><code id="skill-5-5-code">def balanced(text: str) -&gt; bool:
+    expected = {&quot;(&quot;: &quot;)&quot;, &quot;[&quot;: &quot;]&quot;, &quot;{&quot;: &quot;}&quot;}
+    stack = []
+    for ch in text:
+        if ch in expected:
+            stack.append(expected[ch])
+        elif ch in expected.values():
+            if not stack or stack.pop() != ch:
+                return False
+    return not stack
+
+assert balanced(&quot;function([1, {2}])&quot;)
+assert not balanced(&quot;([)]&quot;)
+assert not balanced(&quot;(missing&quot;)
+assert not balanced(&quot;]&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-6" aria-labelledby="skill-5-6-title">
+<p class="kicker">TECHNIQUE 5-6</p><h3 id="skill-5-6-title">5-6　佇列（queue，FIFO）</h3>
+<p><strong>用在哪裡：</strong>先進先出適合輪詢待辦、廣度優先搜尋或工作交接。分清楚本機資料結構與具阻塞語意的通道。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>定義 FIFO</span></li><li><span>選擇滿載策略</span></li><li><span>取出並處理</span></li><li><span>回報任務完成</span></li></ol>
+<h4>機制解析</h4><p>collections.deque 的 append 與 popleft 從兩端操作，通常為 O(1)。跨執行緒的 queue.Queue 可設定 maxsize 並用 put/get 的阻塞或 timeout 管理背壓；每次成功 get 對應一次 task_done，join 等未完成工作計數清零。asyncio.Queue 則用於同一事件迴圈的協程，不應直接在線程間共用。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要用空佇列先判斷再取出；跨執行緒之間可能有競爭，應直接 get_nowait 並處理 queue.Empty。deque(maxlen=...) 滿時從另一端淘汰舊資料，不會背壓。若用哨兵關閉多個 worker，需確保每個消費者都能收到停工訊號。</p>
+<button type="button" data-copy="skill-5-6-code">複製 5-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-6 Python 範例"><code id="skill-5-6-code">from collections import deque
+from queue import Full, Queue
+
+pending = deque([&quot;AHU01&quot;, &quot;AHU02&quot;])
+assert pending.popleft() == &quot;AHU01&quot;
+assert pending.popleft() == &quot;AHU02&quot;
+
+channel: Queue[str] = Queue(maxsize=1)
+channel.put_nowait(&quot;讀取 SAT&quot;)
+try:
+    channel.put_nowait(&quot;讀取 RAT&quot;)
+except Full:
+    pass                         # 真實系統應依契約重試、限流或回報
+else:
+    raise AssertionError(&quot;應觸發背壓&quot;)
+job = channel.get_nowait()
+try:
+    assert job == &quot;讀取 SAT&quot;
+finally:
+    channel.task_done()
+channel.join()
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-5-7" aria-labelledby="skill-5-7-title">
+<p class="kicker">TECHNIQUE 5-7</p><h3 id="skill-5-7-title">5-7　優先佇列（priority queue）</h3>
+<p><strong>用在哪裡：</strong>任務不是總按到達次序執行時，使用優先佇列。優先級相同仍要求 FIFO，就把單調遞增序號納入比較鍵。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>定義數字優先級</span></li><li><span>附遞增序號</span></li><li><span>推入最小堆</span></li><li><span>由根依順序取出</span></li></ol>
+<h4>機制解析</h4><p>heapq 是以 list 為底的最小堆積：父節點不大於子節點；根為最小值，但整個 list 不是已排序清單。heapify 建堆 O(n)，heappush/heappop 為 O(log n)，讀 heap[0] 為 O(1)。tuple 依欄位順序比較；用 (priority, sequence, payload) 避免同優先級的工作資料互相比較。跨執行緒可用 queue.PriorityQueue，排序規則仍要自行定義。</p>
+<p class="pit"><strong>限制與踩坑：</strong>heappop 空堆拋 IndexError；直接改變堆中物件的比較鍵會破壞堆積性質，更新優先級可採加入新記錄並跳過過期版本。緊急任務源源不絕會使低優先級飢餓，上線前需定義配額或等待上限。</p>
+<button type="button" data-copy="skill-5-7-code">複製 5-7 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="5-7 Python 範例"><code id="skill-5-7-code">from heapq import heappop, heappush
+from itertools import count
+
+jobs = []
+serial = count()
+for rank, name in [(20, &quot;例行巡檢&quot;), (5, &quot;先到告警&quot;), (5, &quot;後到告警&quot;)]:
+    heappush(jobs, (rank, next(serial), {&quot;name&quot;: name}))
+
+assert jobs[0][0] == 5
+ordered = [heappop(jobs)[2][&quot;name&quot;] for _ in range(len(jobs))]
+assert ordered == [&quot;先到告警&quot;, &quot;後到告警&quot;, &quot;例行巡檢&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-6" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 06</p>
+<h2>第 6 章　迴圈、list 切片、走訪器與產生器</h2><p>區分惰性、即時取用、記憶體保留與終止條件。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>上游來源</span></li><li><span>選擇取用方式</span></li><li><span>下游消費</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-6-1">6-1 寫出符合 Python 風格的 for 迴圈</a></th><td>先描述你要走訪什麼，再選迴圈工具：只要值就直接走訪；要顯示序號用 enumerate；要同步比對兩組資料用 zip；要字典的鍵和值用 items。把索引操作留給真正在意位置、相鄰關係或原地更新的問題。</td></tr><tr><th scope="row"><a href="#skill-6-2">6-2 生成式：Comprehension</a></th><td>把「選哪些資料」與「每筆要轉成什麼」放在同一個局部表達式。適合簡單、無副作用的轉換；多條規則、逐筆寫日誌、錯誤復原或需要中途停止時，普通 for 更清楚。</td></tr><tr><th scope="row"><a href="#skill-6-3">6-3 List 切片：所謂「壽司算符」其實是 slice</a></th><td>用片段、區間或取樣點表達需求，不用手算每個索引。可拿前幾筆、最後幾筆、每隔幾筆或倒序查看。重複對大型 list 切片仍會複製，資料流若只往前讀，可考慮 itertools.islice。</td></tr><tr><th scope="row"><a href="#skill-6-4">6-4 Iterator：掌握走訪器協定</a></th><td>Iterable 回答「如何開始走訪」，iterator 則保存「目前讀到哪裡」。理解這個差別，才知道哪些資料可以再讀一遍，哪些資料來源只能消費一次。</td></tr><tr><th scope="row"><a href="#skill-6-5">6-5 產生器函式：以 yield 暫停後再繼續</a></th><td>當資料逐筆到來，或只想拿前幾筆結果時，用含 yield 的函式描述產生規則。保留條件判斷、暫時狀態和清理邏輯，而不需要手寫 iterator 類別或先建整張清單。</td></tr><tr><th scope="row"><a href="#skill-6-6">6-6 產生器運算式：把延遲求值寫成一個表達式</a></th><td>只需簡單的逐筆轉換或過濾，且消費端可逐筆處理時，用 (結果 for ... if ...) 取代中間 list。適合 sum、any、all 或 islice 的輸入，不必為單行轉換另外定義產生器函式。</td></tr><tr><th scope="row"><a href="#skill-6-7">6-7 走訪器串聯：串接來源，再分層轉換</a></th><td>資料來自多個批次、日誌檔或感測器，可先排列成單一來源，再套用品質篩選和型別轉換。把每個階段做成小型走訪器，方便各自測試，或只讓下游讀到所需筆數。</td></tr><tr><th scope="row"><a href="#skill-6-8">6-8 itertools：組合有限與無限走訪器</a></th><td>用標準函式庫表達封頂讀取、相鄰比較、累積與連續分段，能少寫容易差一的游標邏輯。先問資料是否有限、輸入是否已排序，以及下游何時才讀下一個元素。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch6.py" download>下載第 6 章範例與驗證器（8 項）</a></p><pre><code>python3 python_advanced_techniques_ch6.py
+python3 python_advanced_techniques_ch6.py --case 6-1</code></pre>
+<article class="topic topic-core" id="skill-6-1" aria-labelledby="skill-6-1-title">
+<p class="kicker">TECHNIQUE 6-1</p><h3 id="skill-6-1-title">6-1　寫出符合 Python 風格的 for 迴圈</h3>
+<p><strong>用在哪裡：</strong>先描述你要走訪什麼，再選迴圈工具：只要值就直接走訪；要顯示序號用 enumerate；要同步比對兩組資料用 zip；要字典的鍵和值用 items。把索引操作留給真正在意位置、相鄰關係或原地更新的問題。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>辨認需求：值、序號或並列配對</span></li><li><span>用 for 直接讀下一筆</span></li><li><span>需要等長時用 strict=True</span></li><li><span>用測試釘住缺資料的行為</span></li></ol>
+<h4>機制解析</h4><p>for 會對右側物件取 iterator，再逐次取下一筆並綁定迴圈變數。enumerate 逐筆傳回 (序號, 元素)，start=1 只改序號起點，不會切掉第一筆。zip 逐筆回傳對應配對；兩端都必須等長時，可用 zip(..., strict=True)，且不需先把輸入變成串列。</p>
+<p class="pit"><strong>限制與踩坑：</strong>普通 zip 會在最短的來源用完時結束，缺資料可能沒有警告。strict=True 只有走訪到長度差異才拋 ValueError；在途中 break 不能保證整體等長。配對中途可能已產生部分結果或副作用，需要全有全無時先完成驗證或使用交易。也不要一面走訪同一個串列，一面刪除其中元素。</p>
+<button type="button" data-copy="skill-6-1-code">複製 6-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-1 Python 範例"><code id="skill-6-1-code">def format_points(names: list[str], values: list[float]) -&gt; list[str]:
+    rows = []
+    pairs = zip(names, values, strict=True)
+    for number, (name, value) in enumerate(pairs, start=1):
+        rows.append(f&quot;{number}. {name}: {value:.1f} °C&quot;)
+    return rows
+
+assert format_points([&quot;送風&quot;, &quot;回風&quot;], [18.25, 24.1]) == [
+    &quot;1. 送風: 18.2 °C&quot;,
+    &quot;2. 回風: 24.1 °C&quot;,
+]
+assert format_points([], []) == []
+for names, values in [([&quot;送風&quot;], []), ([], [18.0])]:
+    try:
+        format_points(names, values)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(&quot;點位與讀值長度不符，應回報錯誤&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-2" aria-labelledby="skill-6-2-title">
+<p class="kicker">TECHNIQUE 6-2</p><h3 id="skill-6-2-title">6-2　生成式：Comprehension</h3>
+<p><strong>用在哪裡：</strong>把「選哪些資料」與「每筆要轉成什麼」放在同一個局部表達式。適合簡單、無副作用的轉換；多條規則、逐筆寫日誌、錯誤復原或需要中途停止時，普通 for 更清楚。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>走訪一筆原始資料</span></li><li><span>先判斷是否保留</span></li><li><span>計算輸出欄位或鍵值</span></li><li><span>依需要建立 list、set 或 dict</span></li></ol>
+<h4>機制解析</h4><p>以 [結果 for 元素 in 資料 if 條件] 為例：先取元素、判斷條件，最後才計算結果。巢狀 for 的順序與對應的外層、內層迴圈相同。[] 建立 list，{值 for ...} 建立 set，{鍵: 值 for ...} 建立 dict；空集合要寫 set()，不是 {}。在 Python 3，普通 comprehension 的迴圈目標不會洩漏到外層。</p>
+<p class="pit"><strong>限制與踩坑：</strong>list、set、dict comprehension 都會立刻走完來源並建立容器。字典遇到重複鍵會保留最後寫入的值，不能拿它來默默隱藏重複點位。尾端 if 會丟棄整筆資料；寫在結果位置的 A if 條件 else B 則會留下所有元素，只改輸出值。避免為了縮短程式把帶副作用的函式塞進 comprehension。</p>
+<button type="button" data-copy="skill-6-2-code">複製 6-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-2 Python 範例"><code id="skill-6-2-code">readings = [(&quot;AHU-1&quot;, &quot;ok&quot;, 18.0), (&quot;AHU-2&quot;, &quot;bad&quot;, 80.0),
+            (&quot;AHU-3&quot;, &quot;ok&quot;, 23.0)]
+name = &quot;外層變數&quot;
+
+accepted = [
+    (name, round(value * 9 / 5 + 32, 1))
+    for name, quality, value in readings
+    if quality == &quot;ok&quot;
+]
+quality_codes = {quality for _, quality, _ in readings}
+by_point = {name: value for name, value in accepted}
+
+assert accepted == [(&quot;AHU-1&quot;, 64.4), (&quot;AHU-3&quot;, 73.4)]
+assert quality_codes == {&quot;ok&quot;, &quot;bad&quot;}
+assert by_point == {&quot;AHU-1&quot;: 64.4, &quot;AHU-3&quot;: 73.4}
+assert name == &quot;外層變數&quot;
+assert {key: v for key, v in [(&quot;A&quot;, 1), (&quot;A&quot;, 2)]} == {&quot;A&quot;: 2}
+matrix = [[1, 2], [], [3]]
+assert [v for row in matrix for v in row] == [1, 2, 3]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-3" aria-labelledby="skill-6-3-title">
+<p class="kicker">TECHNIQUE 6-3</p><h3 id="skill-6-3-title">6-3　List 切片：所謂「壽司算符」其實是 slice</h3>
+<p><strong>用在哪裡：</strong>用片段、區間或取樣點表達需求，不用手算每個索引。可拿前幾筆、最後幾筆、每隔幾筆或倒序查看。重複對大型 list 切片仍會複製，資料流若只往前讀，可考慮 itertools.islice。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>確定起點與不含的終點</span></li><li><span>依方向選正或負步長</span></li><li><span>區分讀出副本與原地切片賦值</span></li><li><span>檢查巢狀物件是否仍共享</span></li></ol>
+<h4>機制解析</h4><p>list[start:stop:step] 組成 slice，stop 永遠不包含。正步長省略 start / stop 表示從開頭走向尾端；負步長省略兩界則從尾端反向走完。負索引相對尾端，超界切片會裁到可用範圍。讀取切片建立新 list，取 k 項約用 O(k) 時間與額外空間，但 list 裡的物件是淺層共享。</p>
+<p class="pit"><strong>限制與踩坑：</strong>a[-1::-1] 會倒序走完，a[-1:-1:-1] 卻是空切片，省略終點不等於明寫 -1。step=0 會拋 ValueError。對 list 的步長 1 切片賦值可改變長度；其他步長做切片賦值時，右側元素數必須等於選中的位置數。切片複製也不是深複製，修改巢狀物件仍可能影響原串列。</p>
+<button type="button" data-copy="skill-6-3-code">複製 6-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-3 Python 範例"><code id="skill-6-3-code">samples = [10, 20, 30, 40, 50]
+assert samples[1:4:2] == [20, 40]
+assert samples[-3:] == [30, 40, 50]
+assert samples[-1::-1] == [50, 40, 30, 20, 10]
+assert samples[-1:-1:-1] == []
+assert samples[99:] == []
+selection = slice(1, 4, 2)
+assert samples[selection] == [20, 40]
+
+changed = samples[:]
+changed[1:3] = [88]
+assert changed == [10, 88, 40, 50] and samples[1] == 20
+changed[::2] = [100, 400]
+assert changed == [100, 88, 400, 50]
+
+nested = [[&quot;送風&quot;], [&quot;回風&quot;]]
+copied = nested[:]
+copied.append([&quot;新風&quot;])
+copied[0].append(&quot;備援&quot;)
+assert len(nested) == 2 and nested[0] == [&quot;送風&quot;, &quot;備援&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-4" aria-labelledby="skill-6-4-title">
+<p class="kicker">TECHNIQUE 6-4</p><h3 id="skill-6-4-title">6-4　Iterator：掌握走訪器協定</h3>
+<p><strong>用在哪裡：</strong>Iterable 回答「如何開始走訪」，iterator 則保存「目前讀到哪裡」。理解這個差別，才知道哪些資料可以再讀一遍，哪些資料來源只能消費一次。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>iter 取出走訪器</span></li><li><span>next 取得一筆並推進游標</span></li><li><span>StopIteration 是正常結束</span></li><li><span>另開走訪器才能重新讀</span></li></ol>
+<h4>機制解析</h4><p>對 iterable 呼叫 iter() 會得到 iterator；對 iterator 呼叫 next() 才會讀一筆。沒有下一筆時 __next__ 拋出 StopIteration，已耗盡的 iterator 不會自行重啟。iterator 的 __iter__ 回傳自己，因此 for、list 和 next 可共用相同游標。next(it, default) 只在耗盡時給預設值，不會攔下其他錯誤。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要把「能被 for 走訪」誤認成「能重複走訪」：同一個 iterator 傳給第二個消費者時，會從上一個消費者停下的位置開始。拿 list 重新 iter 往往可得到新的走訪器；讀檔、串流或自訂 iterable 仍要確認介面是否承諾可重開。合法資料若可能是 None，要用獨立 sentinel 區分真正耗盡。</p>
+<button type="button" data-copy="skill-6-4-code">複製 6-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-4 Python 範例"><code id="skill-6-4-code">class Countdown:
+    def __init__(self, start: int):
+        self.current = start
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -&gt; int:
+        if self.current &lt;= 0:
+            raise StopIteration
+        value = self.current
+        self.current -= 1
+        return value
+
+countdown = Countdown(3)
+assert iter(countdown) is countdown
+assert next(countdown) == 3
+assert list(countdown) == [2, 1]
+assert list(countdown) == []
+end = object()
+assert next(countdown, end) is end
+
+data = [None, 21]
+a, b = iter(data), iter(data)
+assert next(a, end) is None and next(b, end) is None
+assert list(a) == [21] and list(b) == [21]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-5" aria-labelledby="skill-6-5-title">
+<p class="kicker">TECHNIQUE 6-5</p><h3 id="skill-6-5-title">6-5　產生器函式：以 yield 暫停後再繼續</h3>
+<p><strong>用在哪裡：</strong>當資料逐筆到來，或只想拿前幾筆結果時，用含 yield 的函式描述產生規則。保留條件判斷、暫時狀態和清理邏輯，而不需要手寫 iterator 類別或先建整張清單。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>呼叫函式：只建立物件</span></li><li><span>next：執行到下一個 yield</span></li><li><span>繼續取值：沿用內部狀態</span></li><li><span>提早離開時顯式清理資源</span></li></ol>
+<h4>機制解析</h4><p>呼叫產生器函式只建立 generator 物件，函式本體到第一次 next 才執行。yield 交出一筆並保存執行位置與區域變數；下一次從 yield 後恢復。走到結尾或 return 就耗盡。若要把多段 iterator 依序委派給呼叫者，可用 yield from。</p>
+<p class="pit"><strong>限制與踩坑：</strong>早停不代表資源會立即釋放：若產生器仍被其他變數引用，離開 for 不保證立刻觸發 finally。資源擁有權應由 with 或明確 close 管理；可用 contextlib.closing 包住已開始的產生器。正常結束寫 return，不要手動 raise StopIteration，後者冒出產生器時會變成 RuntimeError。</p>
+<button type="button" data-copy="skill-6-5-code">複製 6-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-5 Python 範例"><code id="skill-6-5-code">from collections.abc import Generator
+from contextlib import closing
+
+trace: list[str] = []
+
+def good_values(rows: list[tuple[str, float]]) -&gt; Generator[float, None, None]:
+    trace.append(&quot;開始&quot;)
+    try:
+        for state, value in rows:
+            trace.append(f&quot;處理 {value:g}&quot;)
+            if state == &quot;ok&quot;:
+                yield value
+    finally:
+        trace.append(&quot;清理&quot;)
+
+records = [(&quot;bad&quot;, 99.0), (&quot;ok&quot;, 18.0), (&quot;ok&quot;, 20.0)]
+stream = good_values(records)
+assert trace == []
+with closing(stream) as values:
+    assert next(values) == 18.0
+    assert trace == [&quot;開始&quot;, &quot;處理 99&quot;, &quot;處理 18&quot;]
+assert trace[-1] == &quot;清理&quot; and &quot;處理 20&quot; not in trace
+assert list(stream) == []
+assert list(good_values([])) == []
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-6" aria-labelledby="skill-6-6-title">
+<p class="kicker">TECHNIQUE 6-6</p><h3 id="skill-6-6-title">6-6　產生器運算式：把延遲求值寫成一個表達式</h3>
+<p><strong>用在哪裡：</strong>只需簡單的逐筆轉換或過濾，且消費端可逐筆處理時，用 (結果 for ... if ...) 取代中間 list。適合 sum、any、all 或 islice 的輸入，不必為單行轉換另外定義產生器函式。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>最左來源立即求值</span></li><li><span>每次 next 才過濾並計算</span></li><li><span>讓 any 或 islice 決定讀多少</span></li><li><span>避免把一次性物件當可回放資料</span></li></ol>
+<h4>機制解析</h4><p>建立運算式時，最左側 for 的 iterable 表達式會立即求值，並交給 iter；取值、條件、輸出式與後續 for 則延後到消費時。any 和 all 能短路，sum 會讀到耗盡。括號是產生器運算式語法，不是建立 tuple；若要物化結果，須明寫 tuple(...) 或 list(...)。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不會先建立整批結果不代表一定會少做工作：sum 仍會讀完整條有限資料，sorted 仍要保存排序輸入，無限資料直接 sum 不會自然停止。外部變數在延遲執行時可能已變更；若規則要固定，使用含參數的產生器函式，或先固定值、建立時不要再改動它。也不要依賴用 expression 排程資源開啟時機。</p>
+<button type="button" data-copy="skill-6-6-code">複製 6-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-6 Python 範例"><code id="skill-6-6-code">from itertools import islice
+
+trace: list[str] = []
+
+def source():
+    trace.append(&quot;建立來源&quot;)
+
+    def rows():
+        for value in [12, 20, 26, 28]:
+            trace.append(f&quot;讀取 {value}&quot;)
+            yield value
+
+    return rows()
+
+alarms = (value - 18 for value in source() if value &gt; 18)
+assert trace == [&quot;建立來源&quot;]
+assert list(islice(alarms, 2)) == [2, 8]
+assert trace == [&quot;建立來源&quot;, &quot;讀取 12&quot;, &quot;讀取 20&quot;, &quot;讀取 26&quot;]
+assert list(alarms) == [10]
+assert list(alarms) == []
+
+threshold = 15
+lazy_filter = (v for v in [16, 20] if v &gt; threshold)
+threshold = 17
+assert list(lazy_filter) == [20]  # 過濾條件是在走訪時執行
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-7" aria-labelledby="skill-6-7-title">
+<p class="kicker">TECHNIQUE 6-7</p><h3 id="skill-6-7-title">6-7　走訪器串聯：串接來源，再分層轉換</h3>
+<p><strong>用在哪裡：</strong>資料來自多個批次、日誌檔或感測器，可先排列成單一來源，再套用品質篩選和型別轉換。把每個階段做成小型走訪器，方便各自測試，或只讓下游讀到所需筆數。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>依順序接起多個批次</span></li><li><span>略過無效品質</span></li><li><span>把保留欄位轉成統一單位</span></li><li><span>只消費所需筆數並檢查何時讀下一批</span></li></ol>
+<h4>機制解析</h4><p>走訪器串接有兩種常見層次：chain.from_iterable 把多個來源依序接成一條流；下游再以 generator expression、產生器函式或 map/filter 組裝處理步驟。若自己實作串接，可在 for 中用 yield from 逐段委派。zip 是同時配對多源，不是把第一批接到第二批。</p>
+<p class="pit"><strong>限制與踩坑：</strong>chain 不會按時間戳交錯、合併排序或去除重複，它只先耗盡第一個來源，再讀下一個。一個來源無限長，後面的來源便永遠輪不到。list、sorted 或把批次過早讀成 list 都會破壞串流的記憶體優勢；如果想公平交錯，需要明確採用輪詢或其他合併規則。</p>
+<button type="button" data-copy="skill-6-7-code">複製 6-7 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-7 Python 範例"><code id="skill-6-7-code">from collections.abc import Iterable, Iterator
+from itertools import chain
+
+def good_temperatures(
+    batches: Iterable[Iterable[tuple[str, int]]],
+) -&gt; Iterator[float]:
+    merged = chain.from_iterable(batches)
+    return (decic / 10 for status, decic in merged if status == &quot;ok&quot;)
+
+seen: list[str] = []
+
+def batches():
+    seen.append(&quot;批次 A&quot;)
+    yield [(&quot;bad&quot;, 999), (&quot;ok&quot;, 215)]
+    seen.append(&quot;批次 B&quot;)
+    yield []
+    seen.append(&quot;批次 C&quot;)
+    yield [(&quot;ok&quot;, 223), (&quot;ok&quot;, 240)]
+
+stream = good_temperatures(batches())
+assert seen == []
+assert next(stream) == 21.5 and seen == [&quot;批次 A&quot;]
+assert next(stream) == 22.3 and seen == [&quot;批次 A&quot;, &quot;批次 B&quot;, &quot;批次 C&quot;]
+assert list(stream) == [24.0]
+assert list(good_temperatures([])) == []
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-6-8" aria-labelledby="skill-6-8-title">
+<p class="kicker">TECHNIQUE 6-8</p><h3 id="skill-6-8-title">6-8　itertools：組合有限與無限走訪器</h3>
+<p><strong>用在哪裡：</strong>用標準函式庫表達封頂讀取、相鄰比較、累積與連續分段，能少寫容易差一的游標邏輯。先問資料是否有限、輸入是否已排序，以及下游何時才讀下一個元素。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先用 islice 為無限來源設定上限</span></li><li><span>用 pairwise 取得相鄰差值</span></li><li><span>需要逐筆累積時用 accumulate</span></li><li><span>依鍵連續分段時用 groupby</span></li></ol>
+<h4>機制解析</h4><p>count 依起始值及步長持續產生值；islice 可限制讀出筆數；pairwise 產生相鄰的重疊配對；accumulate 逐筆產生累積值；groupby 遇到鍵變化才開新群組。groupby 不會重排或聚合全部相同鍵，若資料已依鍵排序，才會形成每鍵一組的結果。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要對無限走訪器呼叫 list 或不設上限的 sum。islice 不接受負索引或負步長，不是 list 切片的通用替代品。groupby 的各組共用同一來源，要在進入下一組前消費或獨立存下該組。組合工具也不一定用固定空間：tee 的消費進度差距會累積暫存；product 會先把輸入收集成內部池。</p>
+<button type="button" data-copy="skill-6-8-code">複製 6-8 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="6-8 Python 範例"><code id="skill-6-8-code">from itertools import accumulate, count, groupby, islice, pairwise
+
+seq = list(islice(count(start=100, step=2), 4))
+assert seq == [100, 102, 104, 106]
+assert list(islice(count(), 0)) == []
+
+readings = [18, 22, 21, 25]
+deltas = [curr - prev for prev, curr in pairwise(readings)]
+assert deltas == [4, -1, 4]
+assert list(pairwise([99])) == []
+assert list(accumulate(deltas, initial=0)) == [0, 4, 3, 7]
+
+events = [(&quot;ok&quot;, 1), (&quot;ok&quot;, 2), (&quot;warn&quot;, 3), (&quot;ok&quot;, 4)]
+runs = [(key, [seq for _, seq in group])
+        for key, group in groupby(events, key=lambda row: row[0])]
+assert runs == [(&quot;ok&quot;, [1, 2]), (&quot;warn&quot;, [3]), (&quot;ok&quot;, [4])]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-7" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 07</p>
+<h2>第 7 章　dict 取值、排序、合併與輸出技巧</h2><p>釐清預設值、碰撞順序、淺層資料和序列化契約。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>鍵值輸入</span></li><li><span>取值與排序／合併</span></li><li><span>明確輸出</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-7-1">7-1 找不到鍵時，選對 dict 的預設值</a></th><td>設備設定沒有指定取樣週期時可用預設值；但設定為 0 或 None 不一定等同沒設定。要先決定是「讀取時備援」，還是「缺值時建立新項目」。</td></tr><tr><th scope="row"><a href="#skill-7-2">7-2 按鍵、值或複合條件排序 dict</a></th><td>報表往往要按設備名稱或優先度排序。字典保留插入順序，不等於已按鍵或值排序；排序規則是報表的一部分，應明確寫出。</td></tr><tr><th scope="row"><a href="#skill-7-3">7-3 用 dict 分派固定命令（模擬 switch）</a></th><td>命令對應一個處理函式，例如把 CLI 操作名稱對應到摘要或明細。分派表讓允許的命令集中管理，比反覆撰寫同型態的 if/elif 易維護。</td></tr><tr><th scope="row"><a href="#skill-7-4">7-4 更新字典鍵值時，避開迭代與共用物件陷阱</a></th><td>批次整理設定時，常同時刪除舊鍵、重新命名，或複製後改巢狀設定。這些操作若混在同一迴圈，容易在更新途中失敗，或意外修改原始資料。</td></tr><tr><th scope="row"><a href="#skill-7-5">7-5 合併 dict：右邊優先不是遞迴合併</a></th><td>多層設定常來自預設值、環境值與使用者覆蓋。合併前要定義同名鍵由誰勝出、要不要保留原字典，以及巢狀值是整組替換還是逐項合併。</td></tr><tr><th scope="row"><a href="#skill-7-6">7-6 依輸出用途美觀呈現 dict</a></th><td>用 pprint 看除錯資料，用 JSON 做系統間交換。兩者看起來相近，但只有 JSON 保證其他語言能依標準解析。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch7.py" download>下載第 7 章範例與驗證器（6 項）</a></p><pre><code>python3 python_advanced_techniques_ch7.py
+python3 python_advanced_techniques_ch7.py --case 7-1</code></pre>
+<article class="topic topic-core" id="skill-7-1" aria-labelledby="skill-7-1-title">
+<p class="kicker">TECHNIQUE 7-1</p><h3 id="skill-7-1-title">7-1　找不到鍵時，選對 dict 的預設值</h3>
+<p><strong>用在哪裡：</strong>設備設定沒有指定取樣週期時可用預設值；但設定為 0 或 None 不一定等同沒設定。要先決定是「讀取時備援」，還是「缺值時建立新項目」。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先定義缺鍵語意</span></li><li><span>選讀取或建立</span></li><li><span>測 0、None 與缺鍵</span></li></ol>
+<h4>機制解析</h4><p>d[key] 適合必須存在的鍵，缺鍵引發 KeyError；get(key, default) 只在缺鍵時回傳預設且不寫入。setdefault() 會插入缺鍵，適合建立群組；defaultdict(factory) 則在用方括號取缺鍵時呼叫工廠。以 object() 作為唯一哨兵，可把未設定與明確 None 分開。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要用 d.get(key) or default 代替缺鍵判斷，會把 0、空字串及 False 吃掉。get() 和 setdefault() 的預設引數會先求值；昂貴計算宜明確判斷。defaultdict.get() 不會呼叫工廠。不要重複共用同一個可變預設清單。</p>
+<button type="button" data-copy="skill-7-1-code">複製 7-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-1 Python 範例"><code id="skill-7-1-code">from collections import defaultdict
+
+settings = {&quot;period&quot;: 0, &quot;source&quot;: None}
+missing = object()
+assert settings.get(&quot;period&quot;, 10) == 0
+assert settings.get(&quot;source&quot;, missing) is None
+assert settings.get(&quot;timeout&quot;, missing) is missing
+assert settings.get(&quot;timeout&quot;, 5) == 5 and &quot;timeout&quot; not in settings
+
+groups = {}
+groups.setdefault(&quot;AHU&quot;, []).append(&quot;T01&quot;)
+groups.setdefault(&quot;CH&quot;, []).append(&quot;T02&quot;)
+assert groups == {&quot;AHU&quot;: [&quot;T01&quot;], &quot;CH&quot;: [&quot;T02&quot;]}
+
+lazy = defaultdict(list)
+assert lazy.get(&quot;CH&quot;) is None and &quot;CH&quot; not in lazy
+lazy[&quot;CH&quot;].append(&quot;T03&quot;)
+assert lazy[&quot;CH&quot;] == [&quot;T03&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-7-2" aria-labelledby="skill-7-2-title">
+<p class="kicker">TECHNIQUE 7-2</p><h3 id="skill-7-2-title">7-2　按鍵、值或複合條件排序 dict</h3>
+<p><strong>用在哪裡：</strong>報表往往要按設備名稱或優先度排序。字典保留插入順序，不等於已按鍵或值排序；排序規則是報表的一部分，應明確寫出。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>決定排序與同分規則</span></li><li><span>建立排序鍵</span></li><li><span>驗證排序與原值不變</span></li></ol>
+<h4>機制解析</h4><p>sorted(d) 排鍵；sorted(d.items(), key=...) 回傳鍵值對清單。需要新字典就用 dict(排序結果)，原字典不變。sorted 是穩定排序，可使用 tuple 加上第二排序鍵；要一欄遞減、一欄遞增時，對數字主鍵取負值。</p>
+<p class="pit"><strong>限制與踩坑：</strong>sorted(d) 只得到鍵，不會去看值。異質值可能無法比較，先定義空值和異常值要如何排序。reverse=True 會反轉比較方向，不只反轉 tuple 的第一欄。</p>
+<button type="button" data-copy="skill-7-2-code">複製 7-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-2 Python 範例"><code id="skill-7-2-code">priority = {&quot;AHU-B&quot;: 5, &quot;AHU-C&quot;: 2, &quot;AHU-A&quot;: 5}
+assert sorted(priority) == [&quot;AHU-A&quot;, &quot;AHU-B&quot;, &quot;AHU-C&quot;]
+
+# 重要程度遞減；同分用設備名稱遞增。
+ranked = sorted(priority.items(), key=lambda pair: (-pair[1], pair[0]))
+assert ranked == [(&quot;AHU-A&quot;, 5), (&quot;AHU-B&quot;, 5), (&quot;AHU-C&quot;, 2)]
+assert list(dict(ranked)) == [&quot;AHU-A&quot;, &quot;AHU-B&quot;, &quot;AHU-C&quot;]
+assert list(priority) == [&quot;AHU-B&quot;, &quot;AHU-C&quot;, &quot;AHU-A&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-7-3" aria-labelledby="skill-7-3-title">
+<p class="kicker">TECHNIQUE 7-3</p><h3 id="skill-7-3-title">7-3　用 dict 分派固定命令（模擬 switch）</h3>
+<p><strong>用在哪裡：</strong>命令對應一個處理函式，例如把 CLI 操作名稱對應到摘要或明細。分派表讓允許的命令集中管理，比反覆撰寫同型態的 if/elif 易維護。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>正規化命令名稱</span></li><li><span>從允許清單取函式</span></li><li><span>呼叫 handler 或報錯</span></li></ol>
+<h4>機制解析</h4><p>字典值存函式本身；先根據鍵取出 callable，再傳入參數。所有 handler 盡量維持相同呼叫契約。需要依資料結構解構、帶守衛條件或判斷範圍時，match 或清楚的 if/elif 更合適。</p>
+<p class="pit"><strong>限制與踩坑：</strong>留意函式名稱後有沒有括號：{命令: handler()} 會在建立字典時立刻執行，不是延後分派。不要用 eval 或把任意外部字串直接對映到全域名稱；選不到鍵要明確報錯。物件級權限仍須在執行受保護動作前檢查。</p>
+<button type="button" data-copy="skill-7-3-code">複製 7-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-3 Python 範例"><code id="skill-7-3-code">def brief(readings):
+    return f&quot;{len(readings)} 筆&quot;
+
+def detail(readings):
+    return &quot;, &quot;.join(str(value) for value in readings)
+
+HANDLERS = {&quot;brief&quot;: brief, &quot;detail&quot;: detail}
+
+def run(command, readings):
+    handler = HANDLERS.get(command.strip().lower())
+    if handler is None:
+        raise ValueError(&quot;不支援的命令&quot;)
+    return handler(readings)
+
+assert run(&quot; Brief &quot;, [18, 20]) == &quot;2 筆&quot;
+assert run(&quot;detail&quot;, [18, 20]) == &quot;18, 20&quot;
+try:
+    run(&quot;delete&quot;, [18, 20])
+except ValueError:
+    pass
+else:
+    raise AssertionError(&quot;未知命令本應被拒絕&quot;)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-7-4" aria-labelledby="skill-7-4-title">
+<p class="kicker">TECHNIQUE 7-4</p><h3 id="skill-7-4-title">7-4　更新字典鍵值時，避開迭代與共用物件陷阱</h3>
+<p><strong>用在哪裡：</strong>批次整理設定時，常同時刪除舊鍵、重新命名，或複製後改巢狀設定。這些操作若混在同一迴圈，容易在更新途中失敗，或意外修改原始資料。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先決定更新或重建</span></li><li><span>避開遍歷時增刪鍵</span></li><li><span>檢查巢狀值是否共用</span></li></ol>
+<h4>機制解析</h4><p>修改既有鍵的值通常不會改變迭代結構；增刪鍵時，請遍歷 list(d.items())、先收集變更，或建立新字典。dict.copy() 只複製外層，內層物件仍共用。改名時若新鍵已存在，先決定要拒絕、覆蓋或合併。</p>
+<p class="pit"><strong>限制與踩坑：</strong>len(d) 沒變也不代表可以一邊刪鍵一邊加鍵；迭代器仍可能失效，結果也不該依賴。d.update(...) 會原地修改並回傳 None。深拷貝也不等於可複製資料庫連線等外部資源。</p>
+<button type="button" data-copy="skill-7-4-code">複製 7-4 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-4 Python 範例"><code id="skill-7-4-code">from copy import deepcopy
+
+raw = {&quot;T01&quot;: {&quot;enabled&quot;: True}, &quot;legacy&quot;: {&quot;enabled&quot;: False}}
+filtered = {k: v for k, v in raw.items() if v[&quot;enabled&quot;]}
+assert set(filtered) == {&quot;T01&quot;}
+assert filtered[&quot;T01&quot;] is raw[&quot;T01&quot;]  # 重建外層仍不複製內層
+
+edited = deepcopy(filtered)
+edited[&quot;T01&quot;][&quot;enabled&quot;] = False
+assert raw[&quot;T01&quot;][&quot;enabled&quot;] is True
+
+ids = {&quot;old&quot;: 1, &quot;keep&quot;: 2}
+for key, value in list(ids.items()):
+    if key == &quot;old&quot;:
+        if &quot;new&quot; in ids:
+            raise ValueError(&quot;改名會覆蓋既有鍵&quot;)
+        ids[&quot;new&quot;] = ids.pop(key)
+assert ids == {&quot;keep&quot;: 2, &quot;new&quot;: 1}
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-7-5" aria-labelledby="skill-7-5-title">
+<p class="kicker">TECHNIQUE 7-5</p><h3 id="skill-7-5-title">7-5　合併 dict：右邊優先不是遞迴合併</h3>
+<p><strong>用在哪裡：</strong>多層設定常來自預設值、環境值與使用者覆蓋。合併前要定義同名鍵由誰勝出、要不要保留原字典，以及巢狀值是整組替換還是逐項合併。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>寫明各來源優先序</span></li><li><span>決定巢狀欄位規則</span></li><li><span>驗證未修改預設設定</span></li></ol>
+<h4>機制解析</h4><p>a | b（Python 3.9+）及 {**a, **b} 建立新字典，同名鍵右邊優先。a.update(b) 或 a |= b 原地變更。這些都是淺合併，重疊的巢狀區塊預設整組替換。若只對一個區塊需要逐欄覆蓋，可單獨合併該區塊。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要把右側包含 None 理解成沿用左值：None 仍是正式覆蓋。合併輸出與原字典可能共用沒有複製的內層物件。沒有明確規則時，不建議寫通用的遞迴合併，尤其是清單和型別不一致的情況。</p>
+<button type="button" data-copy="skill-7-5-code">複製 7-5 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-5 Python 範例"><code id="skill-7-5-code">defaults = {&quot;period_s&quot;: 5, &quot;serial&quot;: {&quot;baud&quot;: 9600, &quot;parity&quot;: &quot;N&quot;}}
+override = {&quot;period_s&quot;: 2, &quot;serial&quot;: {&quot;baud&quot;: 19200}}
+
+shallow = defaults | override
+assert shallow[&quot;serial&quot;] == {&quot;baud&quot;: 19200}
+merged = shallow | {&quot;serial&quot;: defaults[&quot;serial&quot;] | override[&quot;serial&quot;]}
+assert merged[&quot;serial&quot;] == {&quot;baud&quot;: 19200, &quot;parity&quot;: &quot;N&quot;}
+assert defaults[&quot;period_s&quot;] == 5 and defaults[&quot;serial&quot;][&quot;baud&quot;] == 9600
+
+original = {&quot;a&quot;: 1}
+assert original.update({&quot;a&quot;: 2}) is None
+assert original == {&quot;a&quot;: 2}
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-7-6" aria-labelledby="skill-7-6-title">
+<p class="kicker">TECHNIQUE 7-6</p><h3 id="skill-7-6-title">7-6　依輸出用途美觀呈現 dict</h3>
+<p><strong>用在哪裡：</strong>用 pprint 看除錯資料，用 JSON 做系統間交換。兩者看起來相近，但只有 JSON 保證其他語言能依標準解析。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>區分人讀與機器解析</span></li><li><span>選縮排與排序</span></li><li><span>驗證交換資料可回讀</span></li></ol>
+<h4>機制解析</h4><p>pprint.pformat() 回傳適合人讀的 Python 表示，width 設目標欄寬，sort_dicts=False 保留插入順序。json.dumps() 用 indent 產生縮排，ensure_ascii=False 保留中文，allow_nan=False 防止輸出標準 JSON 不允許的 NaN 和 Infinity。</p>
+<p class="pit"><strong>限制與踩坑：</strong>pprint 輸出中的單引號、None、tuple 不是 JSON；不要把它直接當 API body。非字串的 dict 鍵轉成 JSON 時可能失去型別或出現鍵衝突，例：1 與 &#x27;1&#x27;。輸出前明確整理欄位與遮蔽秘密，漂亮的日誌一樣可能洩漏資料。</p>
+<button type="button" data-copy="skill-7-6-code">複製 7-6 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="7-6 Python 範例"><code id="skill-7-6-code">import json
+from pprint import pformat
+
+report = {&quot;設備&quot;: &quot;AHU-01&quot;, &quot;量測&quot;: {&quot;溫度&quot;: 23.5, &quot;有效&quot;: True}}
+display = pformat(report, width=24, sort_dicts=False)
+payload = json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
+assert &quot;設備&quot; in display and &quot;設備&quot; in payload
+assert json.loads(payload) == report
+print(display)
+print(payload)
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="chapter-8" class="chapter"><p class="kicker">PYTHON FIELD GUIDE · CH 08</p>
+<h2>第 8 章　探索 Python 開發環境與 bytecode</h2><p>區分 Python 語意、CPython 實作與實際執行版號。</p><h3>章節架構圖</h3><ol class="chapter-flow" aria-label="依序閱讀流程"><li><span>確認執行環境</span></li><li><span>執行與觀察</span></li><li><span>核實實作細節</span></li></ol><table class="tech-table chapter-table"><caption>何時使用：本章技巧速查</caption><thead><tr><th scope="col">編號／技巧</th><th scope="col">適用情境</th></tr></thead><tbody><tr><th scope="row"><a href="#skill-8-1">8-1 用 dir() 與 help() 查詢物件能力</a></th><td>對不熟的標準庫或資料型別，先在本機找到候選名稱，再讀文件；這比猜參數或只背函式清單更容易建立底層直覺。</td></tr><tr><th scope="row"><a href="#skill-8-2">8-2 用 venv 建立不同 Python 版本的環境</a></th><td>同一個專案可能要測 Python 3.11、3.12 和 3.13。每個環境可隔離套件，也讓測試清楚指向對應直譯器。</td></tr><tr><th scope="row"><a href="#skill-8-3">8-3 用 dis 看 bytecode，但別硬綁指令名稱</a></th><td>當想理解 Python 如何實作呼叫、運算或控制流程，dis 能讓原始碼和該直譯器的位元組碼對照；它適合分析，不是應用程式應依賴的契約。</td></tr></tbody></table>
+<p><a href="python_advanced_techniques_ch8.py" download>下載第 8 章範例與驗證器（3 項）</a></p><pre><code>python3 python_advanced_techniques_ch8.py
+python3 python_advanced_techniques_ch8.py --case 8-1</code></pre>
+<article class="topic topic-core" id="skill-8-1" aria-labelledby="skill-8-1-title">
+<p class="kicker">TECHNIQUE 8-1</p><h3 id="skill-8-1-title">8-1　用 dir() 與 help() 查詢物件能力</h3>
+<p><strong>用在哪裡：</strong>對不熟的標準庫或資料型別，先在本機找到候選名稱，再讀文件；這比猜參數或只背函式清單更容易建立底層直覺。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>先找公開名稱</span></li><li><span>閱讀 help 與參數</span></li><li><span>以小輸入驗證行為</span></li></ol>
+<h4>機制解析</h4><p>dir(obj) 回傳一組可探索的屬性名稱；dir() 不傳入物件時列出目前作用域中的名稱。help(obj) 整理函式說明、參數與文件字串，適合在互動環境閱讀。需要在程式取得函式簽名可用 inspect.signature()，部分 built-in 或延伸模組不提供簽名。</p>
+<p class="pit"><strong>限制與踩坑：</strong>dir() 可能被 __dir__ 自訂，動態屬性也未必列出。看得到名稱不代表是穩定公開 API；前置底線通常是內部細節。不要在測試硬比對 help() 的完整輸出，它會隨 Python 版本、終端和容器變化。</p>
+<button type="button" data-copy="skill-8-1-code">複製 8-1 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="8-1 Python 範例"><code id="skill-8-1-code">from contextlib import redirect_stdout
+from inspect import signature
+from io import StringIO
+
+assert &quot;get&quot; in dir({})
+out = StringIO()
+with redirect_stdout(out):
+    help(dict.get)
+assert &quot;get&quot; in out.getvalue()
+
+def normalize(value, scale=1.0):
+    return value * scale
+
+assert list(signature(normalize).parameters) == [&quot;value&quot;, &quot;scale&quot;]
+assert normalize(12, scale=0.1) == 12 * 0.1
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-8-2" aria-labelledby="skill-8-2-title">
+<p class="kicker">TECHNIQUE 8-2</p><h3 id="skill-8-2-title">8-2　用 venv 建立不同 Python 版本的環境</h3>
+<p><strong>用在哪裡：</strong>同一個專案可能要測 Python 3.11、3.12 和 3.13。每個環境可隔離套件，也讓測試清楚指向對應直譯器。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>確認各直譯器已安裝</span></li><li><span>各用自己的 Python 建環境</span></li><li><span>直接執行環境 Python 核對</span></li></ol>
+<h4>機制解析</h4><p>先安裝對應直譯器，確認能從終端找到。macOS／Linux 可用 python3.11 -m venv .venv311 和 python3.12 -m venv .venv312；Windows 有 Python Launcher 時可用 py -3.11 -m venv .venv311。環境使用建立時的 Python，直接執行環境內的 python（Windows 位於 Scripts，其餘位於 bin）就能驗證版本，無須啟用。安裝依賴用該直譯器執行 -m pip，避免裝到錯誤環境。</p>
+<p class="pit"><strong>限制與踩坑：</strong>venv 不會替你下載缺少的 Python，也不會把原有環境切到別的版本。切換直譯器時新建環境並依鎖定清單裝套件。venv 可能依賴原系統 Python 路徑，應從依賴重建，不要在機器間搬運整個目錄。下面的測試只用目前直譯器建立一次性環境，不會安裝套件。</p>
+<button type="button" data-copy="skill-8-2-code">複製 8-2 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="8-2 Python 範例"><code id="skill-8-2-code">import os
+import subprocess
+import sys
+import tempfile
+import venv
+from pathlib import Path
+
+with tempfile.TemporaryDirectory() as tmp:
+    env = Path(tmp) / &quot;demo&quot;
+    venv.EnvBuilder(with_pip=False).create(env)
+    executable = env / (&quot;Scripts/python.exe&quot; if os.name == &quot;nt&quot; else &quot;bin/python&quot;)
+    facts = subprocess.check_output([
+        str(executable), &quot;-c&quot;,
+        &quot;import sys; print(sys.version_info[:2]); print(sys.prefix != sys.base_prefix)&quot;
+    ], text=True).splitlines()
+    assert facts == [str(tuple(sys.version_info[:2])), &quot;True&quot;]
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><article class="topic topic-core" id="skill-8-3" aria-labelledby="skill-8-3-title">
+<p class="kicker">TECHNIQUE 8-3</p><h3 id="skill-8-3-title">8-3　用 dis 看 bytecode，但別硬綁指令名稱</h3>
+<p><strong>用在哪裡：</strong>當想理解 Python 如何實作呼叫、運算或控制流程，dis 能讓原始碼和該直譯器的位元組碼對照；它適合分析，不是應用程式應依賴的契約。</p>
+<h4>運作流程</h4><ol class="topic-flow" aria-label="依序閱讀流程"><li><span>選一個小函式</span></li><li><span>列出實際執行器的指令</span></li><li><span>只測語意與結構不變量</span></li></ol>
+<h4>機制解析</h4><p>在 CPython，函式的 code object 保存位元組碼及常數等資訊。dis.dis(fn) 供人檢視；dis.get_instructions(fn) 回傳 Instruction 序列，方便工具逐條查看。以可執行函式語意與 code object 資訊檢驗結果；用 timeit 或效能工具另外量測實際速度。</p>
+<p class="pit"><strong>限制與踩坑：</strong>不要寫必須出現某個精確 opcode 名稱、offset 或指令數的跨版本測試。CPython 的版本更新、快取和自適應特化都可能改變輸出，其他 Python 實作也可能不同。Bytecode 不是 CPU 機器碼，看到指令較少不等於一定較快。</p>
+<button type="button" data-copy="skill-8-3-code">複製 8-3 程式</button><span class="status" role="status"></span>
+<pre tabindex="0" aria-label="8-3 Python 範例"><code id="skill-8-3-code">import dis
+import platform
+
+def total(price, quantity):
+    return price * quantity + 2
+
+instructions = list(dis.get_instructions(total))
+assert total(5, 3) == 17
+assert instructions and all(isinstance(op.opname, str) for op in instructions)
+assert total.__code__.co_argcount == 2
+print(platform.python_implementation(), platform.python_version())
+dis.dis(total)  # 觀察此次版本的輸出，不把指令清單當契約。
+</code></pre><p class="topic-note">複製後可當獨立 Python 程式執行；也可下載本章驗證器一次跑完。</p>
+</article><p><a href="#chapter-index">回分章索引</a></p></section><section id="techniques"><p class="kicker">APPENDIX</p><h2>技巧延伸：五項工程慣用法</h2><p>補充複習生成器、上下文管理、不可變快照、結構分派與結構化非同步。</p></section>
 <section><h2>一眼選對工具</h2><ul class="decision"><li>大資料、不必全部保留 → 惰性迭代</li><li>開關檔案、資源一定要釋放 → 上下文管理器</li><li>資料需要穩定快照 → frozen dataclass</li><li>依訊息形狀分派 → 結構式比對</li><li>同批 I/O 需要一致的生命週期 → TaskGroup</li></ul><p>這是原創工程教材，不是同名書籍的逐章摘要。操作方式：複製程式、另存為 UTF-8 的 <code>example.py</code>，執行 <code>python3 example.py</code>。</p></section>
 <section id="lazy"><span class="badge">技巧 01</span><h2>惰性資料流</h2><p><code>itertools.islice + 產生器</code></p><p>先決定「需要幾筆」再取值，避免為了少量結果把整份輸入載入記憶體。適合日誌、感測快照或大型 CSV 的第一階段篩選。</p>
 <ol class="flow" aria-label="資料與控制流程"><li><span>逐筆讀取</span></li><li><span>篩選</span></li><li><span>變換</span></li><li><span>只拿前 N 筆</span></li></ol><p class="pit"><strong>避坑：</strong>產生器只能走一次，不能當快照共享；若不用切片或限時，無限來源可能永遠跑不完。</p>
@@ -18,7 +1180,7 @@ def sensor_stream():
 first_two = list(islice(high_readings(sensor_stream()), 2))
 assert first_two == [(&quot;T02&quot;, 29.4), (&quot;T03&quot;, 31.5)]
 print(first_two)
-</code></pre><p><strong>預期輸出：</strong> <code>[(&#x27;T02&#x27;, 29.4), (&#x27;T03&#x27;, 31.5)]</code></p></section><section id="context"><span class="badge">技巧 02</span><h2>用上下文保證收尾</h2><p><code>contextmanager</code></p><p>把建立與釋放資源放在同一個抽象層。呼叫方保留業務動作，程序正常或丟出例外都會走到清理步驟。</p>
+</code></pre><p><strong>預期輸出：</strong> <code>[(&#x27;T02&#x27;, 29.4), (&#x27;T03&#x27;, 31.5)]</code></p><div class="deep-note"><h3>機制解析</h3><p>Python 收到 yield 便暫停函式，保留區域變數與讀取位置。呼叫端下一次索取，才繼續掃描。篩選後若只拿兩筆，讀入筆數不一定是兩筆：前面的未達標資料仍須檢查。</p><h3>什麼時候不要用？</h3><p>不適合要反覆取用、任意索引、排序或對外提供重複可用快照時。來源若來自開啟的檔案，必須在上下文有效期間內完成消費。</p><table class="tech-table"><caption>提前停止與可重跑需求分開看</caption><thead><tr><th scope="col">條件</th><th scope="col">發生什麼</th><th scope="col">設計取捨</th></tr></thead><tbody><tr><th scope="row">list 建表</th><td>會消費整個來源；結果可重複走訪</td><td>需保留已讀資料</td></tr><tr><th scope="row">generator + islice</th><td>只走到足夠數量；使用後不重設</td><td>僅保持迭代狀態及取出的結果</td></tr></tbody></table></div></section><section id="context"><span class="badge">技巧 02</span><h2>用上下文保證收尾</h2><p><code>contextmanager</code></p><p>把建立與釋放資源放在同一個抽象層。呼叫方保留業務動作，程序正常或丟出例外都會走到清理步驟。</p>
 <ol class="flow" aria-label="資料與控制流程"><li><span>進入</span></li><li><span>取得資源</span></li><li><span>執行工作</span></li><li><span>finally 一定收尾</span></li></ol><p class="pit"><strong>避坑：</strong>不要在 finally 吞掉原始例外；清理本身也可能失敗。真實故障時應保留原始錯誤並紀錄清理狀況。</p>
 <button type="button" data-copy="context-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="context-code">from contextlib import contextmanager
 from io import StringIO
@@ -42,7 +1204,7 @@ else:
     raise AssertionError(&quot;原始例外不應被吞掉&quot;)
 
 print(&quot;例外後確認資源已釋放&quot;)
-</code></pre><p><strong>預期輸出：</strong> <code>例外後確認資源已釋放</code></p></section><section id="snapshot"><span class="badge">技巧 03</span><h2>不可變資料快照</h2><p><code>dataclass(frozen=True, slots=True)</code></p><p>用命名欄位賦予資料契約；不就地修改現有快照，需要更新時產出新物件。slots 省掉常見的每實例屬性字典，但資源收益要用實際物件量測。</p>
+</code></pre><p><strong>預期輸出：</strong> <code>例外後確認資源已釋放</code></p><div class="deep-note"><h3>機制解析</h3><p>進入時建立資源。yield 把資源交給 with 主體；若主體出錯，例外回到 yield 位置，finally 執行完仍會向外傳遞。</p><h3>什麼時候不要用？</h3><p>不適合宣稱已回滾遠端副作用；close 只代表本機資源清理。跨網路寫入，要另設交易、補償或對帳。正常關閉後資料仍須遵守資源生命週期。</p><table class="tech-table"><caption>成功、出錯與程序被終止</caption><thead><tr><th scope="col">條件</th><th scope="col">發生什麼</th><th scope="col">設計取捨</th></tr></thead><tbody><tr><th scope="row">正常離開</th><td>finally → 關閉</td><td>回傳值可用</td></tr><tr><th scope="row">一般應用例外</th><td>finally → 關閉 → 原錯誤向外傳播</td><td>測試需主動觸發這條分支</td></tr><tr><th scope="row">程序被強制終止</th><td>不保證執行 Python 清理程式</td><td>需由外部租約或重啟機制補救</td></tr></tbody></table></div></section><section id="snapshot"><span class="badge">技巧 03</span><h2>不可變資料快照</h2><p><code>dataclass(frozen=True, slots=True)</code></p><p>用命名欄位賦予資料契約；不就地修改現有快照，需要更新時產出新物件。slots 省掉常見的每實例屬性字典，但資源收益要用實際物件量測。</p>
 <ol class="flow" aria-label="資料與控制流程"><li><span>來源資料</span></li><li><span>建立快照</span></li><li><span>刊登新值</span></li><li><span>讀取端使用同一筆快照</span></li></ol><p class="pit"><strong>避坑：</strong>frozen 只管欄位重新賦值。內含 list 或 dict 仍可能被修改；以 tuple 和其他不可變成員組成快照。這不代表更新共享參照的複合邏輯自動安全。</p>
 <button type="button" data-copy="snapshot-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="snapshot-code">from dataclasses import dataclass, replace
 
@@ -57,7 +1219,7 @@ assert original.samples == (26.2, 26.5)
 assert updated.samples[-1] == 27.0
 assert not hasattr(updated, &quot;__dict__&quot;)
 print(updated)
-</code></pre><p><strong>預期輸出：</strong> <code>Snapshot(sensor=&#x27;T01&#x27;, samples=(26.2, 26.5, 27.0))</code></p></section><section id="match"><span class="badge">技巧 04</span><h2>結構式分派</h2><p><code>match / case</code></p><p>比起一串索引與 if，直接寫出可讀的訊息形狀，用 guard 補充業務條件。適合固定命令格式或分版本處理事件。</p>
+</code></pre><p><strong>預期輸出：</strong> <code>Snapshot(sensor=&#x27;T01&#x27;, samples=(26.2, 26.5, 27.0))</code></p><div class="deep-note"><h3>機制解析</h3><p>frozen 會阻止一般欄位賦值；slots 在本例用固定欄位，不建立每筆的屬性字典。replace 建立同型別新值，不會把舊快照就地改掉；tuple 裡仍須放適合共享的成員。</p><h3>什麼時候不要用？</h3><p>避免把需要動態掛載屬性的紀錄或經常整批重新複製的大型序列強套 slots 或 replace。跨執行緒要用具通訊契約的傳遞方式，而不是假設多步更新安全。</p><table class="tech-table"><caption>更新前後的兩個快照</caption><thead><tr><th scope="col">條件</th><th scope="col">發生什麼</th><th scope="col">設計取捨</th></tr></thead><tbody><tr><th scope="row">原本</th><td>T01 → (26.2, 26.5)</td><td>仍可被先前的讀取端引用</td></tr><tr><th scope="row">更新</th><td>T01 → (26.2, 26.5, 27.0)</td><td>新快照數值由 replace 建立</td></tr></tbody></table></div></section><section id="match"><span class="badge">技巧 04</span><h2>結構式分派</h2><p><code>match / case</code></p><p>比起一串索引與 if，直接寫出可讀的訊息形狀，用 guard 補充業務條件。適合固定命令格式或分版本處理事件。</p>
 <ol class="flow" aria-label="資料與控制流程"><li><span>訊息</span></li><li><span>對照結構</span></li><li><span>驗證細節</span></li><li><span>執行或拒絕</span></li></ol><p class="pit"><strong>避坑：</strong>映射模式預設允許額外鍵；未知欄位必須明確決定接受或拒絕。bool 是 int 的子類別，若協定只允許整數，要特別排除。</p>
 <button type="button" data-copy="match-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="match-code">def dispatch(message):
     match message:
@@ -75,7 +1237,7 @@ for bad in (True, 0, 301, &quot;5&quot;):
     assert dispatch({&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: bad})[0] == &quot;invalid&quot;
 assert dispatch({&quot;op&quot;: &quot;poll&quot;, &quot;interval&quot;: 5, &quot;unused&quot;: 1})[0] == &quot;invalid&quot;
 print(&quot;有效命令與錯誤命令皆已驗證&quot;)
-</code></pre><p><strong>預期輸出：</strong> <code>有效命令與錯誤命令皆已驗證</code></p></section><section id="async"><span class="badge">技巧 05</span><h2>結構化非同步</h2><p><code>asyncio.TaskGroup + timeout</code></p><p>同一批任務跟隨同一個生命週期；一項 I/O 失敗會取消其他仍執行的同組任務。下面用 Event 確保示範的同組工作已啟動，不以猜測的排程時間測取消。</p>
+</code></pre><p><strong>預期輸出：</strong> <code>有效命令與錯誤命令皆已驗證</code></p><div class="deep-note"><h3>機制解析</h3><p>比對由上往下，先檢查 pattern，再執行 guard。第一個符合就進入分支；若不合規，交給 case _。int 模式會接受 bool，因此 guard 額外檢查 type(sec) is int。</p><h3>什麼時候不要用？</h3><p>只比對一個簡單條件時，if 更易閱讀；格式有多層欄位、型別錯誤位置或版本治理需求時，完整資料驗證應獨立建模，不宜把所有規範塞在一個 match。</p><table class="tech-table"><caption>結構、值域與未知欄位</caption><thead><tr><th scope="col">條件</th><th scope="col">發生什麼</th><th scope="col">設計取捨</th></tr></thead><tbody><tr><th scope="row">interval: 5</th><td>結構、型別、範圍均通過</td><td>接受</td></tr><tr><th scope="row">interval: true</th><td>模式能匹配 int 子類，但 guard 擋下</td><td>拒絕</td></tr><tr><th scope="row">interval: 5 + 額外欄位</th><td>extra 不為空</td><td>拒絕</td></tr></tbody></table></div></section><section id="async"><span class="badge">技巧 05</span><h2>結構化非同步</h2><p><code>asyncio.TaskGroup + timeout</code></p><p>同一批任務跟隨同一個生命週期；一項 I/O 失敗會取消其他仍執行的同組任務。下面用 Event 確保示範的同組工作已啟動，不以猜測的排程時間測取消。</p>
 <ol class="flow" aria-label="資料與控制流程"><li><span>啟動同批 I/O</span></li><li><span>等待結果</span></li><li><span>任務失敗即取消同組</span></li><li><span>交接</span></li></ol><p class="pit"><strong>避坑：</strong>asyncio 是協作式 I/O 並發，不等於 CPU 多核平行；避免在事件迴圈直接做重度純 Python 運算。逾時會提出取消，不是程序硬殺，且不代表外部系統已回滾。</p>
 <button type="button" data-copy="async-code">複製 Python 程式</button><span class="status" role="status"></span><pre><code id="async-code">import asyncio
 
@@ -107,6 +1269,118 @@ async def main():
     print(&quot;同組取消與資源收尾已驗證&quot;)
 
 asyncio.run(main())
-</code></pre><p><strong>預期輸出：</strong> <code>同組取消與資源收尾已驗證</code></p></section>
-<section><h2>延伸閱讀</h2><ul><li><a href="https://docs.python.org/3/library/itertools.html#itertools.islice">Python 文件：itertools.islice</a></li><li><a href="https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager">Python 文件：contextmanager</a></li><li><a href="https://docs.python.org/3/library/dataclasses.html">Python 文件：dataclasses</a></li><li><a href="https://peps.python.org/pep-0634/">PEP 634：結構式比對規格</a></li><li><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">Python 文件：TaskGroup</a></li></ul><a href="index.html#advanced">回 Python 教材入口</a></section></main>
+</code></pre><p><strong>預期輸出：</strong> <code>同組取消與資源收尾已驗證</code></p><div class="deep-note"><h3>機制解析</h3><p>TaskGroup 讓呼叫端管理整批 coroutine 的生命週期。讀取端失敗時，其他工作收到取消；同組都結束後，由 ExceptionGroup 交回失敗資訊。timeout 以取消為基礎，並非強制殺死任何遠端操作。</p><h3>什麼時候不要用？</h3><p>CPU 密集且不主動讓出事件迴圈的純 Python 程式不適合直接在事件迴圈執行。數千筆 I/O 也不應一次建立同樣數量工作；加容量上限、分批或有界佇列。現場控制與緊急聯鎖不得由這份教材接管。</p><table class="tech-table"><caption>非同步演練的兩條結束路徑</caption><thead><tr><th scope="col">條件</th><th scope="col">發生什麼</th><th scope="col">設計取捨</th></tr></thead><tbody><tr><th scope="row">全部成功</th><td>同組等候完成後彙整</td><td>輸出順序由彙整政策決定</td></tr><tr><th scope="row">一筆失敗</th><td>取消仍執行的 sibling → 等收尾</td><td>以 ExceptionGroup 回報，並保留根因</td></tr></tbody></table></div></section>
+<section id="hvac-lab"><span class="badge">整合架構 · READ ONLY</span><h2>用五項技巧完成一輪機房遙測</h2><p>以合成風機盤管／空調設備溫度演練資料流。只有 <code>observe</code>，不存取設備、網路，不寫 PLC。這是批次觀測範例，不是可直接上線的收集器。</p>
+<ol class="lab-layers" aria-label="四層資料架構依次由入口流向輸出"><li><strong>01　命令入口</strong>match 確認操作與資料上限，拒絕 control 和布林值。</li><li><strong>02　資料來源</strong>islice 只取允許筆數；不把整個來源先建成清單。</li><li><strong>03　非同步採集</strong>TaskGroup 管理這批讀值，產出不可變 Snapshot。</li><li><strong>04　結果交接</strong>contextmanager 統一關閉暫存緩衝，輸出逐行 JSON。</li></ol>
+<p>資料方向：命令 → 驗證 → 候選來源 → 有界批次 → 快照 → 結果。若任何一筆失敗，本例整批回報錯誤，不輸出部分 JSON；需要部分成功時，改成每筆顯式回傳成功／失敗紀錄。</p>
+<h3>合成執行紀錄</h3><p>圖以 3 筆合成來源為分母。這是程式驗證的資料量，不是速度、吞吐或現場量測。</p><ul class="fixture-bars"><li>來源清單 <span style="--count:3" aria-hidden="true"></span><strong>3</strong></li><li>讀入並輸出 <span style="--count:2" aria-hidden="true"></span><strong>2</strong></li><li>達 28°C 提示 <span style="--count:1" aria-hidden="true"></span><strong>1</strong></li></ul><p>把門檻視為教材判斷值；現場告警應另定設備型號適用條件、連續時間、遲滯、失聯品質與告警責任。若資料來源在同步擷取時阻塞，這個範例的 asyncio timeout 不會中斷其前段同步工作。</p>
+<p><a href="python_advanced_techniques_lab.py" download>下載 Python 整合範例</a>　<a href="python_advanced_techniques_hvac.drawio" download>下載可編輯架構圖</a></p>
+<pre><code>python3 python_advanced_techniques_lab.py
+python3 python_advanced_techniques_lab.py --self-test</code></pre>
+<button type="button" data-copy="hvac-code">複製整合範例</button><span class="status" role="status"></span><pre><code id="hvac-code">&quot;&quot;&quot;HVAC 遙測演練：純合成 I/O，不連設備、不送控制命令。Python 3.11+。&quot;&quot;&quot;
+import asyncio
+from contextlib import contextmanager
+from dataclasses import dataclass
+from io import StringIO
+from itertools import islice
+import json
+from math import isfinite
+import unittest
+
+
+@dataclass(frozen=True, slots=True)
+class Snapshot:
+    room: str
+    temperature_c: float
+
+    @property
+    def high(self):
+        return self.temperature_c &gt;= 28.0
+
+
+def command(message):
+    match message:
+        case {&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: int(n), **rest} if type(n) is int and 1 &lt;= n &lt;= 10 and not rest:
+            return n
+        case _:
+            raise ValueError(&quot;僅接受 observe，limit 為 1 到 10 的整數&quot;)
+
+
+def examples():
+    # 模擬工作清單有 3 筆；本次只取前兩筆。
+    yield (&quot;AHU-01&quot;, 26.4)
+    yield (&quot;AHU-02&quot;, 29.2)
+    yield (&quot;AHU-03&quot;, 27.5)
+
+
+async def read(sample):
+    room, value = sample
+    await asyncio.sleep(0)  # 交還事件迴圈，沒有真實 I/O 或網路延遲。
+    if not isfinite(value):
+        raise ValueError(f&quot;{room} 讀值不合法&quot;)
+    return Snapshot(room, value)
+
+
+@contextmanager
+def buffer():
+    stream = StringIO()
+    try:
+        yield stream
+    finally:
+        stream.close()
+
+
+async def collect(message, source=None):
+    # 本函式每次呼叫應取得一個新來源，不共用可變 iterator。
+    limit = command(message)
+    selected = tuple(islice(examples() if source is None else source, limit))
+    async with asyncio.timeout(2):
+        async with asyncio.TaskGroup() as group:
+            tasks = [group.create_task(read(sample)) for sample in selected]
+    snapshots = tuple(task.result() for task in tasks)
+    with buffer() as stream:
+        for s in snapshots:
+            row = {&quot;room&quot;: s.room, &quot;temperature_c&quot;: s.temperature_c, &quot;high&quot;: s.high}
+            stream.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + &quot;\n&quot;)
+        return stream.getvalue()
+
+
+class Checks(unittest.IsolatedAsyncioTestCase):
+    async def test_bounded_reads(self):
+        def source():
+            yield (&quot;AHU-02&quot;, 29.2)
+            raise AssertionError(&quot;不應多讀&quot;)
+        data = await collect({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: 1}, source())
+        self.assertEqual(json.loads(data), {&quot;room&quot;: &quot;AHU-02&quot;, &quot;temperature_c&quot;: 29.2, &quot;high&quot;: True})
+
+    async def test_order_and_threshold(self):
+        data = await collect({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: 2}, examples())
+        rows = [json.loads(line) for line in data.splitlines()]
+        self.assertEqual([row[&quot;room&quot;] for row in rows], [&quot;AHU-01&quot;, &quot;AHU-02&quot;])
+        self.assertEqual([row[&quot;high&quot;] for row in rows], [False, True])
+
+    async def test_reject_boolean_and_write_command(self):
+        for invalid in ({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: True}, {&quot;op&quot;: &quot;control&quot;, &quot;limit&quot;: 2}):
+            with self.assertRaises(ValueError):
+                await collect(invalid, iter(()))
+
+    async def test_bad_sample_reports_group_failure(self):
+        with self.assertRaises(ExceptionGroup) as caught:
+            await collect({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: 2}, iter([(&quot;AHU-01&quot;, float(&quot;nan&quot;))]))
+        self.assertTrue(any(isinstance(exc, ValueError) for exc in caught.exception.exceptions))
+
+    def test_resource_cleanup(self):
+        with self.assertRaises(RuntimeError):
+            with buffer() as out:
+                raise RuntimeError(&quot;故障後仍須收尾&quot;)
+        self.assertTrue(out.closed)
+
+
+if __name__ == &quot;__main__&quot;:
+    import sys
+    if &quot;--self-test&quot; in sys.argv:
+        unittest.main(argv=[sys.argv[0]], verbosity=2)
+    else:
+        print(asyncio.run(collect({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: 2}, examples())), end=&quot;&quot;)
+</code></pre></section><section><h2>延伸閱讀</h2><ul><li><a href="https://docs.python.org/3/library/itertools.html#itertools.islice">Python 文件：itertools.islice</a></li><li><a href="https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager">Python 文件：contextmanager</a></li><li><a href="https://docs.python.org/3/library/dataclasses.html">Python 文件：dataclasses</a></li><li><a href="https://peps.python.org/pep-0634/">PEP 634：結構式比對規格</a></li><li><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">Python 文件：TaskGroup</a></li></ul><a href="index.html#advanced">回 Python 教材入口</a></section></main>
 <script>document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const code=document.getElementById(button.dataset.copy);const status=button.nextElementSibling;try{await navigator.clipboard.writeText(code.textContent);status.textContent='已複製';}catch{const range=document.createRange();range.selectNodeContents(code);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);status.textContent='剪貼簿不可用，已選取程式碼，請手動複製。';}}));</script></body></html>
