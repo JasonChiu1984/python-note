@@ -73,7 +73,22 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
-  </style>
+  .quality-loop-deep .ql-body{min-width:0;overflow-wrap:anywhere}
+.quality-loop-deep .ql-body h3{margin:1.25rem 0 .65rem}
+.ql-figure{margin:.8rem 0}
+.ql-figure figcaption{font-weight:700;margin-bottom:.5rem}
+.ql-flow,.ql-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));list-style:none;gap:.55rem;margin:0;padding:0}
+.ql-flow li,.ql-grid li{min-width:0;background:#eef5fa;border:1px solid #bed2e3;border-radius:.6rem;padding:.65rem;overflow-wrap:anywhere}
+.ql-flow li:not(:last-child)::after{content:"→";color:#0d6480;font-weight:800;display:block}
+.ql-flow strong,.ql-flow small{display:block}
+.ql-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))}
+.ql-grid li p{margin:.25rem 0 0}
+.ql-accept{padding-left:1.55rem}
+.ql-note{border-left:4px solid #16718d;background:#eef7fc;padding:.55rem .7rem}
+.quality-loop-deep pre{max-width:100%;overflow:auto}
+.quality-loop-deep details summary{font-weight:700;cursor:pointer}
+@media(max-width:540px){.ql-flow li:not(:last-child)::after{content:"↓"}}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -81,6 +96,7 @@
       <a class="brand" href="#top"><span class="logo">QA</span><span><strong>Testing Engineering</strong><br><small>測試策略、品質閘門與證據</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
+        <a href="#quality-loop">品質迴路實戰</a>
         <a href="#strategy">策略</a>
         <a href="#fixtures">Fixtures</a>
         <a href="#unit">Unit</a>
@@ -124,6 +140,64 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：fixture、fake、contract、coverage、mutation、CI、quality gate、release smoke">
         <div class="quick-links"><a href="#strategy">策略</a><a href="#unit">Unit</a><a href="#integration">Integration</a><a href="#quality">品質</a><a href="#ci">CI</a></div>
       </div>
+<section class="section-block quality-loop-deep" id="quality-loop" aria-labelledby="quality-loop-title">
+<div class="section-head"><div><span class="eyebrow">Quality loop · Offline laboratory</span><h2 id="quality-loop-title">從「溫度越界要告警」到可驗收的品質迴路</h2><p>假設一個工廠閘道讀取本機 UTF-8 JSON：只有狀態良好且有限的讀值，達到 30 ℃（含）才輸出告警事件。資料品質不良、NaN 或低於閾值不得發布；格式錯誤走 stderr 並回傳退出碼 2。本例只用合成資料，不接觸現場設備，不能代替正式控制系統的驗收。</p></div></div>
+<div class="surface ql-body">
+<h3>一張圖看依賴邊界</h3>
+<figure class="ql-figure"><figcaption>讀值進入告警規則，告警透過可注入的發布介面輸出。</figcaption><ol class="ql-flow"><li><strong>檔案／CLI</strong><small>UTF-8 JSON<br>參數與退出碼</small></li><li><strong>資料轉接</strong><small>JSON → Reading</small></li><li><strong>業務規則</strong><small>good、有限值、≥ 閾值</small></li><li><strong>發布介面</strong><small>可換成 Mock、list.append 或標準輸出</small></li></ol></figure>
+<p>規則 <code>exceeds()</code> 不讀時鐘或檔案。<code>process()</code> 明確接收 <code>publish</code>；正式入口以 JSON 行輸出，本機整合使用 <code>list.append</code>，契約檢查使用 <code>Mock</code>。把外部副作用集中到邊界，可縮小失敗發生的範圍。</p>
+
+<h3>品質迴路：先讓缺陷可重現</h3>
+<figure class="ql-figure"><figcaption>需求 → 測試分層 → 可重現失敗 → 修正 → 回歸與證據。</figcaption><ol class="ql-flow ql-five"><li><strong>1. 寫驗收</strong><small>30.00 也要告警</small></li><li><strong>2. 選測試層</strong><small>規則、格式、輸出、CLI</small></li><li><strong>3. 重現失敗</strong><small>觀察 expected / actual</small></li><li><strong>4. 最小修正</strong><small>以 ≥ 取代 &gt;，不放寬品質條件</small></li><li><strong>5. 固化證據</strong><small>重跑、留測試結果與版本</small></li></ol></figure>
+<p>新需求或事故檢討會回到第一步。先跑只含「等於門檻」的回歸例，錯誤版得到 False、正確版得到 True；再跑包含大量一般案例的完整 suite，防止改對一個條件卻破壞其他條件。</p>
+<p><a href="testing_quality_loop_architecture.drawio" download>下載可編輯 Draw.io 原始圖（架構與迴路兩頁）</a></p>
+
+<h3>比較表｜測試層不是配額</h3>
+<ul class="ql-grid">
+<li><strong>單元｜規則</strong><p>直接呼叫 <code>exceeds()</code>：29.99 不報、30.00 報、30.01 報；另驗 stale、NaN 不報。它無法驗證真實 JSON 編解碼。</p></li>
+<li><strong>整合｜檔案＋解碼</strong><p>用暫存目錄寫一個實際 UTF-8 JSON，把「冰水」經過檔案、解碼與規則傳入真實清單。它不測服務啟動或設備。</p></li>
+<li><strong>契約｜發布介面</strong><p>告警時 <code>assert_called_once_with()</code> 驗呼叫次數及事件鍵值；stale 時 <code>assert_not_called()</code> 驗沒有副作用。這只驗本地介面，不證明外部接收方相容。</p></li>
+<li><strong>端到端｜CLI</strong><p>以獨立直譯器執行 CLI，核對 stdout JSON、stderr 和退出碼。它覆蓋範例 CLI 的可見契約，不是全站或全廠端到端。</p></li>
+</ul>
+<p>選擇能以最低成本偵測該風險的層，並保留少數真實邊界測試。不要把 70/20/10 或測試金字塔當成固定比例。若有外部事件消費端，應另驗版本、樣本資料、可接受的向後相容變更與失敗回傳。</p>
+
+<h3>可重跑範例及常用 API</h3>
+<p><a href="python_testing_quality_loop_lab.py" download>下載單檔標準庫實驗</a>（Python 3.10+，不用安裝外部套件）。同一檔亦可用作 CLI；執行下列第一行會跑六個測試方法，其中規則方法有五個命名案例。</p>
+<pre><code>python python_testing_quality_loop_lab.py --test
+python -m unittest -v python_testing_quality_loop_lab.QualityLoopTests.test_rule_boundaries
+python -m unittest -v python_testing_quality_loop_lab.QualityLoopTests.test_publisher_contract</code></pre>
+<ul class="ql-grid ql-api">
+<li><strong><code>unittest.TestCase.subTest()</code></strong><p>以 name 標記迴圈案例。失敗時會顯示哪個邊界壞掉，後續案例仍能執行。</p></li>
+<li><strong><code>Mock.assert_called_once_with()</code></strong><p>驗公開事件與呼叫次數，不要對私有輔助函式的順序建立脆弱依賴。需要限制可用方法時可用 <code>create_autospec()</code>；它不會替你驗證遠端 schema。</p></li>
+<li><strong><code>TemporaryDirectory()</code></strong><p>每次測試新建目錄，在 context 離開時清除。不依賴上一輪留下的檔案。</p></li>
+<li><strong><code>subprocess.run()</code></strong><p>用 <code>sys.executable</code>、參數陣列及有限的 timeout，收集程序退出碼和輸出；此範例無 shell、無網路。</p></li>
+<li><strong><code>pytest.mark.parametrize()</code></strong><p>已採用 pytest 時，把相同案例表變成可獨立列出與選取的測試。用 <code>tmp_path</code> 隔離檔案，fixture 負責準備及清理，而不是隱藏多層依賴。</p></li>
+<li><strong><code>pytest.raises()</code></strong><p>驗例外類型與必要訊息，例如 <code>with pytest.raises(ValueError, match="範圍"):</code>。不要用 <code>Exception</code> 掩蓋非預期錯誤。</p></li>
+</ul>
+<details><summary>展開 pytest 等價參數化（選用；核心實驗不需要 pytest）</summary>
+<pre><code>import pytest
+from python_testing_quality_loop_lab import Reading, exceeds
+
+@pytest.mark.parametrize("value,quality,expected", [
+    pytest.param(29.99, "good", False, id="below"),
+    pytest.param(30.0, "good", True, id="equal"),
+    pytest.param(30.01, "good", True, id="above"),
+    pytest.param(99.0, "stale", False, id="stale"),
+])
+def test_alarm_boundary(value, quality, expected):
+    assert exceeds(Reading("T10", value, quality), 30.0) is expected</code></pre>
+<p>將此段放在同目錄的 <code>test_alarm.py</code>，於已安裝 pytest 的隔離環境執行 <code>python -m pytest -q test_alarm.py</code>。故意以 <code>&gt;</code> 代替 <code>&gt;=</code> 時，equal 應失敗；修復後將這個案例保留為回歸測試。</p></details>
+
+<h3>CI 驗收與不穩定測試</h3>
+<ol class="ql-accept">
+<li><strong>短路與分層：</strong>PR 先跑語法、單元與核心離線契約；有版本與依賴鎖定才跑隔離整合與 smoke。發布前再對目標環境、產物及可回退版本驗證。任何必過步驟退出碼非零應讓閘門失敗。</li>
+<li><strong>證據最小組合：</strong>紀錄 commit SHA、直譯器和 OS、命令、退出碼、案例數、報告及可重跑 fixture。pytest 可用 <code>python -m pytest --junitxml=artifacts/test-results.xml</code> 供 CI 收集；這是證據格式，不是品質證書。機密、完整請求與現場憑證不要進日誌。</li>
+<li><strong>coverage ≠ 正確：</strong><code>&gt;</code> 與 <code>&gt;=</code> 都可能讓同一行覆蓋率達標，只有等於門檻的斷言能區分兩者。以 branch coverage 找盲區，再看斷言和風險；mutation 實驗可檢驗測試是否能拒絕有意修改。</li>
+<li><strong>Flaky 排查：</strong>先保存失敗訊息與重跑環境；注入時鐘或明確固定種子、每案例使用獨立資料，不用 <code>sleep()</code> 假定跨程序時序。用可觀察條件與有限等待。若需暫時隔離，記錄 owner、原因、失敗比例及復原期限；多次重試轉綠不能證明修復。</li>
+</ol>
+<p class="ql-note">驗收重點不只是「全綠」。先證明錯誤實作會被明確的案例拒絕，再證明正確實作穩定通過。</p>
+<p>官方參照：<a href="https://docs.python.org/3/library/unittest.html">unittest</a>、<a href="https://docs.python.org/3/library/unittest.mock.html">unittest.mock</a>、<a href="https://docs.pytest.org/en/stable/how-to/parametrize.html">pytest 參數化</a>、<a href="https://docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files">pytest JUnit XML</a>。</p>
+</div></section>
       <section class="section-block" id="strategy" data-group="strategy"><div class="section-head"><div><span class="eyebrow">Strategy</span><h2>先決定風險，再決定測試形狀</h2><p>資深工程師不追求測試數量，而是讓高風險行為有快速、穩定、可診斷的回饋。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="fixtures" data-group="fixtures"><div class="section-head"><div><span class="eyebrow">Fixtures</span><h2>測試資料要可讀、可重跑、可定位</h2><p>穩定測試從可控資料、時間、檔案與外部依賴開始。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="unit" data-group="unit"><div class="section-head"><div><span class="eyebrow">Unit Tests</span><h2>Unit test 鎖住業務規則與錯誤路徑</h2><p>好的 unit test 應該快、窄、對題，並且能指出是哪個規則壞掉。</p></div></div><div class="cards"></div></section>

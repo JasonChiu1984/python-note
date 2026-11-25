@@ -69,6 +69,22 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 15ch; }
     }
+  
+.bsdeep{min-width:0;overflow-wrap:anywhere}
+.bsdeep figure{margin:1rem 0}
+.bsdeep figcaption{font-weight:800}
+.bsd-flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.2rem}
+.bsd-flow li{border:1px solid #bdcfdf;background:#edf4fa;border-radius:.5rem;padding:.6rem;min-width:0;position:relative}
+.bsd-flow b,.bsd-flow span{display:block}
+.bsd-flow li:not(:last-child)::after{content:"→";position:absolute;right:-1rem;top:calc(50% - .65rem);color:#215883}
+.bsd-table{overflow:auto;border:1px solid #bdcfdf;border-radius:.5rem}
+.bsd-table table{min-width:35rem;width:100%;border-collapse:collapse;text-align:left}
+.bsd-table :is(th,td){padding:.5rem;border-bottom:1px solid #bdcfdf;vertical-align:top}
+.bsd-table th{background:#edf4fa}
+.bsdeep pre{max-width:100%;overflow:auto}
+.bsdeep summary{font-weight:750;cursor:pointer}
+@media(max-width:800px){.bsd-flow{grid-template-columns:1fr}.bsd-flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.35rem}}
+
   </style>
 </head>
 <body>
@@ -79,6 +95,7 @@
         <a href="index.html">回教材入口</a>
         <a href="#overview">Overview</a>
         <a href="#architecture">Architecture</a>
+        <a href="#handover-runbook">重跑與交接手冊</a>
         <a href="#setup">Setup</a>
         <a href="#configuration">Configuration</a>
         <a href="#example">Example</a>
@@ -126,6 +143,40 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋 lease、checkpoint、backfill、retry、dead-letter、rerun">
         <div class="quick-links"><a href="#architecture">Architecture</a><a href="#configuration">Config</a><a href="#verification">Verify</a><a href="#best-practices">Practice</a></div>
       </div>
+<section id="handover-runbook" class="section-block bsdeep" aria-labelledby="bsd-title">
+<div class="section-head"><div><span class="eyebrow">Operational Design · Schedule to Evidence</span><h2 id="bsd-title">可重跑、可交接：定義時間、寫入與復原邊界</h2><p>以每天彙總感測資料為例：排程器只提出「哪一段資料要處理」，worker 決定如何處理，run ledger 用來查「結果是否已提交」。補跑重用原邏輯區間，不靠系統目前日期，也不假設排程只觸發一次。</p></div></div>
+<figure><figcaption>架構圖｜控制平面、執行平面與交接證據</figcaption><ol class="bsd-flow"><li><b>控制平面</b><span>排程、工單、依賴與 backfill 規劃；建立邏輯區間。</span></li><li><b>Run ledger</b><span>同一邏輯區間唯一鍵；追蹤嘗試、持有者與版本。</span></li><li><b>執行平面</b><span>worker 讀輸入快照、批次處理，提交結果或 checkpoint。</span></li><li><b>交接與告警</b><span>結束狀態、計量、失敗原因、核准與下一步。</span></li></ol></figure>
+<figure><figcaption>流程圖｜正常執行、短路、重試與復原</figcaption><ol class="bsd-flow"><li><b>確定區間</b><span>取邏輯日、時區、上下界與輸入版本。</span></li><li><b>檢查或領取</b><span>已成功就去重；未成功則依政策競爭或排隊。</span></li><li><b>寫入與提交</b><span>程序中斷先查 ledger；單庫盡量原子提交。</span></li><li><b>對帳與重跑</b><span>短暫錯誤有限重試；疑似已送出就先對帳。</span></li></ol></figure>
+<p><a href="python_batch_scheduler_operating_diagrams.drawio" download>下載可編輯的架構圖與流程圖</a></p>
+<h3>時間與鍵：同一天不一定是 24 小時</h3>
+<ul><li><strong>邏輯日 ≠ 實際開跑時間：</strong>2025-03-09 的報表可以次日或多日後補跑，仍以該日的輸入界線為準。以 <code>[start, end)</code> 查詢避免相鄰批次重複讀取；儲存 UTC 界線，另保留 IANA 時區、原邏輯日與時區資料版本／來源。</li>
+<li><strong>夏令時間：</strong>New York 行政日 2025-03-09 為 23 小時，2025-11-02 為 25 小時。按下一個本地邊界計算，不能將 UTC 起點一律加 24 小時。重複的本地時間要明訂 <code>fold</code>，不存在的時間則需明訂拒絕、跳過或調整政策；本例午夜界線只驗證上述時區日期，不是所有 IANA 轉換規則的通用驗證器。</li>
+<li><strong>鍵區分三層：</strong>用 job、租戶、固定 UTC 區間和處理修訂識別同一次邏輯處理；每次重試另有 attempt ID。重試不得改 run key；更正資料而需產生新版本時，先明確定義覆蓋或另外保存結果及核准規則。</li></ul>
+<h3>故障與交接矩陣</h3>
+<div class="bsd-table" role="region" tabindex="0" aria-label="排程交接矩陣"><table><thead><tr><th scope="col">情境</th><th scope="col">工程規則</th><th scope="col">交接證據</th></tr></thead><tbody>
+<tr><th scope="row">重複觸發</th><td>唯一 run key；已成功勿重寫。不同分片須明定唯一鍵或事務邊界。</td><td>區間、revision、attempt ID、已提交筆數與去重原因。</td></tr>
+<tr><th scope="row">可重試失敗</th><td>分辨暫時性與永久性；設總時限、有限次數、退避與 jitter。錯誤欄位或缺輸入資料先人工修正，不無限重試。</td><td>錯誤分類、剩餘重試數、下一次時間、告警與負責人。</td></tr>
+<tr><th scope="row">worker 消失</th><td>跨程序 lease 到期可重新領取；只靠 TTL 不足，舊 worker 可能恢復。提交時校驗遞增 fencing token，或由目標系統拒絕舊令牌。</td><td>持有者、到期、觸發接管時間、最新令牌。此實驗只示範短 SQLite 交易，未實作分散式 lease。</td></tr>
+<tr><th scope="row">提交結果未知</th><td>先以同一鍵查 ledger 或下游；本庫結果與完成標記可同交易。跨服務可使用 outbox 加接收端去重；若下游不能查收，不能宣稱 exactly-once。</td><td>提交確認、下游冪等鍵、傳輸紀錄與對帳結果。</td></tr>
+<tr><th scope="row">批次補跑</th><td>用 dry run 列出 UTC 視窗和預估量，做分段與併發限額，避開線上尖峰。只在已知輸出與 checkpoint 的一致性下續跑。</td><td>區間列表、版本／輸入快照、上限、核准、停止條件。</td></tr>
+</tbody></table></div>
+<h3>實際用法：同一區間先失敗、再提交、後去重</h3>
+<p>下載 <a href="python_batch_scheduler_deep_lab.py" download>Python 離線實驗</a>，僅使用標準庫與記憶體 SQLite。實際執行需要 Python 3.11+；DST 步驟須有 IANA 時區資料。</p>
+<pre><code>python python_batch_scheduler_deep_lab.py --test
+python python_batch_scheduler_deep_lab.py --date 2025-03-09 --zone UTC
+python python_batch_scheduler_deep_lab.py --date 2025-03-09 --zone America/New_York</code></pre>
+<p>標準輸出 JSON 應依序出現 <code>retryable → committed → duplicate_skipped</code>，且只存入一列結果。此命令刻意注入預期故障並恢復，所以成功完成整組實驗回傳 0；正式 runner 應對不可恢復錯誤回傳非 0，並用結構化欄位區分重試、故障與正常去重。</p>
+<ul><li><code>date.fromisoformat()</code> 解析邏輯日；<code>ZoneInfo()</code> 按 IANA 名稱載入時區，<code>astimezone()</code> 轉換 UTC。</li>
+<li><code>sqlite3.connect(..., isolation_level=None)</code> 搭配明確 <code>BEGIN IMMEDIATE</code>，<code>commit()</code>／<code>rollback()</code> 決定同庫原子性；<code>contextlib.closing()</code> 保證關閉連線，交易回滾和資源關閉不是同一件事。</li>
+<li><code>execute(sql, (run_key,))</code> 使用參數綁定，避免將資料插進 SQL 字串；<code>json.dumps()</code> 輸出可自動查核的報告。</li></ul>
+<details><summary>交接手冊：現場第一輪如何處理</summary>
+<ol><li>比對預計與實際區間，排除「正常延遲、沒有應到資料」與錯時區。</li><li>用 run key 找最後一次狀態與下游收件證明；若不確定是否已提交，不先重送。</li><li>確認影響範圍與輸入快照，開啟限量補跑；觀察 backlog、處理延遲、成功率和對帳差異。</li><li>確認業務結果再結案。手冊需寫明平日與假日值班、連線憑證轉移、告警目的地與停機條件。</li></ol></details>
+<details><summary>排程器選型：比較約束，不比較品牌吞吐量</summary><ul>
+<li><strong>cron／systemd timer：</strong>適合單機、少量獨立工作；工作狀態、補跑及跨主機鎖要自己做。</li>
+<li><strong>Kubernetes CronJob：</strong>適合容器化工作；<code>.spec.timeZone</code> 與 <code>concurrencyPolicy</code> 是排程政策，不等同跨工作去重。短期可能漏建或重建 Job，工作本身仍須冪等。</li>
+<li><strong>Airflow 類工作流：</strong>有依賴圖、data interval、補跑及任務歷史；仍要控制外部副作用、權限、依賴資料與工作版本。</li></ul></details>
+<p>官方參考：<a href="https://docs.python.org/3/library/zoneinfo.html">Python zoneinfo</a>、<a href="https://docs.python.org/3/library/sqlite3.html">Python sqlite3</a>、<a href="https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/">Kubernetes CronJob</a>、<a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dag-run.html">Apache Airflow DAG Run</a>。</p>
+</section>
       <section class="section-block" id="overview" data-group="overview"><div class="section-head"><div><span class="eyebrow">Overview</span><h2>讓批次工作可重跑但不亂跑</h2><p>先講清楚 schedule contract、責任與失敗處理，再談效能與規模。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>排程、lease、checkpoint 與 rerun 要成套設計</h2><p>只補其中一項，整體仍然脆弱。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>用零外部套件就能驗批次治理</h2><p>先在本機把 lease、checkpoint 與 dead-letter 跑順，再談真實排程器。</p></div></div><div class="cards"></div></section>
