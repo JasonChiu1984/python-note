@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import py_compile
-import subprocess
 import sys
+import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,14 +20,18 @@ def compile_all() -> None:
 
 
 def run_unittest() -> None:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(ROOT / "src")
-    subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", str(ROOT / "tests"), "-v"],
-        cwd=ROOT,
-        env=env,
-        check=True,
-    )
+    # The CLI owns this interpreter; use only the sample's source tree.
+    sys.path.insert(0, str(ROOT / "src"))
+    loader = unittest.TestLoader()
+    suite = loader.discover(str(ROOT / "tests"))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not result.wasSuccessful():
+        raise SystemExit("quality gate failed: unittest failed")
+    if result.testsRun == 0:
+        raise SystemExit("quality gate failed: no tests executed")
+    if result.skipped or result.expectedFailures:
+        raise SystemExit("quality gate failed: required tests were skipped or expected to fail")
+    print(f"required tests executed successfully: {result.testsRun}")
 
 
 def main() -> None:

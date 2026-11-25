@@ -212,19 +212,19 @@ python3 scripts/run_quality_gate.py</code></pre><div class="cards"></div>
 <div class="course-example" id="example-testing-quality-gate">
 <h3>範例程式碼 · 訂單服務測試</h3>
 <p>對照訂單服務、記憶體 repository 和測試，找出重複請求如何被處理。</p>
+<p>這個範例的品質閘門不只看「測試命令有沒有報錯」。它檢查 <a href="https://docs.python.org/3.11/library/unittest.html#unittest.TestResult"><code>TestResult</code></a>：至少執行一項，沒有失敗或錯誤，也沒有跳過或預期失敗，才回傳成功。空套件不算測過；選用或需實體設備的測試應放在另一套閘門。這些檢查不等於驗證所有預期檔案皆被收集。</p>
 <p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/testing_quality_gate
-PYTHONPATH=src python3 scripts/run_quality_gate.py</code></pre>
+python3 scripts/run_quality_gate.py</code></pre>
 <!-- example-source: testing_quality_gate -->
 <p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate">在 GitHub 開啟專案資料夾</a></p>
 <details class="example-file"><summary><code>scripts/run_quality_gate.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/testing_quality_gate/scripts/run_quality_gate.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from __future__ import annotations
 
-import os
 from pathlib import Path
 import py_compile
-import subprocess
 import sys
+import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -241,14 +241,18 @@ def compile_all() -&gt; None:
 
 
 def run_unittest() -&gt; None:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(ROOT / "src")
-    subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", str(ROOT / "tests"), "-v"],
-        cwd=ROOT,
-        env=env,
-        check=True,
-    )
+    # The CLI owns this interpreter; use only the sample's source tree.
+    sys.path.insert(0, str(ROOT / "src"))
+    loader = unittest.TestLoader()
+    suite = loader.discover(str(ROOT / "tests"))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not result.wasSuccessful():
+        raise SystemExit("quality gate failed: unittest failed")
+    if result.testsRun == 0:
+        raise SystemExit("quality gate failed: no tests executed")
+    if result.skipped or result.expectedFailures:
+        raise SystemExit("quality gate failed: required tests were skipped or expected to fail")
+    print(f"required tests executed successfully: {result.testsRun}")
 
 
 def main() -&gt; None:
@@ -488,6 +492,9 @@ if __name__ == "__main__":
 
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
 import unittest
 
 
@@ -511,6 +518,44 @@ class QualityGateTest(unittest.TestCase):
     def test_quality_gate_compile_step_passes(self) -&gt; None:
         gate = load_gate_module()
         gate.compile_all()
+
+    def test_gate_rejects_missing_test_evidence(self) -&gt; None:
+        script = Path(__file__).resolve().parents[1] / "scripts" / "run_quality_gate.py"
+        cases = {
+            "empty": ("", "no tests executed"),
+            "skip": (
+                "    @unittest.skip('fixture')\n    def test_case(self): pass\n",
+                "required tests were skipped or expected to fail",
+            ),
+            "expected_failure": (
+                "    @unittest.expectedFailure\n    def test_case(self): self.fail('fixture')\n",
+                "required tests were skipped or expected to fail",
+            ),
+            "failure": (
+                "    def test_case(self): self.fail('fixture')\n",
+                "unittest failed",
+            ),
+        }
+        for name, (method, expected) in cases.items():
+            with self.subTest(case=name), TemporaryDirectory() as folder:
+                root = Path(folder)
+                gate = root / "scripts" / script.name
+                gate.parent.mkdir()
+                gate.write_bytes(script.read_bytes())
+                tests = root / "tests"
+                tests.mkdir()
+                if method:
+                    (tests / "test_fixture.py").write_text(
+                        "import unittest\nclass Fixture(unittest.TestCase):\n" + method,
+                        encoding="utf-8",
+                    )
+                proc = subprocess.run(
+                    [sys.executable, "-I", str(gate)], cwd=root, text=True,
+                    capture_output=True, timeout=15,
+                )
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertIn(expected, proc.stderr)
+                self.assertNotIn("quality gate passed", proc.stdout)
 
 
 if __name__ == "__main__":
@@ -558,13 +603,13 @@ if __name__ == "__main__":
         ["ci-local-first", "Local", "CI 命令先能在本機跑", "本機無法重現的 CI gate 會拖慢修復速度。", "python3 scripts/run_quality_gate.py", "developer and CI run same gate."],
         ["ci-exit-code", "Exit Code", "品質閘門用 exit code 擋錯", "compile、unit、integration、smoke 任一步失敗都要回傳非 0。", "subprocess.run(cmd, check=True)", "bad change cannot pass gate."],
         ["ci-artifacts", "Artifacts", "CI 失敗要保留診斷資訊", "test log、coverage、contract diff、smoke output 應成為 review 證據。", "save junit.xml and quality-gate.log", "debugging starts from evidence."],
-        ["ci-release-note", "Release", "Release note 要列測試命令與結果", "版本標註應包含測試命令、通過時間、產物與 rollback 限制。", "Tests: py_compile passed; unittest 7 passed", "release is auditable."]
+        ["ci-release-note", "Release", "Release note 要列測試命令與結果", "版本標註應包含測試命令、通過時間、產物與 rollback 限制。", "Tests: py_compile passed; unittest 8 passed", "release is auditable."]
       ],
       sample: [
         ["sample-domain", "Sample", "範例 domain 鎖住訂單規則", "OrderService 驗證 customer、line item、金額與冪等鍵。", "service.place_order(...)", "business rules have unit tests."],
         ["sample-repo", "Sample", "InMemory repository 支援 fake 邊界", "標準庫範例用 fake repository 保留 idempotency 語意。", "repo.find_by_idempotency_key(key)", "fake behavior is meaningful."],
-        ["sample-tests", "Sample", "unittest 覆蓋正常與失敗路徑", "不依賴 pytest 也能示範測試工程最小閉環。", "python3 -m unittest discover -s tests -v", "7 tests pass."],
-        ["sample-gate", "Sample", "quality gate 串起 compile 與測試", "gate script 先 py_compile，再跑 unittest，任何失敗都中止。", "python3 scripts/run_quality_gate.py", "compile and tests pass."],
+        ["sample-tests", "Sample", "unittest 覆蓋正常與失敗路徑", "不依賴 pytest 也能示範測試工程最小閉環。", "PYTHONPATH=src python3 -m unittest discover -s tests -v", "8 tests pass."],
+        ["sample-gate", "Sample", "quality gate 串起 compile 與測試", "先編譯，再執行測試；沒有執行案例、跳過或預期失敗也會攔下。", "python3 scripts/run_quality_gate.py", "compile and tests pass."],
         ["sample-release-evidence", "Sample", "範例 README 保留驗收命令", "教材交付要讓讀者能直接重跑，而不是只看截圖。", "README.md -> Verification", "handoff is reproducible."],
         ["sample-next-step", "Sample", "後續可升級 pytest / coverage / ruff", "標準庫 baseline 通過後，再加入工具鏈才不會把學習門檻拉太高。", "pytest -q --cov", "tooling is incremental."]
       ]

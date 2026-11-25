@@ -21,7 +21,7 @@ testing_quality_gate/
 ## Workflow
 
 1. `py_compile` 檢查所有 Python 檔案語法。
-2. `unittest discover` 執行業務規則、錯誤路徑、冪等與 gate script 測試。
+2. `unittest.TestLoader.discover()` 尋找測試，用 `TextTestRunner` 執行後檢查結果。這個範例要求收集到的案例全部通過：0 項、跳過、預期失敗或非預期結果，都不能發行。
 3. `demo.py` 作為 release smoke，證明主要入口可啟動。
 
 ## Verification
@@ -31,6 +31,8 @@ PYTHONPATH=src python3 -m testing_quality_gate.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_quality_gate.py
 ```
+
+執行 gate 時不必另設 `PYTHONPATH`。成功時會列出執行案例數；這個檢查能攔下空測試或不完整的執行結果，但不保證每個預期的測試檔都被探索。專案若有選用測試，應與必跑套件分開。
 
 ## Troubleshooting
 
