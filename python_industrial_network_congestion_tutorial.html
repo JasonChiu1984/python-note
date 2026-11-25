@@ -1,9 +1,9 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工業通訊塞車診斷｜Python 工業通訊筆記</title>
 <style>
 :root{--ink:#173047;--muted:#476378;--dark:#112e45;--accent:#005e72;--paper:#eef5f8;--line:#b8cdd9;--light:#e7f3f8;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper)}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{background:var(--dark);color:white;padding:clamp(1.15rem,4vw,3rem)}header a{color:#a9eafa}header>div,main,footer{max-width:74rem;margin:auto}h1{font-size:clamp(2rem,7vw,4rem);margin:.4rem 0 .7rem;line-height:1.1}h2{font-size:clamp(1.32rem,4vw,1.9rem);margin:.25rem 0 .65rem;line-height:1.3}main,footer{padding:clamp(.7rem,3vw,1.7rem)}a{color:var(--accent);text-underline-offset:.2em}nav{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem}.button,nav a{display:inline-block;background:var(--light);border:1px solid var(--line);border-radius:.5rem;padding:.27rem .62rem}section{background:white;border:1px solid var(--line);border-radius:.8rem;padding:clamp(.75rem,2.5vw,1.55rem);margin-bottom:1rem}.kicker,figcaption{font-weight:800;color:var(--accent)}header .kicker{color:#98dcf0}figure{margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:#f2f9fc}.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.25rem;counter-reset:step}.flow li{counter-increment:step;position:relative;border:1px solid #8eb2c4;background:white;border-radius:.5rem;padding:.6rem;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:var(--accent)}.flow li:not(:last-child)::after{content:"→";position:absolute;top:39%;left:calc(100% + .18rem);font-weight:bold;color:var(--accent)}.table-wrap{overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:.5rem;margin:.7rem 0}table{border-collapse:collapse;width:100%;min-width:41rem;text-align:left}th,td{padding:.6rem;vertical-align:top;border-bottom:1px solid #cedee7}thead th{background:var(--light)}tbody tr:nth-child(even){background:#f3f8fb}.warn{padding:.6rem .8rem;border-left:.3rem solid #aa6411;background:#fff2db}.bar-row{display:grid;grid-template-columns:minmax(5.5rem,9rem) minmax(0,1fr) 4.5rem;gap:.5rem;align-items:center;margin:.5rem 0}.track{height:1.1rem;border-radius:.25rem;background:#e1eaf1}.bar{height:100%;background:#08758c;border-radius:.25rem}.text-mono,code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{max-width:100%;overflow:auto;padding:.75rem;border-radius:.5rem;background:#152f46;color:#e9f9ff}pre code{overflow-wrap:normal}summary{cursor:pointer;font-weight:750}details{margin:.6rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.55rem}:focus-visible{outline:2px solid #0084a1;outline-offset:3px}@media(max-width:800px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:100%;left:50%}}
-</style></head><body id="top">
+</style><style>.congestion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0}.congestion-grid article,.congestion-chain li{min-width:0;overflow-wrap:anywhere;border:1px solid #b8cdd9;border-radius:.62rem;background:#edf7fa;padding:.7rem .85rem}.congestion-grid h3{margin:.1rem 0}.congestion-grid p{margin:.35rem 0}.congestion-chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.38rem;list-style:none;padding:0}.congestion-chain li{position:relative}.congestion-chain b,.congestion-chain small{display:block}.congestion-chain li:not(:last-child)::after{content:'→';position:absolute;right:-1.15rem;top:calc(50% - .65em);font-weight:700;color:#005e72}@media(max-width:48rem){.congestion-chain{grid-template-columns:1fr}.congestion-chain li:not(:last-child)::after{content:'↓';right:calc(50% - .3em);top:auto;bottom:-1.4rem}}@media(max-width:38rem){.congestion-grid{grid-template-columns:1fr}}</style></head><body id="top">
 <header><div><p class="kicker">INDUSTRIAL NETWORK / PYTHON FIELD GUIDE</p><h1>工業通訊塞車：先找到排隊的位置</h1><p>以機房 PLC、管理型交換器、RS‑485 閘道與監控採集為例。位元率、延遲與點位新鮮度是三種不同訊號。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業協定比較</a> · <a href="python_industrial_ethernet_speed_tutorial.html">100M／1GbE 速度計算</a></p></div></header>
-<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
+<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#depth">深度原因與雙圖</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
 <section id="architecture"><p class="kicker">01 / ARCHITECTURE</p><h2>一路上的每個節點，都有自己的速度和佇列</h2>
 <figure><figcaption>圖一｜讀取請求的方向；資料在回應路徑返回</figcaption><ol class="flow">
 <li><strong>採集應用</strong><br>定時器 → 工作提交 → 有界排隊；若排程重入，前一輪未完便可能再排一次。</li>
@@ -25,6 +25,38 @@
 </tbody></table></div>
 <p>單鏈路全雙工應分開看雙方向利用率，兩方向比率直接加總可能誤導。設備若支援 QoS，需同時看 uplink、佇列、同 VLAN／跨 VLAN 流量與交換晶片指標，不能只看全埠平均。</p></section>
 
+<section id="depth">
+<p class="kicker">02B / DEEP DIAGNOSIS</p><h2>塞車常見原因：先判斷是「等」還是「重做」</h2>
+<p>此處的「塞車」包含設備或軟體排隊，並不等於網路達到線速。固定一筆請求的五個交界，再問：進來太多、單次服務太慢、重試放大，還是資料已過期而誤判？<a href="python_industrial_congestion_architecture.drawio" download>下載兩張可編輯 Draw.io 圖</a>。</p>
+<figure class="congestion-diagram"><figcaption>圖四｜前向請求與資料管線：佇列證據放在責任邊界</figcaption><ol class="congestion-chain">
+<li><b>採集器／PLC 任務</b><small>輪詢釋出・待發佇列<br>量 t₀ 排程、t₁ 實際送出</small></li>
+<li><b>PHY／交換器 L2</b><small>線路錯誤、共享出口佇列<br>量各方向 error/drop 增量</small></li>
+<li><b>TCP／閘道／RTU</b><small>傳輸重試、共用序列匯流排<br>量佇列、從站轉向與重試</small></li>
+<li><b>Broker／應用／資料庫</b><small>訂閱、連線池、寫入與提交<br>量 t₂ 回覆、t₃ 接收、t₄ 持久化</small></li>
+</ol><p>箭頭表示資料處理方向，回覆可走反向或另一條路；不是每條部署都使用全部節點。不同設備時鐘未校準時，不直接相減。</p></figure>
+<div class="congestion-grid">
+<article><h3>1｜實體線路（L1）</h3><p>線材、接頭、光模組異常或速度／雙工不一致，可能先丟壞訊框，再由上層重傳；只有 delay 不表示線材故障。</p><p><strong>佐證：</strong>查雙端速度／雙工、link flap 及 FCS/CRC、接收錯誤增量；discard 無錯誤不等於壞線。比對錯誤發生時窗，不用十年前的累計值。</p></article>
+<article><h3>2｜RS‑485 半雙工與重試</h3><p>發送、靜默間隔、收發器切換和從站處理要輪流進行；一站未回覆時，主站可能空等到 timeout。TCP 用戶增加也不會增加單埠 RTU 容量。</p><p><strong>佐證：</strong>比較每站佇列、回覆時間、CRC／逾時與重試。19,200 bit/s、8E1 的 19 字元只算線上傳送約 10.9 ms；一個 3.5 字元靜默約 2.0 ms，額外處理／切換和逾時另計，不雙算。</p></article>
+<article><h3>3｜交換器出口與微突發</h3><p>多個 ingress 同時送往單一 egress 時，即使長時間平均不高，瞬間供給仍可能超過出口速率。緩衝滿時先排隊或丟棄。</p><p><strong>佐證：</strong>看同一出口的 queue occupancy/high-watermark、drop 及輸入時間分布。僅有 1 分鐘平均時，標成「可疑」，不能宣稱已證實毫秒級突發。</p></article>
+<article><h3>4｜VLAN、廣播／多播與環路</h3><p>未知單播、同 VLAN 廣播、未妥善控制的多播或意外 L2 環路，都能占用共享 uplink；VLAN 分隔不會增加 trunk 實體容量。</p><p><strong>佐證：</strong>比較 VLAN／方向封包組成、MAC 移動和 STP 拓撲變動；一項 MAC 移動不是環路定論。被動對照既有拓撲，變更 STP、snooping 或 QoS 要循現場維護與回復程序。</p></article>
+<article><h3>5｜TCP 路徑與接收端限速</h3><p>遺失或延遲可造成重傳及隊首等待；接收窗變小或為零代表接收端暫時限速，可能是應用讀得太慢，別直接歸因為交換器。</p><p><strong>佐證：</strong>對照既有 RTT、retransmit、advertised window、接收緩衝及應用工作量。TCP 重傳與再次發送業務命令是兩回事；寫入回覆遺失不可盲目重送。</p></article>
+<article><h3>6｜PLC scan、閘道與採樣</h3><p>PLC 排程、點值掃描與上位輪詢是不同週期。採得更快可能只得到同一版本的舊值，或把工作堆在同一個 PLC／閘道佇列。</p><p><strong>佐證：</strong>比對 source timestamp／序號、PLC scan 時間、enqueue→send 間隔、每條 bus 的 in-flight。改善驗收要看點位年齡，而不只 TCP RTT。</p></article>
+<article><h3>7｜MQTT Broker／訂閱端</h3><p>Broker fan-out、會話待送佇列、QoS 確認、訂閱端處理能力或中斷後恢復都可形成積壓；QoS 不等於低延遲保證。</p><p><strong>佐證：</strong>看 publish、forward、ack 的階段時間，依實作查 in-flight、queued、dropped。MQTT 5 的 Receive Maximum 管 QoS 1/2 未確認發佈，不是 QoS 0 速率限制。</p></article>
+<article><h3>8｜應用程式、連線池與資料庫</h3><p>收到資料不表示已提交。慢 SQL、串行寫檔、長交易或連線池等候會把 I/O 堵在最後一哩，也可能反壓 Broker／socket。</p><p><strong>佐證：</strong>由接收、enqueue、worker start 到 commit 分段；查工作佇列、鎖等待與儲存延遲。不要為追求低延遲跳過持久化或吞掉失敗。</p></article>
+</div>
+<figure class="congestion-diagram"><figcaption>圖五｜由數字找出排隊位置：先比證據，再決定維護動作</figcaption><ol class="congestion-chain">
+<li><b>同一事件窗對齊</b><small>固定點位、請求 ID、方向、成功與失敗樣本</small></li>
+<li><b>實體錯誤或出口丟棄？</b><small>有 CRC 先分 L1；有 drop 且 queue 升再查 egress</small></li>
+<li><b>分段量哪個等待變長</b><small>送出前查排程；送出後查 transport、gateway、bus</small></li>
+<li><b>量接收後與回歸</b><small>比 broker／commit；同工作量重驗 p95/p99、資料年齡與成功率</small></li>
+</ol></figure>
+<div class="congestion-grid">
+<article><h3>合成案例 A｜有尖峰、低平均</h3><p>8 個輸入同時各 40 Mb/s，重疊 1 ms，出口 100 Mb/s。極簡模型新增待送量為 <strong>(320 − 100) Mb/s × 0.001 s ÷ 8 = 27,500 bytes</strong>。若每秒只出現一次，此 burst 的平均輸入只有約 0.32 Mb/s；實際緩衝、封包邊界、標記和其他流量另計，不能拿這個值當硬體規格。</p></article>
+<article><h3>合成案例 B｜連線低 RTT，資料仍舊</h3><p>送出前等 35 ms、網路／閘道往返 15 ms、接收後 CPU 或資料庫提交再等 250 ms；同一程序單調時計得到 300 ms 端到端。若來源掃描每 500 ms，資料的 age 還要獨立由來源時間確認，不能斷言 age 就是 300 ms。</p></article>
+</div>
+<p><strong>唯讀基準：</strong>用已核准的介面匯出取 <code>ifHCInOctets</code>、<code>ifHCOutOctets</code> 與實際協商 bps。單方向利用率 = <code>8 × Δoctets ÷ (Δseconds × link_bps)</code>；先排除重啟／counter discontinuity、週期不一致與 wrap。octets 的統計口徑不一定含全部線路開銷，不能以其精確反推 wire occupancy。以既有記錄量 t₁−t₀、t₂−t₁、t₄−t₃；p95/p99 報樣本數、窗長與所用算法，逾時、拒絕／重送另列，不把成功樣本的分位數當全體。</p>
+<p><strong>原始資料：</strong><a href="https://www.rfc-editor.org/rfc/rfc2863.html">IF‑MIB／RFC 2863</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293.html">TCP／RFC 9293</a> · <a href="https://www.modbus.org/file/secure/modbusoverserial.pdf">Modbus Serial Line V1.02</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT v5.0</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2">OPC UA Sampling Interval</a>。</p>
+</section>
 <section id="workflow"><p class="kicker">03 / TRIAGE</p><h2>用同一事件時間窗，逐層排除</h2>
 <figure><figcaption>圖二｜先不改現場，保留基準再決定是否要維護窗口</figcaption><ol class="flow">
 <li><strong>定義事件</strong><br>哪幾個點位、哪個 VLAN／站、何時開始；分定值、陳舊、漏點與忙碌。</li>
