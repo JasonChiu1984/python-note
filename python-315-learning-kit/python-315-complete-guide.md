@@ -31,6 +31,7 @@ source .venv/bin/activate
 
 python -m pip --version
 python examples/core_syntax.py
+python examples/oop_hvac_315.py
 python examples/new_features_315.py
 python examples/concurrency_315.py
 python examples/hvac_monitor_315.py --output report.json
@@ -367,63 +368,268 @@ print(normalize(245))  # {'operation': 'normalize', 'result': 24.5}
 
 官方來源：[執行與名稱解析模型](https://docs.python.org/3.15/reference/executionmodel.html)、[functools.wraps](https://docs.python.org/3.15/library/functools.html#functools.wraps)。
 
-### C09｜class、dataclass 與物件協定
+### C09｜Python 物件導向程式設計
 
-類別把狀態與操作放在同一個物件裡。`self` 是慣用的實例參數名稱；呼叫 `obj.method()` 時，物件會成為方法的第一個引數。`__init__()` 負責初始化已建立的實例，不能回傳另一個物件。類別屬性由實例共享；每個設備各自的讀值串列通常應在 `__init__()` 建立。
+用空調監測學習物件建立、屬性查找、繼承與組合、資料類別和物件協定。最後把讀值來源與門檻規則拆開，組成可執行的小專案。
+
+#### 1　名稱、類別與實例
+
+賦值會把名稱繫結到物件。`alias = probe` 使兩個名稱指向同一實例。`is` 比較身分，`==` 依型別定義的規則比較值。方法中的裸名稱依 C08 的作用域查找，`self.unit` 則走屬性查找。
+
+執行 `class` 主體會建立類別名稱空間，之後把類別物件繫結到名稱。一般實例化由 `__new__()` 建立物件，再由 `__init__()` 初始化。若前者回傳的物件不是要求類別的實例，初始化會被跳過。`__init__()` 必須回傳 `None`。
 
 ```python
-from dataclasses import dataclass, field
+class Probe:
+    unit = "C"
 
-@dataclass
-class DeviceSnapshot:
-    device: str
-    temperature_c: float
-    alarms: list[str] = field(default_factory=list)
+    def __init__(self, point):
+        self.point = point
+        self.history = []
+
+    def record(self, value):
+        self.history.append(value)
+
+
+probe = Probe("AHU-01")
+backup = Probe("AHU-02")
+alias = probe
+alias.record(24.0)
+print(alias is probe, probe.history, backup.history)
+# True [24.0] []
+```
+
+把 `history = []` 放到類別主體，未有同名實例屬性時，各實例會存取同一份清單。各點位的歷史應在初始化時分別建立。
+
+#### 2　方法綁定、屬性查找與封裝
+
+`probe.record` 是綁定方法。`__self__` 指向實例，`__func__` 指向原函式，因此 `probe.record(24.0)` 等效於 `Probe.record(probe, 24.0)`。`self` 是第一個參數的慣用名稱。
+
+| 寫法 | 隱含引數 | 用途 |
+| --- | --- | --- |
+| 實例方法 | `self` | 處理各實例的狀態 |
+| `@classmethod` | `cls` | 從原始值建立呼叫的類別 |
+| `@staticmethod` | 無 | 放在類別命名空間的獨立運算 |
+| `@property` | 存取器接收 `self` | 受控存取或計算屬性值 |
+
+一般實例查找先處理 MRO 中找到的資料描述器，再看實例字典，再處理非資料描述器或一般類別屬性。查找失敗時可由 `__getattr__()` 補值。唯讀 `property` 也是資料描述器。普通方法屬於非資料描述器，同名實例屬性可以遮蔽它。
+
+`_name` 是非公開介面的慣例。`__name` 在類別定義內會發生名稱改寫，可降低子類別的命名衝突。改寫後的屬性仍可存取，資料規則應由公開方法或受控屬性維護。
+
+```python
+from math import isfinite
+
+
+class Temperature:
+    def __init__(self, celsius):
+        self.celsius = celsius
 
     @property
-    def temperature_f(self):
-        return self.temperature_c * 9 / 5 + 32
+    def celsius(self):
+        return self._celsius
+
+    @celsius.setter
+    def celsius(self, value):
+        if not isfinite(value):
+            raise ValueError("celsius must be finite")
+        self._celsius = value
 
     @classmethod
-    def from_raw(cls, device, raw):
-        return cls(device, raw / 10.0)
+    def from_tenths(cls, raw):
+        return cls(raw / 10)
 
     @staticmethod
-    def valid_name(name):
-        return bool(name) and name.isascii()
+    def to_fahrenheit(celsius):
+        return celsius * 9 / 5 + 32
+
+
+sample = Temperature.from_tenths(250)
+print(sample.celsius, sample.to_fahrenheit(sample.celsius))
+# 25.0 77.0
 ```
 
-`dataclass` 可依欄位產生初始化、表示與相等比較等方法；`default_factory=list` 讓每個實例有自己的串列。`frozen=True` 阻止一般欄位重新賦值，但不會遞迴凍結欄位裡的串列。它也不是輸入驗證器：註記 `float` 不會自動拒絕字串。`property` 讓計算或受控存取具有屬性外觀；唯讀 property 沒有 setter，但其他可變欄位仍可被改動。
+#### 3　繼承、覆寫與 MRO
 
-`classmethod` 接收類別 `cls`，適合替代建構入口，繼承時也能建立子類別實例。`staticmethod` 不接收隱含 `self` 或 `cls`，適合與類別概念相關但不依賴實例狀態的小工具。若工具與類別關係不強，直接用模組函式通常更容易發現。
+子類別以相容行為替代基底類別時可使用繼承。覆寫應維持呼叫端依賴的參數與結果。Python 採 C3 線性化計算方法解析順序（MRO）。`super()` 從目前方法所屬類別之後繼續查找。
 
 ```python
-class Sensor:
-    def __init__(self, name):
-        self.name = name
+class Probe:
+    def stages(self):
+        return ("read",)
 
-class CalibratedSensor(Sensor):
-    def __init__(self, name, offset):
-        super().__init__(name)
-        self.offset = offset
+
+class LogMixin(Probe):
+    def stages(self):
+        return ("log", *super().stages())
+
+
+class ScaleMixin(Probe):
+    def stages(self):
+        return ("scale", *super().stages())
+
+
+class SmartProbe(LogMixin, ScaleMixin):
+    pass
+
+
+print([cls.__name__ for cls in SmartProbe.__mro__])
+print(SmartProbe().stages())  # ('log', 'scale', 'read')
 ```
 
-`super()` 沿著方法解析順序呼叫下一個實作，在多重繼承裡不等於固定指定某個父類別。多重繼承若要合作，方法簽章與 `super()` 呼叫方式必須配合。一般組合關係，如「監控服務有一個感測器」，常可先用物件持有另一物件表達，不必急著使用繼承。
+SmartProbe 的查找順序為 SmartProbe → LogMixin → ScaleMixin → Probe → object。LogMixin 的下一站是 ScaleMixin。合作式覆寫應使用相容的簽章及 `super()` 呼叫。用 `isinstance()` 和 `issubclass()` 可檢查實例與類別關係。
 
-| 特殊方法 | 對應操作 | 設計用途 |
-|---|---|---|
-| `__repr__` | `repr(obj)` | 提供可辨識的診斷表示 |
-| `__str__` | `str(obj)` | 面向讀者的文字 |
-| `__len__` | `len(obj)` | 容器長度 |
-| `__iter__`、`__next__` | `for`、`next()` | 可迭代與迭代器協定 |
-| `__getitem__` | `obj[key]` | 索引或鍵存取 |
-| `__eq__`、`__hash__` | 相等與雜湊 | 設計鍵物件時須維持一致性 |
-| `__enter__`、`__exit__` | `with` | 資源取得與釋放 |
-| `__call__` | `obj(...)` | 讓實例成為可呼叫物件 |
+```mermaid
+flowchart TD
+    SmartProbe --> LogMixin
+    SmartProbe --> ScaleMixin
+    LogMixin --> Probe
+    ScaleMixin --> Probe
+```
 
-這些方法構成物件協定，讓自訂型別融入 Python 語法；不要只因為可以就替設備物件塞入所有運算子。可變物件若用作字典鍵，還要避免相等或雜湊依據在存放期間改變。
+#### 4　抽象、多型與組合
 
-官方來源：[類別教學](https://docs.python.org/3.15/tutorial/classes.html)、[dataclasses](https://docs.python.org/3.15/library/dataclasses.html)、[特殊方法](https://docs.python.org/3.15/reference/datamodel.html)、[property、classmethod、staticmethod、super](https://docs.python.org/3.15/builtins/functions.html)。
+監測器透過建構參數接收資料來源。重播、校正或測試來源只要提供相容的 `read()`，就能用同一套門檻規則。這種物件持有並委派給另一個物件的做法稱為組合。
+
+| 方式 | 需求 | 檢查時機 |
+| --- | --- | --- |
+| 鴨子型別 | 物件提供呼叫端所需操作 | 執行操作時 |
+| `Protocol` | 依成員結構比對介面，可用不同類別實作 | 靜態型別檢查 |
+| `ABC` 與 `@abstractmethod` | 框架需明確的抽象繼承階層 | 一般子類仍有抽象方法時無法實例化 |
+
+`@runtime_checkable` 讓適用的 Protocol 可用 `isinstance()` 檢查成員是否存在。方法簽章與執行結果仍應用型別檢查與測試驗證。
+
+```python
+from abc import ABC, abstractmethod
+
+
+class Source(ABC):
+    @abstractmethod
+    def read(self):
+        raise NotImplementedError
+
+
+class FixedSource(Source):
+    def read(self):
+        return 24.0
+
+
+print(FixedSource().read())  # 24.0
+```
+
+#### 5　資料類別、值相等與雜湊
+
+`@dataclass` 可依欄位產生 `__init__()`、`__repr__()` 與 `__eq__()`。用 `field(default_factory=list)` 為每個實例建立新清單。用 `__post_init__()` 驗證輸入，型別註記只描述契約。
+
+`frozen=True` 阻止一般的欄位重新賦值。內含的清單仍可變動。`slots=True` 可限制實例可新增的屬性，是否有實例字典或支援弱參照也取決於基類配置。
+
+```python
+from dataclasses import dataclass, replace
+
+
+@dataclass(frozen=True, slots=True)
+class PointKey:
+    device: str
+    point: str
+
+
+a = PointKey("AHU-01", "supply")
+b = PointKey("AHU-01", "supply")
+print(a == b, a is b, {a: 24.0}[b])
+print(replace(a, point="return").point)
+# True False 24.0
+# return
+```
+
+相等的可雜湊物件必須有相同的雜湊值，鍵留在字典中時雜湊值必須穩定。一般類別覆寫 `__eq__()` 而未提供 `__hash__()` 時，Python 會設定 `__hash__ = None`。遇到不支援的比較型別，可回傳 `NotImplemented` 讓 Python 嘗試另一端的比較。
+
+#### 6　特殊方法與物件協定
+
+| 操作 | 特殊方法 | 用途 |
+| --- | --- | --- |
+| `repr(obj)`、`str(obj)` | `__repr__`、`__str__` | 除錯及顯示 |
+| `len(obj)`、`obj[key]` | `__len__`、`__getitem__` | 長度與索引 |
+| `for`、`next()` | `__iter__`、`__next__` | 迭代讀值 |
+| `with` | `__enter__`、`__exit__` | 取得與釋放資源 |
+| `obj(...)` | `__call__` | 可呼叫策略及其設定 |
+
+`__iter__()` 回傳迭代器。`__next__()` 取下一筆，耗盡時拋出 `StopIteration`。可多次走訪的容器應提供新游標。C10 說明 `yield` 與產生器，C12 則說明資源生命週期。
+
+```python
+class Trend:
+    def __init__(self, values):
+        self._values = tuple(values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+
+trend = Trend([24.0, 25.5])
+cursor = iter(trend)
+print(next(cursor), list(cursor), list(cursor))
+print(len(trend), list(trend))
+# 24.0 [25.5] []
+# 2 [24.0, 25.5]
+```
+
+#### 7　類別建立掛鉤與 Python 3.15
+
+`__init_subclass__()` 適合在子類別建立時檢查宣告。描述器的 `__set_name__()` 可取得擁有者及屬性名稱。metaclass 適合需要進一步控制類別物件建立流程的場合，例如自訂類別名稱空間。
+
+```python
+class Driver:
+    def __init_subclass__(cls, *, unit, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not unit:
+            raise ValueError("unit is required")
+        cls.unit = unit
+
+
+class TemperatureDriver(Driver, unit="C"):
+    pass
+
+
+print(TemperatureDriver.unit)  # C
+```
+
+本章大部分語法是 Python 3.15 延續支援的機制。3.15 新增 `typing.disjoint_base`（PEP 800），使支援它的型別檢查器能辨識不可互相混合的無關基底類別。這項標記用於靜態分析。
+
+[官方 Classes](https://docs.python.org/3.15/tutorial/classes.html) · [資料模型](https://docs.python.org/3.15/reference/datamodel.html) · [描述器指南](https://docs.python.org/3.15/howto/descriptor.html) · [MRO](https://docs.python.org/3.15/howto/mro.html) · [ABC](https://docs.python.org/3.15/library/abc.html) · [資料類別](https://docs.python.org/3.15/library/dataclasses.html) · [Protocol](https://docs.python.org/3.15/library/typing.html#typing.Protocol) · [PEP 800](https://peps.python.org/pep-0800/)
+
+#### 8　空調監測專案與練習
+
+`Reading` 驗證並保存讀值。`ReplaySource` 提供樣本，`OffsetSource` 包住既有來源並產生校正後的新讀值。`Monitor` 透過 `ReadingSource` 讀取資料，再判斷是否達到門檻。
+
+[開啟範例原始碼](examples/oop_hvac_315.py)
+
+```bash
+python3.15 examples/oop_hvac_315.py
+```
+
+```text
+AHU-01 23.5 C OK
+AHU-01 25.0 C HIGH
+AHU-02 25.5 C HIGH
+```
+
+練習一。把校正量改為 `0.0`。預期第二筆成為 `24.5 C OK`，第三筆是 `25.0 C HIGH`，因為 `>=` 包含等於門檻。輸入空白點位或 `float('nan')` 時會拋出 `ValueError`，讀取已耗盡的來源會拋出 `StopIteration`。
+
+練習二。寫一個回傳固定 `Reading` 的來源並交給 `Monitor`，比較兩種來源算出的告警。答案是使用下列相同的 `read()` 契約。
+
+```python
+from oop_hvac_315 import Monitor, Reading
+
+
+class FixedSource:
+    def read(self) -> Reading:
+        return Reading("AHU-03", 25.0)
+
+
+assert Monitor(FixedSource(), limit_c=25.0).scan().over_limit
+```
+
+把測試替身範例儲存於 `examples/` 目錄，再以 Python 執行。此次新增片段與專案已在 CPython 3.11、3.14 實跑，3.15 專屬型別功能以官方文件核對。
 
 ### C10｜迭代器、yield 與 yield from
 
@@ -1393,7 +1599,7 @@ python3.15 -m pip check
 
 ## 第六部｜驗證紀錄與資料包
 
-本次實際使用 CPython 3.15.2 一般建置與 CPython 3.15.2 free-threading build。範例都只使用標準函式庫，未連接真實設備。
+原版資料包以 CPython 3.15.2 一般版及 free-threaded 版驗證。C09 新增的物件導向範例另以 CPython 3.11 與 3.14 驗證。所有範例均使用標準函式庫和模擬資料。
 
 | 項目 | 驗證結果與範圍 |
 |---|---|
@@ -1412,7 +1618,7 @@ python3.15 -m pip check
 |---|---|
 | `python-315-complete-guide.html` | 離線可讀的整合教材，含兩張修正圖與章節目錄 |
 | `python-315-complete-guide.md` | 適合 Obsidian、Git 或 Markdown 編輯器的文字教材 |
-| `examples/` | 四個可直接執行的 Python 3.15 教學腳本 |
+| `examples/` | 五個可直接執行的 Python 教學腳本 |
 | `verification/` | 本次實際執行輸出、版本資訊與圖表量測紀錄 |
 | `python-315-diagrams.drawio` | 兩頁原生可編輯工程圖 |
 | `production-notes-cli-fixed.svg` / `.png` | 交付流程圖，PNG 為 2560 × 1440 |

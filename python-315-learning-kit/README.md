@@ -2,6 +2,8 @@
 
 核對與實測版本：CPython 3.15.2。整理日期：2026-11-24（Asia/Taipei）。
 
+C09 物件導向教程於 2026-11-25 更新，新增八節、MRO 菱形繼承圖及空調監測案例。新增範例以 CPython 3.11、3.14 實跑。
+
 ## 開始閱讀
 
 直接開啟 `python-315-complete-guide.html`，可查看完整教材、章節目錄及兩張重新設計的工程圖。此檔已內嵌中英文內容、樣式、圖表與語言切換程式，可離線閱讀；外部連結僅用於查閱官方來源。
@@ -24,6 +26,7 @@
 
 ```bash
 python3.15 examples/core_syntax.py
+python3.15 examples/oop_hvac_315.py
 python3.15 examples/new_features_315.py
 python3.15 examples/concurrency_315.py
 python3.15 examples/hvac_monitor_315.py --output report.json
@@ -37,7 +40,7 @@ Windows 可依安裝方式將 `python3.15` 換為 `py -3.15`。啟用 Python 3.1
 python3.15t examples/concurrency_315.py
 ```
 
-四支程式只使用標準函式庫與模擬資料，不需要第三方 Python 套件或網頁建置工具。執行驗證時不要加入 `-O`，以免停用範例中的 assertion。
+五支程式只使用標準函式庫與模擬資料，不需要第三方 Python 套件或網頁建置工具。執行驗證時不要加入 `-O`，以免停用範例中的 assertion。
 
 ## 檔案說明
 
@@ -46,6 +49,7 @@ python3.15t examples/concurrency_315.py
 | `python-315-complete-guide.html` | 可切換繁體中文／英文的完整教材與圖表 |
 | `python-315-complete-guide.md` | 可編輯的繁體中文 Markdown 原稿 |
 | `examples/core_syntax.py` | 33 項核心語法行為驗證 |
+| `examples/oop_hvac_315.py` | 物件導向案例，涵蓋資料類別、來源組合、校正與門檻判斷 |
 | `examples/new_features_315.py` | 16 組 Python 3.15 新功能示範 |
 | `examples/concurrency_315.py` | 新 iterator 工具、跨 interpreter 佇列、工作池與 TaskGroup |
 | `examples/hvac_monitor_315.py` | 8 筆模擬測點的輸入驗證與 JSON 報告 |
