@@ -180,7 +180,45 @@
     .protocol-nav-families a { min-width:0; padding:.32rem .5rem; overflow-wrap:anywhere; }
     .tool-panel .quick-links { min-width:0; }
     @media (min-width:981px) { .tool-panel { grid-template-columns:minmax(10rem,.55fr) minmax(0,1.45fr); } }
-  </style>
+    
+    .speed-acceptance-table .speed-mobile-label { display:none; }
+    .speed-acceptance-table th[scope="row"] { white-space:nowrap; }
+    .speed-detail-cards details { overflow-wrap:anywhere; }
+    .speed-detail-cards dt { color:#172033; font-weight:800; }
+    .speed-detail-cards dd { margin:0 0 .55rem; }
+    @media (max-width: 790px) {
+      .speed-acceptance-table table,.speed-acceptance-table tbody,.speed-acceptance-table tr { display:block; min-width:0; }
+      .speed-acceptance-table thead { position:absolute; inline-size:1px; block-size:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+      .speed-acceptance-table tbody > tr { margin:0 0 .65rem; border:1px solid #bfccdd; border-radius:8px; background:white; }
+      .speed-acceptance-table tbody > tr > th { display:block; background:#e8f2fd; white-space:normal; border-radius:8px 8px 0 0; }
+      .speed-acceptance-table tbody > tr > td { display:block; overflow-wrap:anywhere; }
+      .speed-acceptance-table tbody > tr > td:last-child { border-bottom:0; }
+      .speed-acceptance-table .speed-mobile-label { display:block; color:#223c55; font-weight:800; }
+    }
+  /* Protocol scoring UI: panels wrap on narrow viewports. */
+#protocol-scoring{margin-top:1.25rem;padding:clamp(.65rem,2vw,1rem);min-width:0;border:1px solid var(--line);border-radius:.8rem;background:#f3f8fc}
+#protocol-scoring h4,#protocol-scoring h5{margin:.4rem 0}
+#protocol-scoring p{margin:.45rem 0 .75rem;overflow-wrap:anywhere}
+.ps-columns,.ps-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.7rem;min-width:0}
+.ps-controls,.ps-card,.ps-scale{min-width:0;padding:.65rem;border:1px solid #bacdde;border-radius:.55rem;background:white;overflow-wrap:anywhere}
+.ps-card[hidden]{display:none}
+.ps-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,6.7rem),1fr));gap:.5rem}
+.ps-fields label,#protocol-scoring .ps-title{display:flex;flex-direction:column;gap:.2rem;min-width:0;font-weight:650;font-size:.92rem}
+#protocol-scoring input:not([type=checkbox]),#protocol-scoring select{padding:.34rem .38rem;font:inherit;color:#172033;min-width:0;max-width:100%;width:100%;border:1px solid #87a2b7;border-radius:.38rem;background:white}
+#protocol-scoring button{font:inherit;color:#172033;border:1px solid #87a2b7;border-radius:.4rem;background:#e7f1fb;padding:.35rem .6rem;cursor:pointer}
+#protocol-scoring fieldset{min-width:0;border:1px solid #bacdde;border-radius:.4rem;margin:.55rem 0;padding:.35rem .5rem}
+#protocol-scoring legend{font-weight:700}
+#protocol-scoring .ps-option{display:block}
+#protocol-scoring .ps-value{font-weight:800;color:#1c557c}
+#protocol-scoring .ps-gates{margin-top:.55rem}
+#protocol-scoring .ps-rank{margin:.35rem 0;padding-inline-start:1.5rem}
+#protocol-scoring .ps-summary{margin:.75rem 0;border-left:.25rem solid #315c87;padding:.55rem .65rem;background:#e5f1fb}
+#protocol-scoring :focus-visible{outline:2px solid #08688f;outline-offset:2px}
+#protocol-scoring .ps-scale{margin:.7rem 0}
+#protocol-scoring .ps-scale summary{cursor:pointer;font-weight:750}
+#protocol-scoring .ps-scale ol{padding-inline-start:1.5rem}
+#protocol-scoring .ps-btns{display:flex;flex-wrap:wrap;gap:.4rem}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -195,6 +233,8 @@
           <a href="#protocol-history">十個協定家族歷史與架構</a>
           <a href="#protocol-speed-compare">速度快慢比較</a>
           <a href="#protocol-speed-security">速度與安全性</a>
+          <a href="#protocol-scoring">速度、安全與價格評分</a>
+          <a href="#protocol-speed-security-details">十個協定詳解</a>
           <a href="#protocol-secure-shortlist">安全與可靠選型</a>
           <a href="#lab-setup">八組離線 Python 實作</a>
         <div class="protocol-nav-group" role="group" aria-label="十個協定家族捷徑">
@@ -267,6 +307,8 @@
             <a href="#protocol-selection">優缺點與場景</a>
             <a href="#protocol-visual-compare">通訊比較圖</a><a href="#protocol-history">歷史與架構</a><a href="#modbus-tcp-detail">Modbus TCP 專節</a><a href="#protocol-secure-shortlist">安全與可靠選型</a><a href="#protocol-speed-compare">速度快慢比較</a>
             <a href="#protocol-speed-security">速度與安全性</a>
+          <a href="#protocol-scoring">速度、安全與價格評分</a>
+          <a href="#protocol-speed-security-details">十個協定詳解</a>
             <a href="#lab-setup">環境準備</a>
             <a href="#lab-modbus">Modbus</a>
             <a href="#lab-bacnet">BACnet</a>
@@ -408,24 +450,84 @@
 </table></div>
 <p>上位監控可用同一個來源變化、相同網段與相同點數，比對 Modbus TCP 輪詢、BACnet COV、OPC UA 訂閱與 MQTT 即時發布的端到端 P95／P99。比如 1 秒輪詢單是等待下次輪詢就可能接近 1 秒，COV 或立即發布則在各自條件成立後送出。</p>
 <h3 id="protocol-speed-security">通訊速度、安全性與驗收</h3>
-<div class="lab-table" role="region" aria-labelledby="protocol-speed-security" tabindex="0"><table>
-  <thead><tr><th scope="col">協定</th><th scope="col">線速、更新與延遲</th><th scope="col">安全能力</th><th scope="col">現場驗收</th></tr></thead>
-  <tbody>
-    <tr><th scope="row">Modbus</th><td>RTU 常見 9,600／19,200 bit/s。TCP 使用乙太網路，更新取決於點塊、站數、設備回應與逾時設定。</td><td>傳統 Modbus TCP／RTU 無原生驗證或加密。支援 Modbus Security 的 TCP 端點可用 TLS 與 X.509 憑證。傳統設備用 OT 分區及存取規則限制讀寫。</td><td>量測一整輪、單站逾時時的掃描，以及寫入是否被限制。</td></tr>
-    <tr><th scope="row">BACnet</th><td>MS/TP 常見設備檔位如 38.4／76.8 kbit/s，更新受 token 週期、站數與負載影響。IP／SC 仍要量測實際 COV 或批讀延遲。</td><td>傳統 BACnet/IP、MS/TP 本身無加密。BACnet/SC 使用 TLS WebSocket 和憑證，跨入傳統 BACnet 分段後依該段的能力保護。</td><td>確認 Device Instance、COV 續訂、跨網單播與探索、憑證過期，以及重連取回目前值。</td></tr>
-    <tr><th scope="row">OPC UA</th><td>由伺服器採樣與 publishing interval 決定更新。例：100 ms 採樣、500 ms 發布，另加 PLC 與網路延遲。查 Server 實際接受的參數。</td><td>正式端點使用 <code>SignAndEncrypt</code>、信任清單及應用憑證，再按使用者角色授權。<code>SecurityPolicy=None</code> 不提供通訊簽章或加密。</td><td>記錄 SourceTimestamp、狀態碼、訂閱遺漏。檢查不受信任憑證及未授權寫入是否被拒。</td></tr>
-    <tr><th scope="row">MQTT</th><td>無固定週期。延遲由發布頻率、QoS、Broker 排隊、網路與重連決定。</td><td>部署 TLS 驗證 Broker，按需啟用 mTLS。由 Broker 實作帳號與 topic ACL；跨 Broker 轉送時逐段驗證。</td><td>從發布到訂閱端量測延遲，測重複、離線積壓、訊息逾期及沒有授權的 topic。</td></tr>
-    <tr><th scope="row">Zigbee</th><td>2.4 GHz 原始速率 250 kbit/s。感測點實際更新受上報條件、休眠、多跳與重送影響。</td><td>使用 AES-128 與金鑰機制。限制加入期間，保護金鑰及協調器，另為橋接 Broker 設 TLS 與 ACL。</td><td>核對上報間隔、漏報、離線與電量。分開測射頻連線及橋接發布。</td></tr>
-    <tr><th scope="row">PROFINET IO</th><td>常見 100 Mbit/s 乙太網路。PI 列出的 RT 可配置週期範圍為 250 µs 到 512 ms，實際由控制器與設備共同決定。IRT 依硬體與同步配置驗收。</td><td>確認控制器、設備與工程工具支援的 PROFINET Security Class 與功能。既有裝置以 OT 分區、限制工程存取、保護交換器埠為主。</td><td>量測循環更新、抖動、watchdog 與恢復時間。驗證資料狀態 IOPS／IOCS 與診斷。</td></tr>
-    <tr><th scope="row">PROFIBUS DP</th><td>典型銅纜 DP RS-485 為 9.6 kbit/s 至 12 Mbit/s。主站循環受速率、站數、I/O 長度和重試影響。</td><td>傳統 DP 無原生加密或裝置鑑別。限制匯流排實體接入及 PLC 工程介面存取。</td><td>核對線長與終端，量測 Data_Exchange、週期及一站中斷對其他站的影響。</td></tr>
-    <tr><th scope="row">CC-Link</th><td>Classic 為 156 kbit/s 至 10 Mbit/s。IE Field Basic 使用 100 Mbit/s 乙太網路，循環需按站數與 CPU 實測。兩者的線速都只是掃描時間的其中一項因素。</td><td>Classic 無原生加密或裝置鑑別。保護匯流排及工程介面。IE 系列依版本和設備規格確認，使用 OT 網路分區。</td><td>量測 link scan、CPU refresh、站離線後舊值的品質標示，以及恢復時間。</td></tr>
-  <tr><th scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td>量實際循環、RPI 與 PLC 工作週期。CIP Sync 可提供時鐘同步，但不保證端到端延遲。</td><td>CIP Security 須端點支援並啟用；依模式或政策核對加密、鑑別及完整性。</td><td>在正常及負載高時核對更新、逾時、重連和未授權操作是否被拒。</td></tr>
-<tr><th scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td>典型 100BASE-TX 段為 100 Mbit/s，全雙工。Distributed Clocks 的同步精度與反應延遲分開。</td><td>不因使用 Distributed Clocks 或功能安全機制就假定網路加密；限制工程與主站介面。</td><td>量最長更新間隔、watchdog、資料失效與故障恢復。</td></tr>
+<p>十個協定家族各列線速／更新、安全與驗收；窄畫面會依協定將三欄直向排列。<a href="#protocol-speed-security-details">看各協定詳細介紹</a>。</p>
+<div class="lab-table speed-acceptance-table" role="region" aria-labelledby="protocol-speed-security" tabindex="0"><table role="table">
+  <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">協定</th><th role="columnheader" scope="col">線速、更新與延遲</th><th role="columnheader" scope="col">安全能力</th><th role="columnheader" scope="col">現場驗收</th></tr></thead>
+  <tbody role="rowgroup">
+    <tr role="row"><th role="rowheader" scope="row">Modbus</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>RTU 常見 9,600／19,200 bit/s。TCP 使用乙太網路，更新取決於點塊、站數、設備回應與逾時設定。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>傳統 Modbus TCP／RTU 無原生驗證或加密。支援 Modbus Security 的 TCP 端點可用 TLS 與 X.509 憑證。傳統設備用 OT 分區及存取規則限制讀寫。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>量測一整輪、單站逾時時的掃描，以及寫入是否被限制。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">BACnet</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>MS/TP 常見設備檔位如 38.4／76.8 kbit/s，更新受 token 週期、站數與負載影響。IP／SC 仍要量測實際 COV 或批讀延遲。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>傳統 BACnet/IP、MS/TP 本身無加密。BACnet/SC 使用 TLS WebSocket 和憑證，跨入傳統 BACnet 分段後依該段的能力保護。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>確認 Device Instance、COV 續訂、跨網單播與探索、憑證過期，以及重連取回目前值。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">OPC UA</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>由伺服器採樣與 publishing interval 決定更新。例：100 ms 採樣、500 ms 發布，另加 PLC 與網路延遲。查 Server 實際接受的參數。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>正式端點使用 <code>SignAndEncrypt</code>、信任清單及應用憑證，再按使用者角色授權。<code>SecurityPolicy=None</code> 不提供通訊簽章或加密。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>記錄 SourceTimestamp、狀態碼、訂閱遺漏。檢查不受信任憑證及未授權寫入是否被拒。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">MQTT</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>無固定週期。延遲由發布頻率、QoS、Broker 排隊、網路與重連決定。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>部署 TLS 驗證 Broker，按需啟用 mTLS。由 Broker 實作帳號與 topic ACL；跨 Broker 轉送時逐段驗證。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>從發布到訂閱端量測延遲，測重複、離線積壓、訊息逾期及沒有授權的 topic。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">Zigbee</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>2.4 GHz 原始速率 250 kbit/s。感測點實際更新受上報條件、休眠、多跳與重送影響。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>使用 AES-128 與金鑰機制。限制加入期間，保護金鑰及協調器，另為橋接 Broker 設 TLS 與 ACL。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>核對上報間隔、漏報、離線與電量。分開測射頻連線及橋接發布。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">PROFINET IO</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>常見 100 Mbit/s 乙太網路。PI 列出的 RT 可配置週期範圍為 250 µs 到 512 ms，實際由控制器與設備共同決定。IRT 依硬體與同步配置驗收。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>確認控制器、設備與工程工具支援的 PROFINET Security Class 與功能。既有裝置以 OT 分區、限制工程存取、保護交換器埠為主。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>量測循環更新、抖動、watchdog 與恢復時間。驗證資料狀態 IOPS／IOCS 與診斷。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">PROFIBUS DP</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>典型銅纜 DP RS-485 為 9.6 kbit/s 至 12 Mbit/s。主站循環受速率、站數、I/O 長度和重試影響。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>傳統 DP 無原生加密或裝置鑑別。限制匯流排實體接入及 PLC 工程介面存取。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>核對線長與終端，量測 Data_Exchange、週期及一站中斷對其他站的影響。</td></tr>
+    <tr role="row"><th role="rowheader" scope="row">CC-Link</th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>Classic 為 156 kbit/s 至 10 Mbit/s。IE Field Basic 使用 100 Mbit/s 乙太網路，循環需按站數與 CPU 實測。兩者的線速都只是掃描時間的其中一項因素。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>Classic 無原生加密或裝置鑑別。保護匯流排及工程介面。IE 系列依版本和設備規格確認，使用 OT 網路分區。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>量測 link scan、CPU refresh、站離線後舊值的品質標示，以及恢復時間。</td></tr>
+  <tr role="row"><th role="rowheader" scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>量實際循環、RPI 與 PLC 工作週期。CIP Sync 可提供時鐘同步，但不保證端到端延遲。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>CIP Security 須端點支援並啟用；依模式或政策核對加密、鑑別及完整性。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>在正常及負載高時核對更新、逾時、重連和未授權操作是否被拒。</td></tr>
+<tr role="row"><th role="rowheader" scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td role="cell"><span class="speed-mobile-label" aria-hidden="true">線速、更新與延遲</span>典型 100BASE-TX 段為 100 Mbit/s，全雙工。Distributed Clocks 的同步精度與反應延遲分開。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">安全能力</span>不因使用 Distributed Clocks 或功能安全機制就假定網路加密；限制工程與主站介面。</td><td role="cell"><span class="speed-mobile-label" aria-hidden="true">現場驗收</span>量最長更新間隔、watchdog、資料失效與故障恢復。</td></tr>
 </tbody>
 </table></div>
 <div class="lab-note"><strong>20 台 RTU 的輪詢估算。</strong>若每台讀取兩個 Holding Register，請求 8 bytes、回應 9 bytes，在 9,600 bit/s、8E1 下，每台光是 17 bytes 的傳輸就約 19.5 ms。20 台合計約 390 ms，還要加幀間靜默、設備處理及例外等待。如果輪詢目標是 1 秒，需實測正常及單站離線情境。</div>
 <p>以正常負載、尖峰負載及單站離線三種情境記錄完整掃描週期、端到端 P95／P99、逾時率與恢復時間。對需要確定時限的控制 I/O，另核對規定的最長更新與 watchdog。跨設備量測端到端時間時，先同步並確認時鐘誤差。</p>
 <p>規格與指引：<a href="https://www.modbus.org/modbus-specifications">Modbus Organization</a> · <a href="https://bacnetinternational.org/bacnetsc/">BACnet International</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4.8">OPC Foundation</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT</a> · <a href="https://csa-iot.org/all-solutions/zigbee/zigbee-faq/">CSA Zigbee</a> · <a href="https://us.profinet.com/profinet-rt-real-time-performance/">PI PROFINET RT</a> · <a href="https://www.profibus.com/fileadmin/media/downloadsection/installation_guide/PROFIBUS_Design_Guideline_8012_V129_Sep20.pdf">PI PROFIBUS 設計指引</a> · <a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab05">CLPA</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST OT Security</a></p>
+<section id="protocol-scoring" aria-labelledby="protocol-scoring-title">
+  <h4 id="protocol-scoring-title">互動選型：速度 × 安全 × 生命週期價格</h4>
+  <p><strong>10 個協定家族、11 個候選配置。</strong>上方原 10 列完整保留；此處只把 Modbus 拆成 RTU／TCP 兩列。BACnet、CC-Link 等家族依候選設備指定變體後再評分，不把有選配的家族名稱當成部署已支援。預填數值是教學假設，不是實測、認證、行情、推薦品牌或採購結論。</p>
+  <div class="ps-columns">
+    <div class="ps-controls">
+      <label class="ps-title" for="ps-preset">應用情境</label>
+      <select id="ps-preset">
+        <option value="bas">HVAC／BAS 監控</option><option value="motion">即時運動／循環 I/O</option><option value="telemetry">IT Telemetry／跨站資料</option>
+      </select>
+      <p id="ps-context"></p>
+      <div class="ps-fields">
+        <label>速度權重<input type="number" id="ps-w-speed" min="0" max="100" step="1" inputmode="numeric"></label>
+        <label>安全權重<input type="number" id="ps-w-security" min="0" max="100" step="1" inputmode="numeric"></label>
+        <label>價格權重<input type="number" id="ps-w-price" min="0" max="100" step="1" inputmode="numeric"></label>
+      </div>
+      <p>權重不必湊 100，程式依總和換算；皆為 0 則不排名。更換情境會載入該情境的速度範例、權重及門檻，並清除上一情境的個別修改及驗證狀態。</p>
+    </div>
+    <div class="ps-controls">
+      <fieldset><legend>硬門檻：不能用分數抵銷</legend>
+        <label class="ps-option"><input id="ps-hard-sec" type="checkbox" checked> 要求安全措施與部署證據已驗證</label>
+        <label class="ps-option"><input id="ps-hard-speed" type="checkbox"> 要求現場應用時限已驗證</label>
+      </fieldset>
+      <label class="ps-title" for="ps-filter">候選篩選</label>
+      <select id="ps-filter"><option value="all">顯示全部</option><option value="passed">只顯示通過啟用硬門檻</option><option value="unverified">只顯示尚未通過／待確認</option></select>
+      <p>選擇「通過」須由你確認實際設備、韌體、拓撲和證據。關閉任一門檻不代表該項已驗證；關閉全部時仍只是比較用。</p>
+      <div class="ps-btns"><button type="button" id="ps-reset">重設本情境（含全部欄位）</button></div>
+    </div>
+  </div>
+  <details class="ps-scale" open><summary>1–5 分怎麼評？（5 分較符合本專案）</summary>
+    <ol>
+      <li><strong>速度：</strong>只用同一應用場景的 p95 或控制循環證據。例：p95 / 目標 ≤0.50 為 5、≤0.80 為 4、≤1.00 為 3、≤1.50 為 2、超過為 1；無數據先用示意值，不通過時限硬門檻。對硬即時另外驗證最長更新、jitter、watchdog，p95 夠快不代表過關。</li>
+      <li><strong>安全：</strong>1＝無必要措施；2＝部分補償控制；3＝設計含所需措施但未完整驗證；4＝驗證必要的身分／權限／隔離及依需求的保密、完整性；5＝再驗證輪替、稽核、拒絕與回復演練。選項可用不等於已啟用，跨網每一段都要核對。</li>
+      <li><strong>初期／維護價格：</strong>例如以相同點數、站數、幣別及 5 年持有期間整理兩項金額，再各自對照本案參考額。若跨期金額重大，使用一致的折現與風險假設；同樣未知的各項留待詢價，不當作已知零元。例：計畫成本 ÷ 參考額 ≤0.60 為 5、≤0.80 為 4、≤1.00 為 3、≤1.25 為 2、超過為 1。初期含設備、閘道、授權、施工及工程驗收；維護含續約、金鑰與憑證輪替、備援、備品、人員培訓及停機／移轉成本。無詢價就保持示意分。</li>
+    </ol>
+    <p><strong>算例：</strong>速度 4、安全 4、初期 3、維護 2 時，價格分＝(3+2)/2＝2.5；權重 30／45／25 的總分＝3.625（顯示 3.63／5）。即使分數較高，任一啟用硬門檻沒通過都不列入合格排名。預算、功能安全、互通性另視專案加獨立硬門檻，不能以此工具代簽。</p>
+  </details>
+  <div class="ps-summary">
+    <div id="ps-status" role="status" aria-live="polite"></div>
+    <ol id="ps-ranking" class="ps-rank" aria-label="通過硬門檻的綜合排名"></ol>
+  </div>
+  <div id="ps-results" class="ps-results"></div>
+  <noscript><p>本選型工具需要 JavaScript。上方靜態協定比較可直接閱讀。</p></noscript>
+  <p>驗收補充：固定設備與版本、訊息大小、網段、負載與點數，先定義起點（來源變化）與終點（控制任務採用或 BMS 取值），跨設備先同步時鐘並記不確定性。記錄樣本數、正常與尖峰 p95/p99、循環最大值、逾時與故障復原；安全另做權限拒絕測試。線路標稱值只作拓撲資料。</p>
+  <p>追加官方來源：<a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-security/">ODVA CIP Security</a> · <a href="https://www.ethercat.org/en/technology.html">ETG EtherCAT</a> · <a href="https://www.cc-link.org/en/networktechnology/features/cclinkietsn/index.html">CLPA IE TSN</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00081R1_Performance_Methodology_v1.0.pdf">ODVA 效能量測方法</a> · <a href="https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.135e2025.pdf">NIST 生命週期成本方法</a>（方法參考，非行情）。</p>
+</section>
+<section class="protocol-compare pc-history speed-detail-cards" id="protocol-speed-security-details" aria-labelledby="protocol-speed-security-details-title">
+<h3 id="protocol-speed-security-details-title">十個協定家族：版本、資料流、安全配置與故障驗收</h3>
+<p>各卡的驗收項目可轉成現場測試清單；以隔離環境或經核准的維護窗口驗收，避免用一般線速推估真實回應。</p>
+<details id="speed-detail-modbus"><summary>Modbus</summary><dl><dt>版本、資料流與適用</dt><dd>RTU 是序列請求／回應，按站號與功能碼解讀；TCP 以 MBAP 識別交易和長度。TCP→RTU 閘道的下游匯流排仍串行，應按實際 Unit ID 映射與整輪截止時間驗證。</dd><dt>安全配置與限制</dt><dd>一般 Modbus TCP 與 RTU 不提供應用層鑑別或加密；Modbus Security 是支援端點勾稽 TLS、X.509 的另外模式。舊設備按 OT 分區、讀寫權限與來源白名單配置。</dd><dt>故障驗收</dt><dd>隔離測試台比對 FC03 連續讀與分散輪詢：記錄 request→response、完整一輪 P95/P99、單站失聯後其餘站更新率。驗證資料型別、字序與寫入拒絕，不在運轉設備試寫。</dd></dl><p><a href="#modbus-tcp-detail">站內實作或深度篇</a> · <a href="https://www.modbus.org/modbus-specifications">Modbus Organization 規格</a></p></details>
+<details id="speed-detail-bacnet"><summary>BACnet</summary><dl><dt>版本、資料流與適用</dt><dd>MS/TP 普遍是 RS-485 token 匯流排；BACnet/IP 以 IP 網路傳遞，可按設計用 BBMD／Foreign Device 處理跨子網探索。BACnet/SC 改走 TLS WebSocket 的互連，不能把 COV 通知延遲等同鏈路速率。</dd><dt>安全配置與限制</dt><dd>BACnet/SC 需設受信任憑證、相容 Hub 與更新計畫；轉回傳統 BACnet 網段不會自動加密。另限制物件層可讀、可寫的操作。</dd><dt>故障驗收</dt><dd>檢查 Device Instance 重複、COV 續訂、備援 Hub 切換（如有配置）和恢復後取回最新值。把 Hub 重連、點值更新與掉包分開記。</dd></dl><p><a href="#lab-bacnet">站內實作或深度篇</a> · <a href="https://bacnetinternational.org/bacnetsc/">BACnet International BACnet/SC</a></p></details>
+<details id="speed-detail-opc-ua"><summary>OPC UA</summary><dl><dt>版本、資料流與適用</dt><dd>Client/Server 有 AddressSpace、Session 以及 Subscription/MonitoredItem；採樣、發布、佇列是不同參數。記錄伺服器回傳的 revised interval。另有 PubSub 模型，不把此訂閱行為套給所有部署。</dd><dt>安全配置與限制</dt><dd>正式 Client/Server 端點以允許的 SecurityPolicy、SignAndEncrypt、雙方應用憑證和信任清單驗證；使用者身分及節點讀寫授權是另一層。</dd><dt>故障驗收</dt><dd>記錄 StatusCode、SourceTimestamp、序號缺口及 reconnect→第一筆新鮮可用值。可用時驗證 TransferSubscriptions／Republish；不可用則讀現值、重訂閱並標記缺口。</dd></dl><p><a href="python_opcua_deep_dive.html">站內實作或深度篇</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/full">OPC Foundation Part 4</a></p></details>
+<details id="speed-detail-mqtt"><summary>MQTT</summary><dl><dt>版本、資料流與適用</dt><dd>Publisher→Broker→Subscriber。QoS 定義傳輸交付行為，不提供時限；MQTT 5.0 的 Session Expiry／Message Expiry 分別管會話與訊息，retained 不是一般歷史佇列。</dd><dt>安全配置與限制</dt><dd>依 Broker 配置 TLS 伺服器身分，必要時 mTLS；按帳號／角色設定 topic ACL。TLS 保護相連的一段，並不自動保護橋接的每段。</dd><dt>故障驗收</dt><dd>帶唯一訊息 ID 與時間戳，在斷線／重連重播查重複、過期、積壓與恢復。驗證被拒的 topic，驗收「應用只處理一次」須另外設計冪等。</dd></dl><p><a href="python_mqtt_deep_dive.html">站內實作或深度篇</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a></p></details>
+<details id="speed-detail-zigbee"><summary>Zigbee</summary><dl><dt>版本、資料流與適用</dt><dd>協調器建網、路由器轉送、終端裝置可休眠。2.4 GHz 250 kbit/s 是原始速率；單點實際上報受路由、休眠、干擾與重送影響。</dd><dt>安全配置與限制</dt><dd>規範使用 AES-128；限制允許加入窗口，依設備能力查入網憑據、網路金鑰及更新。射頻側與 Zigbee→MQTT 橋接的帳號、TLS 和 ACL 應分開審查。</dd><dt>故障驗收</dt><dd>分開記錄無線點進橋接器與 Broker→訂閱端的延遲。測單路由裝置在隔離環境離線時的覆蓋、休眠上報與資料逾期。</dd></dl><p><a href="#lab-zigbee">站內實作或深度篇</a> · <a href="https://csa-iot.org/all-solutions/zigbee/zigbee-faq/">CSA Zigbee FAQ</a></p></details>
+<details id="speed-detail-profinet"><summary>PROFINET IO</summary><dl><dt>版本、資料流與適用</dt><dd>IO Controller／IO Device 進行循環交換，工程與診斷另有非循環路徑；RT 與同步排程 IRT 功能不同。GSDML、設備/控制器功能及工程工具決定可設定參數。</dd><dt>安全配置與限制</dt><dd>對照 PI 規範及產品版本確認 Security Class、能力與實際配置；不能預設所有 PROFINET 都會鑑別或加密。將工程站、交換器管理與循環 I/O 放在預期 OT 網段。</dd><dt>故障驗收</dt><dd>記錄設定週期、實際最大更新、抖動、IOPS/IOCS 診斷及 watchdog，驗證裝置故障至品質失效及復歸。若採 MRP／MRPD，分開驗證網路與控制器恢復。</dd></dl><p><a href="#lab-profinet">站內實作或深度篇</a> · <a href="https://www.profibus.com/profinet-specification">PI PROFINET 規格</a></p></details>
+<details id="speed-detail-profibus"><summary>PROFIBUS DP</summary><dl><dt>版本、資料流與適用</dt><dd>DP 主站與從站週期交換；多主站安排與 DP-V1 非週期服務另確認；DP 銅纜 RS-485 不是 PA 的製程儀表物理層，不能把 RS-485 線速套給 PA。</dd><dt>安全配置與限制</dt><dd>傳統 DP 不靠匯流排原生鑑別或加密；依電氣設計限制實體接入，圈定工程站、PLC 和上行閘道的操作權。功能安全另審。</dd><dt>故障驗收</dt><dd>核對 GSD、站址、鮑率、線長與終端；量回到 Data_Exchange 的時間、其他站在失聯時的影響，以及舊資料品質是否失效。</dd></dl><p><a href="#lab-profibus">站內實作或深度篇</a> · <a href="https://www.profibus.com/fileadmin/media/downloadsection/installation_guide/PROFIBUS_Design_Guideline_8012_V129_Sep20.pdf">PI PROFIBUS 設計指引</a></p></details>
+<details id="speed-detail-cc-link"><summary>CC-Link</summary><dl><dt>版本、資料流與適用</dt><dd>Classic 是序列匯流排；CC-Link IE Field Basic 是 100 Mb/s 的軟體型 Ethernet，IE Field 為 1 Gb/s，IE TSN 有 100 Mb/s 或 1 Gb/s 等規格。不要把 IE Field Basic 的更新特性套給 IE TSN。</dd><dt>安全配置與限制</dt><dd>Classic 用實體存取與工程管理防護；IE 系列須按產品核對管理、驗證與網段隔離。TSN 的排程與同步不等於訊框加密或端點授權。</dd><dt>故障驗收</dt><dd>依實際變體觀測 link scan、PLC refresh、離線識別、上位最後有效時間及復歸。若有 IE TSN，驗同步、時槽與高負載下的最壞更新。</dd></dl><p><a href="#lab-cclink">站內實作或深度篇</a> · <a href="https://www.cc-link.org/en/networktechnology/spec.html?tab=tab06">CLPA 網路規格</a></p></details>
+<details id="speed-detail-ethernet-ip"><summary>EtherNet/IP</summary><dl><dt>版本、資料流與適用</dt><dd>CIP 物件與 Assembly；Scanner／Adapter 的循環 I/O 通常用 implicit messaging，組態與診斷用 explicit messaging。RPI 屬於連線更新配置，不等於 PLC 掃描或端到端時限。</dd><dt>安全配置與限制</dt><dd>CIP Security 需相容且啟用的端點，採 TLS／DTLS 依 profile 與流量提供防護；核對鑑別、完整性、保密及 ACL 策略。CIP Sync、CIP Safety 各有別用途。</dd><dt>故障驗收</dt><dd>核對 EDS、I/O Assembly 尺寸、實際循環、逾時與 watchdog；監測不相容端點與拒絕未授權操作。若有 DLR，測媒體復歸與資料新鮮度。</dd></dl><p><a href="python_ethernetip_deep_dive.html">站內實作或深度篇</a> · <a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-security/">ODVA CIP Security</a></p></details>
+<details id="speed-detail-ethercat"><summary>EtherCAT</summary><dl><dt>版本、資料流與適用</dt><dd>原生循環 Ethernet frame 使用 EtherType 0x88A4；從站 ESC 沿途處理，主站接回。PDO 為循環資料；支援 CoE 的裝置可透過 mailbox 搭配 SDO。DC 對齊時鐘，不保證控制延遲。</dd><dt>安全配置與限制</dt><dd>一般循環 EtherCAT 不因 DC 或 FSoE 而取得端點鑑別、授權或加密。限制主站、工程介面與非預期的實體連線。</dd><dt>故障驗收</dt><dd>記錄 INIT/PREOP/SAFEOP/OP、預期和實得 WKC、狀態碼、採樣 age 及週期。當筆不合格立刻標成資料不可用，告警防抖另設，不使用舊值作控制。</dd></dl><p><a href="python_ethercat_deep_dive.html">站內實作或深度篇</a> · <a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 實作指引</a></p></details>
+</section>
 <section class="pc-history protocol-compare" id="protocol-history" aria-labelledby="pc-history-title"><h4 id="pc-history-title">十個協定家族：歷史、資料流與整合邊界</h4><p>展開各章可查看時間線和典型資料路徑。圖中箭頭是責任或流向，不代表單工；循環交換、請求回應及上傳都要按各協定驗收。</p><details><summary>Modbus：歷史與架構</summary><p><strong>歷史：</strong>1979｜Modicon 提出 Modbus；2004｜移交 Modbus Organization；2018｜公告 Modbus Security。</p><ol class="pc-flow" aria-label="Modbus 典型資料流"><li>Client／主站</li><li class="pc-arrow" aria-hidden="true">→</li><li>RTU 多站匯流排或 TCP 網路</li><li class="pc-arrow" aria-hidden="true">→</li><li>設備暫存器／線圈</li></ol><p><strong>傳輸與更新：</strong>RTU 的單元位址、PDU、CRC 與幀間靜默，不能用 TCP 的 MBAP 封包解析。連續點讀取要核對位址基準、比例與字序。</p><p><strong>Python 整合與失效：</strong>由 Python client 讀取；重試納入整輪期限，不讓失聯站拖長其他站。</p><p><a href="https://www.modbus.org/faq">歷史資料</a> · <a href="https://www.modbus.org/modbus-specifications">技術文件</a></p></details><details><summary>BACnet：歷史與架構</summary><p><strong>歷史：</strong>1987｜ASHRAE 委員會首次開會；1995｜Standard 135 發布；1999｜BACnet/IP 增補；2019｜BACnet/SC 納入。</p><ol class="pc-flow" aria-label="BACnet 典型資料流"><li>BMS／BACnet Client</li><li class="pc-arrow" aria-hidden="true">→</li><li>IP 路由／SC 安全連線／MS/TP 權杖</li><li class="pc-arrow" aria-hidden="true">→</li><li>設備 → 物件 → 屬性</li></ol><p><strong>傳輸與更新：</strong>用 ReadProperty、RPM 或 COV 取得物件資料；探索、跨網與 COV 續訂是分開的工作。BACnet/SC 與舊網段的保護需分段判讀。</p><p><strong>Python 整合與失效：</strong>Python 擷取物件與品質；斷線後讀回現值、重建訂閱並標示過期。</p><p><a href="https://bacnet.org/a-protocol-for-the-planet-celebrating-30-years-of-building-a-smarter-future-with-bacnet/">歷史資料</a> · <a href="https://bacnetinternational.org/bacnetsc/">技術文件</a></p></details><details><summary>OPC UA：歷史與架構</summary><p><strong>歷史：</strong>1996｜Classic OPC 採 COM／DCOM；2008｜UA 公開發布；2018｜發布 PubSub Part 14。</p><ol class="pc-flow" aria-label="OPC UA 典型資料流"><li>Client／Subscription</li><li class="pc-arrow" aria-hidden="true">→</li><li>SecureChannel／Session</li><li class="pc-arrow" aria-hidden="true">→</li><li>Server AddressSpace</li></ol><p><strong>傳輸與更新：</strong>Client/Server 有 Node 與 Reference；通知由 MonitoredItem 採樣及 Subscription 發布。PubSub 是另一模型，可使用不經 Broker 或經 Broker 的傳輸。</p><p><strong>Python 整合與失效：</strong>以 Python 保留 DataValue 的值、品質及來源時間，確認服務端修訂取樣值與恢復漏值。</p><p><a href="https://opcfoundation.org/faq/">歷史資料</a> · <a href="https://opcfoundation.org/news/press-releases/opc-foundation-announces-opc-ua-pubsub-release-important-extension-opc-ua-communication-platform/">技術文件</a></p></details><details><summary>MQTT：歷史與架構</summary><p><strong>歷史：</strong>1999｜MQTT 問世；2014｜OASIS 3.1.1；2019｜OASIS 5.0。</p><ol class="pc-flow" aria-label="MQTT 典型資料流"><li>Publisher</li><li class="pc-arrow" aria-hidden="true">→</li><li>Broker／Topic</li><li class="pc-arrow" aria-hidden="true">→</li><li>Subscriber</li></ol><p><strong>傳輸與更新：</strong>發布者與訂閱者透過 Broker 解耦。QoS 是交付語意而非即時保證；保留訊息與會話效期各有用途。</p><p><strong>Python 整合與失效：</strong>Python 驗證 schema、時間與來源品質，處理重複、逾期及重連積壓。</p><p><a href="https://mqtt.org/faq/">歷史資料</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">技術文件</a></p></details><details><summary>Zigbee：歷史與架構</summary><p><strong>歷史：</strong>2006｜聯盟回顧首批產品；2015｜Zigbee 3.0 通過；2025｜聯盟宣布 Zigbee 4.0 與 Suzi。</p><ol class="pc-flow" aria-label="Zigbee 典型資料流"><li>電池感測器／End Device</li><li class="pc-arrow" aria-hidden="true">→</li><li>Router／Coordinator</li><li class="pc-arrow" aria-hidden="true">→</li><li>Bridge／上層服務</li></ol><p><strong>傳輸與更新：</strong>使用 IEEE 802.15.4 PHY/MAC；Zigbee 網路角色不同，休眠終端依父節點收送。應用層依 Endpoint／Cluster／Attribute 存取。</p><p><strong>Python 整合與失效：</strong>Python 接 Bridge；驗證上報、漏報、訊號與資料新鮮度，並分開驗證無線和 Bridge 安全。</p><p><a href="https://csa-iot.org/newsroom/zigbee-3-0-ratification-creates-greener-world-using-the-iot/">歷史資料</a> · <a href="https://csa-iot.org/all-solutions/zigbee/zigbee-faq/">技術文件</a></p></details><details><summary>PROFINET IO：歷史與架構</summary><p><strong>歷史：</strong>2001｜PI 歷史資料列為推出；2009｜PI 系統說明已列出 IRT；2024｜更新技術與應用系統說明。</p><ol class="pc-flow" aria-label="PROFINET IO 典型資料流"><li>IO Controller</li><li class="pc-arrow" aria-hidden="true">→</li><li>RT／IRT 工業乙太網</li><li class="pc-arrow" aria-hidden="true">→</li><li>IO Device／分散 I/O</li></ol><p><strong>傳輸與更新：</strong>控制器與設備循環交換；IRT 依同步與排程運作。IO Supervisor 及非循環工程與診斷服務不是同一個週期。</p><p><strong>Python 整合與失效：</strong>由控制器執行即時資料交換；Python 讀帶品質與新鮮度的快照。</p><p><a href="https://www.profibus.com/index.php?eID=dumpFile&amp;f=53290&amp;t=f&amp;token=6c8f55bcf01604eb71efb19902a1209c5274b84e">歷史資料</a> · <a href="https://www.profibus.com/download/profinet-technology-and-application-system-description">技術文件</a></p></details><details><summary>PROFIBUS DP：歷史與架構</summary><p><strong>歷史：</strong>1989｜PNO 成立；1993｜DP 納入 DIN 19245；1995｜推出面向製程儀表的 PA。</p><ol class="pc-flow" aria-label="PROFIBUS DP 典型資料流"><li>DP 主站</li><li class="pc-arrow" aria-hidden="true">→</li><li>常見 RS-485 匯流排</li><li class="pc-arrow" aria-hidden="true">→</li><li>DP 從站</li></ol><p><strong>傳輸與更新：</strong>主站間有權杖機制，主站與從站循環交換。DP 不是 PA；PA 可用 MBP 同線傳輸資料及供電，經相應耦合或連接設備整合。</p><p><strong>Python 整合與失效：</strong>由主站處理循環及診斷；Python 讀 PLC 快照，留意單站掉線時的狀態。</p><p><a href="https://www.profibus.com/index.php?eID=dumpFile&amp;f=39921&amp;t=f&amp;token=3fe928a677b8f97fa07bd340cdf5a8946116aad9">歷史資料</a> · <a href="https://www.profibus.com/technologies/profibus">技術文件</a></p></details><details><summary>CC-Link：歷史與架構</summary><p><strong>歷史：</strong>2000｜CLPA 歷史列開放序列型系統；2008｜推出 1 Gbit/s CC-Link IE；2018｜公開 CC-Link IE TSN 規格。</p><ol class="pc-flow" aria-label="CC-Link 典型資料流"><li>主站／PLC</li><li class="pc-arrow" aria-hidden="true">→</li><li>Classic 序列網路或特定 IE 變體</li><li class="pc-arrow" aria-hidden="true">→</li><li>遠端 I/O／驅動</li></ol><p><strong>傳輸與更新：</strong>Classic 以掃描交換 RX/RY 與 RWr/RWw；IE Field Basic、IE Field、IE TSN 並非同一機制。IE TSN 要核對端到端設備的同步與排程。</p><p><strong>Python 整合與失效：</strong>Python 讀 PLC 資料刷新區；分開驗收 link scan、CPU refresh 與舊值標記。</p><p><a href="https://www.cc-link.org/en/networktechnology/index.html">歷史資料</a> · <a href="https://www.cc-link.org/en/networktechnology/features/cclinkietsn/index.html">技術文件</a></p></details><details><summary>EtherNet/IP：歷史與架構</summary><p><strong>歷史：</strong>2001｜ODVA 技術概要列為引入；2015｜ODVA 會議發布 CIP Security 第一階段技術資料。</p><ol class="pc-flow" aria-label="EtherNet/IP 典型資料流"><li>CIP Scanner</li><li class="pc-arrow" aria-hidden="true">→</li><li>Ethernet／循環 I/O 與診斷通道</li><li class="pc-arrow" aria-hidden="true">→</li><li>CIP Adapter／Assembly</li></ol><p><strong>傳輸與更新：</strong>Implicit I/O 通常走 UDP，由 RPI 設定；Explicit 診斷通常走 TCP，按服務與裝置支援驗證。CIP Sync 服務與端到端反應時間要分開驗收。</p><p><strong>Python 整合與失效：</strong>Python 讀 PLC 或監控閘道，不在一般 Python 行程實作控制循環。</p><p><a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">歷史資料</a> · <a href="https://www.odva.org/library_proceedings/cip-security-phase-1-secure-transport-for-ethernet-ip/">技術文件</a></p></details><details><summary>EtherCAT：歷史與架構</summary><p><strong>歷史：</strong>2003 年 4 月｜技術亮相；2003 年 11 月｜ETG 成立；2007 年 9 月｜IEC 61158 FDIS 投票通過。</p><ol class="pc-flow" aria-label="EtherCAT 典型資料流"><li>MainDevice</li><li class="pc-arrow" aria-hidden="true">→</li><li>Ethernet 幀依序經過各 SubDevice</li><li class="pc-arrow" aria-hidden="true">→</li><li>末端折返 → MainDevice</li></ol><p><strong>傳輸與更新：</strong>SubDevice 在幀經過時處理指定資料，不是逐站 IP 輪詢。Distributed Clocks 同步裝置時間；週期、同步誤差與實體輸入至輸出反應是不同量。</p><p><strong>Python 整合與失效：</strong>Python 讀主站映射或上層介面；由機器控制器決定 watchdog、失效輸出與恢復。</p><p><a href="https://www.ethercat.org/download/documents/etg_brochure_en.pdf">歷史資料</a> · <a href="https://www.ethercat.org/en/technology.html">技術文件</a></p></details></section>
 <section class="protocol-compare" id="protocol-secure-shortlist" aria-labelledby="pc-secure-title"><h3 id="pc-secure-title">安全性與可靠性：依用途選候選</h3><p><strong>資安</strong>問誰能連線、讀寫，及封包能否防竄改或保密；<strong>可用性</strong>問掉線或故障能否在期限內恢復；<strong>確定性</strong>問最壞更新間隔；<strong>功能安全</strong>另須按應用完成合格設計與驗證。四者不能互相替代，以下不是安全分數排名。</p><p>延伸閱讀：<a href="python_information_security_tutorial.html#ot">OT 資安與網路分區</a>。</p>
 <div class="lab-table" role="region" tabindex="0" aria-labelledby="pc-secure-title"><table><thead><tr><th scope="col">場景／候選</th><th scope="col">資安前提</th><th scope="col">可靠性驗收</th></tr></thead><tbody>
@@ -758,5 +860,116 @@ python read_live.py opcua opc.tcp://127.0.0.1:4840/lab/ urn:example:plant AHU01.
     renderAll();
   </script>
 <script>(()=>{const d=[["Modbus RTU","lab-modbus","https://www.modbus.org/file/secure/modbusoverserial.pdf","RS-485／序列","9.6 和 19.2 kbit/s 為設定例，不是掃描速率。","主站逐站輪詢","同一串列匯流排一次只執行一個交易。","整輪掃描與單站逾時","將傳輸、間隔、設備處理與等待分開記錄。","傳統 RTU 無原生加密","以實體管控及閘道存取規則限制，不能由上游 TLS 推論下游受保護。"],["Modbus TCP","modbus-tcp-detail","https://www.modbus.org/file/secure/messagingimplementationguide.pdf","由乙太網埠和鏈路決定","MBAP 封裝在 TCP 之上；100 Mbit/s 只是鏈路示例。","Client/Server 請求回應","用 Transaction ID 對應交易；閘道到 RTU 仍可能串列排隊。","單次 RTT 與全輪 P95／P99","用相同點數及負載，原生 TCP 與 TCP→RTU 各自量測。","傳統 TCP ≠ Modbus Security","傳統 TCP 無原生鑑別和加密；安全版需相容端點、TLS 與 X.509。"],["BACnet","lab-bacnet","https://bacnetinternational.org/bacnetsc/","IP／SC／MS/TP","MS/TP 為序列鏈路；不要把 IP 或 SC 當成固定線速。","批讀／COV","COV 依物件支援、變化門檻及續訂；MS/TP 還需等 token。","門檻到入庫","用確認跨過 COV 增量的事件，另記訂閱恢復後收到新值的時間。","SC 保護所在分段","BACnet/SC 使用 TLS 和憑證；串接舊網段時需逐段判讀。"],["OPC UA","lab-opcua","https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2","依端點的底層鏈路","應用層不規定線速；先查端點、交換器與來源 PLC 掃描。","採樣 → 發布","核對 Server 採用的 sampling 與 publishing interval，並確認來源更新頻率。","來源時間到訂閱端","看資料品質、來源時間戳、訂閱序號與漏值；同步時鐘再算單向延遲。","安全端點與信任清單","核對 SignAndEncrypt、SecurityPolicy、應用憑證與操作授權。"],["MQTT","lab-mqtt","https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html","依 TCP／網路介面","線速屬於 TCP 承載網路，Broker 不提供固定延遲。","發布 → Broker → 訂閱","無固定控制週期；QoS 規定投遞語意，不是延遲保證。","發布至訂閱","以同一事件 ID 對帳，分開看正常、重送與恢復補送。","TLS 與 Broker 授權","使用 TLS 驗證及 topic ACL；QoS 不會加密訊息。"],["Zigbee","lab-zigbee","https://csa-iot.org/all-solutions/zigbee/zigbee-faq/","2.4 GHz：250 kbit/s","這是原始 PHY 速率，不是多跳路徑或有效傳輸量。","事件／定時上報","依設備的上報、休眠、重送與路由設定；需觀察漏報。","感測到閘道或應用","分開記錄射頻上報、Bridge 發布及應用收件。","無線金鑰與橋接分開","控管加入、金鑰與協調器，再驗證 Bridge 到上層網路的保護。"],["PROFINET IO","lab-profinet","https://us.profinet.com/profinet-rt-real-time-performance/","依控制器及裝置埠","線速與 RT 更新週期不可互換；RT／IRT 取決於服務與裝置組合。","循環 RT／IRT","依裝置支援與控制器設定；有同步需求時驗證排程、抖動及 watchdog。","實際 I/O 到 PLC 程式","以量測最大循環間隔、I/O 資料狀態及中斷後恢復為準。","依版本與產品能力","核對支援的 Security Class；不能由 RT／IRT 推論安全能力。"],["PROFIBUS DP","lab-profibus","https://www.profibus.com/technologies/profibus","DP 銅纜的序列速率","速率依網段設定、線長與實體層；不要套用到 PA。","DP 主站循環","站數、I/O 位元組與重試會改變最長循環。","輸入至 PLC 程序映像","正常與單站中斷都要測，不只評估最短週期。","傳統 DP 不加密","限制匯流排實體存取及 PLC 工程介面。"],["CC-Link","lab-cclink","https://www.cc-link.org/en/faq/index.html","Classic／IE 系列不同","Classic 與 IE 不可共用一組數字；IE Field Basic、IE Field、IE TSN 要分開看。","Link scan → PLC refresh","Classic 需看掃描與更新區；IE 能力及同步須按變體驗證。","遠端站到 PLC 更新區","記錄 link scan、CPU refresh 與離線資料品質。","依變體驗證","Classic 無原生加密；IE 不可從乙太網或 TSN 名稱推論已加密。"],["EtherNet/IP","ethernetip-comparison","https://www.odva.org/publication_download/ethernet-ip-technology-overview/","依乙太網路埠","連線速率依設備、交換器與實際埠協商結果，不由 CIP 指定單一線速。","Implicit I/O／Explicit 訊息","以 RPI 配置循環 I/O；Explicit 訊息用於請求回應，不以同一 RPI 評估。","I/O 至 PLC 程式","量裝置更新、PLC 工作週期及最壞間隔，CIP Sync 的時間同步精度不是資料延遲。","確認 CIP Security 端點","安全連線需兩端支援與啟用，依 Profile 和政策核對鑑別、完整性與保密性。"],["EtherCAT","ethercat-comparison","https://tr.beckhoff.com.cn/pluginfile.php/31888/mod_resource/content/1/ETG1600_V1i0i2_G_R_InstallationGuideline.pdf","典型段 100 Mbit/s 全雙工","圖 A 對應 100BASE-TX 範例；不涵蓋 EtherCAT G 或 G10。","MainDevice 循環交換","裝置在幀經過時處理資料；Distributed Clocks 可同步取樣與輸出。","物理輸入至物理輸出","量 I/O 到程式、週期與抖動；Distributed Clocks 的同步誤差不是整條延遲。","區分同步、功能安全與資安","不要把 Distributed Clocks 或功能安全機制當成加密；隔離主站、工程介面和上層閘道。"]];const caps=['鏈路：實體層或承載網路怎麼傳？','更新／循環：設備何時送資料？','端到端延遲：從哪裡到哪裡計時？','協定安全：哪一層受保護？'];const field=document.getElementById('pc-controls');const grid=document.getElementById('pc-grid');const cap=document.getElementById('pc-caption');field.hidden=false;field.querySelector('[value="1"]').checked=true;field.addEventListener('change',e=>{if(e.target.name!=='pc-mode')return;const i=Number(e.target.value);if(!Number.isInteger(i)||i<0||i>=caps.length)return;cap.textContent=caps[i];[...grid.children].forEach((row,n)=>{row.querySelector('.pc-chip').textContent=d[n][3+i*2];row.querySelector('p').textContent=d[n][4+i*2]});});})();</script>
+<script>
+(() => {
+  const root = document.querySelector('#protocol-scoring');
+  if (!root) return;
+  const byId = id => document.getElementById(id);
+  const profiles = {
+    bas: {w:[30,45,25], gate:[true,false], text:'例：樓控趨勢／告警，量點位到監控端 p95，COV、整輪輪詢與來源更新分開。示意目標 1 秒，不是樓控標準。'},
+    motion: {w:[65,25,10], gate:[true,true], text:'例：運動控制／循環 I/O，量控制器至致動器的循環、最長值、同步與抖動。示意硬時限 2 ms，並非任何設備保證。'},
+    telemetry: {w:[25,50,25], gate:[true,false], text:'例：跨站資料傳輸，量來源發布到應用接收 p95、逾期與重連積壓；示意目標 500 ms，不用 QoS 或 GbE 取代量測。'}
+  };
+  // speed order: BAS, motion, telemetry; additional values: security, initial, lifecycle.
+  // These are illustrative engineering assumptions, not default results of a protocol.
+  const data = [
+    ['Modbus RTU',[3,1,2],2,5,3,'例 9.6／19.2 kbit/s；量整輪與單站離線的拖延。','傳統 RTU 無原生驗證／加密；驗匯流排與閘道隔離。','初期：序列設備、閘道、布線。維護：點表、字序、慢站診斷。'],
+    ['Modbus TCP',[4,2,3],2,5,3,'鏈路依設備協商；量站數、讀塊、TCP→RTU 等候。','傳統 TCP 無原生保護；支援時驗 Modbus Security TLS 或核可的分段補償控制。','初期：交換器與閘道。維護：設備升級、存取規則與憑證。'],
+    ['BACnet',[5,1,3],3,4,3,'MS/TP 沿權杖；IP／SC 量 COV、批讀和續訂；不以樓控週期推定機械控制時限。','BACnet/SC 用 TLS／憑證；到 IP/MS/TP 舊段後保護需另驗。','初期：DDC、管理工具、SC Hub。維護：物件點表、憑證與備援。'],
+    ['OPC UA',[4,2,5],3,3,3,'量來源更新、伺服器採樣／發布、佇列與漏值；本列為 Client/Server。','核對 SignAndEncrypt、信任清單、角色與寫入拒絕，不能選 None 當通過。','初期：Server/Client、語意映射。維護：信任清單、版本與資訊模型。'],
+    ['MQTT',[4,1,5],3,4,3,'量發布至消費端、Broker 排隊、QoS 重送與重連；無固定控制循環。','TLS、Broker 身分與 topic ACL 是部署選項；跨 Broker 逐段驗證。','初期：Broker、邊緣緩衝。維護：憑證、保留容量與備援。'],
+    ['Zigbee',[3,1,3],3,4,2,'2.4 GHz PHY 常見 250 kbit/s；驗休眠、壅塞、多跳及橋接延遲。','驗加入、金鑰與橋接身分；AES-128 不等於橋接後受保護。','初期：協調器、橋接、覆蓋規劃。維護：電池、射頻與金鑰。'],
+    ['PROFINET IO',[3,5,2],3,2,3,'常見 100 Mbit/s；指定 RT 或 IRT，核對同步、最長循環和 watchdog。','核對實際裝置可用 Security Class、工程存取與分區，不以家族名給通過。','初期：IO 控制器、設備、IRT 相容性。維護：工程工具與備品。'],
+    ['PROFIBUS DP',[2,4,1],2,3,2,'典型 DP RS-485 9.6 kbit/s–12 Mbit/s；量主站掃描與重試。','傳統 DP 無原生加密；驗實體存取、PLC 與工程介面隔離。','初期：既有布線可沿用，否則介面與終端。維護：接線、備品與人員。'],
+    ['CC-Link',[3,4,2],2,2,3,'Classic 156 kbit/s–10 Mbit/s；IE Field Basic 100 Mb/s；IE Field 1 Gb/s；IE TSN 可 100 Mb/s／1 Gb/s。','先指定 Classic／IE 變體和設備；TSN 排程不代表加密，驗分區及工程存取。','初期：主站、相容設備與網路。維護：授權、備品、掃描與時鐘。'],
+    ['EtherNet/IP',[3,4,3],3,2,3,'乙太網協商速率不是 RPI，也不是閉迴路反應；量實際循環與 RPI 遺漏。','CIP Security 需端點和政策都相容；依採用模式驗 TLS／DTLS 等。','初期：Scanner、Adapter、授權。維護：RPI、組播、憑證與相容性。'],
+    ['EtherCAT',[3,5,2],2,2,3,'典型 100BASE-TX 為 100 Mb/s；DC 同步、應用更新與實體反應分開驗收。','DC／功能安全不是網路加密；確認主站存取限制與安全分區。','初期：主站、驅動與拓撲。維護：診斷、備品及應用同步。'],
+  ];
+  const weights = ['speed','security','price'].map(k => byId('ps-w-'+k));
+  const gateSec = byId('ps-hard-sec');
+  const gateSpeed = byId('ps-hard-speed');
+  const preset = byId('ps-preset');
+  const filter = byId('ps-filter');
+  const container = byId('ps-results');
+  const fieldNames = ['速度','安全','初期價格','維護價格'];
+  const options = '<option value="unknown">待確認</option><option value="pass">通過</option><option value="fail">未通過</option>';
+  const out = byId('ps-ranking');
+  const cards = [];
+  for (const [name, , , , , speedNote, securityNote, costNote] of data) {
+    const article = document.createElement('article');
+    article.className = 'ps-card';
+    // Only fixed curated strings are interpolated. All user inputs stay controlled.
+    article.innerHTML = '<h5>'+name+'</h5><p><strong>速度：</strong>'+speedNote+'</p><p><strong>安全：</strong>'+securityNote+'</p><p><strong>價格項目：</strong>'+costNote+'</p>'+
+      '<div class="ps-fields">'+fieldNames.map(a=>'<label>'+a+'分<select aria-label="'+name+' '+a+'分">'+[1,2,3,4,5].map(n=>'<option>'+n+'</option>').join('')+'</select></label>').join('')+'</div>'+
+      '<fieldset class="ps-gates"><legend>現場證據狀態</legend><div class="ps-fields"><label>安全門檻<select aria-label="'+name+' 安全門檻">'+options+'</select></label><label>時限門檻<select aria-label="'+name+' 時限門檻">'+options+'</select></label></div></fieldset>'+
+      '<p class="ps-value"></p>';
+    container.append(article);
+    cards.push({article, name, controls:[...article.querySelectorAll('select')], result:article.querySelector('.ps-value')});
+  }
+  function clampWeight(el) {
+    const val = el.value === '' ? 0 : Number(el.value);
+    return Number.isFinite(val) ? Math.min(100,Math.max(0,Math.round(val))) : 0;
+  }
+  function render() {
+    const w = weights.map(clampWeight);
+    const tot = w.reduce((a,b)=>a+b,0);
+    const active = gateSec.checked || gateSpeed.checked;
+    const completed = [];
+    let count = 0;
+    for (const card of cards) {
+      const [s,a,b,c] = card.controls.slice(0,4).map(x=>Number(x.value));
+      const passed = active && (!gateSec.checked || card.controls[4].value === 'pass') && (!gateSpeed.checked || card.controls[5].value === 'pass');
+      const fail = (gateSec.checked && card.controls[4].value === 'fail') || (gateSpeed.checked && card.controls[5].value === 'fail');
+      const price = (b+c)/2;
+      const score = tot ? (s*w[0]+a*w[1]+price*w[2])/tot : null;
+      const label = !active ? '沒有啟用硬門檻，僅供比較' : passed ? '通過目前啟用門檻（自行勾選）' : fail ? '未通過硬門檻' : '待確認，不列合格排名';
+      card.result.textContent = '加權 '+(score===null?'未計分':score.toFixed(2)+'／5')+'；價格 '+price.toFixed(1)+'／5；'+label+'。';
+      card.article.hidden = (filter.value==='passed'&&!passed) || (filter.value==='unverified'&&passed);
+      if (!card.article.hidden) count++;
+      if (passed) completed.push({name:card.name,score});
+    }
+    out.replaceChildren();
+    byId('ps-status').textContent = '顯示 '+count+'／'+cards.length+'；通過啟用門檻 '+completed.length+'。'+
+      (!tot ? ' 速度、安全及價格權重皆為 0，不計分。' :
+       !active ? ' 未啟用門檻，沒有合格排名。' :
+       !completed.length ? ' 目前沒有合格候選。' : ' 合格排名依未四捨五入的分數排序，同分同名次。');
+    if (active && tot) {
+      completed.sort((a,b)=>b.score-a.score || a.name.localeCompare(b.name));
+      let rank = 1;
+      completed.forEach(({name,score},i)=>{
+        if(i && Math.abs(score-completed[i-1].score)>1e-10) rank=i+1;
+        const li=document.createElement('li');
+        li.value=rank;
+        li.textContent=name+'：'+score.toFixed(2)+'／5';
+        out.append(li);
+      });
+    }
+  }
+  function loadPreset() {
+    const key = preset.value;
+    const o = profiles[key];
+    const pi = ['bas','motion','telemetry'].indexOf(key);
+    byId('ps-context').textContent=o.text;
+    weights.forEach((e,i)=>{e.value=o.w[i];});
+    [gateSec.checked,gateSpeed.checked]=o.gate;
+    filter.value='all';
+    cards.forEach(({controls},i)=>{
+      const row=data[i];
+      const defaults=[row[1][pi],row[2],row[3],row[4],'unknown','unknown'];
+      controls.forEach((select,j)=>{select.value=String(defaults[j]);});
+    });
+    render();
+  }
+  preset.addEventListener('change',loadPreset);
+  byId('ps-reset').addEventListener('click',loadPreset);
+  root.addEventListener('input',e=>{if(weights.includes(e.target)) render();});
+  root.addEventListener('change',e=>{
+    if(e.target===preset) return;
+    if(weights.includes(e.target)) e.target.value=clampWeight(e.target);
+    if(e.target.matches('input,select')) render();
+  });
+  loadPreset();
+})();
+</script>
 </body>
 </html>
