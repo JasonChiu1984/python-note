@@ -1,0 +1,286 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 金融交易注意事項｜紙上委託與風控工程</title>
+<style>
+:root{--ink:#1b3043;--muted:#486274;--nav:#142d46;--accent:#006075;--line:#b9cad9;--paper:#eef4f8;--soft:#e7f3f8;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper)}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{padding:clamp(1rem,4vw,3rem);background:var(--nav);color:#f4faff}header a{color:#99e7f4}header>div,main,footer{max-width:73rem;margin:auto}main,footer{padding:clamp(.75rem,3vw,1.8rem)}h1{font-size:clamp(2rem,6vw,4rem);line-height:1.12;margin:.4rem 0 .8rem}h2{font-size:clamp(1.3rem,4vw,1.95rem);line-height:1.25;margin:.3rem 0 .6rem}a{color:var(--accent);text-underline-offset:.2em}nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1rem}nav a,.button{display:inline-block;padding:.3rem .65rem;background:var(--soft);border:1px solid var(--line);border-radius:.5rem}section{padding:clamp(.75rem,2.7vw,1.7rem);background:#fff;border:1px solid var(--line);border-radius:.8rem;margin-bottom:1rem}.kicker,figcaption{color:var(--accent);font-weight:800}header .kicker{color:#99e7f4}figure{padding:.7rem .8rem;margin:1rem 0;background:#f2f8fb;border:1px solid var(--line);border-radius:.6rem}.flow{list-style:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem;padding:0;counter-reset:step}.flow li{counter-increment:step;position:relative;border:1px solid #90b2c5;border-radius:.5rem;background:white;padding:.6rem;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:var(--accent)}.flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .15rem);top:38%;font-weight:800;color:var(--accent)}.warn{background:#fff2db;border-left:.3rem solid #9b5e13;padding:.6rem .8rem}.table-wrap{max-width:100%;overflow:auto;margin:.7rem 0;border:1px solid var(--line);border-radius:.55rem}table{border-collapse:collapse;width:100%;min-width:40rem;text-align:left}th,td{padding:.55rem .6rem;vertical-align:top;border-bottom:1px solid #cedee8}thead th{background:var(--soft)}tbody tr:nth-child(even){background:#f2f8fb}.bar-row{display:grid;grid-template-columns:minmax(6rem,11rem) minmax(0,1fr) 4.1rem;gap:.5rem;margin:.5rem 0;align-items:center}.track{height:1.12rem;border-radius:.24rem;background:#e1eaf1}.bar{height:100%;border-radius:.24rem;background:#0c718a}pre{max-width:100%;overflow:auto;background:#142e45;color:#eefbff;border-radius:.5rem;padding:.75rem}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}details{margin:.6rem 0;border:1px solid var(--line);padding:.65rem;border-radius:.5rem}summary{cursor:pointer;font-weight:750}:focus-visible{outline:2px solid #087e9a;outline-offset:3px}@media(max-width:800px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";left:50%;top:100%}}
+</style></head><body id="top"><header><div><p class="kicker">PYTHON FINANCIAL ENGINEERING / PAPER ONLY</p><h1>Python 金融交易：委託狀態、風控與對帳</h1><p>用離線的合成事件學習：回覆不明時不盲重送、撤單待回覆仍可能成交、成交不能重複入帳。</p><p><a href="index.html">回 Python 教材首頁</a></p></div></header>
+<main><nav aria-label="教材章節"><a href="#architecture">架構</a><a href="#pre-trade">前置檢核</a><a href="#lifecycle">委託流程</a><a href="#chart">合成表／圖</a><a href="#lab">Python 實驗</a><a href="#acceptance">驗收</a></nav>
+<section id="architecture"><p class="kicker">01 / ARCHITECTURE</p><h2>把策略、風控、委託與帳務拆開</h2>
+<figure><figcaption>圖一｜紙上交易的工程邊界，不連市場、券商或登入帳號</figcaption><ol class="flow">
+<li><strong>合成行情</strong><br>記價格、資料時間、序號與資料模式。</li>
+<li><strong>委託意圖</strong><br>建立不可變的 Client Order ID、價格、數量，不代表成交。</li>
+<li><strong>前置風控</strong><br>檢查時效、價格格線、最大曝險及未保留現金。</li>
+<li><strong>紙上狀態機</strong><br>只消化教學事件；區分接收、成交、待撤、確認及未知。</li>
+<li><strong>帳本與對帳</strong><br>成交去重後更新現金／部位；與獨立快照核對。</li></ol>
+<p>實務若需跨程序，意圖、檢核、預留及事件序號要有原子或等效一致性設計，服務重啟重放才不會重扣現金。此程式刻意只用單程序記憶體，無法留存、多人共用或處理斷電。</p></figure>
+<p class="warn"><strong>僅供程式設計教學。</strong>沒有真實交易介面、API 金鑰、排程、下單指令或投資建議。紙上服務成功不表示線上可成交，也不預測報酬。</p></section>
+
+<section id="pre-trade"><p class="kicker">02 / PRE-TRADE CONTROLS</p><h2>先確認單位與上限，再保留風險資源</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="委託風險檢核"><table><thead><tr><th scope="col">檢核</th><th scope="col">本機例子</th><th scope="col">工程陷阱</th></tr></thead><tbody>
+<tr><th scope="row">價格／數量</th><td>Decimal 從字串建立；價格為每單位，合成格線 0.01；數量是正整數。</td><td>別以 Decimal(float) 消除二進位誤差。正式商品另查交易所／券商格線、交易單位、乘數及幣別；不要把股、張、口混用。</td></tr>
+<tr><th scope="row">未保留現金</th><td>可用現金 = 現金 − 所有未成交買單保留。新買單預留未成交量 ×（限價 + 合成單位費）。</td><td>取消請求尚未確定不可釋放。此例不含結算、買賣交割期、保證金、匯率、賣空及券源。</td></tr>
+<tr><th scope="row">曝險</th><td>上限 400.00，採持倉成本 + 在途買單未成交名目額 + 新單名目額。</td><td>這不是實盤曝險模型。行情跳空需用市值、集中度、相關性、槓桿或多幣風險重估；不能只拿現金當全部風險。</td></tr>
+<tr><th scope="row">時間與新鮮度</th><td>合成資料要求同 UTC 時基、年齡 0–2 秒；未附時區、過舊或未來事件拒絕。</td><td>內部計時與 deadline 用 monotonic；跨主機事件留 UTC、來源及接收時間。同步時鐘與行情序號有缺口時先降級；不能以更新畫面的時間假裝行情新鮮。</td></tr>
+<tr><th scope="row">手續費與滑價</th><td>每成交單位合成費 0.02，實際回放價 39.50／39.80，買單封頂 40.00。</td><td>紙上回放不模擬排隊位置、市場衝擊、部分流動性、稅費等。滑價應與明確基準價比較，而非用限價差直接估算報酬。</td></tr>
+</tbody></table></div>
+<p>若規格以每筆或階梯費率計費，要按實際口徑、幣別與四捨五入規則採用 Decimal／整數子單位；不應假設所有市場都是兩位小數。本章沒有以合成門檻代表任何交易所現行規則。</p></section>
+
+<section id="lifecycle"><p class="kicker">03 / LIFECYCLE</p><h2>ACK、成交與撤單是不同事件</h2>
+<figure><figcaption>圖二｜一次合成委託：收到確認前不建立第二筆意圖</figcaption><ol class="flow">
+<li><strong>待 ACK</strong><br>先記錄意圖與保留；暫未收到接受訊息。</li><li><strong>ACK 不明</strong><br>保留資源，停止新意圖；由可信快照確認原 ID。</li><li><strong>接受／部分成交</strong><br>逐執行 ID 去重並入帳；按未成交量更新保留。</li><li><strong>撤單待確認</strong><br>仍可能成交；撤單要求不是終態，也不是回滾。</li><li><strong>撤單確認</strong><br>解除未成交保留；已成交現金、費用與部位保留。</li></ol></figure>
+<div class="table-wrap" tabindex="0" role="region" aria-label="委託狀態例外流程"><table><thead><tr><th>情境</th><th>行為</th><th>不能假設</th></tr></thead><tbody>
+<tr><th scope="row">Client Order ID 重送</th><td>相同業務意圖回到同筆委託，不新增；相同 ID 卻改數量/限價，視為衝突。</td><td>連線逾時不等於沒有接受；不可另建新 ID 自動送出。</td></tr>
+<tr><th scope="row">執行 ID 重複</th><td>相同 ID+內容去重；同 ID 異內容先停新單／告警、核對來源。</td><td>不能用只看委託 ID 取代執行 ID，同委託能多次成交。</td></tr>
+<tr><th scope="row">先成交再收到撤單結果</th><td>有未成交量時才釋放；若已全成，帳務不能因撤單晚到而被覆蓋。</td><td>市場實際更正、撤銷成交、亂序與多通路有各自規則；本模型不實作。</td></tr>
+<tr><th scope="row">對帳不一致</th><td>暫停新意圖；抓委託清單、成交明細、持倉與現金的同一一致點，保留原事件，查哪一層缺漏。</td><td>現金與部位剛好相等，不代表 ACK 已解決；也不能直接清掉暫停旗標。</td></tr>
+</tbody></table></div>
+<p>FIX 以 <code>OrdStatus</code> 表委託狀態、<code>ExecType</code> 表執行報告的目的。這是思考參考；本篇標籤是本地模型、自定命名，不是某券商或 FIX 實作。來源：<a href="https://www.fixtrading.org/wp-content/uploads/download-manager-files/Order-State-Changes.pdf">FIX Trading Community：Order State Changes</a>。</p></section>
+
+<section id="chart"><p class="kicker">04 / SYNTHETIC LEDGER</p><h2>撤單影響的是保留額，已成交不回滾</h2>
+<p>合成起始現金 1,000.00；掛買 5 單位、上限 40.00。先 2 單位以 39.50 成交、待撤中再 1 單位以 39.80 成交，最後取消剩餘 2 單位。圖表由同一 Python 腳本輸出產生。</p>
+<figure><figcaption>圖三｜各階段未成交保留額（共用零起點，0–210 合成貨幣單位）</figcaption><div aria-hidden="true"><div class="bar-row"><span>收到委託</span><div class="track"><div class="bar" style="width:95.286%"></div></div><strong>200.10</strong></div><div class="bar-row"><span>ACK 不明</span><div class="track"><div class="bar" style="width:95.286%"></div></div><strong>200.10</strong></div><div class="bar-row"><span>部分成交 2</span><div class="track"><div class="bar" style="width:57.171%"></div></div><strong>120.06</strong></div><div class="bar-row"><span>撤單待確認</span><div class="track"><div class="bar" style="width:57.171%"></div></div><strong>120.06</strong></div><div class="bar-row"><span>撤單途中再成 1</span><div class="track"><div class="bar" style="width:38.114%"></div></div><strong>80.04</strong></div><div class="bar-row"><span>撤單完成／對帳</span><div class="track"><div class="bar" style="width:0.000%"></div></div><strong>0.00</strong></div></div><div class="table-wrap" role="region" aria-label="紙上委託事件與帳本" tabindex="0"><table><thead><tr><th>步驟</th><th>狀態</th><th>累計成交</th><th>現金</th><th>保留</th><th>部位</th></tr></thead><tbody><tr><th scope="row">收到委託</th><td>PENDING_ACK</td><td>0</td><td>1000.00</td><td>200.10</td><td>0</td></tr><tr><th scope="row">ACK 不明</th><td>UNKNOWN_ACK</td><td>0</td><td>1000.00</td><td>200.10</td><td>0</td></tr><tr><th scope="row">部分成交 2</th><td>PARTIAL</td><td>2</td><td>920.96</td><td>120.06</td><td>2</td></tr><tr><th scope="row">撤單待確認</th><td>CANCEL_PENDING</td><td>2</td><td>920.96</td><td>120.06</td><td>2</td></tr><tr><th scope="row">撤單途中再成 1</th><td>CANCEL_PENDING</td><td>3</td><td>881.14</td><td>80.04</td><td>3</td></tr><tr><th scope="row">撤單完成／對帳</th><td>CANCELED</td><td>3</td><td>881.14</td><td>0.00</td><td>3</td></tr></tbody></table></div></figure>
+<p>兩筆成交費共 0.06，實際支出 2 × 39.50 + 1 × 39.80 + 0.06 = <strong>118.86</strong>；結束時現金 881.14、部位 3、保留額 0。保留額是限制尚可使用的現金，不是費用或虧損。</p></section>
+
+<section id="lab"><p class="kicker">05 / PYTHON LAB</p><h2>下載後全離線重跑</h2><p>Python 3.11+，只用標準函式庫。程式不連網路、不讀帳戶檔；每次跑相同合成事件、產生相同 JSON。測試涵蓋小數格線、金額與時效、委託／成交重複、ACK 不明、撤單競態、矛盾成交以及失配對帳。</p>
+<p><a class="button" href="python_financial_trading_safety_lab.py" download>下載紙上交易實驗</a></p><pre><code>python3 python_financial_trading_safety_lab.py
+python3 python_financial_trading_safety_lab.py --self-test</code></pre>
+<details><summary>展開完整 Python 程式</summary><pre><code>&quot;&quot;&quot;Paper-only order lifecycle. Offline synthetic data; no broker integration.&quot;&quot;&quot;
+from dataclasses import dataclass
+from decimal import Decimal
+from datetime import UTC, datetime, timedelta
+import argparse
+import json
+import unittest
+
+D = Decimal
+FEE_PER_UNIT = D(&quot;0.02&quot;)  # Synthetic; no fixed fee, taxes or rebates.
+MAX_EXPOSURE = D(&quot;400.00&quot;)
+CENT = D(&quot;0.01&quot;)
+NOW = datetime(2026, 11, 25, 9, tzinfo=UTC)
+
+
+def price(text):
+    if not isinstance(text, str):
+        raise ValueError(&quot;start from a decimal string&quot;)
+    p = D(text)
+    if not p.is_finite() or not D(&quot;0.01&quot;) &lt;= p &lt;= D(&quot;1000000&quot;):
+        raise ValueError(&quot;price out of lab range&quot;)
+    if p != p.quantize(CENT):
+        raise ValueError(&quot;price must match the synthetic 0.01 tick&quot;)
+    return p
+
+
+@dataclass
+class Order:
+    order_id: str
+    qty: int
+    limit: Decimal
+    filled: int = 0
+    state: str = &quot;PENDING_ACK&quot;
+
+
+class PaperBook:
+    def __init__(self):
+        self.cash = D(&quot;1000.00&quot;)
+        self.position = 0
+        self.position_cost = D(&quot;0.00&quot;)
+        self.orders = {}
+        self.executions = {}
+        self.blocked = False
+
+    @staticmethod
+    def active(order):
+        return order.state not in {&quot;FILLED&quot;, &quot;CANCELED&quot;}
+
+    @property
+    def reserved(self):
+        return sum(((o.qty - o.filled) * (o.limit + FEE_PER_UNIT)
+                    for o in self.orders.values() if self.active(o)), D(&quot;0.00&quot;))
+
+    @property
+    def reserved_notional(self):
+        return sum(((o.qty - o.filled) * o.limit
+                    for o in self.orders.values() if self.active(o)), D(&quot;0.00&quot;))
+
+    def submit(self, order_id, qty, limit, observed_at, now):
+        if not isinstance(order_id, str) or not order_id or type(qty) is not int or qty &lt; 1:
+            raise ValueError(&quot;expect order ID and a positive integer quantity&quot;)
+        ceiling = price(limit)
+        if order_id in self.orders:
+            old = self.orders[order_id]
+            if (old.qty, old.limit) != (qty, ceiling):
+                raise ValueError(&quot;client order ID conflicts with previous intent&quot;)
+            return old  # Same intent, not a new order.
+        if self.blocked or any(o.state == &quot;UNKNOWN_ACK&quot; for o in self.orders.values()):
+            raise ValueError(&quot;reconcile before accepting new orders&quot;)
+        if observed_at.utcoffset() is None or now.utcoffset() is None:
+            raise ValueError(&quot;timestamps require an offset&quot;)
+        if not timedelta(0) &lt;= now - observed_at &lt;= timedelta(seconds=2):
+            raise ValueError(&quot;stale or future market snapshot&quot;)
+        if qty * (ceiling + FEE_PER_UNIT) &gt; self.cash - self.reserved:
+            raise ValueError(&quot;insufficient unreserved cash&quot;)
+        if self.position_cost + self.reserved_notional + qty * ceiling &gt; MAX_EXPOSURE:
+            raise ValueError(&quot;cost-basis exposure cap exceeded&quot;)
+        result = Order(order_id, qty, ceiling)
+        self.orders[order_id] = result
+        return result
+
+    def unknown_ack(self, order_id):
+        order = self.orders[order_id]
+        if order.state != &quot;PENDING_ACK&quot;:
+            raise ValueError(&quot;only pending acknowledgments can time out&quot;)
+        order.state = &quot;UNKNOWN_ACK&quot;  # Keep cash reserved.
+
+    def confirm_open(self, order_id):
+        # Only after a trusted reconciliation source says the order exists.
+        order = self.orders[order_id]
+        if order.state not in {&quot;PENDING_ACK&quot;, &quot;UNKNOWN_ACK&quot;}:
+            raise ValueError(&quot;cannot re-open an order&quot;)
+        order.state = &quot;OPEN&quot;
+
+    def request_cancel(self, order_id):
+        order = self.orders[order_id]
+        if order.state not in {&quot;OPEN&quot;, &quot;PARTIAL&quot;}:
+            raise ValueError(&quot;cannot request cancel in current state&quot;)
+        order.state = &quot;CANCEL_PENDING&quot;
+
+    def fill(self, execution_id, order_id, qty, execution_price):
+        if type(qty) is not int or qty &lt; 1:
+            raise ValueError(&quot;invalid fill quantity&quot;)
+        if not isinstance(execution_id, str) or not execution_id:
+            raise ValueError(&quot;invalid execution ID&quot;)
+        paid = price(execution_price)
+        payload = (order_id, qty, paid)
+        if execution_id in self.executions:
+            if self.executions[execution_id] != payload:
+                self.blocked = True
+                raise ValueError(&quot;execution ID has contradictory payload&quot;)
+            return False
+        order = self.orders[order_id]
+        if not self.active(order) or paid &gt; order.limit or qty &gt; order.qty - order.filled:
+            self.blocked = True
+            raise ValueError(&quot;fill contradicts current ledger; reconcile&quot;)
+        order.filled += qty
+        self.executions[execution_id] = payload
+        self.cash -= qty * (paid + FEE_PER_UNIT)
+        self.position_cost += qty * paid
+        self.position += qty
+        if order.filled == order.qty:
+            order.state = &quot;FILLED&quot;
+        elif order.state != &quot;CANCEL_PENDING&quot;:
+            order.state = &quot;PARTIAL&quot;
+        return True
+
+    def confirm_cancel(self, order_id):
+        order = self.orders[order_id]
+        if order.state == &quot;FILLED&quot;:
+            return  # Terminal state is not downgraded by a late response here.
+        if order.state != &quot;CANCEL_PENDING&quot;:
+            raise ValueError(&quot;missing cancel request&quot;)
+        order.state = &quot;CANCELED&quot;
+
+    def reconcile(self, cash, position):
+        if self.cash != cash or self.position != position:
+            self.blocked = True
+            return False
+        # Matching total cash and position do not by themselves resolve
+        # an UNKNOWN_ACK or clear an existing integrity hold.
+        return True
+
+
+def scenario():
+    ledger = PaperBook()
+    output = []
+    order = ledger.submit(&quot;client-01&quot;, 5, &quot;40.00&quot;, NOW, NOW)
+
+    def snapshot(label):
+        output.append({&quot;step&quot;: label, &quot;state&quot;: order.state, &quot;filled&quot;: order.filled,
+                       &quot;cash&quot;: str(ledger.cash), &quot;reserved&quot;: str(ledger.reserved),
+                       &quot;position&quot;: ledger.position})
+
+    snapshot(&quot;收到委託&quot;)
+    ledger.unknown_ack(order.order_id)
+    snapshot(&quot;ACK 不明&quot;)
+    ledger.confirm_open(order.order_id)
+    ledger.fill(&quot;e-1&quot;, order.order_id, 2, &quot;39.50&quot;)
+    snapshot(&quot;部分成交 2&quot;)
+    ledger.request_cancel(order.order_id)
+    snapshot(&quot;撤單待確認&quot;)
+    ledger.fill(&quot;e-2&quot;, order.order_id, 1, &quot;39.80&quot;)
+    snapshot(&quot;撤單途中再成 1&quot;)
+    ledger.confirm_cancel(order.order_id)
+    assert ledger.reconcile(D(&quot;881.14&quot;), 3)
+    snapshot(&quot;撤單完成／對帳&quot;)
+    return output
+
+
+class LabTests(unittest.TestCase):
+    def test_dedup_client_and_execution(self):
+        ledger = PaperBook()
+        order = ledger.submit(&quot;o&quot;, 3, &quot;20.00&quot;, NOW, NOW)
+        self.assertIs(order, ledger.submit(&quot;o&quot;, 3, &quot;20.00&quot;, NOW, NOW))
+        with self.assertRaises(ValueError):
+            ledger.submit(&quot;o&quot;, 4, &quot;20.00&quot;, NOW, NOW)
+        self.assertTrue(ledger.fill(&quot;e&quot;, &quot;o&quot;, 1, &quot;19.50&quot;))
+        self.assertFalse(ledger.fill(&quot;e&quot;, &quot;o&quot;, 1, &quot;19.50&quot;))
+        self.assertEqual(ledger.cash, D(&quot;980.48&quot;))
+        with self.assertRaises(ValueError):
+            ledger.fill(&quot;e&quot;, &quot;o&quot;, 1, &quot;19.40&quot;)
+        self.assertTrue(ledger.blocked)
+
+    def test_unknown_ack_keeps_reserve_and_blocks_new_orders(self):
+        ledger = PaperBook()
+        order = ledger.submit(&quot;o&quot;, 3, &quot;20.00&quot;, NOW, NOW)
+        ledger.unknown_ack(order.order_id)
+        self.assertEqual(ledger.reserved, D(&quot;60.06&quot;))
+        self.assertTrue(ledger.reconcile(D(&quot;1000.00&quot;), 0))
+        with self.assertRaisesRegex(ValueError, &quot;reconcile&quot;):
+            ledger.submit(&quot;new&quot;, 1, &quot;10.00&quot;, NOW, NOW)
+        ledger.confirm_open(&quot;o&quot;)
+        self.assertEqual(order.state, &quot;OPEN&quot;)
+
+    def test_cancel_race(self):
+        rows = scenario()
+        self.assertEqual(rows[-2][&quot;state&quot;], &quot;CANCEL_PENDING&quot;)
+        self.assertEqual(rows[-1][&quot;filled&quot;], 3)
+        self.assertEqual(rows[-1][&quot;cash&quot;], &quot;881.14&quot;)
+        self.assertEqual(rows[-1][&quot;reserved&quot;], &quot;0.00&quot;)
+
+    def test_pretrade_checks(self):
+        ledger = PaperBook()
+        for order in [(41, &quot;30.00&quot;, NOW, &quot;cash&quot;),
+                      (11, &quot;40.00&quot;, NOW, &quot;exposure&quot;),
+                      (1, &quot;40.00&quot;, NOW-timedelta(seconds=3), &quot;stale&quot;),
+                      (1, &quot;40.001&quot;, NOW, &quot;tick&quot;),
+                      (1, &quot;NaN&quot;, NOW, &quot;range&quot;)]:
+            qty, limit, timestamp, message = order
+            with self.assertRaisesRegex(ValueError, message):
+                ledger.submit(&quot;o&quot;, qty, limit, timestamp, NOW)
+        self.assertEqual(ledger.orders, {})
+
+    def test_invalid_fill_and_reconcile_freeze(self):
+        ledger = PaperBook()
+        ledger.submit(&quot;o&quot;, 1, &quot;40.00&quot;, NOW, NOW)
+        with self.assertRaises(ValueError):
+            ledger.fill(&quot;e&quot;, &quot;o&quot;, 2, &quot;40.00&quot;)
+        self.assertEqual((ledger.cash, ledger.position), (D(&quot;1000.00&quot;), 0))
+        self.assertFalse(ledger.reconcile(D(&quot;999.00&quot;), 0))
+        self.assertTrue(ledger.blocked)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--self-test&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    if args.self_test:
+        unittest.main(argv=[&quot;lab&quot;], verbosity=2)
+    else:
+        print(json.dumps(scenario(), ensure_ascii=False, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details>
+<p><a href="https://docs.python.org/3/library/decimal.html">Python decimal</a> · <a href="https://docs.python.org/3/library/time.html#time.monotonic">Python monotonic clock</a>。</p></section>
+
+<section id="acceptance"><p class="kicker">06 / ACCEPTANCE</p><h2>驗收順序：邊界、重放、延遲、對帳</h2>
+<ol><li>設計可重複的測試：同 ID 同內容、同 ID 不同內容、部分成交、撤單競態與資料缺口。用輸入序號和最終現金、持倉作驗收證據。</li><li>分批測時計與市場假設：事件時間、到達順序、固定／變動費、參考價與滑價；避免使用未來資料、忽略退市樣本或把滑價設成零便宣稱可獲利。</li><li>驗接收、寫入與重播：跨服務版需原子化儲存、唯一索引、可重放與另存原始回報。製造不一致時檢查是否封鎖新意圖、保留告警並能人工復核。</li><li>最後記錄教學界線：此模型現金全額買入、單幣別、單商品、無實盤路由，無複雜更正、結算或投資績效預測。</li></ol></section>
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">回 Python 教材首頁</a></footer></body></html>
