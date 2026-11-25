@@ -155,6 +155,20 @@
       .db-engine-details th:first-child{width:auto}
       .db-eng-label{display:block;font-weight:800}
     }
+
+    .db-fit{min-width:0;margin:.9rem 0 1.1rem;padding:clamp(.6rem,2vw,1rem);border:1px solid #b6ccd9;border-radius:.65rem;background:#eef7fc;overflow-wrap:anywhere}
+    .db-fit h3{margin:0 0 .35rem}
+    .db-fit label{display:block;font-weight:750;margin:.55rem 0 .25rem}
+    .db-fit select{width:100%;max-width:31rem;min-height:2.75rem;border:1px solid #638a9f;border-radius:.45rem;padding:.35rem .5rem;background:#fff;color:#183951;font:inherit}
+    .db-fit select:focus-visible{outline:3px solid #155a8c;outline-offset:2px}
+    .db-fit-note{border-inline-start:3px solid #2a6c92;padding-inline-start:.6rem}
+    #db-fit-list{list-style:none;padding:0;margin:.6rem 0;display:grid;gap:.55rem}
+    #db-fit-list li{background:#fff;border:1px solid #c1d4e0;border-radius:.48rem;padding:.45rem .58rem;min-width:0}
+    #db-fit-list p{margin:.25rem 0 0}
+    .db-fit-row{display:flex;justify-content:space-between;align-items:baseline;gap:.25rem .65rem;flex-wrap:wrap}
+    .db-fit-score{color:#174d75;font-weight:750;font-variant-numeric:tabular-nums}
+    .db-fit-track{height:.5rem;background:#d6e6ef;border-radius:.35rem;margin-top:.25rem;overflow:hidden}
+    .db-fit-track span{display:block;height:100%;background:#286f9a;border-radius:inherit}
   </style>
 </head>
 <body>
@@ -228,6 +242,21 @@
       </section>
       <section class="section-block" id="database-engine-comparison" aria-labelledby="db-platform-title">
         <div class="section-head"><div><span class="eyebrow">Workload · Platform · Evidence</span><h2 id="db-platform-title">五種資料庫：用途、功能、速度與部署平台</h2><p>同一引擎可以在點查詢很快、在批次寫入或長時窗聚合卻不同。下表比較工作負載與瓶頸，不把設計特性當成跑分，也不把 TimescaleDB 視為獨立於 PostgreSQL 的 SQL 引擎。</p></div></div>
+        <div class="db-fit" aria-labelledby="db-fit-title">
+          <h3 id="db-fit-title">選一個情境，看五種資料庫的適配排序</h3>
+          <p class="db-fit-note"><strong>教學適配分，不是效能跑分、認證或選型保證。</strong>算式＝（工作負載＋平台／既有整合＋維運）÷ 3；每項 0～5，5 符合情境假設、4 良好、3 可行但需驗證、2 需較多調整、1 明顯受限、0 不符合。等分並列；不可忽略必要條件。</p>
+          <label for="db-fit-selector">應用情境</label>
+          <select id="db-fit-selector">
+            <option value="edge">邊緣設備：單機唯讀查詢與斷線緩衝</option>
+            <option value="mysql">Web 交易：既有 MySQL／InnoDB 團隊</option>
+            <option value="mssql">企業報表：既有 Microsoft 身分與 BI</option>
+            <option value="postgres">關聯交易：混合 JSONB 與複雜查詢</option>
+            <option value="timescale">OT 遙測：時間窗、補灌與保留</option>
+          </select>
+          <p id="db-fit-assumption" role="status" aria-live="polite"></p>
+          <ol id="db-fit-list" aria-label="五種資料庫適配排序"></ol>
+          <noscript><p>互動排序需 JavaScript；下方的引擎靜態比較仍可閱讀。</p></noscript>
+        </div>
         <div class="db-engine-details" role="region" aria-label="五種資料庫深入對照">
           <table role="table"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">引擎與用途</th><th role="columnheader" scope="col">功能</th><th role="columnheader" scope="col">效能與速度</th><th role="columnheader" scope="col">平台與維運</th></tr></thead><tbody role="rowgroup">
            <tr role="row"><th role="rowheader" scope="row">SQLite<br><small>邊緣單機、CLI、斷線緩衝</small></th><td role="cell"><span class="db-eng-label" aria-hidden="true">功能</span>嵌入式 SQL、交易與索引；WAL 可讓讀取與寫入重疊，同一資料庫仍只有一個寫入者。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">效能與速度</span>同程序無伺服器網路往返；高併發寫入先測鎖等待、批次大小、checkpoint 與儲存同步延遲。用 <code>EXPLAIN QUERY PLAN</code> 看掃描與索引。</td><td role="cell"><span class="db-eng-label" aria-hidden="true">平台與維運</span>應用程式本機，如 Linux、Windows、macOS；WAL 一般要求同一主機，不以共享網路磁碟把它變成多主機資料庫。備份用一致性備份 API。<a href="https://www.sqlite.org/wal.html">SQLite 官方</a></td></tr>
@@ -756,5 +785,97 @@ END CATCH;</code></pre>
     document.getElementById("lessonSearch").addEventListener("input", applyLessonSearch);
     renderAll();
   </script>
+<script>
+(() => {
+  "use strict";
+  const select = document.getElementById("db-fit-selector");
+  const assumption = document.getElementById("db-fit-assumption");
+  const list = document.getElementById("db-fit-list");
+  const names = ["SQLite", "MySQL / InnoDB", "Microsoft SQL Server", "PostgreSQL", "TimescaleDB"];
+  const scenarios = {
+    edge: {
+      note: "假設資料與程式在同一個邊緣主機，靠可控的單一寫入者緩衝；斷網只影響上傳。驗收要測掉電還原、容量上限與重送。",
+      entries: [
+        [5,5,5,"嵌入式、免伺服器，讀取與本地緩衝簡單；多寫入者不適用這個假設。"],
+        [3,2,2,"本機可以架設，但引擎與服務管理增加資源需求。"],
+        [3,1,1,"本地服務可行的前提是映像與硬體相容；維運較重。"],
+        [3,2,2,"本地服務能工作，但與低資源、少維運要求有取捨。"],
+        [2,1,1,"需要 PostgreSQL 與擴充；此案沒有時間窗聚合的必要。"]
+      ]
+    },
+    mysql: {
+      note: "假設已有 InnoDB schema、驅動、備份與管理人員；工作負載為短交易與索引點查。另測交易隔離、鎖等待和回復時間。",
+      entries: [
+        [2,1,2,"寫入者限制、部署介面與既有服務不同。"],
+        [5,5,5,"既有 schema、管理能力與 InnoDB 交易需求一致。"],
+        [4,2,2,"可承作交易；SQL 方言、工具與移轉需要驗證。"],
+        [4,2,2,"交易能力相符；須移轉資料和驗證方言、排序規則。"],
+        [4,1,2,"可用 PostgreSQL 交易表；但既有環境不需要額外擴充。"]
+      ]
+    },
+    mssql: {
+      note: "假設既有 Microsoft 身分、ODBC 與 BI 流程，且目標版別支援所需元件；確認授權、Windows/Linux 元件差異與報表混載。",
+      entries: [
+        [2,2,2,"可當本機報表快照，但不具此假設的中央資料庫服務。"],
+        [4,2,3,"可提供報表查詢；身分、工具與治理需另整合。"],
+        [5,5,5,"符合既有身分、管理與報表流程；仍須查版別與授權。"],
+        [4,2,3,"可提供 SQL 報表；需驗證連接器、身分與維運。"],
+        [3,2,2,"可作報表來源，但一般企業報表不必承擔時序擴充。"]
+      ]
+    },
+    postgres: {
+      note: "假設同一服務放關聯交易、可索引 JSONB 與複雜聯結，團隊已採 PostgreSQL。驗證查詢計畫、連線數、WAL 與 vacuum。",
+      entries: [
+        [2,2,3,"具本機 SQL 與 JSON 操作，但中央併發與既有 JSONB 契約不符。"],
+        [4,3,3,"具交易與 JSON 功能，但型別、索引策略及 SQL 不同。"],
+        [4,3,3,"可實作混合資料；JSON 行為、授權與執行計畫需重驗。"],
+        [5,5,5,"JSONB、索引與關聯交易吻合，團隊已有維運基礎。"],
+        [5,4,3,"能沿用 PostgreSQL 交易與 JSONB，但無時序需求時擴充多一層。"]
+      ]
+    },
+    timescale: {
+      note: "假設中心 PostgreSQL 可部署相容擴充，需歷史窗、晚到資料與自動化保留。先量 chunk、晚到補灌、彙總新鮮度與還原。",
+      entries: [
+        [2,3,2,"適合作為邊緣緩衝，不是本案的中央長期時序庫。"],
+        [3,3,3,"可自建分割、預彙總與保留，另估實作維護工時。"],
+        [3,3,3,"既有報表可能方便；要自行驗證時窗處理及保留。"],
+        [4,5,3,"原生分割能承接時序資料；聚合刷新、保留要自行排程。"],
+        [5,5,4,"hypertable、可用的連續彙總及保留對應需求；仍需核對擴充版與作業。"]
+      ]
+    }
+  };
+  function add(parent, tag, content, className) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (content !== null) element.textContent = content;
+    parent.append(element);
+    return element;
+  }
+  function render() {
+    const scenario = scenarios[select.value] || scenarios.edge;
+    assumption.textContent = scenario.note;
+    list.replaceChildren();
+    const ranked = scenario.entries.map(([work, platform, ops, why], index) =>
+      ({name:names[index], work, platform, ops, why, total:work + platform + ops, index})
+    ).sort((a,b) => b.total - a.total || a.index - b.index);
+    let rank = 0;
+    ranked.forEach((entry, i) => {
+      if (!i || entry.total !== ranked[i-1].total) rank = i+1;
+      const tied = ranked.filter(x => x.total === entry.total).length > 1;
+      const item = add(list, "li", null);
+      const top = add(item, "div", null, "db-fit-row");
+      add(top, "strong", `第 ${rank} 名${tied ? "（並列）" : ""}｜${entry.name}`);
+      add(top, "span", `${(entry.total/3).toFixed(2)} / 5`, "db-fit-score");
+      const track = add(item, "div", null, "db-fit-track");
+      track.setAttribute("aria-hidden", "true");
+      const bar = add(track, "span", null);
+      bar.style.width = `${entry.total / 15 * 100}%`;
+      add(item, "p", `工作負載 ${entry.work}｜平台／整合 ${entry.platform}｜維運 ${entry.ops}。 ${entry.why}`);
+    });
+  }
+  select.addEventListener("change", render);
+  render();
+})();
+</script>
 </body>
 </html>
