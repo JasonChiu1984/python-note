@@ -316,8 +316,11 @@
             <button onclick="stepWalkthrough(1)" class="px-3 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-200 text-xs font-semibold transition">
               下一步 →
             </button>
+            <button type="button" id="btn-auto-walkthrough" aria-pressed="false" onclick="toggleWalkthroughPlayback()" class="px-3 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-200 text-xs font-semibold transition">
+              <span id="txt-auto-walkthrough">自動播放</span>
+            </button>
             <button onclick="resetWalkthrough()" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-semibold transition">
-              重置全管線
+              重置導覽
             </button>
           </div>
         </div>
@@ -1111,7 +1114,7 @@ if sys._is_gil_enabled():
 <path d="M 448 172 H 464 Q 472 172 472 180 V 212 Q 472 220 480 220 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 216 L 496 220 L 487 224 Z" fill="#71859D"/>
 <path d="M 692 220 H 708 Q 716 220 716 212 V 180 Q 716 172 724 172 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 168 L 740 172 L 731 176 Z" fill="#71859D"/>
 <rect x="496" y="32" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
-<text x="512" y="54" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">VaR 風險曝險</text>
+<text x="512" y="54" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">曝險與價差門檻</text>
 <text x="512" y="76" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">CPU 0</text>
 <rect x="496" y="112" width="196" height="56" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
 <text x="512" y="134" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">選擇權希臘值定價</text>
@@ -1142,10 +1145,10 @@ STOP = sentinel("STOP")
 RISK_LIMITS = frozendict(max_delta=250_000.0, vol_alert=0.42)
 
 def evaluate_risk(tick: frozendict) -> frozendict:
-    """純 CPU 計算隱含波動度壓力與曝險分數，全程無需 Lock。"""
+    """教學用價差、合成壓力分數與曝險門檻；不需額外的業務鎖。"""
     mid = (tick["bid"] + tick["ask"]) * 0.5
     spread_bps = ((tick["ask"] - tick["bid"]) / mid) * 10_000
-    # 模擬蒙地卡羅微步壓力評估
+    # 固定的合成 CPU 負載；不是蒙地卡羅、VaR 或實際風控模型
     stress = sum(math.sin(mid * 0.01 + k) * tick["vol"] for k in range(2_000))
     exposure = abs(tick["position"] * mid)
     breached = exposure > RISK_LIMITS["max_delta"] or tick["vol"] > RISK_LIMITS["vol_alert"]
@@ -1195,7 +1198,12 @@ def run_risk_engine(raw_ticks: list[tuple[str, float, float, float, int]]) -> li
     for w in workers: w.join()
     out_q.put(STOP)
     gate.join()
-    return alerts`,
+    return alerts
+
+if __name__ == "__main__":
+    sample = [("TEST", 99.0, 101.0, 0.50, 1)]
+    assert [item["symbol"] for item in run_risk_engine(sample)] == ["TEST"]
+    print("風控教學：合成行情命中門檻")`,
         tips: [
           '高頻行情若需廣播給多個異質策略（Fan-out），可為每個策略配一條專屬有界 Queue，並將同一個 frozendict 參考送入多條通道，實現真正 1 對 N 零複製。',
           '嚴禁在 Tick 內夾帶可變 list 作為委託簿深度（OrderBook Levels），請改用 tuple[tuple[float, float], ...] 確保深層不可變。',
@@ -1241,7 +1249,7 @@ ETL_CFG = frozendict(chunk_size=512, overlap=64, batch_size=32)
 WHITESPACE_RE = re.compile(r"\\s+")
 
 def chunk_and_fingerprint(doc: frozendict) -> frozendict:
-    """多核無鎖執行：正規化文本、滑動視窗分塊並計算指紋。"""
+    """正規化文字、按字元滑動分塊並計算指紋；不是 tokenizer。"""
     cleaned = WHITESPACE_RE.sub(" ", doc["text"]).strip()
     step = ETL_CFG["chunk_size"] - ETL_CFG["overlap"]
     chunks = tuple(
@@ -1303,7 +1311,12 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
     for w in workers: w.join()
     emb_chan.put(STOP)
     col.join()
-    return gpu_batches`,
+    return gpu_batches
+
+if __name__ == "__main__":
+    sample = [("one", "sensor reading"), ("two", "sensor  reading")]
+    assert run_llm_etl(sample) == [("sensor reading",)]
+    print("ETL 教學：正規化後去重")`,
         tips: [
           '去重集合 `seen_hashes` 僅由單一 Collector 執行緒獨佔維護，完全不需要為 set 加鎖，實現「資料所有權隔離（Ownership Isolation）」。',
           '正規表達式先以 `re.compile()` 編譯為頂層常數，Python 3.15t 可透過延遲引用計數安全跨核共用。',
@@ -1314,8 +1327,8 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
         badge: 'CASE 03 · 高吞吐量日誌解析與資安稽核',
         accent: 'sky',
         title: '高吞吐量日誌解析與資安即時稽核',
-        subtitle: '多核平行執行正則提取、多條資安規則比對與 SHA-256 證據鏈雜湊，再以 SimpleQueue 低開銷匯流告警。',
-        painPoint: '雲端微服務每秒湧入數十萬筆存取日誌，進行正則解析、IP 黑名單比對、SQLi/XSS 偵測與防竄改雜湊計算屬於典型 CPU 密集任務，單核直譯器往往跟不上尖峰流量而遺漏即時入侵告警。',
+        subtitle: '多核平行執行正則提取、多條資安規則比對與 SHA-256 內容指紋，再以 SimpleQueue 低開銷匯流告警。',
+        painPoint: '雲端微服務每秒湧入數十萬筆存取日誌，可將格式解析、IP 比對及規則檢查分批處理。本例只示範少量訊號，並非完整入侵偵測或稽核存證。',
         solution: '將大型資安規則庫與威脅情資表載入為唯讀 `frozendict` / `frozenset`，讓所有 Worker 共用唯讀規則進行平行比對，僅將命中的異常事件透過 `SimpleQueue` 非阻塞匯流至告警引擎。',
         diagramSvg: `
           <p id="scroll-case-3" class="diagram-scroll-tip">預設顯示全圖。放大後可左右滑動，或選取圖表再按左右方向鍵。 <span lang="en">Fits the screen by default. Enlarge to pan; focus the diagram to use the arrow keys.</span></p><button type="button" class="diagram-zoom" aria-pressed="false" aria-controls="scroll-case-3-view">放大圖表</button><div class="diagram-scroll" tabindex="0" role="region" aria-label="實務架構圖 / Scenario architecture" aria-describedby="scroll-case-3" id="scroll-case-3-view" style="--diagram-min:960px"><svg xmlns="http://www.w3.org/2000/svg" class="channel-case-diagram" viewBox="0 0 960 192" role="img" aria-labelledby="audit-flow-title audit-flow-desc">
@@ -1325,9 +1338,9 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
 <path d="M 448 96 H 496" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 487 92 L 496 96 L 487 100 Z" fill="#71859D"/>
 <path d="M 692 96 H 740" fill="none" stroke="#71859D" stroke-width="2" stroke-linecap="round"/><path d="M 731 92 L 740 96 L 731 100 Z" fill="#71859D"/>
 <rect x="496" y="52" width="196" height="88" rx="6" fill="#193A36" stroke="#34D399" stroke-width="1.25"/>
-<text x="512" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">八核心規則比對</text>
+<text x="512" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">四工作者規則比對</text>
 <text x="512" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">唯讀情資、正則解析</text>
-<text x="512" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SHA-256 存證</text>
+<text x="512" y="123" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">SHA-256 指紋</text>
 <rect x="24" y="52" width="196" height="88" rx="6" fill="#192638" stroke="#71859D" stroke-width="1.25"/>
 <text x="40" y="79" text-anchor="start" fill="#F1F5F9" font-size="15" font-weight="600" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">日誌批次接入</text>
 <text x="40" y="101" text-anchor="start" fill="#B8C8D9" font-size="13" font-weight="400" font-family="Geist, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif">Syslog / Kafka</text>
@@ -1343,6 +1356,7 @@ def run_llm_etl(documents: list[tuple[str, str]], num_workers: int = 6) -> list[
 </svg></div>
         `,
         code: `import hashlib, queue, re, threading
+from urllib.parse import unquote
 
 STOP = sentinel("STOP")
 
@@ -1355,31 +1369,34 @@ RULES = frozendict(
 LOG_RE = re.compile(r"^(?P<ip>\\S+)\\s+(?P<method>\\w+)\\s+(?P<path>\\S+)\\s+(?P<status>\\d+)$")
 
 def audit_micro_batch(lines: tuple[str, ...]) -> tuple[frozendict, ...]:
-    """對微批次日誌進行無鎖規則比對並為告警簽發 SHA-256 證據指紋。"""
+    """比對教學規則並計算內容雜湊；雜湊不是簽章或防竄改證明。"""
     findings = []
     for raw in lines:
         m = LOG_RE.match(raw)
         if not m:
             continue
         ip, path = m.group("ip"), m.group("path")
+        decoded_path = unquote(path)
         hit = (
             "BLACKLIST_IP" if ip in THREAT_IPS else
-            "SQL_INJECTION" if RULES["sqli"].search(path) else
-            "PATH_TRAVERSAL" if RULES["traversal"].search(path) else None
+            "SQL_INJECTION" if RULES["sqli"].search(decoded_path) else
+            "PATH_TRAVERSAL" if RULES["traversal"].search(decoded_path) else None
         )
         if hit:
-            evidence = hashlib.sha256(raw.encode()).hexdigest()[:16]
+            evidence = hashlib.sha256(raw.encode()).hexdigest()
             findings.append(frozendict(rule=hit, ip=ip, path=path, sha256=evidence))
     return tuple(findings)
 
 def run_secops_pipeline(log_stream: list[str], batch_size: int = 200) -> list[frozendict]:
+    if batch_size < 1:
+        raise ValueError("batch_size 必須至少為 1")
     in_q: queue.Queue[tuple[str, ...]] = queue.Queue(maxsize=64)
     alert_q: queue.SimpleQueue[tuple[frozendict, ...] | STOP] = queue.SimpleQueue()
     all_alerts: list[frozendict] = []
 
     def ingest() -> None:
         try:
-            # 微批次打包（Micro-batching）：將佇列臨界區進出次數降低 200 倍
+            # 每批一次入列；滿批最多合併 batch_size 筆，不等於吞吐提升相同倍數
             for i in range(0, len(log_stream), batch_size):
                 in_q.put(tuple(log_stream[i : i + batch_size]))
         finally:
@@ -1411,7 +1428,14 @@ def run_secops_pipeline(log_stream: list[str], batch_size: int = 200) -> list[fr
     for w in workers: w.join()
     alert_q.put(STOP)
     sink.join()
-    return all_alerts`,
+    return all_alerts
+
+if __name__ == "__main__":
+    sample = ["198.51.100.23 GET /demo 200", "192.0.2.1 GET /health 200"]
+    alerts = run_secops_pipeline(sample)
+    assert len(alerts) == 1 and alerts[0]["rule"] == "BLACKLIST_IP"
+    assert len(alerts[0]["sha256"]) == 64
+    print("日誌教學：一筆測試位址命中")`,
         tips: [
           '超高頻小訊息（如單行日誌）強烈建議採用「微批次（Micro-batching）」封裝成 `tuple[str, ...]` 入列，可減少入列次數；批次大小與等待時間需一併量測。',
           '僅在偵測到資安異常時才寫入輸出 `SimpleQueue`，能大幅減少下游彙整器與系統喚醒開銷。',
@@ -1506,7 +1530,12 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
         t.join()
     for interp in interps:
         interp.close()
-    return results`,
+    return results
+
+if __name__ == "__main__":
+    results = run_isolated_plugins([("trusted_demo", 3)], pool_size=2)
+    assert len(results) == 1 and results[0][1:] == ("trusted_demo", 93)
+    print("子直譯器教學：受信任運算通過")`,
         tips: [
           '直譯器 Queue 對部分型別提供特殊傳遞支援（包括 memoryview）；若共享可變緩衝區須自行同步。InterpreterPoolExecutor 另以 pickle 傳遞參數與結果，不能直接傳 memoryview。成本須實測。',
           '跨直譯器可使用 ("stop", None) 等可序列化的結束訊息，避免依賴原程序的物件身分。',
@@ -1850,7 +1879,31 @@ def run_isolated_plugins(jobs: list[tuple[str, int]], pool_size: int = 4) -> lis
       goToStep(next);
     }
 
+    let walkthroughTimer = null;
+
+    function stopWalkthroughPlayback() {
+      clearInterval(walkthroughTimer);
+      walkthroughTimer = null;
+      document.getElementById('btn-auto-walkthrough').setAttribute('aria-pressed', 'false');
+      document.getElementById('txt-auto-walkthrough').textContent = '自動播放';
+    }
+
+    function toggleWalkthroughPlayback() {
+      if (walkthroughTimer !== null) {
+        stopWalkthroughPlayback();
+        return;
+      }
+      if (state.activeStep === 0 || state.activeStep === 5) goToStep(1);
+      document.getElementById('btn-auto-walkthrough').setAttribute('aria-pressed', 'true');
+      document.getElementById('txt-auto-walkthrough').textContent = '停止導覽';
+      walkthroughTimer = setInterval(() => {
+        if (state.activeStep < 5) goToStep(state.activeStep + 1);
+        if (state.activeStep === 5) stopWalkthroughPlayback();
+      }, 1600);
+    }
+
     function resetWalkthrough() {
+      stopWalkthroughPlayback();
       state.activeStep = 0;
       updateStepPills();
       updateBanner();

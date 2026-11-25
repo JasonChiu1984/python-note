@@ -522,7 +522,7 @@ async def main():
           <div>
             <label for="tachyonTarget" class="block text-xs font-semibold text-slate-400">執行目標 (Subcommand)</label>
             <select id="tachyonTarget" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
-              <option value="run app.py">run app.py (啟動並分析腳本)</option>
+              <option value="run python-315-learning-kit/examples/concurrency_315.py">run（分析隨附的併發範例）</option>
               <option value="attach 12345">attach 12345 (掛載線上 PID)</option>
               <option value="dump 12345">dump 12345 (擷取卡死行程快照)</option>
             </select>
@@ -531,7 +531,7 @@ async def main():
             <label for="tachyonMode" class="block text-xs font-semibold text-slate-400">量測模式 (<code>--mode</code>)</label>
             <select id="tachyonMode" class="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
               <option value="wall">wall (真實牆鐘時間含 I/O)</option>
-              <option value="cpu">cpu (僅純 CPU 運算時間)</option>
+              <option value="cpu">cpu (執行緒正在 CPU 上執行時的樣本)</option>
               <option value="gil" selected>gil (持有 GIL 的樣本)</option>
               <option value="exception">exception (僅取樣處理例外期間)</option>
             </select>
@@ -1079,8 +1079,8 @@ async def main():
               <p class="text-xs text-slate-300"><code>open("data.txt")</code> 未指定 <code>encoding</code> 時不再依賴系統 locale，一律預設使用 UTF-8（可用 <code>PYTHONUTF8=0</code> 或 <code>-X utf8=0</code> 關閉）。</p>
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
-              <div class="text-xs font-bold text-cyan-400">bytearray.take_bytes() 零拷貝提取</div>
-              <p class="text-xs text-slate-300">網路緩衝區與協定解析可直接 <code>data = buf.take_bytes(n)</code> 取出 <code>bytes</code> 而不需額外複製與手動清空。</p>
+              <div class="text-xs font-bold text-cyan-400">bytearray.take_bytes()：整批取出與部分取出</div>
+              <p class="text-xs text-slate-300">在 CPython 3.15，<code>buf.take_bytes()</code> 取出全部並清空緩衝區，是零拷貝的實作路徑。若 <code>n</code> 小於緩衝區長度，<code>buf.take_bytes(n)</code> 會取出前 <code>n</code> 個位元組、留下剩餘資料，這條路徑需要複製。<a class="text-cyan-300 underline" href="https://docs.python.org/3.15/builtins/stdtypes.html#bytearray.take_bytes">官方規格</a></p>
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2">
               <div class="text-xs font-bold text-cyan-400">更聰明的跨語言 AttributeError 提示</div>
@@ -1522,18 +1522,23 @@ async def main():
       const modeControl = document.getElementById('tachyonMode');
       const outControl = document.getElementById('tachyonOutput');
       const asyncAware = document.getElementById('tachyonAsync').checked;
-      const allThreads = document.getElementById('tachyonAllThreads').checked;
+      const threadsControl = document.getElementById('tachyonAllThreads');
       const opcodeControl = document.getElementById('tachyonOpcodes');
       const isDump = command === 'dump';
-      const mode = asyncAware ? 'wall' : modeControl.value;
       const out = outControl.value;
-      modeControl.disabled = isDump || asyncAware;
+      const isGecko = !isDump && out.startsWith('--gecko');
+      const mode = (asyncAware || isGecko) ? 'wall' : modeControl.value;
+      modeControl.disabled = isDump || asyncAware || isGecko;
+      threadsControl.disabled = asyncAware;
       outControl.disabled = isDump;
       opcodeControl.disabled = !isDump && out === '--pstats';
 
       const parts = ['python3.15 -m profiling.sampling', command];
-      if (!isDump) parts.push('--mode', mode, out);
-      if (allThreads) parts.push('-a');
+      if (!isDump) {
+        if (!isGecko) parts.push('--mode', mode);
+        parts.push(out);
+      }
+      if (threadsControl.checked && !threadsControl.disabled) parts.push('-a');
       if (asyncAware) parts.push('--async-aware');
       if (opcodeControl.checked && !opcodeControl.disabled) parts.push('--opcodes');
       // Put profiler options before the script/PID. After the script, arguments
@@ -1547,7 +1552,10 @@ async def main():
       if (mode === 'gil' && !isDump) {
         explain += ' GIL 模式觀察持有 GIL 的樣本，不等同直接量測鎖等待時間。';
       }
-      if (asyncAware && !isDump) explain += ' 協程堆疊取樣使用 wall。';
+      if (asyncAware) explain += ' 協程堆疊不可搭配 -a；取樣時使用 wall。';
+      if (isGecko) explain += ' Gecko 格式自帶 CPU 與 GIL 狀態，不指定 --mode。';
+      if (command === 'run') explain += ' 請先在筆記專案根目錄執行。';
+      else explain += ' 請將 12345 改成有權分析的 Python 行程 PID。';
       if (opcodeControl.disabled) explain += ' pstats 不支援位元組碼取樣。';
       document.getElementById('tachyonExplain').textContent = explain;
     }
