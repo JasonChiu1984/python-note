@@ -233,7 +233,7 @@
           <div class="hero-actions"><a class="button primary" href="#eight-matrix">比較十個協定家族</a><a class="button blue" href="python_industrial_data_gateway_tutorial.html">回工業閘道教材</a><a class="button" href="#protocol-lab">查看 Python 實作</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
         <figure class="surface family-map" id="architecture-scroll" aria-labelledby="family-map-title">
-          <figcaption><h2 id="family-map-title">十個通訊協定家族的用途地圖</h2><p>按常見用途分組，不表示必須串接、依序轉換或全部採用。同一協定也可能跨用途；選取協定可跳到實作或設計重點。</p><p>深度研究：<a href="python_opcua_deep_dive.html">OPC UA</a> · <a href="python_mqtt_deep_dive.html">MQTT</a></p></figcaption>
+          <figcaption><h2 id="family-map-title">十個通訊協定家族的用途地圖</h2><p>按常見用途分組，不表示必須串接、依序轉換或全部採用。同一協定也可能跨用途；選取協定可跳到實作或設計重點。</p><p>深度研究：<a href="python_opcua_deep_dive.html">OPC UA</a> · <a href="python_mqtt_deep_dive.html">MQTT</a> · <a href="python_ethernetip_deep_dive.html">EtherNet/IP</a> · <a href="python_ethercat_deep_dive.html">EtherCAT</a></p></figcaption>
           <div class="family-groups">
             <div class="family-role"><h3>控制器與現場 I/O</h3><p>依控制器、設備及週期需求選擇；不是所有網路都適用即時運動控制。</p><ul><li><a href="#lab-profinet"><strong>PROFINET</strong><span>工業乙太網路週期 I/O</span></a></li><li><a href="#lab-profibus"><strong>PROFIBUS</strong><span>DP 匯流排；PA 用於製程儀表</span></a></li><li><a href="#lab-cclink"><strong>CC-Link</strong><span>Classic、IE 與 IE TSN 各有規格</span></a></li><li><a href="#ethernetip-comparison"><strong>EtherNet/IP</strong><span>CIP 週期 I/O 與顯式診斷</span></a></li><li><a href="#ethercat-comparison"><strong>EtherCAT</strong><span>邊通過邊處理；可用分散式時鐘</span></a></li></ul></div>
             <div class="family-role"><h3>設備與無線感測</h3><p>依端點提供的資料模型與承載網路，選擇對應採集方式。</p><ul><li><a href="#modbus-tcp-detail"><strong>Modbus</strong><span>TCP／RTU：暫存器與線圈</span></a></li><li><a href="#lab-zigbee"><strong>Zigbee</strong><span>低功耗網狀感測與閘道</span></a></li></ul></div>
@@ -347,8 +347,8 @@
 <td>三菱 PLC、遠端 I/O、驅動設備</td>
 <td>PLC 主站模組交換資料，Python 讀對應 PLC 區。須辨識 Classic 與 CC-Link IE 家族</td>
 </tr>
-<tr><th scope="row">EtherNet/IP</th><td>Ethernet；CIP Scanner／Adapter</td><td>Implicit I/O 循環；Explicit 請求回應</td><td>PLC、遠端 I/O、驅動</td><td>由 Scanner 處理控制 I/O；Python 從閘道或 PLC 快照讀取已驗收資料。</td></tr>
-<tr><th scope="row">EtherCAT</th><td>MainDevice、SubDevice；常用 100BASE-TX 物理鏈路</td><td>循環過程資料、按設備能力同步時鐘</td><td>伺服、分散 I/O、同步取樣</td><td>控制器執行循環；Python 讀控制器映射區或上層介面。</td></tr>
+<tr><th scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td>Ethernet；CIP Scanner／Adapter</td><td>Implicit I/O 循環；Explicit 請求回應</td><td>PLC、遠端 I/O、驅動</td><td>由 Scanner 處理控制 I/O；Python 從閘道或 PLC 快照讀取已驗收資料。</td></tr>
+<tr><th scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td>MainDevice、SubDevice；常用 100BASE-TX 物理鏈路</td><td>循環過程資料、按設備能力同步時鐘</td><td>伺服、分散 I/O、同步取樣</td><td>控制器執行循環；Python 讀控制器映射區或上層介面。</td></tr>
 </tbody>
 </table></div>
 <p>依需求分層。VFD 電流可由 Modbus 讀取，AHU 測點與告警可由 BACnet 取得，SCADA 或 MES 可用 OPC UA 取結構化資料，而 MQTT 用於發布已加上時間、單位及品質的遙測。PROFINET、PROFIBUS DP 與 CC-Link 的循環時間、watchdog 與故障輸出由主站與裝置工程配置驗收。非即時的 Python 採集不應承擔控制迴路或消防連鎖。</p>
@@ -364,8 +364,8 @@
     <tr><th scope="row"><a href="#lab-profinet">PROFINET IO</a></th><td>循環 I/O 更新可配置，有模組／通道診斷，RT 和 IRT 支援不同即時要求。</td><td>設備、GSDML、組態工具及網路配置須相容。IRT 需要支援的硬體與拓樸。</td><td>PLC 遠端 I/O、驅動器與機台控制。需要同步的多軸運動則核對 IRT 支援。</td></tr>
     <tr><th scope="row"><a href="#lab-profibus">PROFIBUS DP</a></th><td>成熟的主站循環 I/O，既有 DP 設備多，可直接讀站與模組診斷。</td><td>RS-485 線長受速率限制，終端、接頭或站號配置錯誤可影響整段。</td><td>既有產線的 DP 變頻器、ET 200 遠端 I/O 或控制設備保留與改造。</td></tr>
     <tr><th scope="row"><a href="#lab-cclink">CC-Link</a></th><td>Classic 以位元和字交換循環 I/O，三菱 PLC 的 Link Refresh 便於映射到 CPU。</td><td>須核對站種、占用站數與刷新區；Classic、IE Field Basic、IE Field 和 IE TSN 的設備與配置不同。</td><td>三菱 PLC、遠端 I/O、變頻器。既有 Classic 用專用匯流排，乙太網路案依設備支援選 IE 版本。</td></tr>
-  <tr><th scope="row">EtherNet/IP</th><td>使用標準 Ethernet 傳輸 CIP，結合循環 I/O 與非循環服務。</td><td>依裝置與 Scanner 核對 RPI、通訊負載及支援的安全 Profile。</td><td>PLC 與工業乙太網路 I/O、驅動、診斷。</td></tr>
-<tr><th scope="row">EtherCAT</th><td>同一幀交換多站過程資料，支援 Distributed Clocks 的裝置可同步。</td><td>週期和整體延遲由主站、站數、資料量及 PLC 任務影響，並非固定值。</td><td>多軸同步、快速遠端 I/O、量測。</td></tr>
+  <tr><th scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td>使用標準 Ethernet 傳輸 CIP，結合循環 I/O 與非循環服務。</td><td>依裝置與 Scanner 核對 RPI、通訊負載及支援的安全 Profile。</td><td>PLC 與工業乙太網路 I/O、驅動、診斷。</td></tr>
+<tr><th scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td>同一幀交換多站過程資料，支援 Distributed Clocks 的裝置可同步。</td><td>週期和整體延遲由主站、站數、資料量及 PLC 任務影響，並非固定值。</td><td>多軸同步、快速遠端 I/O、量測。</td></tr>
 </tbody>
 </table></div>
 <section class="protocol-compare" id="protocol-visual-compare" aria-labelledby="pc-title">
@@ -402,8 +402,8 @@
     <tr><th scope="row">OPC UA</th><td>在同一區網，訂閱速度主要看採樣及發布設定。例：100 ms 採樣加 500 ms 發布，兩層等待在理想無積壓時合計可接近 600 ms，另加來源及網路時間。</td><td>來源變化到訂閱端接收的時間，核對伺服器實際採用的兩個週期。</td></tr>
     <tr><th scope="row">MQTT</th><td>同一區網且 Broker 無積壓時，立即發布可比等待固定掃描更早到達。跨站、重送與離線積壓會增加延遲。</td><td>Publisher 到 Subscriber 的延遲，分開記錄固定發布週期及恢復後補送。</td></tr>
     <tr><th scope="row">Zigbee</th><td>電池感測器通常以事件或上報週期更新。即使無線封包很快到達，長上報週期仍會使溫度資料更新較慢。</td><td>從感測器實際變化到 MQTT 橋接端的新鮮讀值，另記上報間隔與漏報。</td></tr>
-  <tr><th scope="row">EtherNet/IP</th><td>循環 I/O 以 RPI 配置，Explicit 訊息不等同循環；RPI 不是端到端延遲保證。</td><td>量 PLC 程式映像更新、最大循環間隔、連線逾時及恢復。</td></tr>
-<tr><th scope="row">EtherCAT</th><td>典型 100 Mbit/s 全雙工 EtherCAT 段；線速不是過程資料週期。</td><td>量物理事件至控制程式／輸出、循環抖動與裝置同步誤差。</td></tr>
+  <tr><th scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td>循環 I/O 以 RPI 配置，Explicit 訊息不等同循環；RPI 不是端到端延遲保證。</td><td>量 PLC 程式映像更新、最大循環間隔、連線逾時及恢復。</td></tr>
+<tr><th scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td>典型 100 Mbit/s 全雙工 EtherCAT 段；線速不是過程資料週期。</td><td>量物理事件至控制程式／輸出、循環抖動與裝置同步誤差。</td></tr>
 </tbody>
 </table></div>
 <p>上位監控可用同一個來源變化、相同網段與相同點數，比對 Modbus TCP 輪詢、BACnet COV、OPC UA 訂閱與 MQTT 即時發布的端到端 P95／P99。比如 1 秒輪詢單是等待下次輪詢就可能接近 1 秒，COV 或立即發布則在各自條件成立後送出。</p>
@@ -419,8 +419,8 @@
     <tr><th scope="row">PROFINET IO</th><td>常見 100 Mbit/s 乙太網路。PI 列出的 RT 可配置週期範圍為 250 µs 到 512 ms，實際由控制器與設備共同決定。IRT 依硬體與同步配置驗收。</td><td>確認控制器、設備與工程工具支援的 PROFINET Security Class 與功能。既有裝置以 OT 分區、限制工程存取、保護交換器埠為主。</td><td>量測循環更新、抖動、watchdog 與恢復時間。驗證資料狀態 IOPS／IOCS 與診斷。</td></tr>
     <tr><th scope="row">PROFIBUS DP</th><td>典型銅纜 DP RS-485 為 9.6 kbit/s 至 12 Mbit/s。主站循環受速率、站數、I/O 長度和重試影響。</td><td>傳統 DP 無原生加密或裝置鑑別。限制匯流排實體接入及 PLC 工程介面存取。</td><td>核對線長與終端，量測 Data_Exchange、週期及一站中斷對其他站的影響。</td></tr>
     <tr><th scope="row">CC-Link</th><td>Classic 為 156 kbit/s 至 10 Mbit/s。IE Field Basic 使用 100 Mbit/s 乙太網路，循環需按站數與 CPU 實測。兩者的線速都只是掃描時間的其中一項因素。</td><td>Classic 無原生加密或裝置鑑別。保護匯流排及工程介面。IE 系列依版本和設備規格確認，使用 OT 網路分區。</td><td>量測 link scan、CPU refresh、站離線後舊值的品質標示，以及恢復時間。</td></tr>
-  <tr><th scope="row">EtherNet/IP</th><td>量實際循環、RPI 與 PLC 工作週期。CIP Sync 可提供時鐘同步，但不保證端到端延遲。</td><td>CIP Security 須端點支援並啟用；依模式或政策核對加密、鑑別及完整性。</td><td>在正常及負載高時核對更新、逾時、重連和未授權操作是否被拒。</td></tr>
-<tr><th scope="row">EtherCAT</th><td>典型 100BASE-TX 段為 100 Mbit/s，全雙工。Distributed Clocks 的同步精度與反應延遲分開。</td><td>不因使用 Distributed Clocks 或功能安全機制就假定網路加密；限制工程與主站介面。</td><td>量最長更新間隔、watchdog、資料失效與故障恢復。</td></tr>
+  <tr><th scope="row"><a href="python_ethernetip_deep_dive.html" aria-label="EtherNet/IP 協定原理與驗收">EtherNet/IP</a></th><td>量實際循環、RPI 與 PLC 工作週期。CIP Sync 可提供時鐘同步，但不保證端到端延遲。</td><td>CIP Security 須端點支援並啟用；依模式或政策核對加密、鑑別及完整性。</td><td>在正常及負載高時核對更新、逾時、重連和未授權操作是否被拒。</td></tr>
+<tr><th scope="row"><a href="python_ethercat_deep_dive.html" aria-label="EtherCAT 協定原理與驗收">EtherCAT</a></th><td>典型 100BASE-TX 段為 100 Mbit/s，全雙工。Distributed Clocks 的同步精度與反應延遲分開。</td><td>不因使用 Distributed Clocks 或功能安全機制就假定網路加密；限制工程與主站介面。</td><td>量最長更新間隔、watchdog、資料失效與故障恢復。</td></tr>
 </tbody>
 </table></div>
 <div class="lab-note"><strong>20 台 RTU 的輪詢估算。</strong>若每台讀取兩個 Holding Register，請求 8 bytes、回應 9 bytes，在 9,600 bit/s、8E1 下，每台光是 17 bytes 的傳輸就約 19.5 ms。20 台合計約 390 ms，還要加幀間靜默、設備處理及例外等待。如果輪詢目標是 1 秒，需實測正常及單站離線情境。</div>
@@ -436,7 +436,7 @@
 <tr><th scope="row">既有 Modbus TCP：Modbus Security</th><td>只在相容雙端啟用 TLS／X.509；不相容端點須隔離／限制存取，不能貼上「已加密」標籤。</td><td>連線重建後驗證真正讀到新值、整輪延遲與一站故障；不要拿來承諾硬即時控制。</td></tr></tbody></table></div>
 <p>若是急停等安全功能，用合格的控制器、裝置、工程配置與系統驗證；FSoE、PROFIsafe、CIP Safety 處理的是功能安全，不取代網路鑑別、授權或加密。</p>
 <p>參考：<a href="https://bacnetinternational.org/bacnetsc/">BACnet/SC</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-2/4.8">OPC UA 安全模型</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT</a> · <a href="https://www.modbus.org/modbus-specifications">Modbus Security</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/6.6">OPC UA 備援</a> · <a href="https://www.profibus.com/fileadmin/media/downloadsection/installation_guide/PROFINET_Planning_Redundancy_8132_V100_May_23.pdf">PI 媒體備援</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00316R2_Guidelines-for-Using-Device-Level-Ring-DLR-with-EtherNetIP.pdf">ODVA DLR</a> · <a href="https://www.ethercat.org/en/technology.html">ETG EtherCAT</a></p></section>
-<h3 id="ethernetip-comparison">EtherNet/IP：循環資料和診斷分開</h3><p>先確認 Scanner／Adapter 的 EDS、I/O Assembly、方向、大小及實際設定 RPI。循環 I/O 通常使用 Implicit Messaging；參數讀寫與診斷使用 Explicit Messaging。驗收需記錄最壞更新間隔、PLC 工作週期與連線復原。</p><p><a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA 技術概要</a> · <a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-sync/">CIP Sync</a> · <a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-security/">CIP Security</a></p><h3 id="ethercat-comparison">EtherCAT：快週期與時鐘同步是兩個指標</h3><p>核對 ESI、PDO 映射、MainDevice 循環設定，以及各裝置是否支援 Distributed Clocks。驗收時分別記錄週期、抖動、同步誤差、故障狀態與復原，不以其中任一指標代替完整反應時間。Python 監看讀取已由控制器彙整的快照，不取代即時 I/O 主站。</p><p><a href="https://tr.beckhoff.com.cn/pluginfile.php/31888/mod_resource/content/1/ETG1600_V1i0i2_G_R_InstallationGuideline.pdf">EtherCAT 安裝指引 ETG.1600</a>。本頁的離線程式仍是原有八組；這兩個補充協定沒有新增控制器連線範例或現場實測。</p>
+<h3 id="ethernetip-comparison">EtherNet/IP：循環資料和診斷分開</h3><p><a href="python_ethernetip_deep_dive.html">讀完整 EtherNet/IP 協定解說、時序圖與 Python 離線實驗</a></p><p>先確認 Scanner／Adapter 的 EDS、I/O Assembly、方向、大小及實際設定 RPI。循環 I/O 通常使用 Implicit Messaging；參數讀寫與診斷使用 Explicit Messaging。驗收需記錄最壞更新間隔、PLC 工作週期與連線復原。</p><p><a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA 技術概要</a> · <a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-sync/">CIP Sync</a> · <a href="https://www.odva.org/technology-standards/distinct-cip-services/cip-security/">CIP Security</a></p><h3 id="ethercat-comparison">EtherCAT：快週期與時鐘同步是兩個指標</h3><p><a href="python_ethercat_deep_dive.html">讀完整 EtherCAT 協定解說、時序圖與 Python 離線實驗</a></p><p>核對 ESI、PDO 映射、MainDevice 循環設定，以及各裝置是否支援 Distributed Clocks。驗收時分別記錄週期、抖動、同步誤差、故障狀態與復原，不以其中任一指標代替完整反應時間。Python 監看讀取已由控制器彙整的快照，不取代即時 I/O 主站。</p><p><a href="https://tr.beckhoff.com.cn/pluginfile.php/31888/mod_resource/content/1/ETG1600_V1i0i2_G_R_InstallationGuideline.pdf">EtherCAT 安裝指引 ETG.1600</a>。本頁的離線程式仍是原有八組；這兩個補充協定沒有新增控制器連線範例或現場實測。</p>
 <h3 id="lab-setup">準備實驗環境</h3>
 <p>使用 Python 3.11 以上。八組離線驗證只需標準函式庫。網路練習再按需要安裝 SDK。</p>
 <pre><code>cd "範例程式碼/industrial_protocol_lab"

@@ -1,0 +1,122 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EtherCAT 深度研究：由 ESI、PDO、DC 到 WKC</title>
+<style>
+:root{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#183047;background:#edf3f9;line-height:1.65}*{box-sizing:border-box}body{margin:0}main{width:min(100%,74rem);padding:clamp(.8rem,3vw,2rem);margin:auto;min-width:0}header,.panel{min-width:0;overflow-wrap:anywhere;background:#fff;border:1px solid #c6d5e6;border-radius:14px;margin:0 0 1rem;padding:clamp(.8rem,3vw,1.5rem)}header{background:#132a46;color:#eff7ff;border-color:#132a46}header p{max-width:76ch;color:#dce9fa}.tag{color:#9ce5d7;letter-spacing:.06em;font-weight:800}h1,h2,h3{line-height:1.2;margin:.45rem 0 .7rem}h1{font-size:clamp(1.9rem,5.7vw,3.6rem)}h2{font-size:clamp(1.45rem,4vw,2.14rem)}h3{font-size:1.13rem}p{margin:.55rem 0 .85rem}a{color:#13558c;text-underline-offset:.16em}header a{color:#d4eaff}nav{display:flex;flex-wrap:wrap;gap:.4rem}nav a{padding:.24rem .5rem;border:1px solid #7295b8;border-radius:6px}a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #2c72a5;outline-offset:2px}.flow-figure{margin:.8rem 0}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.7rem 0;counter-reset:phase}.flow li{border:1px solid #8caac8;border-inline-start:4px solid #346c9e;border-radius:8px;padding:.65rem;background:#edf5ff;min-width:0;counter-increment:phase}.flow li strong,.flow li span{display:block}.flow li span{color:#344c66;font-size:.92rem}.flow li::before{content:counter(phase,decimal-leading-zero);font-size:.8rem;color:#206277;font-weight:850}.notice{background:#e9f6f6;border-inline-start:4px solid #287f81;padding:.52rem .74rem}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.38rem;margin:.72rem 0;list-style:none;padding:0}.fields li{padding:.48rem;border:1px solid #a5b9d0;border-radius:6px;background:#e8f2fd}.fields li:nth-child(3){background:#dcefeb}.scroll{max-width:100%;overflow:auto;border:1px solid #c6d5e6;border-radius:7px;margin:.72rem 0}table{width:100%;border-collapse:collapse;min-width:39rem}caption{text-align:left;font-weight:800;padding:.42rem .55rem}th,td{text-align:left;vertical-align:top;padding:.55rem;border-block-end:1px solid #d9e5f2}th{white-space:nowrap}thead{background:#eaf3ff}.trend{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.4rem;list-style:none;padding:0;margin:.7rem 0}.trend li{min-width:0;border:1px solid #a4b8d0;border-radius:6px;padding:.4rem;background:#edf5ff;font-size:.87rem}.trend li[data-usable]{background:#e4f4e9;border-color:#70aa85}.trend li[data-alarm]{border-inline-start:4px solid #ac4255}.trend li span{display:block}pre{max-width:100%;overflow:auto;padding:.72rem;background:#132a46;color:#f4f8ff;border-radius:7px;font-size:.87rem;line-height:1.45}details{padding:.58rem;border:1px solid #c6d5e6;border-radius:6px}summary{font-weight:750;cursor:pointer}.panel{scroll-margin-top:.75rem}footer{padding:0 0 1.8rem}
+</style></head><body><main><header id="top"><div class="tag">INDUSTRIAL ETHERNET · EtherCAT 深度章</div><h1>EtherCAT 詳細協定說明</h1><p>從一個乙太網路 frame 沿線處理，到主站如何配置、週期交換資料和診斷現場。用固定合成紀錄區分「資料有回應」與「資料可供監控使用」，不存取或控制設備。</p><nav aria-label="章節導覽"><a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回通訊比較：EtherCAT</a><a href="#architecture">架構</a><a href="#datagrams">Datagram 與定址</a><a href="#mapping">ESI／PDO／SDO</a><a href="#esm">狀態機</a><a href="#diagnostics">DC／WKC</a><a href="#lab">Python 離線實作</a></nav></header><section class="panel" id="architecture"><h2>架構圖｜一個 frame 走訪多個 SubDevice</h2><figure class="flow-figure"><figcaption>常見線形接法的邏輯傳遞方向；EtherCAT 也支援有分支的拓樸。</figcaption><ol class="flow"><li><strong>MainDevice（主站）</strong><span>週期送出 EtherCAT frame，將應用程式的程序映像區與裝置交換。</span></li><li><strong>SubDevice A（I/O）</strong><span>ESC 硬體在 frame 經過時讀取屬於本設備的輸出欄位，並填入其輸入。</span></li><li><strong>SubDevice B（驅動器）</strong><span>依映射與命令讀寫自己的資料，不等主站另開 TCP 連線逐台輪詢。</span></li><li><strong>邏輯迴送</strong><span>末端／分支依 EtherCAT 埠規則迴送，主站取得完成的 frame。邏輯環不一定是實體環。</span></li></ol></figure>
+<p>原生循環程序資料直接封裝於乙太網路資料鏈結層，EtherType <code>0x88A4</code>，不需要 IP、TCP 或 UDP 標頭；不要把 SubDevice 類比成每站一個 IP／Socket 的協定。一般 Ethernet 網段或 IP 路由器不能被假定能充當 EtherCAT 分支；以主站、EtherCAT junction、設備與廠商支援的媒體設計為準。</p><p class="notice">常見基礎 EtherCAT 使用 100 Mb/s 全雙工乙太網路；這是鏈路速率，不是整體更新週期、抖動、同步精度或故障回退時間。EtherCAT G 是另有規格的延伸，不能套用到全數設備。</p></section><section class="panel" id="datagrams"><h2>Frame、Datagram 與定址不是同一件事</h2>
+<figure class="flow-figure"><figcaption>一個原生乙太網路 frame 的高階結構（非比例、非封包製作教學）</figcaption><ul class="fields"><li>MAC 標頭：EtherType 0x88A4</li><li>EtherCAT 標頭：型別與資料長度</li><li>一個或多個 datagram：命令、索引、地址、資料、WKC</li><li>乙太網路 FCS</li></ul></figure>
+<p>主站安排數個 datagram 可以共享同一 frame；一個 datagram 也能覆蓋多個已映射的 SubDevice。WKC 在各 datagram 尾部，不等於整個 frame 唯一的一個狀態。循環時可用邏輯讀寫命令（例如 LRD／LWR／LRW）。</p><div class="scroll" role="region" tabindex="0" aria-label="工程中常見的三種定址"><table><caption>工程中常見的三種定址</caption><thead><tr><th scope="col">定址</th><th scope="col">選定的對象</th><th scope="col">何時使用</th></tr></thead><tbody><tr><th scope="row">位置（auto-increment）</th><td>依物理經過順序／相對位置選站</td><td>啟動時探索拓樸，核對與組態中的站位一致。</td></tr><tr><th scope="row">配置站址（station）</th><td>由主站配置的站址及該站暫存器位移</td><td>針對已識別裝置做配置、狀態或診斷。不是 IPv4 位址。</td></tr><tr><th scope="row">邏輯（logical）</th><td>程序映像區中的邏輯位址</td><td>FMMU 將邏輯範圍對應到本地 ESC 記憶體與位元；用於循環 PDO 資料。</td></tr></tbody></table></div></section><section class="panel" id="mapping"><h2>ESI、PDO、CoE、SDO：設定資料與即時資料分開</h2><div class="scroll" role="region" tabindex="0" aria-label="資料描述、循環映射與郵箱讀寫"><table><caption>資料描述、循環映射與郵箱讀寫</caption><thead><tr><th scope="col">名詞</th><th scope="col">用途</th><th scope="col">工程核對</th></tr></thead><tbody><tr><th scope="row">ESI（XML）</th><td>廠商提供的設備描述，給主站工程系統辨識與選擇能力。</td><td>比對 Vendor ID、Product Code、Revision、PDO／同步模式；ESI 檔不等於裝置端 SII 資料。</td></tr><tr><th scope="row">PDO</th><td>循環 I/O 的資料項與布局；通常不夾帶逐項物件索引。</td><td>以設備觀點：RxPDO＝設備接收（主站輸出）、TxPDO＝設備傳送（主站輸入）。核對型別、bit offset、量尺與資料方向。</td></tr><tr><th scope="row">CoE／SDO</th><td>CoE 為 CANopen over EtherCAT；如設備支援，SDO 走 mailbox，存取物件字典，使用 index/subindex。</td><td>適合參數或診斷；不把每個週期的 I/O 都改成 SDO，也不假定所有物件可寫／所有 PDO 可重映射。</td></tr><tr><th scope="row">SyncManager（SM）</th><td>管理 ESC 與設備應用端共享區域的存取同步。</td><td>典型 SM0/1 為 mailbox，SM2/3 為程序輸出／輸入；實際通道與模式依設備。</td></tr><tr><th scope="row">FMMU</th><td>將主站邏輯程序映像映射至裝置本地實體記憶體。</td><td>確認各方向與長度，尤其不要拿錯版本 ESI。</td></tr></tbody></table></div>
+<p>專案在設定階段定義物件、PDO 對映和緩衝區後，週期內才按程序映像的固定布局交付資料。工程驗收要核對裝置說明、映射及主站的變數型別；單看值非零不足以確認實際有效。</p></section><section class="panel" id="esm"><h2>流程圖｜從 INIT 到 OP 的可觀察條件</h2><figure class="flow-figure"><figcaption>典型啟動順序；有條件不上線時保留狀態與 AL Status Code。</figcaption><ol class="flow"><li><strong>INIT</strong><span>完成基本辨識。無 mailbox 與程序資料；若支援 mailbox，主站設定相應 SyncManager。</span></li><li><strong>PREOP</strong><span>mailbox 可用，循環程序資料尚未可用；依配置建立 SM／FMMU／PDO 與同步方式。</span></li><li><strong>SAFEOP</strong><span>核對程序資料通道及需要的 DC 設定。通常可讀輸入；正常輸出尚未啟用，實際輸出由配置與 watchdog 決定。</span></li><li><strong>OP</strong><span>主站先提供有效輸出程序資料，再要求進入 OP；達成後正常交換輸入、輸出。</span></li></ol></figure>
+<p>BOOT 若支援，是韌體等特殊用途，非正常循環的一站。遇到狀態異常時，先保留要求狀態、實際狀態與 AL Status Code；不要在監控腳本不停重送運行狀態。不把 SAFEOP 名稱當作 SIL 或 PL：安全功能須由合格設計及專用安全措施負責。</p></section><section class="panel" id="diagnostics"><h2>同步和診斷｜DC、WKC 與資料時效各看什麼</h2>
+<h3>DC：對齊裝置時基，不保證端到端延遲</h3>
+<p>Distributed Clocks（DC）在支援的設備上使用參考時鐘，主站估算傳播延遲並對齊本地時鐘，可依設備配置使用 SYNC0／SYNC1 對齊採樣或輸出。主站週期、訊框到達的餘裕、時鐘偏差、I/O 生效相位、外部時間來源是不同項目；部署時分開量。不要把 DC 宣稱成 TCP 時鐘同步、固定微秒更新或要求所有 SubDevice 都支援。</p>
+<h3>WKC：命令處理證據，不等於點值新鮮</h3>
+<p>WKC 按命令種類、裝置是否完成相應讀／寫及映射而變，預期值由主站依實際組態與命令計算，不應直接填「設備台數」。Beckhoff <code>WcState</code> 是衍生品質旗標：0 為上次資料交換有效；這和 wire datagram 的原始 WKC 整數不是同一欄位。相符的 WKC 不能保證感測器最新、資料尺度正確或輸出已在現場動作。若來源不提供可信取樣時間，可輸出「取樣時間未知」，不能拿上位接收時間冒充現場採樣時間。</p><div class="scroll" role="region" tabindex="0" aria-label="故障層與可觀察證據"><table><caption>故障層與可觀察證據</caption><thead><tr><th scope="col">觀察項目</th><th scope="col">可用於</th><th scope="col">不能單獨證明</th></tr></thead><tbody><tr><th scope="row">連線／CRC／期限</th><td>埠斷線、媒體錯誤、沒有準時收到 frame</td><td>單一資料區映射成功或值的新鮮度</td></tr><tr><th scope="row">WKC／WcState</th><td>判斷預期 datagram 處理情況</td><td>取樣時間、量測準確、遠端輸出已生效</td></tr><tr><th scope="row">ESM／AL Status</th><td>確定是否已到 OP；診斷配置、狀態轉換</td><td>同步精度、個別感測點有效</td></tr><tr><th scope="row">DC／時間偏差</th><td>時鐘同步與配置是否滿足本設備的規範</td><td>作業系統排程及完整控制迴路延遲</td></tr><tr><th scope="row">取樣時間與品質</th><td>用對齊後時間檢核 age、缺值與重複資訊</td><td>不受監控的設備也在健康運行</td></tr></tbody></table></div>
+<p class="notice">timeout、WKC 不符、狀態錯誤或取樣過期，當筆資料立即標成不可用；告警可另訂防抖。保留上一筆只作顯示時，要顯著標示舊值與取樣時間，不拿去作自動控制。下一步是記錄故障、核對線路與組態，按經核准的復歸流程恢復；現場輸出動作由原設備 watchdog、安全迴路與核准控制策略處理。</p></section><section class="panel" id="lab"><h2>圖表與 Python 實作｜只讀固定合成主站紀錄</h2><p><a href="python_ethercat_deep_dive_lab.py">下載完整 Python 實驗</a>。Python 3.10 以上，沒有硬體、Socket、驅動程式或外部套件。本例的 WKC=3、age≤4 ms、必要 DC 條件、連續兩筆壞資料告警及連續兩筆有效清告警，都是教學自訂，不是 EtherCAT 規範值。</p><figure class="flow-figure"><figcaption>合成監控週期圖：綠底＝當筆可用；紅色側線＝告警仍啟動。卡片明列狀態，不靠顏色辨識。</figcaption><ol class="trend"><li data-usable><strong>週期 71</strong><span>可用</span><span>WKC：3</span><span>告警：無</span></li><li><strong>週期 72</strong><span>過期／對時問題</span><span>WKC：3</span><span>告警：無</span></li><li data-alarm><strong>週期 73</strong><span>逾期未回</span><span>WKC：—</span><span>告警：有</span></li><li data-usable data-alarm><strong>週期 74</strong><span>可用</span><span>WKC：3</span><span>告警：有</span></li><li data-usable><strong>週期 75</strong><span>可用</span><span>WKC：3</span><span>告警：無</span></li><li><strong>週期 76</strong><span>不在 OP</span><span>WKC：3</span><span>告警：無</span></li><li data-alarm><strong>週期 77</strong><span>WKC 不符</span><span>WKC：2</span><span>告警：有</span></li><li data-alarm><strong>週期 78</strong><span>DC 不符政策</span><span>WKC：3</span><span>告警：有</span></li></ol></figure><p>週期 72 雖然 WKC=3，但取樣 age=9 ms，當即不採用；週期 73 逾時後達告警門檻。週期 74 已有一筆有效資料但告警仍保留，75 才清警。76–78 分別示範 SAFEOP、WKC 不符、DC 不符。時間假設已對齊，主站記錄沒有原始取樣時間時不可捏造。</p><pre tabindex="0"><code>python3 python_ethercat_deep_dive_lab.py
+python3 python_ethercat_deep_dive_lab.py --test</code></pre><details><summary>展開 Python 原始碼與單元測試</summary><pre tabindex="0"><code>&quot;&quot;&quot;Evaluate fixed synthetic EtherCAT monitoring records; no I/O or fieldbus access.&quot;&quot;&quot;
+
+from dataclasses import dataclass
+import argparse
+import json
+import unittest
+
+
+@dataclass(frozen=True)
+class Record:
+    cycle: int
+    state: str                    # Reported state of the monitored I/O domain
+    wkc: int | None               # None = this frame did not return by deadline
+    sample_ms: int | None         # Aligned sample timestamp; None if not supplied
+    observed_ms: int
+    dc_ok: bool                   # True/False per upstream monitor&#x27;s own policy
+
+
+def classify(records: tuple[Record, ...], *, expected: int,
+             freshness_ms: int, require_dc: bool) -&gt; list[dict]:
+    &quot;&quot;&quot;The result drives a dashboard, not equipment. All thresholds are fictional.&quot;&quot;&quot;
+    if expected &lt;= 0 or freshness_ms &lt; 0:
+        raise ValueError(&quot;expected WKC must be positive; freshness cannot be negative&quot;)
+    result = []
+    failures = good = 0
+    alarm = False
+    previous_cycle = -1
+    previous_observed = -1
+    for r in records:
+        if r.cycle &lt;= previous_cycle or r.observed_ms &lt; previous_observed:
+            raise ValueError(&quot;records must be sorted by increasing monitor cycle and time&quot;)
+        previous_cycle, previous_observed = r.cycle, r.observed_ms
+        age = None if r.sample_ms is None else r.observed_ms - r.sample_ms
+        if r.wkc is None:
+            reason = &quot;timeout&quot;
+        elif r.state != &quot;OP&quot;:
+            reason = &quot;not_op&quot;
+        elif r.wkc != expected:
+            reason = &quot;wkc_mismatch&quot;
+        elif age is None:
+            reason = &quot;sample_time_unknown&quot;
+        elif not 0 &lt;= age &lt;= freshness_ms:
+            reason = &quot;stale_or_time_alignment&quot;
+        elif require_dc and not r.dc_ok:
+            reason = &quot;dc_out_of_policy&quot;
+        else:
+            reason = &quot;ok&quot;
+
+        if reason == &quot;ok&quot;:
+            good += 1
+            failures = 0
+            if good &gt;= 2:
+                alarm = False
+        else:
+            failures += 1
+            good = 0
+            if failures &gt;= 2:
+                alarm = True
+        result.append({&quot;cycle&quot;: r.cycle, &quot;data_valid&quot;: reason == &quot;ok&quot;,
+                       &quot;reason&quot;: reason, &quot;age_ms&quot;: age, &quot;alarm&quot;: alarm})
+    return result
+
+
+RECORDS = (
+    Record(71, &quot;OP&quot;, 3, 100, 101, True),
+    Record(72, &quot;OP&quot;, 3, 100, 109, True),   # WKC matches, but upstream sample is old
+    Record(73, &quot;OP&quot;, None, None, 110, True),
+    Record(74, &quot;OP&quot;, 3, 110, 111, True),
+    Record(75, &quot;OP&quot;, 3, 111, 112, True),
+    Record(76, &quot;SAFEOP&quot;, 3, 112, 113, True),
+    Record(77, &quot;OP&quot;, 2, 113, 114, True),
+    Record(78, &quot;OP&quot;, 3, 114, 115, False),
+)
+
+
+class MonitorTest(unittest.TestCase):
+    def test_working_counter_does_not_prove_freshness(self):
+        rows = classify(RECORDS, expected=3, freshness_ms=4, require_dc=True)
+        self.assertEqual([x[&quot;reason&quot;] for x in rows],
+                         [&quot;ok&quot;, &quot;stale_or_time_alignment&quot;, &quot;timeout&quot;, &quot;ok&quot;, &quot;ok&quot;,
+                          &quot;not_op&quot;, &quot;wkc_mismatch&quot;, &quot;dc_out_of_policy&quot;])
+        self.assertEqual([x[&quot;alarm&quot;] for x in rows],
+                         [False, False, True, True, False, False, True, True])
+        self.assertFalse(rows[1][&quot;data_valid&quot;])
+
+    def test_unknown_and_future_sample_time(self):
+        data = (Record(1, &quot;OP&quot;, 3, None, 9, True), Record(2, &quot;OP&quot;, 3, 11, 10, True))
+        self.assertEqual([x[&quot;reason&quot;] for x in
+                          classify(data, expected=3, freshness_ms=4, require_dc=False)],
+                         [&quot;sample_time_unknown&quot;, &quot;stale_or_time_alignment&quot;])
+
+    def test_order_matters(self):
+        with self.assertRaises(ValueError):
+            classify((RECORDS[1], RECORDS[0]), expected=3, freshness_ms=4, require_dc=True)
+
+    def test_dc_policy_can_be_not_applicable(self):
+        self.assertTrue(classify((RECORDS[-1],), expected=3,
+                                 freshness_ms=4, require_dc=False)[0][&quot;data_valid&quot;])
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--test&quot;, action=&quot;store_true&quot;)
+    if parser.parse_args().test:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        print(json.dumps(classify(RECORDS, expected=3, freshness_ms=4, require_dc=True),
+                         ensure_ascii=False, indent=2))</code></pre></details><p>練習：指出哪些週期「有正常 WKC」但應標成不可用；再說明為什麼「兩筆壞資料才告警」不應推遲當筆資料失效。</p><h3>官方規格與實作資料</h3><ul><li><a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 EtherCAT Implementation Guide</a> · <a href="https://www.ethercat.org/download/documents/EtherCAT_Device_Protocol_Poster.pdf">ETG EtherCAT Device Protocol Poster</a></li><li><a href="https://infosys.beckhoff.com/content/1033/ek1322/1036980875.html">Beckhoff：EtherCAT State Machine</a> · <a href="https://infosys.beckhoff.com/content/1033/b110_ethercat_optioninterface/1984417163.html">Beckhoff：WcState</a> · <a href="https://infosys.beckhoff.com/content/1033/el4374/1037004555.html">Beckhoff：裝置通訊品質診斷與工程驗收</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回工業協定比較</a></footer></main></body></html>

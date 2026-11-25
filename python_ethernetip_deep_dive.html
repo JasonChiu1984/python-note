@@ -1,0 +1,100 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EtherNet/IP 深度研究｜CIP 物件、即時 I/O 與驗收</title>
+<style>
+:root{--ink:#17263b;--blue:#16477a;--line:#cedde9;--dim:#476079}*{box-sizing:border-box}body{margin:0;background:#f2f6fc;color:var(--ink);font:1rem/1.74 system-ui,sans-serif}main{max-width:72rem;padding:clamp(1rem,4vw,2.6rem);margin:auto;min-width:0}a{color:var(--blue);text-underline-offset:3px}a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid #3788d0;outline-offset:3px}header{margin-top:1rem;background:#153c68;color:white;padding:clamp(1rem,5vw,2.4rem);border-radius:12px}h1{font-size:clamp(2.1rem,6vw,3.4rem);margin:.3rem 0;line-height:1.15}header small{color:#cde7fc;letter-spacing:.08em;font-weight:700}header p{max-width:58ch;margin-bottom:0}nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:1rem 0}section{background:#fff;border:1px solid var(--line);padding:clamp(1rem,3vw,1.65rem);margin-top:1rem;border-radius:10px}h2{margin:0 0 .55rem;line-height:1.25;color:#204768}.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.55rem;padding:0;list-style-position:inside}.flow li{background:#e9f3fd;border:1px solid var(--line);padding:.65rem;border-radius:7px}.flow span{display:block;color:var(--dim);font-size:.9rem}.scroll,pre{overflow:auto}table{width:100%;min-width:31rem;border-collapse:collapse}th,td{padding:.6rem;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:#eaf2fb}.note{border-left:4px solid #2874ae;background:#ebf5ff;padding:.7rem .9rem}pre{background:#152942;color:#edf6ff;padding:1rem;border-radius:8px;font-size:.86rem}summary{cursor:pointer}.timing{margin:1rem 0}.timing p{margin:.35rem 0}.bar{height:.85rem;background:#e1ebf6;border-radius:5px;overflow:hidden}.bar span{height:100%;display:block;background:#216494}.bar.actual span{background:#a76516}p,li{overflow-wrap:anywhere}
+</style></head><body><main><a href="python_industrial_protocol_comparison_tutorial.html#ethernetip-comparison">← 回工業通訊比較</a>
+<header><small>工業乙太網路 · ODVA / CIP</small><h1>EtherNet/IP 深度研究</h1><p>從資料物件、連線、I/O 組態到診斷：分清封包週期、控制掃描、來源更新與實際資料年齡。</p></header>
+<nav aria-label="章節導覽"><a href="#architecture">分層架構</a><a href="#cip">CIP 物件</a><a href="#connections">連線與映射</a><a href="#timing">時間驗證</a><a href="#services">擴充服務</a><a href="#lab">離線 Python</a><a href="#acceptance">驗收清單</a></nav>
+<section id="architecture"><h2>01｜CIP 放在乙太網路及 TCP／UDP 之上</h2><p>ODVA 現行技術總覽將 EtherNet/IP 的引入列在 2001 年。它是在標準乙太網路、IP 與常用傳輸協定之上承載 CIP（Common Industrial Protocol），不是 EtherCAT 逐站原生框架。適合支援相關設備設定檔的 PLC、遠端 I/O、變頻器或工程工具；能互通不代表點位和安全功能自動一致。</p>
+<ol class="flow"><li>PLC／I/O Scanner<span>規劃及發起 I/O 連線、控制程式</span></li><li>乙太網路交換網路<span>交換器、VLAN、負載、壅塞與回復</span></li><li>Adapter／裝置<span>接受連線、組裝 I/O 資料、報告狀態</span></li><li>診斷／歷史服務<span>對合法來源做狀態與資料年齡驗證</span></li></ol>
+<p>典型設備類別包括 Messaging、Adapter、Scanner；連線起始方叫 Originator，回應方是 Target。Scanner 常擔任 I/O Originator，Adapter 常為 Target。真正產生某方向的資料的是其 Producer，Consumer 可以有一個或多個，不能把起始方等同於雙向的 Producer。</p></section>
+<section id="cip"><h2>02｜CIP 物件模型：操作要知道路徑與服務</h2><div class="scroll" tabindex="0" role="region" aria-label="CIP 物件模型"><table><thead><tr><th>名詞</th><th>角色</th><th>典型對照</th></tr></thead><tbody>
+<tr><td>Class（類別）</td><td>一組物件的共同介面</td><td>Identity Object 或 Assembly Object</td></tr>
+<tr><td>Instance（實例）</td><td>指定類別的特定實例</td><td>某個輸入組裝或實際裝置身分實例</td></tr>
+<tr><td>Attribute（屬性）</td><td>物件內可辨識的資料欄位</td><td>產品名稱、版本、狀態或 Assembly 資料；可用性依實作</td></tr>
+<tr><td>Service（服務）</td><td>對目標執行的標準或廠商定義動作</td><td>Get_Attribute_Single（讀取單一屬性）</td></tr></tbody></table></div>
+<p>顯式訊息帶服務與目標路徑，適合診斷、設定或非週期性存取；常見透過 TCP，且可分無連線或有連線的 CIP 訊息。隱式 I/O 先約定連線及資料映射，運行中常見以 UDP 承載，可為單播或多播；實際傳輸模式、觸發方式及設備支援須查裝置文件。辨識／探索有自己的服務與傳輸，不能以「所有 EtherNet/IP 顯式功能都只在 TCP」概括。</p></section>
+<section id="connections"><h2>03｜Assembly、EDS 與連線生命週期</h2><ol class="flow"><li>比對組態<span>裝置識別、韌體、EDS、連線支援</span></li><li>確認資料方向<span>Scanner 視角的 Input＝T→O；Output＝O→T</span></li><li>建立連線<span>核對實例、長度、RPI、所有權與傳輸格式</span></li><li>交換與監視<span>更新品質、序號、超時、恢復與重接</span></li></ol>
+<p><strong>Assembly</strong> 將多個資料欄位組成 I/O 映射。確認輸入、輸出及組態實例、連線尺寸、每個資料位元／位元組、數值縮放、對齊、有效性旗標，以及含不含連線特有的額外標頭。<strong>EDS</strong>（Electronic Data Sheet）是工程工具使用的裝置描述，協助辨識參數與連線設定；不等於支援所有組合，也不能取代實際韌體手冊。</p>
+<p>典型 I/O 建立透過 Connection Manager 的 Forward Open 類服務協商，再在連線內交換資料。連線失敗時依序比對實例、I/O 尺寸、電子鍵控／版本、RPI 可用範圍、所有權、連線數上限與交換網路。超時與重啟後，上位機需先標記品質無效並驗證收到新資料；現場輸出回退行為應依設備組態和安全設計驗收，不假設會保持前值或一律歸零。</p></section>
+<section id="timing"><h2>04｜RPI 不是 PLC 掃描，也不是來源資料年齡</h2><p><strong>RPI</strong>（Requested Packet Interval）是連線請求的 I/O 封包間隔參數，需符合裝置支援及網路條件。PLC 掃描週期是程式或工作排程執行的間隔，不必與 I/O 刷新同相。來源感測更新、排隊、交換網路抖動、接收與程式讀取相位都可增加端到端年齡。</p>
+<figure class="timing" aria-label="教學示意，共同比例尺零到八十毫秒"><figcaption><strong>設計示意，非實測：</strong>各值用同一 0–80 ms 尺度，不能相加推算端到端。</figcaption><p>請求封包間隔 20 ms</p><div class="bar" aria-hidden="true"><span style="width:25%"></span></div><p>PLC 週期 30 ms</p><div class="bar" aria-hidden="true"><span style="width:37.5%"></span></div><p>服務端允許的接收年齡上限 60 ms（自訂政策）</p><div class="bar" aria-hidden="true"><span style="width:75%"></span></div><p>示意：最後收到的資料已 80 ms</p><div class="bar actual" aria-hidden="true"><span style="width:100%"></span></div></figure>
+<p class="note">用接收端單調時鐘驗證「多久沒收到」，用已同步且可信的來源時間驗證「原始值多舊」。封包連續到達也可能重複提供同一讀值；若需要證明感測更新，另核對來源序號、時間戳與品質。應分別量測封包間隔、丟包／重連及 p95/p99 資料年齡，不拿最短 RPI 當 SLA。</p></section>
+<section id="services"><h2>05｜同步、備援、安全與資安是不同層</h2><div class="scroll" tabindex="0" role="region" aria-label="擴充服務邊界"><table><thead><tr><th>功能</th><th>工程用途</th><th>不能承諾</th></tr></thead><tbody>
+<tr><td>CIP Sync</td><td>以 IEEE 1588 PTP 同步設備時間；核對授時架構及時鐘品質。</td><td>不會自動降低掃描時間或保證端到端延遲。</td></tr>
+<tr><td>DLR</td><td>Device Level Ring 支援網路環狀拓樸並管理環路故障，需支援設備及適當角色。</td><td>不等於 PLC 或電力備援，也不保證所有雙故障均可恢復。</td></tr>
+<tr><td>CIP Safety</td><td>功能安全通訊，採黑通道原則並須使用完整合規的安全設計。</td><td>不是加密或帳號權限；普通 I/O 和教學例不能用於安全控制。</td></tr>
+<tr><td>CIP Security</td><td>具相容設備和啟用設定時，安全配置可依支援模式提供身份驗證、完整性及機密性；例如 TCP/UDP 對應的 TLS/DTLS。</td><td>不取代分區、存取控制、金鑰與憑證生命週期，也不假定每個產品支援所有設定檔。</td></tr></tbody></table></div><p>先確認裝置規格、配對與授權；未確定有安全擴充時，不把一般 EtherNet/IP 通訊當成已加密。多播部署須驗證所用交換器的 IGMP／查詢器配置與流量表現，避免沒測過就假定每個連線必用多播。</p></section>
+<section id="lab"><h2>06｜Python 離線：解碼並區分接收過期</h2><p><a href="python_ethernetip_deep_dive_lab.py" download>下載完整 Python</a>。此範例用合成 8 位元組資料、只按教學映射解碼，不是完整 EtherNet/IP 封包；不建立連線、不掃描、不寫入設備。映射為小端序旗標、帶正負號的 0.01 °C、序號，對應 23.45 °C、風機運轉、序號 42。</p><pre><code>python python_ethernetip_deep_dive_lab.py
+python python_ethernetip_deep_dive_lab.py --test</code></pre><details><summary>展開 Python 原始碼</summary><pre><code>&quot;&quot;&quot;解碼合成的 Assembly 資料；非網路封包、不連線、不寫入設備。&quot;&quot;&quot;
+from dataclasses import dataclass
+import math
+from struct import Struct
+import unittest
+
+# 教學自訂映射：小端序 uint16 旗標、int16 0.01°C、uint32 序號。
+LAYOUT = Struct(&quot;&lt;HhI&quot;)
+FAN_RUNNING = 1 &lt;&lt; 0
+SENSOR_VALID = 1 &lt;&lt; 1
+SYNTHETIC = bytes.fromhex(&quot;0300 2909 2a000000&quot;)
+
+
+@dataclass(frozen=True)
+class Feedback:
+    fan_running: bool
+    temp_c: float | None
+    producer_seq: int
+
+
+def decode(payload: bytes) -&gt; Feedback:
+    if len(payload) != LAYOUT.size:
+        raise ValueError(&quot;Assembly 資料長度不符教學映射&quot;)
+    flags, centi_c, seq = LAYOUT.unpack(payload)
+    return Feedback(bool(flags &amp; FAN_RUNNING),
+                    centi_c / 100 if flags &amp; SENSOR_VALID else None,
+                    seq)
+
+
+def quality(feedback: Feedback, now: float, received_at: float,
+            local_budget_s: float) -&gt; str:
+    &quot;&quot;&quot;使用同一 monotonic 時鐘，只量測最近接收年齡。&quot;&quot;&quot;
+    if not all(map(math.isfinite, (now, received_at, local_budget_s))):
+        raise ValueError(&quot;時間須為有限值&quot;)
+    if local_budget_s &lt;= 0 or received_at &gt; now:
+        raise ValueError(&quot;須使用同一時鐘且接收時間不得晚於當前時間&quot;)
+    if now - received_at &gt;= local_budget_s:
+        return &quot;STALE&quot;
+    return &quot;GOOD&quot; if feedback.temp_c is not None else &quot;BAD_SENSOR&quot;
+
+
+class Tests(unittest.TestCase):
+    def test_known_payload(self):
+        self.assertEqual(decode(SYNTHETIC), Feedback(True, 23.45, 42))
+
+    def test_lengths_and_quality_bit(self):
+        for invalid in (SYNTHETIC[:-1], SYNTHETIC + b&quot;\0&quot;):
+            with self.assertRaises(ValueError):
+                decode(invalid)
+        bad = decode(LAYOUT.pack(FAN_RUNNING, -123, 7))
+        self.assertEqual(bad, Feedback(True, None, 7))
+        self.assertEqual(quality(bad, .01, 0, .06), &quot;BAD_SENSOR&quot;)
+
+    def test_signed_value_and_local_stale(self):
+        result = decode(LAYOUT.pack(SENSOR_VALID, -250, 8))
+        self.assertEqual(result, Feedback(False, -2.5, 8))
+        self.assertEqual(quality(result, .01, 0, .06), &quot;GOOD&quot;)
+        self.assertEqual(quality(result, .06, 0, .06), &quot;STALE&quot;)
+        with self.assertRaises(ValueError):
+            quality(result, 0, .01, .06)
+
+
+if __name__ == &quot;__main__&quot;:
+    import sys
+    if &quot;--test&quot; in sys.argv:
+        unittest.main(argv=[&quot;lab&quot;])
+    else:
+        sample = decode(SYNTHETIC)
+        print(sample)
+        print(&quot;接收後 10 ms:&quot;, quality(sample, .010, 0, .060))
+        print(&quot;接收後 80 ms:&quot;, quality(sample, .080, 0, .060))</code></pre></details><p>測試涵蓋正負溫度、錯誤長度、感測無效和恰達過期邊界。此例只檢查相同本機時鐘的接收年齡；未驗證來源時間、序號換屆或實際協定交換。</p></section>
+<section id="acceptance"><h2>07｜工控驗收：先單設備，再擴大</h2><ol><li>記錄機型、韌體、EDS、I/O 實例、位址、尺寸和設備支援的 RPI；保存手冊對照。</li><li>以隔離的試車台核對每一方向的已知輸入與狀態，檢查縮放、空值及品質傳遞。</li><li>增加預期負載，分別觀察 PLC 更新、網路及來源資料年齡；實測丟包、故障及重接前後的行為。</li><li>核准設備端故障行為和控制連續性後再主系統上線；任何安全功能另依對應合規流程驗證。</li></ol>
+<p>原始來源：<a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA EtherNet/IP 技術總覽</a> · <a href="https://www.odva.org/technology-standards/key-technologies/ethernet-ip/">ODVA EtherNet/IP</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf">ODVA EtherNet/IP Quick Start</a> · <a href="https://www.odva.org/publication_download/cip-security-at-a-glance-pub-319/">ODVA CIP Security</a>。</p></section></main></body></html>
