@@ -889,12 +889,16 @@ python python_roadmap_ot_research_lab.py gateway --test</code></pre>
     compact.addEventListener("change", syncMenu);
     menu.addEventListener("click", event => {
       const link = event.target.closest("a[href^='#']");
-      if (!link || !compact.matches || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = document.getElementById(link.hash.slice(1));
       if (!target) return;
-      menu.open = false;
+      // A second anchor activation must not be cancelled by an in-flight smooth scroll.
+      event.preventDefault();
+      if (compact.matches) menu.open = false;
+      if (location.hash !== link.hash) history.pushState(null, "", link.hash);
       target.tabIndex = -1;
-      target.focus({preventScroll:true});
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start", behavior: "instant" });
     });
   </script>
 </body>
