@@ -55,3 +55,29 @@ class BatchSchedulerEngineeringTests(unittest.TestCase):
         report = self.runner.run_job(self.job, [1, 2], "worker-b", lambda item: seen.append(item), backfill_from=1)
         self.assertTrue(report["backfill_mode"])
         self.assertEqual(seen, [0, 1, 2, 1, 2])
+
+    def test_historical_backfill_does_not_move_normal_checkpoint(self) -> None:
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4], "normal", lambda _: None)
+        replayed: list[int] = []
+        report = self.runner.run_job(self.job, [1, 2], "review", replayed.append, backfill_from=1)
+        self.assertEqual(replayed, [1, 2])
+        self.assertEqual(report["last_replayed_item"], 2)
+        self.assertEqual(report["last_checkpoint"], 4)
+        self.assertEqual(self.runner.get_checkpoint(self.job), 4)
+        seen: list[int] = []
+        report = self.runner.run_job(self.job, [0, 1, 2, 3, 4, 5], "normal", seen.append)
+        self.assertEqual(seen, [5])
+        self.assertEqual(report["last_checkpoint"], 5)
+        self.assertIsNone(report["last_replayed_item"])
+
+    def test_backfill_beyond_checkpoint_does_not_skip_normal_work(self) -> None:
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4], "normal", lambda _: None)
+        replayed: list[int] = []
+        report = self.runner.run_job(self.job, [6], "review", replayed.append, backfill_from=6)
+        self.assertEqual(replayed, [6])
+        self.assertEqual(report["last_replayed_item"], 6)
+        self.assertEqual(report["last_checkpoint"], 4)
+        self.assertEqual(self.runner.get_checkpoint(self.job), 4)
+        seen: list[int] = []
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4, 5, 6], "normal", seen.append)
+        self.assertEqual(seen, [5, 6])

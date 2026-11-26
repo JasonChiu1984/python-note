@@ -266,6 +266,7 @@ class SchedulerReport:
     dead_letter_count: int = 0
     last_checkpoint: int = -1
     backfill_mode: bool = False
+    last_replayed_item: int | None = None
 
 
 class BatchJobRunner:
@@ -327,8 +328,11 @@ class BatchJobRunner:
             try:
                 handler(item)
                 report.processed += 1
-                report.last_checkpoint = item
-                self._checkpoints[job.checkpoint_key] = item
+                if report.backfill_mode:
+                    report.last_replayed_item = item
+                else:
+                    report.last_checkpoint = item
+                    self._checkpoints[job.checkpoint_key] = item
                 return
             except SchedulerExecutionError as exc:
                 if attempts &lt; job.max_attempts:
@@ -415,11 +419,37 @@ class BatchSchedulerEngineeringTests(unittest.TestCase):
         report = self.runner.run_job(self.job, [1, 2], "worker-b", lambda item: seen.append(item), backfill_from=1)
         self.assertTrue(report["backfill_mode"])
         self.assertEqual(seen, [0, 1, 2, 1, 2])
+
+    def test_historical_backfill_does_not_move_normal_checkpoint(self) -&gt; None:
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4], "normal", lambda _: None)
+        replayed: list[int] = []
+        report = self.runner.run_job(self.job, [1, 2], "review", replayed.append, backfill_from=1)
+        self.assertEqual(replayed, [1, 2])
+        self.assertEqual(report["last_replayed_item"], 2)
+        self.assertEqual(report["last_checkpoint"], 4)
+        self.assertEqual(self.runner.get_checkpoint(self.job), 4)
+        seen: list[int] = []
+        report = self.runner.run_job(self.job, [0, 1, 2, 3, 4, 5], "normal", seen.append)
+        self.assertEqual(seen, [5])
+        self.assertEqual(report["last_checkpoint"], 5)
+        self.assertIsNone(report["last_replayed_item"])
+
+    def test_backfill_beyond_checkpoint_does_not_skip_normal_work(self) -&gt; None:
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4], "normal", lambda _: None)
+        replayed: list[int] = []
+        report = self.runner.run_job(self.job, [6], "review", replayed.append, backfill_from=6)
+        self.assertEqual(replayed, [6])
+        self.assertEqual(report["last_replayed_item"], 6)
+        self.assertEqual(report["last_checkpoint"], 4)
+        self.assertEqual(self.runner.get_checkpoint(self.job), 4)
+        seen: list[int] = []
+        self.runner.run_job(self.job, [0, 1, 2, 3, 4, 5, 6], "normal", seen.append)
+        self.assertEqual(seen, [5, 6])
 </code></pre></details>
 <!-- /example-source -->
 </div>
 </section>
-      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、恢復與教材頁面</h2><p>不只跑過一次成功路徑，還要驗 lease conflict 與失敗隔離。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="verification" data-group="verification"><div class="section-head"><div><span class="eyebrow">Verification</span><h2>驗證要同時涵蓋邏輯、恢復與教材頁面</h2><p>不只跑過一次成功路徑，還要驗 lease conflict 與失敗隔離。</p><p>回補用自己的輸入範圍，不更新例行作業的 <code>last_checkpoint</code>。報告另列 <code>last_replayed_item</code>（無成功項目時為 <code>None</code>）；例行作業依原游標續跑。若回補範圍跨過例行進度，兩次作業可能處理同一筆，寫入端仍須具備冪等性。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>批次失敗時先看契約，再看人</h2><p>大多數混亂來自缺 lease、checkpoint 或 backfill 邊界。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓批次執行證據進 release note</h2><p>operator 能從更新紀錄知道誰跑了什麼、失敗在哪裡、如何回補。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>

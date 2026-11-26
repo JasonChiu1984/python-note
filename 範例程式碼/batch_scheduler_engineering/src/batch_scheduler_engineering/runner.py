@@ -31,6 +31,7 @@ class SchedulerReport:
     dead_letter_count: int = 0
     last_checkpoint: int = -1
     backfill_mode: bool = False
+    last_replayed_item: int | None = None
 
 
 class BatchJobRunner:
@@ -92,8 +93,11 @@ class BatchJobRunner:
             try:
                 handler(item)
                 report.processed += 1
-                report.last_checkpoint = item
-                self._checkpoints[job.checkpoint_key] = item
+                if report.backfill_mode:
+                    report.last_replayed_item = item
+                else:
+                    report.last_checkpoint = item
+                    self._checkpoints[job.checkpoint_key] = item
                 return
             except SchedulerExecutionError as exc:
                 if attempts < job.max_attempts:
