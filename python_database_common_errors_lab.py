@@ -14,7 +14,7 @@ CREATE TABLE event (
     event_id TEXT PRIMARY KEY,
     meter_id TEXT NOT NULL REFERENCES meter(meter_id),
     occurred_at TEXT NOT NULL,
-    amount_wh INTEGER NOT NULL CHECK (amount_wh >= 0)
+    amount_wh INTEGER NOT NULL CHECK (typeof(amount_wh) = 'integer' AND amount_wh >= 0)
 );
 CREATE INDEX event_by_meter ON event(meter_id);
 """
@@ -95,6 +95,27 @@ class Tests(unittest.TestCase):
                 save_batch(conn, [ROWS[0], ("C", "未知表", AT, 3)])
             self.assertEqual(meter_totals(conn), [("M-01", 0), ("M-02", 0)])
             self.assertFalse(conn.in_transaction)
+
+    def test_database_rejects_noninteger_storage_and_rolls_back(self):
+        # Exercise a second writer that bypasses save_batch.
+        sql = "INSERT INTO event VALUES (?, ?, ?, ?)"
+        with database() as conn:
+            for value in (12.5, "meter-offline", -1, None):
+                with self.subTest(value=value):
+                    with self.assertRaises(sqlite3.IntegrityError), transaction(conn):
+                        conn.execute(sql, ("valid", "M-01", AT.isoformat(), 0))
+                        conn.execute(sql, ("invalid", "M-01", AT.isoformat(), value))
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM event").fetchone(), (0,))
+                    self.assertFalse(conn.in_transaction)
+
+            for key, value in (("Z", 0), ("P", 5), ("T", "12")):
+                conn.execute(sql, (key, "M-01", AT.isoformat(), value))
+            self.assertEqual(
+                conn.execute("SELECT amount_wh, typeof(amount_wh) FROM event ORDER BY event_id").fetchall(),
+                [(5, "integer"), (12, "integer"), (0, "integer")],
+            )
+            with self.assertRaises(ValueError):
+                save_batch(conn, [("app", "M-01", AT, "12")])
 
     def test_mismatching_duplicate(self):
         with database() as conn:
