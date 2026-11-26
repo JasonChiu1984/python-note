@@ -38,7 +38,7 @@ class PointReading:
     value: float | int | bool
     unit: str
     quality: str
-    age_seconds: float
+    age_seconds: float | None
 
 
 @dataclass(frozen=True)
@@ -81,11 +81,11 @@ class MockModbusDevice:
 
 
 class IndustrialGateway:
-    def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0, stale_seconds: float = 15.0) -> None:
+    def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0) -> None:
         self.points = list(points)
         self.device = device
         self.timeout_seconds = timeout_seconds
-        self.stale_seconds = stale_seconds
+        self.last_scan_duration_seconds: float | None = None
 
     def poll_once(self) -> tuple[list[PointReading], list[AlarmEvent]]:
         readings: list[PointReading] = []
@@ -93,22 +93,23 @@ class IndustrialGateway:
         started = monotonic()
         for point in self.points:
             try:
-                reading = self._read_point(point, started)
+                reading = self._read_point(point)
             except (GatewayError, TimeoutError) as exc:
                 reading = PointReading(
                     point_id=point.point_id,
                     value=point.fail_safe_value,
                     unit=point.unit,
                     quality="FAIL_SAFE",
-                    age_seconds=self.stale_seconds,
+                    age_seconds=None,
                 )
                 alarms.append(AlarmEvent(point.point_id, "critical", str(exc), point.fail_safe_value))
             else:
                 alarms.extend(self._evaluate_alarm(point, reading))
             readings.append(reading)
+        self.last_scan_duration_seconds = monotonic() - started
         return readings, alarms
 
-    def _read_point(self, point: GatewayPoint, started: float) -> PointReading:
+    def _read_point(self, point: GatewayPoint) -> PointReading:
         if point.function_code != 3 or point.register_type != "holding":
             raise GatewayError("sample supports FC03 holding register reads")
         count = 2 if point.data_type == "float32" else 1
@@ -122,9 +123,8 @@ class IndustrialGateway:
             value = bool(words[0])
         else:
             value = int(words[0] * point.scale)
-        age = monotonic() - started
-        quality = "STALE" if age > self.stale_seconds else "GOOD"
-        return PointReading(point.point_id, value, point.unit, quality, age)
+        # FC03 returns a value, not the timestamp when the PLC measured it.
+        return PointReading(point.point_id, value, point.unit, "GOOD", None)
 
     def _evaluate_alarm(self, point: GatewayPoint, reading: PointReading) -> list[AlarmEvent]:
         if reading.quality != "GOOD":
@@ -142,7 +142,10 @@ class IndustrialGateway:
         point_by_id = {point.point_id: point for point in self.points}
         return {
             "site": "TW-Plant-01",
-            "polling": {"interval_seconds": 5.0, "timeout_seconds": self.timeout_seconds, "retry": 2},
+            "polling": {
+                "interval_seconds": 5.0, "timeout_seconds": self.timeout_seconds, "retry": 2,
+                "last_scan_duration_seconds": self.last_scan_duration_seconds,
+            },
             "opcua": {
                 "endpoint_url": "opc.tcp://192.168.10.20:4840",
                 "security_mode": "None",
@@ -164,6 +167,7 @@ class IndustrialGateway:
                         "object_type": point_by_id[item.point_id].bacnet_object_type,
                         "object_instance": point_by_id[item.point_id].bacnet_object_instance,
                         "present_value": item.value,
+                        "quality": item.quality,  # Only in this normalized report; not a BACnet property.
                     }
                     for item in readings
                 ],

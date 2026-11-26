@@ -413,6 +413,7 @@ def main() -&gt; int:
 if __name__ == "__main__":
     raise SystemExit(main())
 </code></pre></details>
+<p>這個離線範例把整輪耗時記在 <code>last_scan_duration_seconds</code>；它不是點位的資料年齡。Modbus FC03 本身不提供來源時間，因此 <code>age_seconds</code> 一律為空值；今後若保留有時間戳的上一筆資料，才可依新鮮度預算判為 <code>STALE</code>。BACnet 預覽中的 <code>quality</code> 是報表欄位，不是 BACnet 物件屬性，且範例不經網路讀寫。</p>
 <details class="example-file"><summary><code>src/industrial_data_gateway/gateway.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_data_gateway/src/industrial_data_gateway/gateway.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from __future__ import annotations
@@ -455,7 +456,7 @@ class PointReading:
     value: float | int | bool
     unit: str
     quality: str
-    age_seconds: float
+    age_seconds: float | None
 
 
 @dataclass(frozen=True)
@@ -498,11 +499,11 @@ class MockModbusDevice:
 
 
 class IndustrialGateway:
-    def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0, stale_seconds: float = 15.0) -&gt; None:
+    def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0) -&gt; None:
         self.points = list(points)
         self.device = device
         self.timeout_seconds = timeout_seconds
-        self.stale_seconds = stale_seconds
+        self.last_scan_duration_seconds: float | None = None
 
     def poll_once(self) -&gt; tuple[list[PointReading], list[AlarmEvent]]:
         readings: list[PointReading] = []
@@ -510,22 +511,23 @@ class IndustrialGateway:
         started = monotonic()
         for point in self.points:
             try:
-                reading = self._read_point(point, started)
+                reading = self._read_point(point)
             except (GatewayError, TimeoutError) as exc:
                 reading = PointReading(
                     point_id=point.point_id,
                     value=point.fail_safe_value,
                     unit=point.unit,
                     quality="FAIL_SAFE",
-                    age_seconds=self.stale_seconds,
+                    age_seconds=None,
                 )
                 alarms.append(AlarmEvent(point.point_id, "critical", str(exc), point.fail_safe_value))
             else:
                 alarms.extend(self._evaluate_alarm(point, reading))
             readings.append(reading)
+        self.last_scan_duration_seconds = monotonic() - started
         return readings, alarms
 
-    def _read_point(self, point: GatewayPoint, started: float) -&gt; PointReading:
+    def _read_point(self, point: GatewayPoint) -&gt; PointReading:
         if point.function_code != 3 or point.register_type != "holding":
             raise GatewayError("sample supports FC03 holding register reads")
         count = 2 if point.data_type == "float32" else 1
@@ -539,9 +541,8 @@ class IndustrialGateway:
             value = bool(words[0])
         else:
             value = int(words[0] * point.scale)
-        age = monotonic() - started
-        quality = "STALE" if age &gt; self.stale_seconds else "GOOD"
-        return PointReading(point.point_id, value, point.unit, quality, age)
+        # FC03 returns a value, not the timestamp when the PLC measured it.
+        return PointReading(point.point_id, value, point.unit, "GOOD", None)
 
     def _evaluate_alarm(self, point: GatewayPoint, reading: PointReading) -&gt; list[AlarmEvent]:
         if reading.quality != "GOOD":
@@ -559,7 +560,10 @@ class IndustrialGateway:
         point_by_id = {point.point_id: point for point in self.points}
         return {
             "site": "TW-Plant-01",
-            "polling": {"interval_seconds": 5.0, "timeout_seconds": self.timeout_seconds, "retry": 2},
+            "polling": {
+                "interval_seconds": 5.0, "timeout_seconds": self.timeout_seconds, "retry": 2,
+                "last_scan_duration_seconds": self.last_scan_duration_seconds,
+            },
             "opcua": {
                 "endpoint_url": "opc.tcp://192.168.10.20:4840",
                 "security_mode": "None",
@@ -581,6 +585,7 @@ class IndustrialGateway:
                         "object_type": point_by_id[item.point_id].bacnet_object_type,
                         "object_instance": point_by_id[item.point_id].bacnet_object_instance,
                         "present_value": item.value,
+                        "quality": item.quality,  # Only in this normalized report; not a BACnet property.
                     }
                     for item in readings
                 ],
@@ -636,8 +641,7 @@ def default_points() -&gt; list[GatewayPoint]:
             bacnet_object_instance=2,
             mqtt_topic="plant/tw01/pump/run_feedback",
         ),
-    ]
-</code></pre></details>
+    ]</code></pre></details>
 <details class="example-file"><summary><code>src/industrial_data_gateway/__init__.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_data_gateway/src/industrial_data_gateway/__init__.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from .gateway import (
@@ -666,6 +670,7 @@ __version__ = "0.1.0"
 
 import json
 import unittest
+from unittest.mock import patch
 
 from industrial_data_gateway.gateway import (
     IndustrialGateway,
@@ -702,6 +707,27 @@ class IndustrialGatewayTests(unittest.TestCase):
         self.assertTrue(all(item.quality == "FAIL_SAFE" for item in readings))
         self.assertTrue(all(alarm.severity == "critical" for alarm in alarms))
 
+    def test_long_scan_does_not_make_a_new_read_stale(self) -&gt; None:
+        high, low = encode_float32_words(91.2)
+        gateway = IndustrialGateway(default_points()[::-1], MockModbusDevice({1: high, 2: low, 11: 1}))
+        with patch("industrial_data_gateway.gateway.monotonic", side_effect=[0, 15.1]):
+            readings, alarms = gateway.poll_once()
+        self.assertEqual([r.quality for r in readings], ["GOOD", "GOOD"])
+        self.assertEqual([r.age_seconds for r in readings], [None, None])
+        self.assertEqual([(a.point_id, a.severity) for a in alarms], [("boiler_supply_temp", "critical")])
+        self.assertEqual(gateway.build_gateway_report(readings, alarms)["polling"]["last_scan_duration_seconds"], 15.1)
+
+    def test_bacnet_preview_distinguishes_stopped_from_unavailable(self) -&gt; None:
+        high, low = encode_float32_words(42.5)
+        rows = []
+        for delay in (0, 2):
+            gateway = IndustrialGateway(default_points(), MockModbusDevice({1: high, 2: low, 11: 0}, delay),
+                                        timeout_seconds=1)
+            readings, alarms = gateway.poll_once()
+            rows.append(gateway.build_gateway_report(readings, alarms)["bacnet"]["objects"][1])
+        self.assertEqual([row["present_value"] for row in rows], [False, False])
+        self.assertEqual([row["quality"] for row in rows], ["GOOD", "FAIL_SAFE"])
+
     def test_gateway_report_contains_protocol_contracts(self) -&gt; None:
         high, low = encode_float32_words(42.5)
         gateway = IndustrialGateway(default_points(), MockModbusDevice({1: high, 2: low, 11: 1}))
@@ -715,8 +741,7 @@ class IndustrialGatewayTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
-</code></pre></details>
+    unittest.main()</code></pre></details>
 <!-- /example-source -->
 </div>
 </section>

@@ -37,12 +37,20 @@ def line_unbalance(va, vb, vc):
 
 
 def sag_summary(rms, *, reference, step_seconds, start_pu, end_pu):
-    """單相教學事件；步距固定，無時間跳號或缺值。未結束事件拒絕計算。"""
+    """單相教學事件：固定步距、無缺值，且能確認事件的前後邊界。"""
     if not isfinite(step_seconds) or step_seconds <= 0 or not (0 < start_pu < end_pu <= 1):
         raise ValueError("不合法的事件設定")
+    samples = iter(rms)
+    try:
+        baseline = next(samples)
+    except StopIteration:
+        raise ValueError("沒有 RMS 樣本，無法判定是否有事件") from None
+    if ratio_percent(baseline, reference) / 100 < end_pu:
+        raise ValueError("起始狀態不明：第一筆 RMS 必須達退出門檻")
+
     events = []
     first = None
-    for step, value in enumerate(rms):
+    for step, value in enumerate(samples, start=1):
         pu = ratio_percent(value, reference) / 100
         if first is None and pu < start_pu:
             first, low = step, pu
@@ -89,8 +97,23 @@ class PowerQualityTests(unittest.TestCase):
             sag_summary([230, 180], reference=230, step_seconds=1/120, start_pu=.9, end_pu=.92)
 
     def test_hysteresis(self):
-        self.assertEqual(sag_summary([90, 89, 90, 91, 92], reference=100,
+        self.assertEqual(sag_summary([92, 90, 89, 90, 91, 92], reference=100,
                                      step_seconds=1, start_pu=.9, end_pu=.92), [(.89, 3)])
+
+
+    def test_capture_start_must_be_known(self):
+        settings = dict(reference=230, step_seconds=1/120, start_pu=.9, end_pu=.92)
+        for samples in ([179, 193, 212], [210, 179, 212], [207, 212]):
+            with self.subTest(samples=samples), self.assertRaisesRegex(ValueError, "起始狀態不明"):
+                sag_summary(iter(samples), **settings)
+        with self.assertRaisesRegex(ValueError, "沒有 RMS 樣本"):
+            sag_summary(iter(()), **settings)
+        self.assertEqual(sag_summary(iter([230, 210, 230]), **settings), [])
+
+    def test_multiple_complete_events(self):
+        events = sag_summary(iter([92, 89, 92, 88, 91, 92]), reference=100,
+                             step_seconds=1, start_pu=.9, end_pu=.92)
+        self.assertEqual(events, [(.89, 1), (.88, 2)])
 
 
 if __name__ == "__main__":

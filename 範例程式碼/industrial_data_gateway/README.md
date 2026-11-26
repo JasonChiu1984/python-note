@@ -35,3 +35,5 @@ python3 scripts/run_gateway_smoke.py
 - OPC UA 範例的 `Security=None` 與 `4840` 只是輸出欄位，沒有 OPC UA 端點在監聽。正式部署以設備實際端點、受信憑證、適用的簽章與加密模式及唯讀授權為準。
 - BACnet/IP 單播、跨 IP 子網廣播及跨 BACnet 網路路由分開評估；有跨子網廣播需求時才規劃 BBMD／Foreign Device。
 - 逾時或資料陳舊時，報告反映程式的模擬決策；沒有輸出動作。正式安全控制由已驗證的 PLC 或安全系統負責。
+
+- `last_scan_duration_seconds` 是整輪耗時；FC03 不提供來源時間，所以 `age_seconds` 未知，不以整輪耗時推定資料陳舊。BACnet 預覽的 `quality` 是報表欄位，不是線上物件屬性。

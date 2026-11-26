@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 
 from industrial_data_gateway.gateway import (
     IndustrialGateway,
@@ -37,6 +38,27 @@ class IndustrialGatewayTests(unittest.TestCase):
         readings, alarms = gateway.poll_once()
         self.assertTrue(all(item.quality == "FAIL_SAFE" for item in readings))
         self.assertTrue(all(alarm.severity == "critical" for alarm in alarms))
+
+    def test_long_scan_does_not_make_a_new_read_stale(self) -> None:
+        high, low = encode_float32_words(91.2)
+        gateway = IndustrialGateway(default_points()[::-1], MockModbusDevice({1: high, 2: low, 11: 1}))
+        with patch("industrial_data_gateway.gateway.monotonic", side_effect=[0, 15.1]):
+            readings, alarms = gateway.poll_once()
+        self.assertEqual([r.quality for r in readings], ["GOOD", "GOOD"])
+        self.assertEqual([r.age_seconds for r in readings], [None, None])
+        self.assertEqual([(a.point_id, a.severity) for a in alarms], [("boiler_supply_temp", "critical")])
+        self.assertEqual(gateway.build_gateway_report(readings, alarms)["polling"]["last_scan_duration_seconds"], 15.1)
+
+    def test_bacnet_preview_distinguishes_stopped_from_unavailable(self) -> None:
+        high, low = encode_float32_words(42.5)
+        rows = []
+        for delay in (0, 2):
+            gateway = IndustrialGateway(default_points(), MockModbusDevice({1: high, 2: low, 11: 0}, delay),
+                                        timeout_seconds=1)
+            readings, alarms = gateway.poll_once()
+            rows.append(gateway.build_gateway_report(readings, alarms)["bacnet"]["objects"][1])
+        self.assertEqual([row["present_value"] for row in rows], [False, False])
+        self.assertEqual([row["quality"] for row in rows], ["GOOD", "FAIL_SAFE"])
 
     def test_gateway_report_contains_protocol_contracts(self) -> None:
         high, low = encode_float32_words(42.5)
