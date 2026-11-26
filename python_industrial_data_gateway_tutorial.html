@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Industrial Data Gateway 教學 - Modbus、OPC UA、BACnet、MQTT 與 Fail-safe v2.5.0</title>
+  <title>Python Industrial Data Gateway 教學 - Modbus、OPC UA、BACnet、MQTT 與 Fail-safe v2.6.0</title>
   <style>
     :root {
       --ink: #172033;
@@ -106,106 +106,128 @@
         grid-template-areas:"input incoming gateway outgoing normal" ". . alarming . ." ". . alarm . ."; }
       .gateway-flow .gateway-in-arrow,.gateway-flow .gateway-out-arrow { transform:none; }
     }
-  </style>
+  
+    .gw-guide{padding:clamp(.7rem,2vw,1.25rem);background:white;border:1px solid var(--line);border-radius:.65rem;margin-bottom:1rem;min-width:0;overflow-wrap:anywhere}
+    .gw-guide h3{margin:.25rem 0 .65rem}.gw-guide p+p,.gw-guide ul+p,.gw-guide pre,.gw-guide p+ul{margin-top:.7rem}.gw-guide ul,.gw-guide ol,.gw-hero ol{padding-inline-start:1.35rem}
+    .gw-guide li+li{margin-top:.42rem}.gw-hero{padding:clamp(1rem,2vw,1.6rem);overflow-wrap:anywhere}
+    .gw-architecture{margin:0}.gw-architecture picture,.gw-architecture img{display:block;width:100%;max-width:100%;height:auto}.gw-architecture figcaption{font-weight:850;margin-bottom:.6rem}.gw-architecture p{margin:.6rem 0}
+    .gw-table{min-width:0;overflow:auto}.gw-table table{width:100%;border-collapse:collapse;table-layout:fixed}.gw-table th,.gw-table td{padding:.65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.gw-table th{background:#eff6f8}
+    .gw-steps li::marker{color:var(--green);font-weight:900}
+    @media(max-width:950px){.gw-architecture picture{max-width:450px;margin-inline:auto}}
+    @media(max-width:670px){.gw-table table,.gw-table tbody,.gw-table tr,.gw-table td,.gw-table th[scope=row]{display:block}.gw-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.gw-table td::before{display:block;content:attr(data-col);color:#385267;font-weight:800;font-size:.84rem}}
+</style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
   <div class="layout">
     <aside>
-      <a class="brand" href="#top"><span class="logo">GW</span><span><strong>Industrial Gateway</strong><br><small>Modbus、OPC UA、BACnet、MQTT</small></span></a>
+      <a class="brand" href="#top"><span class="logo">GW</span><span><strong>Industrial Gateway</strong><br><small>OT 採集、資料品質與可靠分發</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#mapping">IO Mapping</a>
+        <a href="#architecture">系統架構</a>
+        <a href="#mapping">點位與資料契約</a>
         <a href="#modbus">Modbus</a>
         <a href="#opcua">OPC UA</a>
         <a href="#bacnet">BACnet</a>
-        <a href="#mqtt">MQTT</a>
+        <a href="#fieldbus">EtherNet/IP 與工業 I/O</a>
+        <a href="#mqtt">MQTT／HTTPS</a>
         <a href="#operations">Operations</a>
         <a href="#sample">範例專案</a>
       </nav>
-      <div class="progress-box" id="progressSummary">完成 0 / 32</div>
+      <div class="progress-box" id="progressSummary">完成 0 / 36</div>
     </aside>
     <main>
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Industrial Data Gateway</span>
-          <h1>把現場點位變成可診斷的工程資料流</h1>
-          <p>這條路線把 Python 放到 PLC / DDC / SCADA 的資料採集場景：IO mapping、Modbus register、OPC UA NodeId、BACnet object、MQTT topic、polling、timeout、alarm、fail-safe、VLAN 與維運診斷。範例專案只使用標準庫，示範本機可重跑的 gateway contract。</p>
-          <div class="status-strip"><span>v2.5.0</span><span>32 張互動卡</span><span>standard library sample</span><span>Modbus + OPC UA + BACnet + MQTT</span></div>
+          <h1>工業資料採集 Gateway 架構</h1>
+          <p>把 PLC、DDC、電表與變頻器的不同資料格式，轉成帶來源、時間和品質的事件。Gateway 採集與分發，PLC／DDC 保留閉迴路控制，安全連鎖不依賴 Python、Broker 或雲端。</p>
+          <div class="status-strip"><span>v2.6.0</span><span>36 張互動卡</span><span>standard library sample</span><span>六類採集／分發介面</span><span>2026-11-26 更新（台灣）</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始 Gateway 課程</a><a class="button blue" href="python_industrial_protocol_comparison_tutorial.html">看協定比較專題</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <figure class="surface readable-diagram gateway-hero-map" aria-labelledby="gateway-hero-heading">
-          <figcaption id="gateway-hero-heading">工業資料採集 Gateway 架構</figcaption>
-          <div class="gateway-flow">
-            <div class="readable-step gateway-input"><strong>PLC / DDC</strong><small>現場點位</small></div>
-            <span class="readable-arrow gateway-in-arrow" aria-hidden="true">→</span>
-            <div class="readable-step tone-green gateway-center"><strong>Gateway</strong><small>採集、轉換與品質判斷</small></div>
-            <span class="readable-arrow gateway-out-arrow" aria-hidden="true">→</span>
-            <div class="readable-step tone-amber gateway-output"><strong>SCADA / MQTT</strong><small>正常資料上送</small></div>
-            <span class="readable-arrow gateway-alarm-arrow" aria-hidden="true">→</span>
-            <div class="readable-step tone-red gateway-alarm"><strong>Alarm</strong><small>Timeout / Fail-safe</small></div>
-          </div>
-          <p class="readable-note">先定義點位契約，再談協定與資料平台。正常資料上送與異常告警都是由 Gateway 分流。</p>
-        </figure>
+        <div class="surface gw-hero"><strong>讀取設備，別接管設備</strong><ol><li>南向讀取：PLC／DDC／設備</li><li>邊緣處理：時間、單位、品質、持久佇列</li><li>北向分發：OT DMZ、MQTT／HTTPS、歷史庫</li></ol><a href="#architecture">看完整架構圖</a></div>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：Modbus、FC03、FC16、OPC UA、NodeId、BACnet、BBMD、MQTT、alarm、fail-safe">
         <div class="quick-links"><a href="#overview">Overview</a><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="python_industrial_protocol_comparison_tutorial.html">協定比較專題</a></div>
       </div>
       <section class="section-block" id="overview" data-group="overview">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Overview</span>
-            <h2>先看四協定分工，再看單一協定細節</h2>
-            <p>現場資料流常同時經過設備層、語意模型層、樓控物件層與上雲發布層。先建立全局心智圖，後續再深入 Modbus、OPC UA、BACnet 與 MQTT 的個別細節。</p>
-          </div>
-        </div>
-        <div class="surface readable-diagram overview-readable" style="margin-bottom:1rem;">
-          <div class="readable-flow" role="group" aria-label="四協定在工業資料閘道中的角色分工"><div class="readable-step "><strong>Modbus</strong><small>設備 / Register 層</small><b>FC03 / FC16 / 40001</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-green"><strong>OPC UA</strong><small>語意模型 / 訂閱層</small><b>NodeId / Subscription</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-amber"><strong>BACnet</strong><small>樓控物件 / Routing 層</small><b>Object / BBMD / FD</b></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-red"><strong>MQTT</strong><small>上雲 / 訊息層</small><b>Topic / QoS / Retain</b></div></div>
-          <p class="readable-note">工業資料閘道常同時承接設備輪詢、語意建模、樓控整合與雲端資料發布。</p>
-        </div>
-        <div class="cards"></div>
-        <div class="surface" style="margin-top:1rem;">
-          <div style="padding:1rem 1rem 0.4rem;">
-            <h3 style="margin:0 0 0.5rem;">工業通訊精簡比較表</h3>
-            <p style="margin-bottom:0.75rem;">這張表只解答選型第一層問題：典型場景、資料模型、連線型態與現場最常用的位址表示。</p>
-          </div>
-          <div style="padding:0 1rem 1rem; overflow:auto;">
-            <table style="width:100%; border-collapse:collapse; min-width:760px;">
-              <thead>
-                <tr>
-                  <th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">協定</th>
-                  <th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">典型場景</th>
-                  <th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">資料模型</th>
-                  <th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">連線型態</th>
-                  <th style="text-align:left; padding:0.7rem; border-bottom:1px solid #d8e2ec;">常見 port/位址表示</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Modbus</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">PLC / meter / VFD register polling</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Register / coil</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Request-response</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">TCP 502 / `40001`</td></tr>
-                <tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">OPC UA</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">SCADA / MES / historian semantic integration</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Node / typed model</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Session + subscription</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">TCP 4840 / `ns=2;s=...`</td></tr>
-                <tr><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BACnet</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">BMS / HVAC / building automation</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Object + property</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">Request-response + routed broadcast</td><td style="padding:0.7rem; border-bottom:1px solid #e8edf3;">UDP 47808 / `analog-input,1`</td></tr>
-                <tr><td style="padding:0.7rem;">MQTT</td><td style="padding:0.7rem;">Edge uplink / cloud telemetry / event publish</td><td style="padding:0.7rem;">Topic + payload</td><td style="padding:0.7rem;">Pub-sub broker</td><td style="padding:0.7rem;">TCP 1883/8883 / `plant/line/asset/point`</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>Gateway 先解決資料流與責任邊界</h2><p>不要從 library 開始選型，先確定現場點位、資料品質、告警與維運邊界。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>IO map 必須包含 register、datatype、unit、alarm、fail-safe 與上層資料名稱。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="modbus" data-group="modbus"><div class="section-head"><div><span class="eyebrow">Modbus</span><h2>Modbus 要明確標註 function code 與 endian</h2><p>40001 Holding Register、FC03、FC16、word order 與 timeout 是現場常見錯誤來源。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="opcua" data-group="opcua"><div class="section-head"><div><span class="eyebrow">OPC UA</span><h2>OPC UA 以 NodeId 與 subscription 建資料模型</h2><p>endpoint、namespace、Security Mode、publish interval、keepalive 與 reconnect 要成為設定。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet 需保留 object 與 routing 語意</h2><p>object type、object instance、BBMD、foreign device 與跨網段 routing 必須寫入設計。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="mqtt" data-group="mqtt"><div class="section-head"><div><span class="eyebrow">MQTT</span><h2>MQTT topic 與 payload 是上雲契約</h2><p>topic naming、QoS、retain、store-and-forward 與 payload schema 會影響 SCADA/雲端整合。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>現場部署要把失效情境寫清楚</h2><p>timeout、retry、stale、alarm、fail-safe、VLAN、firewall 與維護流程都需要可驗證。</p></div></div><div class="cards"></div></section>
+<div class="section-head"><div><span class="eyebrow">01／選介面</span><h2>先分南向採集、現場即時 I/O 和北向分發</h2><p>不是把 Modbus 串接 OPC UA 再串接 BACnet。多個南向轉接器可並列，採集同一設備時也要選定權威來源，避免重複入庫。</p></div></div>
+<div class="gw-guide"><div class="gw-table" role="region" tabindex="0" aria-label="工業 Gateway 常用協定與資料形式">
+<table><thead><tr><th scope="col">介面／角色</th><th scope="col">傳輸與資料形式</th><th scope="col">適用場景</th><th scope="col">驗收重點</th></tr></thead><tbody>
+<tr><th scope="row"><a href="#modbus">Modbus RTU／TCP</a>｜南向</th><td data-col="傳輸與資料">RTU 常用 RS-485；TCP 用 MBAP。Coil、register、功能碼和偏移位址。</td><td data-col="場景">電表、VFD、舊式 PLC。</td><td data-col="驗收">RTU 掃描時間、偏移、倍率及多字順序。</td></tr>
+<tr><th scope="row"><a href="#bacnet">BACnet MS/TP／IP／SC</a>｜南向</th><td data-col="傳輸與資料">RS-485 權杖、UDP/IP、或 TLS WebSocket；物件及屬性。</td><td data-col="場景">BMS、AHU、冰水廠、DDC。</td><td data-col="驗收">Device Instance、物件屬性、COV 支援、續訂與回讀。</td></tr>
+<tr><th scope="row"><a href="#opcua">OPC UA</a>｜通常南向，也可對外提供模型</th><td data-col="傳輸與資料">節點、命名空間、DataValue、型別、狀態及時間；Read 或訂閱。</td><td data-col="場景">PLC／SCADA／MES，須保留品質或語意。</td><td data-col="驗收">信任與權限、Namespace URI、伺服器修訂的採樣／發布週期。</td></tr>
+<tr><th scope="row"><a href="#fieldbus">EtherNet/IP</a>｜南向只讀</th><td data-col="傳輸與資料">CIP Explicit 介面讀物件或設備支援的標籤；Implicit 是循環 I/O。</td><td data-col="場景">支援 CIP 的 PLC 或設備。</td><td data-col="驗收">標籤型別、批量讀取支援、負載上限；不取代 Scanner。</td></tr>
+<tr><th scope="row"><a href="#fieldbus">PROFINET／EtherCAT</a>｜現場控制</th><td data-col="傳輸與資料">循環 I/O；設備結構由 GSDML／ESI 等工程描述配合控制器。</td><td data-col="場景">遠端 I/O、變頻、運動控制。</td><td data-col="驗收">由 PLC／控制器對時和執行；Gateway 讀 PLC 轉出的點位。</td></tr>
+<tr><th scope="row"><a href="#mqtt">MQTT 5／HTTPS</a>｜北向</th><td data-col="傳輸與資料">Topic 加 payload 或 HTTP 路由加結構化請求；兩者須自訂業務資料契約。</td><td data-col="場景">Historian、跨區分發、資料平台與批次回填。</td><td data-col="驗收">明訂 ACK 的成功邊界、重複事件去重、期限與恢復吞吐量。</td></tr>
+</tbody></table></div></div><div class="cards"></div>
+</section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>Gateway 先解決資料流與責任邊界</h2><p>不要從 library 開始選型，先確定現場點位、資料品質、告警與維運邊界。</p></div></div><div class="gw-guide">
+<figure class="gw-architecture" aria-labelledby="gw-architecture-caption"><figcaption id="gw-architecture-caption">架構圖｜現場控制、邊緣資料與 OT DMZ 分層</figcaption>
+<picture><source media="(max-width: 950px)" srcset="assets/industrial-gateway-architecture-mobile.svg"><img src="assets/industrial-gateway-architecture.svg" alt="PLC、DDC 與現場設備的唯讀遙測進入南向轉接器；經點表正規化與持久佇列後，從隔離區送到 Broker 及資料平台。現場即時控制及安全連鎖不走這條遙測線。"></picture>
+<p>箭頭表示觀測資料的方向；輪詢協定實際上仍由 Gateway 主動送出讀取請求。控制器的原生循環 I/O 與安全鏈和這條遙測路徑分開。</p>
+<a href="assets/industrial-gateway-architecture.drawio" download>下載可編輯架構圖（draw.io）</a>
+</figure>
+<ol class="gw-steps"><li><strong>設備層：</strong>PLC／DDC 維持 PID、設備保護與本地告警；安全功能由經設計驗證的獨立路徑負責。</li><li><strong>資料轉接：</strong>各協定有獨立輪詢／訂閱預算。串列區段共享一條總線，單一慢站不能拖垮其他區段。</li><li><strong>正規化：</strong>依有版本的點表確認型別、單位、品質和時間，無效資料不能悄悄轉成 0。</li><li><strong>持久佇列：</strong>交易內存放資料與穩定事件 ID；只有達到選定的確認邊界才釋放。磁碟滿要告警，不得無聲覆寫。</li><li><strong>OT DMZ／北向：</strong>只開必要來源與目的地；向 Broker 或 HTTPS 匯入服務送資料，不讓 IT 網段直接操作 PLC。</li></ol>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>IO map 必須包含 register、datatype、unit、alarm、fail-safe 與上層資料名稱。</p></div></div><div class="gw-guide">
+<h3>點位表示和事件格式</h3><p>固定 <code>point_id</code>，把來源定位與工程含義分開。至少記錄裝置、協定定位、原始型別、符號／位元序、倍率、工程單位、有效範圍、更新策略、最大資料年齡與點表版本。改倍率或單位應留版本、遷移方式和測試向量。</p>
+<pre tabindex="0"><code>{
+  "schema_version": 1, "point_map_version": "2026-11",
+  "event_id": "gw-a-000051", "point_id": "ahu-01.supply_air_temperature",
+  "value": 24.3, "unit": "Cel", "quality": "GOOD",
+  "source_protocol": "modbus_tcp", "source_ts": null,
+  "observed_at": "2026-11-26T03:00:00Z", "time_origin": "gateway"
+}</code></pre>
+<p><strong>三種時間不能混寫：</strong><code>source_ts</code> 是設備有效時間（無則留空）；<code>observed_at</code> 是 Gateway 觀測時間；入庫時間由消費端產生。離線補送不刷新已儲存的事件時間或 ID。陳舊判斷用採集新鮮度及時鐘品質，不能單用 OPC UA 的「最後變更時間」判定穩定點位壞掉。</p>
+<p><strong>品質不是數值：</strong>GOOD 表示成功、合約與品質檢查通過；STALE 是已超過新鮮度預算；BAD 表示解析或來源失敗；UNCERTAIN 則保留可疑狀態。保留上次有效值時應另存並標示其年齡，不在同一欄假裝即時值。秒級告警與控制超時各有責任人。</p>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="modbus" data-group="modbus"><div class="section-head"><div><span class="eyebrow">Modbus</span><h2>Modbus 要明確標註 function code 與 endian</h2><p>40001 Holding Register、FC03、FC16、word order 與 timeout 是現場常見錯誤來源。</p></div></div><div class="gw-guide">
+<h3>RTU 和 TCP 的封裝不同，PDU 的功能碼相同</h3>
+<ul><li><strong>RTU：</strong>裝置位址＋PDU＋CRC；現場常見兩線 RS-485，總線拓樸、末端終端和鮑率／同位元須一致。同一半雙工區段由單一採集發起端序列化請求。</li><li><strong>TCP：</strong>MBAP 的 Transaction ID、Protocol ID、Length、Unit ID ＋ PDU；TCP 不帶 RTU CRC。TCP 串流到貨邊界不等於訊框邊界，使用支援完整封裝的 client；RTU 橋接器上的 Unit ID 對應下游站號，直連設備則查原廠。</li><li><strong>只讀試算：</strong>若點表規定 Holding Register 標籤 40001 對應線上位址 0，以 FC03 讀；Input Register 則用 FC04。用設備手冊核對，不要把畫面上的 40001 原封不動當線上位址。原始 <code>0x00F3</code>（243）乘 0.1 得 24.3 °C；點表若是 signed int16，<code>0xFF9C</code>＝−100，再乘 0.1 得 −10.0 °C。</li><li><strong>多字資料：</strong>一個暫存器兩個 byte 的傳輸順序和多暫存器的 word order 是兩件事；浮點格式與高低 word 依設備點表，以兩組已知正／負值驗證。不要跨設備假定字序。</li></ul>
+<p>容量用<strong>線上傳輸＋站間空檔＋設備回應＋重試</strong>估。合成例：20 站、一次成功讀取含空檔平均 40 ms，一輪約 0.80 s；若一站首、次嘗試各佔 300 ms，一輪至少 19×40＋2×300＝1,360 ms，還沒加入 backoff。因此「1 秒全掃」要按實測與失效情境驗收。TCP 轉 RTU 並不讓同一總線同時處理多筆。</p>
+<p><a href="https://www.modbus.org/modbus-specifications">Modbus Organization：應用、串列與 TCP 官方規格</a></p>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="opcua" data-group="opcua"><div class="section-head"><div><span class="eyebrow">OPC UA</span><h2>OPC UA 以 NodeId 與 subscription 建資料模型</h2><p>endpoint、namespace、Security Mode、publish interval、keepalive 與 reconnect 要成為設定。</p></div></div><div class="gw-guide">
+<h3>訂閱是採樣、佇列與發送三件事</h3><p>用 <strong>Namespace URI＋identifier</strong> 保存點位，建立 session 後解析當前 NamespaceArray，再取得例如 <code>ns=2;s=AHU1.SupplyTemperature</code>；數字索引只對當前伺服器命名空間表有效。取 DataValue 的 Value、StatusCode、SourceTimestamp，若有則另保存 ServerTimestamp。Bad 狀態的值不可視為有效。</p>
+<p><strong>例：要求每 250 ms 採樣、每 1,000 ms 發布，不表示端到端延遲保證為 1 秒。</strong>檢查伺服器實際修訂的 sampling interval、publishing interval、queue size、discard policy 及過濾死區。斷線重連先檢查 session／subscription 是否可恢復；緩衝覆寫或序號缺口要告警，無法補齊時讀目前值做重新同步，不冒稱歷史資料已還原。</p>
+<p>現場使用受信的應用憑證、合適的安全政策及 <code>SignAndEncrypt</code>，再依身分授予唯讀權限；憑證汰換、時間校正與拒絕未知憑證都列入驗收。<a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13">OPC Foundation：監控項目服務</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/7.25">通知狀態與溢位</a></p>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet 需保留 object 與 routing 語意</h2><p>object type、object instance、BBMD、foreign device 與跨網段 routing 必須寫入設計。</p></div></div><div class="gw-guide">
+<h3>同是 BACnet 物件，現場網路不同</h3>
+<ul><li><strong>MS/TP：</strong>RS-485 權杖匯流排。記錄 MAC、鮑率、裝置實例與路由網路號；多個主站與權杖週期影響延遲。它不是 Modbus RTU，不能共用其點位或幀解析。</li><li><strong>BACnet/IP：</strong>常用於 DDC、BMS，基於 UDP/IP。已知地址的單播讀取和跨子網的廣播探索分開設計；需要傳遞廣播時才規劃 BBMD／Foreign Device 與續租，不是每個跨網讀取都需要 BBMD。</li><li><strong>BACnet/SC：</strong>TLS WebSocket、Hub 與信任憑證；跨回傳統 BACnet/IP 或 MS/TP 後，保護依該段能力，不能宣告全路徑端到端加密。</li></ul>
+<p>點位識別例：<code>Device 12001 → analog-input:17 → present-value</code>。同步保留 Units、Status_Flags、Reliability（裝置提供時）；具相容性證據才使用 <code>ReadPropertyMultiple</code>。支援 COV 可減少讀取，但要續訂、重連重訂與低頻健康回讀；不支援／失敗就回到有節流的輪詢。值沒變時沒有新的 COV 通知，不代表設備失聯。</p>
+<p><a href="https://bacnetinternational.org/bacnetsc/">BACnet International：BACnet/SC</a></p>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="fieldbus"><div class="section-head"><div><span class="eyebrow">FIELD BUS</span><h2>EtherNet/IP、PROFINET 與 EtherCAT：讀控制器，不搶控制權</h2></div></div><div class="gw-guide">
+<ul><li><strong>EtherNet/IP：</strong>採集用設備明確支援的 CIP Explicit 讀取服務（物件或標籤依裝置），限制批次與連線。循環 Implicit I/O 常以 UDP 傳輸，配置週期和控制連線由 PLC／Scanner 管理；不要把兩類流量當成同一條輪詢。</li><li><strong>PROFINET IO：</strong>控制器依裝置配置交換週期 I/O；工程資料例如 GSDML 描述 I/O 模組及診斷。Python 讀 PLC 暴露的 OPC UA、Modbus TCP 或經核准的資料介面，不承擔 RT／IRT 或安全功能。</li><li><strong>EtherCAT：</strong>由 MainDevice 管理週期資料，Distributed Clocks 用於同步；ESI 描述設備，PDO 是週期資料。從 PLC 的已映射工程量取值；不直接把裝置的 PDO 週期當作 Gateway 的資料更新承諾。</li></ul>
+<p><a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA：EtherNet/IP</a> · <a href="https://www.profibus.com/download/profinet-technology-and-application-system-description">PI：PROFINET 技術說明</a> · <a href="https://www.ethercat.org/en/technology.html">ETG：EtherCAT 技術說明</a></p></div></section>
+<section class="section-block" id="mqtt" data-group="mqtt"><div class="section-head"><div><span class="eyebrow">MQTT</span><h2>MQTT topic 與 payload 是上雲契約</h2><p>topic naming、QoS、retain、store-and-forward 與 payload schema 會影響 SCADA/雲端整合。</p></div></div><div class="gw-guide">
+<h3>MQTT 與 HTTPS 的成功邊界不同</h3>
+<ul><li><strong>MQTT 5：</strong>例如 Topic <code>ot/site-a/ahu-01/telemetry</code>，業務欄位放 JSON payload。QoS 0 可能遺失；QoS 1 可能重複；QoS 2 的一次交付語意在協定交換範圍內，不保證資料庫或告警流程只執行一次。MQTT QoS 1 收到 PUBACK 只代表達到 Broker 的確認邊界，不是 Historian 入庫回執。需驗證 reason code 和長期保存策略。</li><li><strong>Retain／Session／Expiry：</strong>Retain 是每個 topic 的最後保留訊息，不是歷史；Session Expiry 是連線會話保留時間；Message Expiry 管訊息期限，不能替代事件的原始時間。即時畫面驗證 age 與 quality；歷史補送要保留原事件且區分來源序號。</li><li><strong>HTTPS 批次：</strong>例如 <code>POST /v1/telemetry/batches</code>；使用 TLS、身分與內容驗證，伺服器按 <code>event_id</code> 去重。<code>202</code> 是已接受處理，不代表已寫入資料庫；若需確認入庫，以應用層回執或查詢狀態為準。只對可安全重送的請求使用有期限的退避與抖動，不能每次重送產生新事件 ID。</li></ul>
+<p>Broker 與 API 存取分開授權，限制 topic 或路由唯有必要權限。架構圖不含任意北向下行寫設備；如果另做控制服務，必須獨立評估，不與遙測共用權限。</p><p><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html">OASIS MQTT 5.0 標準</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-202-accepted">RFC 9110：202 Accepted</a></p>
+</div>
+<div class="cards"></div></section>
+      <section class="section-block" id="operations" data-group="operations"><div class="section-head"><div><span class="eyebrow">Operations</span><h2>現場部署要把失效情境寫清楚</h2><p>timeout、retry、stale、alarm、fail-safe、VLAN、firewall 與維護流程都需要可驗證。</p></div></div><div class="gw-guide">
+<h3>採集、斷線、補送：每一步都有可驗收結果</h3>
+<ol class="gw-steps" aria-label="資料採集與補送流程"><li><strong>排程：</strong>按區段控制並發；記錄每站成功率、掃描 p95 與慢站逾時。</li><li><strong>解碼與檢查：</strong>點表轉換、品質與時間；資料不合法時送品質事件，不補 0。</li><li><strong>原子入列：</strong>事件與 ID 同一筆本機交易；只刪除已達契約確認點的事件，重啟能從未確認位置續送。</li><li><strong>離線：</strong>資料採集不等網路；有界磁碟與期限，滿載先觸發告警並執行規定的取捨，告警和一般遙測可用不同容量政策。</li><li><strong>恢復：</strong>有界節奏補送，消費端去重並區分補送與即時；以最舊未送事件年齡和追趕實測判定恢復。</li></ol>
+<p><strong>緩衝試算：</strong>200 個點、每 5 秒各取一筆＝40 筆/s。離線 8 小時約 1,152,000 筆；每筆實測 300 bytes 時資料本體約 346 MB（十進位），還要加索引、WAL、檔案系統及餘裕。若重連後確認能力 100 筆/s、同時新增 40 筆/s，理論追趕約 1,152,000÷60＝5.33 h；必須在尖峰和低儲存量條件實測。</p>
+<p><strong>驗收情境：</strong>拔除單站的模擬連線，其餘站照常；模擬北向離線與重新啟動，資料年齡及優先政策可追溯；重送同一 ID 不重複入庫；模擬憑證過期、時鐘飄移與磁碟滿時不悄悄報 GOOD。任何測試應先在隔離環境；正式消防、急停等驗收由現場安全流程管理。</p>
+</div>
+<div class="cards"></div></section>
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Industrial Data Gateway 範例專案</h2><p>`範例程式碼/industrial_data_gateway/` 示範 Modbus register 模擬、alarm、fail-safe 與 protocol payload contract。 <a href="範例程式碼/industrial_data_gateway/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/industrial_data_gateway
 python3 -m py_compile src/industrial_data_gateway/*.py scripts/run_gateway_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_gateway_smoke.py</code></pre><div class="cards"></div>
 <div class="course-example" id="example-industrial-data-gateway">
 <h3>範例程式碼 · 工業資料閘道</h3>
-<p>從模擬暫存器讀取溫度，比對同一筆讀值如何轉成 BACnet、OPC UA 與 MQTT 資料。</p>
+<p>從模擬暫存器讀取溫度，比對同一讀值如何產生 BACnet／OPC UA 識別資訊與 MQTT payload。全程離線，不實作線上通訊、持久佇列或實體安全邏輯；狀態輸出僅供示範。</p>
 <p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/industrial_data_gateway
 PYTHONPATH=src python3 scripts/run_gateway_smoke.py</code></pre>
 <!-- example-source: industrial_data_gateway -->
@@ -587,7 +609,7 @@ if __name__ == "__main__":
       ],
       architecture: [
         ["arch-boundary", "Architecture", "Gateway 是協定與資料品質邊界", "Gateway 負責 polling、decode、quality、alarm 與上層 payload，不應把 SCADA 業務規則混在驅動層。", "PLC -> Gateway -> SCADA / Historian / MQTT", "signal flow is explicit."],
-        ["arch-timeout", "Architecture", "通訊 timeout 是控制策略的一部分", "timeout 不只是例外處理，它會決定資料 quality、alarm 與 fail-safe output。", "timeout=2s retry=2 stale=15s", "abnormal condition has behavior."],
+        ["arch-timeout", "Architecture", "通訊 timeout 是控制策略的一部分", "timeout 會影響資料品質與告警；現場安全輸出仍由 PLC 或獨立安全鏈負責。", "timeout=2s retry=2 stale=15s", "abnormal condition has behavior."],
         ["arch-buffer", "Architecture", "store-and-forward 需要容量與清除策略", "離線暫存要限制筆數、時間與磁碟使用，避免 gateway 自己造成停機。", "buffer.max_records=10000", "offline data is bounded."],
         ["arch-maintenance", "Architecture", "維護模式要和生產模式分開", "手動測試、register scan、debug log 應避免直接進入 production telemetry。", "mode=maintenance", "operators can diagnose safely."]
       ],
@@ -595,23 +617,23 @@ if __name__ == "__main__":
         ["map-io", "IO Mapping", "IO map 要包含現場名稱與工程名稱", "把 MCC、AHU、Boiler、Pump 的實體點位對應到 Python point_id。", "boiler_supply_temp -> 40001", "field and software names match."],
         ["map-signal", "IO Mapping", "Signal flow 要標出 source、transform、sink", "每個點位應知道從哪個設備來、怎麼轉換、送到哪裡。", "register -> float32 -> OPC UA node", "data lineage is visible."],
         ["map-alarm", "IO Mapping", "Alarm 門檻要跟 unit 一起定義", "溫度、壓力、電流的 high/low alarm 沒有 unit 就不可驗收。", "high_alarm=80 degC", "alarm meaning is testable."],
-        ["map-failsafe", "IO Mapping", "Fail-safe 值必須保守", "timeout 或 stale 時，輸出要回到安全狀態，不可假設最後一次資料仍有效。", "pump_enable=False", "unsafe command is not held."]
+        ["map-failsafe", "IO Mapping", "唯讀 Gateway 不負責安全輸出", "timeout 或 stale 時標示資料不可用；模擬的安全狀態欄位不是對現場致動器發命令。", "quality=STALE, value=null", "unsafe command is not held."]
       ],
       modbus: [
-        ["modbus-fc03", "Modbus", "FC03 讀 Holding Register", "40001 Holding Register 常以 offset 0 或 1 表示，專案需統一寫法。", "40001 Holding Register / FC03", "read contract is unambiguous."],
-        ["modbus-fc16", "Modbus", "FC16 寫 Multiple Registers", "寫入 setpoint 或 command 時要標出範圍、權限與 rollback。", "FC16 write 40021 setpoint", "write operation has guardrails."],
+        ["modbus-fc03", "Modbus", "FC03 讀 Holding Register", "40001 是手冊參考號；若是該設備第一個 holding register，線上零起始位址通常為 0，依手冊驗證。", "40001 Holding Register / FC03", "read contract is unambiguous."],
+        ["modbus-fc16", "Modbus", "FC16 寫 Multiple Registers", "用於寫入，不屬唯讀採集的授權範圍。這張卡辨認功能碼，不要求實際寫入。", "FC16 = Write Multiple Registers（唯讀 Gateway 不使用）", "write operation has guardrails."],
         ["modbus-float", "Modbus", "float32 需要兩個 16-bit register", "必須標註 word order，例如 big word 或 little word，否則現場值會錯。", "words 0x422A 0x0000 -> 42.5", "float conversion is deterministic."],
         ["modbus-multidevice", "Modbus", "多設備 polling 要限制並發", "同一 RS-485 segment 不可無限制並發，Modbus TCP 也要限制 socket 與重試。", "max_inflight_per_segment=1", "polling does not overload devices."]
       ],
       opcua: [
-        ["opcua-endpoint", "OPC UA", "Endpoint URL 要成為設定", "預設教學使用 Security=None、port 4840；正式現場再改憑證與加密。", "opc.tcp://192.168.10.20:4840", "client can locate server."],
+        ["opcua-endpoint", "OPC UA", "Endpoint URL 要成為設定", "範例只組裝端點字串，沒有 OPC UA 網路連線；現場使用憑證、適用加密政策與唯讀身分。", "opc.tcp://plc.example.test:4840", "client can locate server."],
         ["opcua-nodeid", "OPC UA", "NodeId 要包含 namespace", "NodeId 範例：ns=2;s=Boiler.SupplyTemperature，避免只寫 display name。", "ns=2;s=Boiler.SupplyTemperature", "monitored item is precise."],
-        ["opcua-subscription", "OPC UA", "Subscription/Pubish 要設定節奏", "publish interval、sampling interval 與 queue size 影響延遲與資料量。", "publish=1000ms keepalive=10s", "data freshness is controlled."],
-        ["opcua-reconnect", "OPC UA", "Reconnect 要有 backoff 與 quality", "斷線時資料應標成 BAD/STALE，重連成功後再恢復 GOOD。", "backoff=[1,5,15]", "client recovers without hiding faults."]
+        ["opcua-subscription", "OPC UA", "Subscription／Publish 要設定節奏", "publish interval、sampling interval 與 queue size 影響延遲與資料量。", "publish=1000ms keepalive=10s", "data freshness is controlled."],
+        ["opcua-reconnect", "OPC UA", "Reconnect 要有 backoff 與 quality", "斷線時資料應標成 BAD/STALE，重連後須重新取得有效值並確認品質，才恢復 GOOD。", "backoff=[1,5,15]", "client recovers without hiding faults."]
       ],
       bacnet: [
         ["bacnet-object", "BACnet", "BACnet object 要寫 type + instance", "例如 analog-input,1 對應 supply temperature，不要只寫點位名稱。", "object=analog-input instance=1", "BACnet address is explicit."],
-        ["bacnet-bbmd", "BACnet", "跨 subnet 要規劃 BBMD", "BACnet broadcast 不會自然穿越 router，需要 BBMD 或 routing design。", "BBMD=192.168.10.2", "discovery works across VLANs."],
+        ["bacnet-bbmd", "BACnet", "跨 subnet 要規劃 BBMD", "BACnet broadcast 不會自然穿越 router，需要 BBMD 或 routing design。", "BBMD=<站點核准地址>", "discovery works across VLANs."],
         ["bacnet-foreign", "BACnet", "Foreign device 需要 TTL", "遠端 gateway 註冊 foreign device 時需設定 TTL 與續約策略。", "foreign_device_ttl=60s", "remote registration is maintained."],
         ["bacnet-sc", "BACnet", "BACnet/SC Gateway 要標出信任邊界", "若現場使用 BACnet SC，需區分 IP side、SC hub、憑證與路由責任。", "BACnet/IP + BACnet/SC Gateway", "secure topology is documented."]
       ],
@@ -631,7 +653,7 @@ if __name__ == "__main__":
         ["sample-convert", "Sample", "範例驗證 Modbus float conversion", "decode_float32_words 會把兩個 16-bit register 轉成工程值。", "0x422A 0x0000 -> 42.5", "conversion test passes."],
         ["sample-poll", "Sample", "範例執行 poll_once", "IndustrialGateway 會讀取 mock register，輸出 PointReading 與 AlarmEvent。", "readings, alarms = gateway.poll_once()", "poll cycle is testable."],
         ["sample-report", "Sample", "範例產生協定契約 report", "report 包含 OPC UA endpoint、BACnet object、MQTT topic 與 alarm 狀態。", "gateway.build_gateway_report(readings, alarms)", "integration payload is visible."],
-        ["sample-smoke", "Sample", "smoke script 驗證完整資料流", "run_gateway_smoke.py 驗證 Modbus、OPC UA、BACnet、MQTT 與 fail-safe 狀態。", "python3 scripts/run_gateway_smoke.py", "gateway smoke passed."]
+        ["sample-smoke", "Sample", "smoke script 驗證完整資料流", "run_gateway_smoke.py 驗證離線模擬與輸出契約，未連到實體 PLC、Broker 或安全連鎖。", "python3 scripts/run_gateway_smoke.py", "gateway smoke passed."]
       ]
     };
     const completedKey = "python-industrial-completed";

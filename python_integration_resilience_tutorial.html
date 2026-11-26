@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Integration Resilience 教學 - Timeout、Retry、Idempotency 與 Circuit Breaker v2.9.0</title>
+  <title>Python Integration Resilience 教學 - Timeout、Retry、Idempotency 與 Circuit Breaker v2.9.1</title>
   <style>
     :root {
       --ink: #172033;
@@ -96,6 +96,35 @@
     .api-read summary { color:#174e80;font-weight:850;cursor:pointer;margin-top:.65rem; }
     .api-read em { color:#765119; }
     @media(max-width:510px){ .api-table th,.api-table td{padding:.3rem;font-size:.9rem} }
+    .ir-diagram { margin:0 0 1.1rem; }
+  .ir-diagram h3,.ir-diagram h4 { margin:.45rem 0; }
+  .ir-diagram p { margin:.5rem 0; }
+  .ir-path,.ir-branches { display:grid; list-style:none; min-width:0; padding:0; margin:.9rem 0; gap:.6rem; }
+  .ir-path { grid-template-columns:minmax(0,1fr); }
+  .ir-path li,.ir-branches li { position:relative; overflow-wrap:anywhere; min-width:0; border:1px solid #a6c5b8; border-radius:.65rem; background:#f0f8f4; padding:.7rem; }
+  .ir-path li strong,.ir-branches li strong { display:block; color:#183a32; line-height:1.35; margin-bottom:.28rem; }
+  .ir-path li span,.ir-branches li span { color:#314860; font-size:.95rem; line-height:1.45; }
+  .ir-path li:not(:last-child) {margin-bottom:1rem}
+  .ir-path li:not(:last-child)::after {content:"↓"; position:absolute; left:50%; top:100%; line-height:1.5; color:#23674f; font-weight:800}
+  .ir-branches {grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}
+  .ir-branches li {background:#fff7e3;border-color:#c79a51}
+  .ir-diagram-note {border-left:.2rem solid #23674f;padding:.35rem .6rem}
+  .ir-source-link {margin:.4rem 0 1rem;overflow-wrap:anywhere}
+  .ir-table-scroll {overflow:auto;margin:.6rem 0 1rem}
+  .ir-table {width:100%;border-collapse:collapse;min-width:35rem}
+  .ir-table td,.ir-table th {overflow-wrap:anywhere;vertical-align:top;text-align:left;border-bottom:1px solid #cad8e5;padding:.58rem}
+  .ir-table thead th {background:#e7f2fa}
+  .ir-study p {margin:.75rem 0}
+  .ir-study pre {margin:.75rem 0}
+  .ir-study :is(p, li) code {overflow-wrap:anywhere}
+  .ir-list {padding-inline-start:1.3rem}
+  .ir-list li {margin:.55rem 0}
+  @media(min-width:1230px){
+     #boundary-map .ir-path {grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem}
+     #request-decision-flow .ir-path {grid-template-columns:repeat(4,minmax(0,1fr));gap:1.2rem}
+     .ir-path li:not(:last-child){margin-bottom:0}
+     .ir-path li:not(:last-child)::after {content:"→";left:calc(100% + .18rem);top:42%}
+  }
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -106,7 +135,11 @@
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
         <a href="#overview">Overview</a>
-        <a href="#architecture">Architecture</a>
+        <a href="#architecture">架構圖與流程圖</a>
+        <a href="#engineering-boundary">介面責任</a>
+        <a href="#resilience-policy-lab">預算、重試與斷路</a>
+        <a href="#unknown-outcome">寫入狀態與對帳</a>
+        <a href="#release-evidence">發行驗收矩陣</a>
         <a href="#setup">Setup</a>
         <a href="#configuration">Configuration</a>
         <a href="#example">Example</a>
@@ -122,8 +155,8 @@
           <span class="eyebrow">Python Integration Resilience Engineering</span>
           <h1>把外部整合做成可控的工程邊界</h1>
           <p>這條路線把 API client、設備 gateway 與第三方服務呼叫整理成可驗收流程：timeout 先定義等待預算，retry 只處理可重試錯誤，idempotency 保護寫入，rate limit 避免壓垮依賴，circuit breaker 讓故障快速失敗，schema validation 與 evidence report 進入 release gate。</p>
-          <div class="status-strip"><span>v2.9.0</span><span>32 張互動卡</span><span>standard library sample</span><span>API / gateway resilience</span></div>
-          <div class="hero-actions"><a class="button primary" href="#overview">開始整合韌性課程</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+          <div class="status-strip"><span>v2.9.1</span><span>32 張互動卡</span><span>standard library sample</span><span>API / gateway resilience</span></div>
+          <div class="hero-actions"><a class="button primary" href="#architecture">先看架構圖與流程圖</a><a class="button green" href="#example">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
         <figure class="surface api-read" aria-labelledby="api-flow">
           <figcaption><span class="eyebrow">FLOW / 01</span><h2 id="api-flow">一次 API 呼叫怎麼走？</h2></figcaption>
@@ -142,10 +175,23 @@
 <tr><td>gRPC</td><td>以服務與訊息契約提供 unary 或串流 RPC。</td><td>傳遞 deadline；串流需要個別設計斷線續傳或重新同步，不能直接套 HTTP 的狀態重試表。</td></tr>
 <tr><td>GraphQL</td><td>透過型別 schema 查詢指定欄位；mutation 表示修改意圖。</td><td>HTTP 200 仍可能帶有 <code>errors</code> 或部分資料；同時檢查 HTTP 及操作層結果。</td></tr></tbody></table>
 <p>單筆讀取適合即時查詢，Webhook 適合新事件通知，輪詢可做補漏與對帳。三者可以一起使用，但不可重複觸發同一個業務寫入。</p></article><div class="cards"></div></section>
-      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把 policy、transport 與 schema 分層</h2><p>業務邏輯不應直接散落 HTTP 呼叫與 retry loop。</p></div></div><article class="surface api-read"><h3>架構圖：策略和傳輸分開，證據不阻塞主流程</h3>
-<ol class="api-layer" aria-label="由左至右的四層 API 架構"><li><strong>01　業務層</strong><span>設備快照、訂單處理或對帳作業，定義新鮮度與成功條件。</span></li><li><strong>02　策略層</strong><span>總 deadline、單次 timeout、重試、斷路器及速率控制。</span></li><li><strong>03　傳輸層</strong><span>HTTP／gRPC 配接器，負責連線、驗證及實際發送；可替換成 fake。</span></li><li><strong>04　契約與證據</strong><span>先驗證，再轉換和更新快照；保留關聯 ID、延遲與錯誤分類。</span></li></ol>
-<p><strong>入口分流：</strong>Webhook → 驗證 → 持久化 inbox → 工作佇列；輪詢 → 讀取游標 → 驗證與落地 → 更新 checkpoint。兩條路若匯到同一業務層，須共享事件識別和去重契約。</p>
-<p><strong>錯誤分層：</strong>驗證失敗不進重試；授權失敗走憑證排查；資料過期標成 stale 並附時間與品質，不把上一筆快照當成新資料。操作記錄只留必要欄位，避免把 token 或完整個資寫入 log。</p></article><div class="cards"></div></section>
+      <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>把 policy、transport 與 schema 分層</h2><p>業務邏輯不應直接散落 HTTP 呼叫與 retry loop。</p></div></div>
+<figure class="surface api-read ir-diagram" id="boundary-map" aria-labelledby="boundary-map-title" aria-describedby="boundary-map-desc">
+  <figcaption><span class="eyebrow">ARCHITECTURE / 01</span><h3 id="boundary-map-title">架構圖｜政策與傳輸之間的責任邊界</h3></figcaption>
+  <p id="boundary-map-desc">主路徑從業務入口到外部系統；驗證後的結果由配接器交回入口。下方是獨立於單次網路呼叫的支援面。</p>
+  <ol class="ir-path"><li><strong>01 · 業務／入口</strong><span>讀取快照、執行作業、接收事件；定義新鮮度和完成條件</span></li><li><strong>02 · 應用配接器</strong><span>轉換資料與錯誤；為寫入建操作 ID；狀態不明轉對帳</span></li><li><strong>03 · 韌性策略</strong><span>總期限；令牌、佇列、併發；斷路、挑選重試</span></li><li><strong>04 · 傳輸配接器</strong><span>HTTP／RPC 池、驗證、傳輸與取消；可替換成 fake</span></li><li><strong>05 · 外部依賴</strong><span>供應商 API、設備閘道、內部服務；處理規則以契約為準</span></li></ol>
+  <h4>支援面：耐久狀態與觀測</h4><ul class="ir-branches"><li><strong>耐久狀態</strong><span>Inbox／outbox、去重索引、結果與待對帳操作。</span></li><li><strong>證據與告警</strong><span>結構化事件、Trace、各階段延遲；不記機密。</span></li></ul>
+  <p class="ir-diagram-note">Schema 驗證與狀態更新屬應用配接器。交易必須等待必要的耐久寫入；額外遙測才是可異步送出的資料，不能把兩者混為一談。</p>
+</figure>
+
+<figure class="surface api-read ir-diagram" id="request-decision-flow" aria-labelledby="request-decision-flow-title" aria-describedby="request-decision-flow-desc">
+  <figcaption><span class="eyebrow">FLOW / 02</span><h3 id="request-decision-flow-title">流程圖｜從發送到確認，知道何時停手</h3></figcaption>
+  <p id="request-decision-flow-desc">沿箭頭到分類節點；四種分支各自處理，不表示依序執行。</p>
+  <ol class="ir-path"><li><strong>01 · 收件與分類</strong><span>確定讀或寫、契約及操作 ID，開始總期限。</span></li><li><strong>02 · 入場保護</strong><span>檢查截止、佇列、速率、並行數及斷路狀態。無法入場就回報。</span></li><li><strong>03 · 單次呼叫</strong><span>剪裁單次預算；只發送一次，記錄送達證據。</span></li><li><strong>04 · 分類結果</strong><span>依傳輸、HTTP 或 RPC、schema 與業務狀態分流。</span></li></ol>
+  <h4>依結果分流</h4><ul class="ir-branches"><li><strong>有效回應</strong><span>驗證並落地後回成功；202 按契約轉作業查詢。</span></li><li><strong>暫時錯誤且可安全重試</strong><span>算剩餘預算與退避；可重試則回入場保護，不足便結束。</span></li><li><strong>寫入結果不明</strong><span>保存 UNKNOWN，以同一操作 ID 查詢／對帳；不盲目重送。</span></li><li><strong>永久拒絕或契約錯誤</strong><span>不做一般重試；保留分類與證據，不覆寫已驗證快照。</span></li></ul>
+  <p class="ir-diagram-note">所有終止路徑都回傳明確的狀態與原因。可重試分支回第 02 步，重新檢查所有保護；結果不明走對帳，不回發送迴圈。</p>
+</figure>
+<p class="ir-source-link"><a href="assets/integration-resilience-boundary.drawio" download>下載兩張圖的 draw.io 可編輯原始檔</a></p><div class="cards"></div></section>
       <section class="section-block" id="setup" data-group="setup"><div class="section-head"><div><span class="eyebrow">Setup</span><h2>先用 fake transport 驗證失敗路徑</h2><p>本機測試要能穩定重現 503、schema drift、rate limit 與 circuit open。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="configuration" data-group="configuration"><div class="section-head"><div><span class="eyebrow">Configuration</span><h2>韌性參數要有可追蹤預設值</h2><p>timeout、retry、backoff、rate limit 與 circuit threshold 都應進設定與 release note。</p></div></div><article class="surface api-read"><h3>把時間、容量與寫入風險拆成三組政策</h3>
 <table class="api-table"><thead><tr><th scope="col">政策</th><th scope="col">設計與驗收</th></tr></thead><tbody>
@@ -154,6 +200,76 @@
 <tr><td>斷路器</td><td>Closed 正常呼叫；跨過可用性錯誤門檻進 Open 快速拒絕；冷卻後 Half-open 僅允許限量試探。成功回 Closed，失敗重回 Open。按依賴與操作分開計數，並明訂統計以單次嘗試或整筆操作為單位。</td></tr>
 <tr><td>可持久的冪等</td><td>服務端明確支援才使用冪等鍵，以租戶／操作／鍵及內容指紋定位，原子記錄處理中與完成結果；同鍵同內容回原結果，不同內容拒絕。設定有效期限、衝突及請求超時後的查詢／對帳行為。</td></tr></tbody></table>
 <p>外部副作用跨系統時，單靠資料庫鍵值不能保證恰好一次。應使用支援的服務端冪等契約，或 outbox、狀態查詢與對帳；關鍵寫命令不做盲目重試。</p></article><div class="cards"></div></section>
+      <section class="section-block" id="engineering-boundary">
+  <div class="section-head"><div><span class="eyebrow">RESEARCH / DESIGN CONTRACT</span><h2>把「呼叫成功」拆成可驗證的責任邊界</h2><p>整合層不替外部系統保證成功；它保證在有限時間內回傳可辨認的結果，且能重建一筆操作從接收、發送到對帳的證據。</p></div></div>
+  <article class="surface api-read ir-study">
+    <h3>1. 先定義業務成功，再選 API</h3>
+    <div class="ir-table-scroll" role="region" aria-label="API 型態及成功條件" tabindex="0"><table class="ir-table"><thead><tr><th scope="col">介面／情境</th><th scope="col">成功的定義</th><th scope="col">預設韌性設計</th></tr></thead><tbody>
+      <tr><th scope="row">REST 讀取</th><td>回應可解析、符合 schema，且資料年齡未超過用途允許值。</td><td>在期限內有限重試；若允許用快取，回傳來源時間和 <code>stale</code>。設備控制不得拿舊快照冒充即時值。</td></tr>
+      <tr><th scope="row">REST 寫入／非同步工作</th><td>以業務 ID 識別唯一效果；HTTP 202 只是已接受，不是已完成。</td><td>同一次操作固定 ID；有服務端冪等契約才考慮自動重送。202 保存作業 ID，再按獨立的查詢期限追蹤狀態。</td></tr>
+      <tr><th scope="row">Webhook／事件</th><td>依供應商規格驗證來源，訊息或等效交付紀錄耐久保存後才回傳已接收。</td><td>入口 inbox 去重；處理失敗用本地工作重試；亂序按版本或事件時間規則處理，缺少資料用官方查詢介面對帳。</td></tr>
+      <tr><th scope="row">游標分頁／批次同步</th><td>每頁資料先提交；checkpoint 只跨過已持久化的資料。</td><td>不自行解讀不透明游標；限制頁數、整輪時間，偵測游標循環，必要時以重疊視窗和業務鍵補漏。</td></tr>
+      <tr><th scope="row">gRPC／GraphQL</th><td>gRPC 看 RPC 狀態和應用內容；GraphQL 另判斷 <code>errors</code>、必要欄位及是否接受部分資料。</td><td>gRPC 向下傳遞剩餘 deadline；串流斷線後需 resume token 或重新同步。GraphQL mutation 不能只因 HTTP 200 就判成成功或可重送。</td></tr>
+      <tr><th scope="row">設備閘道／PLC 讀取</th><td>取得設備端資料品質及來源時間；資料過期或讀不到都不是有效零值。</td><td>資料採集與安全連鎖分離。設備寫入或安全動作由授權的原有控制路徑處理，不由網站重試邏輯自行送出。</td></tr>
+    </tbody></table></div>
+    <p>每個依賴至少登錄：用途、端點契約版本、資料 owner、可用性與新鮮度目標、操作最大等待、配額、誰能寫、外部失敗時的降級行為、診斷與對帳窗口。選擇同步、非同步或混合是業務決策，不是只看平均延遲。</p>
+  </article>
+</section>
+
+<section class="section-block" id="resilience-policy-lab">
+  <div class="section-head"><div><span class="eyebrow">RESEARCH / FAILURE POLICY</span><h2>等待、重試與斷路：不同保護不能共用一個數字</h2></div></div>
+  <article class="surface api-read ir-study">
+    <h3>2. 用單調時鐘管總預算</h3>
+    <p><code>deadline = monotonic_now + total_budget</code>。先把排隊與連線池等待算進去；建立連線再分 DNS、TCP、TLS（函式庫不一定分別限制）；發送與接收各有 timeout。讀取 timeout 通常是等待下一段資料的上限，不等於完整回應的總時間。呼叫後的驗證、持久化及回傳也要預留時間；取消本地等待也不代表對方停止處理。</p>
+    <p>例：總預算 300 ms，排隊 35 ms，保留 25 ms 給驗證與回傳，首個下游嘗試上限 120 ms。若首輪耗 75 ms、退避 40 ms，第二輪只剩 <strong>125 ms 可用</strong>，仍受單次 120 ms 拘束。若 <code>Retry-After</code> 要等 200 ms，程式應結束同步等待或轉已明訂的非同步路徑，不是提早打下一次。跨程序傳相對期限或採用協定定義的期限；不要把本機單調時鐘值送到另一台。</p>
+    <pre><code>remaining = deadline - monotonic()
+attempt_budget = min(per_attempt, remaining - finish_reserve)
+if attempt_budget &lt;= 0:
+    stop("deadline")
+# 僅在能控制真正 transport 等待期的介面使用此預算；
+# 不把每個 I/O phase timeout 相加後宣稱端到端受限。</code></pre>
+    <h3>3. 只重試可安全重試且仍有預算的操作</h3>
+    <div class="ir-table-scroll" role="region" aria-label="錯誤與重試決策" tabindex="0"><table class="ir-table"><thead><tr><th scope="col">觀察結果</th><th scope="col">決策</th><th scope="col">要留下的證據</th></tr></thead><tbody>
+      <tr><th scope="row">暫時連線失敗／503</th><td>只有業務效果可重送、服務契約允許且還有預算才重試；DNS 設定錯誤、TLS 憑證失敗不是等待就能修好的錯誤。</td><td>錯誤發生階段、是否已送出、政策及嘗試次數。</td></tr>
+      <tr><th scope="row">429／帶 Retry-After</th><td>先減速；以 delta seconds 或 HTTP-date 解析，不早於服務要求。等待超期限就回報或按契約排程，不當成一般服務不可用一起熔斷。</td><td>租戶與配額範圍、等待理由、是否已超過同步期限。</td></tr>
+      <tr><th scope="row">401／403、格式或 schema 不符</th><td>停止一般重試；按契約修憑證、權限或格式。若有更新憑證的契約，把有限的一次更新流程單獨建模。</td><td>不含憑證原文的分類、Trace ID、schema 版本。</td></tr>
+      <tr><th scope="row">寫出後 timeout／回應遺失</th><td>效果標為 <code>UNKNOWN</code>，先以原操作 ID 查詢／對帳。無確實的冪等與狀態契約時，不自動重送。</td><td>操作 ID、送達證據層級、查詢結果及人工升級時限。</td></tr>
+    </tbody></table></div>
+    <p>全抖動退避的示例：第 k 次重試等待 <code>Uniform(0, min(cap, base × 2^k))</code>，k 從 0 起算；若服務要求 <code>Retry-After</code>，不得用抖動縮短它。總嘗試數要包含首次呼叫。假如閘道與 SDK 各允許 3 次總嘗試，同一業務呼叫可能打 9 次；一般選定一層負責重試並紀錄放大倍數 = 下游嘗試數 ÷ 邏輯操作數。</p>
+    <h3>4. 速率、併發、容量與斷路分開</h3>
+    <ul class="ir-list">
+      <li><strong>配額：</strong>按依賴、租戶或憑證定義範圍；令牌桶限制平均速率及短期突發。併發是同一時間的請求數，另設上限；排隊要有限長度和等待時間。例：50 次/s、平均耗時 0.2 s，穩態平均約 10 筆在途（Little 定律），不是安全併發規格，仍需測試長尾、尖峰與失敗。</li>
+      <li><strong>Closed：</strong>正常放行並用滑動窗及最小樣本數觀察下游可用性錯誤；不能把無效業務輸入或本地限流混作下游故障。以依賴／操作分桶，說明是按單次嘗試還是按完整業務操作統計。</li>
+      <li><strong>Open：</strong>暫時不打下游，快速回傳不可用、標示舊讀值，或把可延後的作業耐久排隊。不是耗完所有重試才套用，也不能用舊值掩蓋未知寫入。</li>
+      <li><strong>Half-open：</strong>冷卻後只允許少量試探，其餘維持拒絕或降階；按明訂門檻恢復 Closed，或試探失敗回 Open。共享配置需考慮多副本同時試探，不讓恢復瞬間的流量淹沒外部服務。</li>
+    </ul>
+  </article>
+</section>
+
+<section class="section-block" id="unknown-outcome">
+  <div class="section-head"><div><span class="eyebrow">RESEARCH / WRITE CONTRACT</span><h2>寫入狀態不明時，對帳優先</h2></div></div>
+  <article class="surface api-read ir-study">
+    <p>冪等鍵是<strong>同一個業務意圖</strong>的識別，不是每次重試重新產生的 request ID。資料設計可採 <code>(tenant, operation, key)</code> 唯一索引，加上請求指紋、狀態、首次受理時間、外部業務 ID 和可安全回傳的結果摘要。組合欄位、正規化規則、保留期及隱私範圍須明訂。相同鍵且指紋不同，應回衝突而不是覆寫；相同鍵且處理中，依契約顯示等待中，不再執行第二份。</p>
+    <p>完全在同一資料庫內的副作用可與去重紀錄放同一交易。若需跨系統，採用交易式 outbox 保存意圖，透過供應端明列支援的冪等鍵降低重複，再用外部狀態查詢及定期對帳修復不確定狀態。outbox 只保證本地意圖不遺失；常見仍是至少一次交付，不能單靠它保證外部副作用恰好一次。不得將未確認、超過保留期或需人工查證的操作自動判成失敗後重送。</p>
+    <p>狀態建議：<code>RECEIVED → SENT → SUCCEEDED / REJECTED / UNKNOWN</code>；<code>UNKNOWN</code> 經查詢取得可信證據後才轉已完成或已拒絕。狀態查詢使用獨立限流、退避和最長對帳時限；狀態 API 未同步或只回「查無」時，先按供應商一致性契約處理，不自行推論從未執行。</p>
+  </article>
+</section>
+
+<section class="section-block" id="release-evidence">
+  <div class="section-head"><div><span class="eyebrow">RESEARCH / ACCEPTANCE</span><h2>上線前的故障矩陣：每個測試都有可查證的證據</h2></div></div>
+  <article class="surface api-read ir-study">
+    <div class="ir-table-scroll" role="region" aria-label="故障注入與發行驗收" tabindex="0"><table class="ir-table"><thead><tr><th scope="col">注入場景</th><th scope="col">可驗收條件</th><th scope="col">保留證據</th></tr></thead><tbody>
+      <tr><th scope="row">連線池滿、建立連線慢、慢速回應</th><td>總期限包含排隊與接收；客戶端取消後停止追加嘗試，不假定遠端操作被撤銷。</td><td>單調時間軸、各 phase、最大嘗試數和終結理由。</td></tr>
+      <tr><th scope="row">429 比剩餘預算更久／持續 503</th><td>429 不提前重送；支援 503 的有限重試和抖動，故障持續時按政策斷路。</td><td>配額範圍、退避分布、下游實際嘗試數及轉態。</td></tr>
+      <tr><th scope="row">提交後斷線、同鍵同時送入</th><td>對方已提交時能查回原結果，無重複效果；同鍵不同內容被拒，跨租戶不共用結果。</td><td>測試用操作 ID、外部紀錄數、對帳狀態及查詢結果。</td></tr>
+      <tr><th scope="row">斷路冷卻、同時試探</th><td>只有指定數量探測；依探測結果回 Closed 或再 Open。恢復不得造成突發。</td><td>允許／拒絕探測數、冷卻期間、轉態事件。</td></tr>
+      <tr><th scope="row">Schema 漂移、事件重複／亂序</th><td>不合格資料不覆寫有效快照；落地去重、checkpoint 及回放可驗證無漏樣。</td><td>契約版、拒收理由、最後可信來源時間與對帳計數。</td></tr>
+    </tbody></table></div>
+    <p><strong>發行紀錄：</strong>固定提交、政策與 schema 版本，保存測試種子、階段事件和不含機密的證據。用不同的量測口徑分別觀察邏輯成功率、每次嘗試延遲、p95／p99、資料年齡、429、斷路轉態、池飽和、重試放大、對帳積壓；不要以全部結果平均值掩蓋依賴或租戶分布。Trace 使用低基數路由與 <code>http.request.resend_count</code>，操作識別放追蹤／結構化日誌，不做高基數指標標籤；不記錄 token、完整查詢或個資。</p>
+    <p><strong>原始參考：</strong><a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2">RFC 9110：冪等</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3">RFC 9110：Retry-After</a> · <a href="https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/">AWS：timeout／退避／抖動</a> · <a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">AWS：讓 API 重試具備冪等性</a> · <a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker">Microsoft：斷路模式</a> · <a href="https://opentelemetry.io/docs/specs/semconv/http/http-spans/">OpenTelemetry：HTTP spans</a> · <a href="https://grpc.io/docs/guides/deadlines/">gRPC：Deadline</a> · <a href="https://spec.graphql.org/September2025/#sec-Response">GraphQL：回應契約</a>。</p>
+  </article>
+</section>
+
       <section class="section-block" id="example" data-group="example"><div class="section-head"><div><span class="eyebrow">Example</span><h2>Integration Resilience 範例專案</h2><p>範例用標準庫與 fake transport 示範 API / gateway 呼叫韌性，不需外網或第三方服務。 <a href="範例程式碼/integration_resilience/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/integration_resilience
 python3 -m py_compile src/integration_resilience/*.py scripts/run_integration_resilience_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v

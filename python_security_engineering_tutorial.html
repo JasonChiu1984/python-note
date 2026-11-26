@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python 安全工程教學 - Threat Model、Auth、Secrets、Supply Chain 與 Audit v2.2.0</title>
+  <title>Python 安全工程教學 - Threat Model、Auth、Secrets、Supply Chain 與 Audit v2.3.0</title>
   <style>
     :root {
       --ink: #172033;
@@ -73,6 +73,23 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+    .sec-study{margin:0 0 1rem;padding:clamp(.8rem,2vw,1.4rem);background:#fff;border:1px solid var(--line);border-radius:8px;min-width:0;overflow-wrap:anywhere}
+    .sec-study h3{margin:0 0 .55rem}
+    .sec-study p+p,.sec-study div+p,.sec-study ul+p,.sec-study ol+p{margin-top:.75rem}
+    .sec-list{padding-inline-start:1.3rem}.sec-list li+li{margin-top:.55rem}
+    .sec-note{margin-top:.9rem!important;background:#fff1dd;border-left:.25rem solid var(--amber);padding:.65rem}
+    .sec-flow{min-width:0;margin:.8rem 0;container-type:inline-size}
+    .sec-flow ol{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;padding:0;gap:1.35rem;list-style:none}
+    .sec-flow li{display:grid;align-content:start;gap:.3rem;position:relative;padding:.62rem;min-width:0;border:1px solid #c7d5e0;background:#f4f8fb;border-radius:.55rem;overflow-wrap:anywhere}
+    .sec-flow li strong{line-height:1.3}.sec-flow li span{font-size:.91rem;color:#415569}
+    .sec-flow li:not(:last-child)::after{content:"→";position:absolute;top:50%;transform:translateY(-50%);left:calc(100% + .15rem);font-weight:bold;color:var(--red)}
+    @container (max-width:38rem){.sec-flow ol{grid-template-columns:1fr}.sec-flow li:not(:last-child)::after{content:"↓";left:50%;top:100%;transform:none}}
+    .sec-table{margin:.8rem 0;max-width:100%;overflow:auto;border:1px solid var(--line);border-radius:8px}
+    .sec-table table{width:100%;min-width:36rem;border-collapse:collapse;text-align:left}
+    .sec-table caption{padding:.6rem;font-weight:bold;text-align:left;background:#f8fafd}
+    .sec-table :is(th,td){padding:.55rem .7rem;vertical-align:top;border-top:1px solid var(--line);overflow-wrap:anywhere}
+    .sec-table thead th{background:#f1f5fa}.sec-table tbody th{white-space:nowrap}
+    @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -88,6 +105,7 @@
         <a href="#secrets">Secrets</a>
         <a href="#supply">Supply Chain</a>
         <a href="#runtime">Runtime</a>
+        <a href="#acceptance">上線驗收與來源</a>
         <a href="#sample">範例專案</a>
       </nav>
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
@@ -97,47 +115,79 @@
         <div>
           <span class="eyebrow">Python Security Engineering</span>
           <h1>把安全做進需求、程式、交付與維運</h1>
-          <p>這條路線把安全從零散 checklist 拉成工程流程：threat model、authn/authz、input validation、secret handling、dependency pinning、audit log、secure error response 與 incident evidence。範例專案使用標準庫，示範 PBKDF2 密碼雜湊、role policy、rate limit、redacted audit 與 supply-chain manifest 檢查。</p>
-          <div class="status-strip"><span>v2.2.0</span><span>28 張互動卡</span><span>standard library sample</span><span>auth + policy + audit + manifest</span></div>
+          <p>用工廠報表服務練習：把跨組織存取、重送、憑證外洩和發布產物替換，逐一寫成可驗收需求。從資料流、最小權限、輸入處理到建置、部署與事件復原，每項控制都要能追溯到測試與負責人。</p>
+          <div class="status-strip"><span>v2.3.0</span><span>28 張互動卡</span><span>standard library sample</span><span>auth + policy + audit + manifest</span></div>
           <div class="hero-actions"><a class="button primary" href="#threat">開始安全工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 760 430" role="img" aria-label="Python 安全工程閉環">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#c34848"></path></marker></defs>
-            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="70" y="96" width="132" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="136" y="139">Threat</text>
-              <path d="M212 132h50" stroke="#c34848" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="278" y="96" width="132" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="344" y="139">Auth</text>
-              <path d="M420 132h50" stroke="#c34848" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="486" y="96" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="552" y="139">Validation</text>
-              <path d="M552 178v45" stroke="#c34848" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="468" y="240" width="168" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="552" y="283">Supply Chain</text>
-              <path d="M458 276H302" stroke="#c34848" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="112" y="240" width="182" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="203" y="283">Audit / Incident</text>
-              <path d="M203 230V182" stroke="#c34848" stroke-width="4" marker-end="url(#arrow)"></path>
-            </g>
-            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">安全證據必須能串回風險、控制、測試與版本</text>
-          </svg>
-        </div>
+        <figure class="surface sec-study" aria-labelledby="sec-life-title" style="margin:0">
+          <figcaption id="sec-life-title"><strong>安全生命週期：每階段都留下證據</strong></figcaption>
+          <div class="sec-flow"><ol>
+            <li><strong>需求</strong><span>資產、信任邊界、驗收條件</span></li>
+            <li><strong>程式</strong><span>最小授權、驗證、可撤銷憑證</span></li>
+            <li><strong>交付</strong><span>測試、簽章及產物來源</span></li>
+            <li><strong>維運</strong><span>偵測、圍堵、復原與復盤</span></li>
+          </ol></div><p>把每次事件新增的測試與控制回填到對應需求，避免同類問題重演。</p>
+        </figure>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：threat model、RBAC、PBKDF2、secret、audit、dependency、rate limit、incident">
         <div class="quick-links"><a href="#threat">Threat</a><a href="#identity">Identity</a><a href="#input">Input</a><a href="#secrets">Secrets</a><a href="#supply">Supply</a></div>
       </div>
-      <section class="section-block" id="threat" data-group="threat"><div class="section-head"><div><span class="eyebrow">Threat Model</span><h2>先定義資產、入口與失敗模式</h2><p>安全設計要從資料、使用者、外部依賴與濫用路徑開始，不是等弱掃報告才補洞。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="identity" data-group="identity"><div class="section-head"><div><span class="eyebrow">Identity</span><h2>身分驗證與授權要明確分層</h2><p>登入只回答你是誰，授權才回答你能不能執行某個動作。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="input" data-group="input"><div class="section-head"><div><span class="eyebrow">Input</span><h2>輸入驗證要保護邊界與資源</h2><p>API、CLI、檔案與外部 payload 都是不可信入口，必須有格式、長度、類型與錯誤回應策略。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="secrets" data-group="secrets"><div class="section-head"><div><span class="eyebrow">Secrets</span><h2>Secrets 不應進入程式碼、log 或測試 fixture</h2><p>密碼、token、private key 要有來源、遮罩、輪替與事故處理流程。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="supply" data-group="supply"><div class="section-head"><div><span class="eyebrow">Supply Chain</span><h2>套件與建置流程要可追蹤、可重現</h2><p>lock file、hash、SBOM、弱點掃描與版本標註是 Python 交付安全的基本證據。</p></div></div><div class="cards"></div></section>
-      <section class="section-block" id="runtime" data-group="runtime"><div class="section-head"><div><span class="eyebrow">Runtime</span><h2>執行期要能限制濫用並留下審計線索</h2><p>rate limit、secure error、audit log 與 incident playbook 讓安全控制能被驗證與維運。</p></div></div><div class="cards"></div></section>
+      <section class="section-block" id="threat" data-group="threat"><div class="section-head"><div><span class="eyebrow">Threat Model</span><h2>先定義資產、入口與失敗模式</h2><p>安全設計要從資料、使用者、外部依賴與濫用路徑開始，不是等弱掃報告才補洞。</p></div></div><div class="sec-study"><h3>從圖上的資料流寫出可測的安全需求</h3>
+<p>用一個工廠報表 API 貫穿全章。瀏覽器送出報表請求，API 用公司 IdP 的權杖建立身分；API 從資料庫取報表，中繼產物寫入隔離儲存區，稽核事件進獨立紀錄管道。請把每一條跨邊界的資料流備註為「誰能發送、要驗證什麼、可拒絕什麼、失敗要留下哪種證據」，不要只列技術名詞。先盤點資料分級與保存期限、信任邊界與管理介面，以及元件故障時是封鎖、唯讀、降級或停止服務；把決策、理由與責任寫進 ADR。</p>
+<div class="sec-flow" aria-label="報表服務資料流"><ol><li><strong>呼叫端／不可信</strong><span>請求參數、帳號、報表識別碼</span></li><li><strong>入口／信任邊界</strong><span>TLS、身分、大小上限與請求預算</span></li><li><strong>應用／授權決策</strong><span>組織＋物件權限；查核後才存取</span></li><li><strong>資料與審計／分權</strong><span>資料庫、匯出檔、結構化安全事件</span></li></ol></div>
+<div class="sec-table" tabindex="0" role="region" aria-label="威脅需求追蹤矩陣"><table><caption>威脅 → 控制 → 驗收證據</caption>
+<thead><tr><th scope="col">需求 ID</th><th scope="col">需防範的結果</th><th scope="col">強制控制</th><th scope="col">驗收證據</th></tr></thead><tbody>
+<tr><th scope="row">SEC-01</th><td>同權限的另一組織讀到報表</td><td>在每次取用前檢查資源組織與用途，不以 URL 或 UUID 代替授權</td><td>合成 A/B 組織的正反例；拒絕後無資料傳出</td></tr>
+<tr><th scope="row">SEC-02</th><td>重複提交造成多份報表或審批重複</td><td>服務端以組織、操作與冪等鍵綁定請求指紋；保存期限與並發行為明定</td><td>同鍵同內容回到原結果；同鍵不同內容拒絕</td></tr>
+<tr><th scope="row">SEC-03</th><td>服務把憑證寫入應用程式日誌、備份或錯誤回應</td><td>結構化允許欄位、最小運行憑證與輪替</td><td>假秘密注入測試；各輸出管道都找不到原文</td></tr>
+<tr><th scope="row">SEC-04</th><td>發布的映像不是已審核的映像</td><td>部署時要求鎖定 digest，驗證簽章、來源及允許的建置器</td><td>正確發布能部署；缺證明或 digest 不符時拒絕</td></tr>
+</tbody></table></div>
+<p>用 STRIDE 作為提問框架：冒用、竄改、抵賴、資訊揭露、阻斷服務、權限提升；不等於每格都必填。以暴露度、受影響資料與可復原性判優先順序。影響人身、設備安全或大量資料的風險，不宜只靠「機率低」接受；每筆接受紀錄須有風險負責人、補償控制、到期與重審條件。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="identity" data-group="identity"><div class="section-head"><div><span class="eyebrow">Identity</span><h2>身分驗證與授權要明確分層</h2><p>登入只回答你是誰，授權才回答你能不能執行某個動作。</p></div></div><div class="sec-study"><h3>把登入、授權與資料隔離拆開</h3><ul class="sec-list">
+<li><strong>身分：</strong>對外優先採已維護的 IdP；API 驗證簽章、允許的演算法、簽發者、受眾、期限及適用的其他聲明，僅在驗證後使用主體。短時憑證、服務獨立身分、高風險操作的強式 MFA／再驗證。</li>
+<li><strong>授權：</strong>預設拒絕，先確定 <code>subject＋action＋resource＋tenant＋context</code> 再查／改資料。物件明細、列表、匯出、批次及背景工作都要施作同一組隔離原則。從已驗證身分和受控授權資料取得組織，不信任表單提供的組織旗標。</li>
+<li><strong>持久層：</strong>查詢帶組織條件、最小資料庫權限，必要時加資料庫列級隔離；快取鍵及工作佇列也要包含組織，不可只靠 UI 隱藏功能。</li>
+<li><strong>可撤銷：</strong>角色變更、帳號停用、金鑰輪替要有可預期的期限。設計 break-glass 的雙重覆核、短時授權、事件通報與後續檢查，不用共用常駐管理帳號。</li></ul>
+<p class="sec-note">此頁 PBKDF2 固定迭代數、RBAC 及單執行個體限流都是標準庫教學，不是上線組態。新建本機密碼儲存時依 <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP Password Storage</a> 與合規條件選 KDF，採獨立 salt、可版本化參數，量測登入容量，並設計驗證成功後升級雜湊；不要自行實作完整登入系統。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="input" data-group="input"><div class="section-head"><div><span class="eyebrow">Input</span><h2>輸入驗證要保護邊界與資源</h2><p>API、CLI、檔案與外部 payload 都是不可信入口，必須有格式、長度、類型與錯誤回應策略。</p></div></div><div class="sec-study"><h3>先限制資源，再處理資料語意</h3><ol class="sec-list">
+<li>入口根據內容類型／來源選擇解析器；先限制串流大小、解壓後總量、筆數、層數、逾時與並行數。不要等將整個 payload 載入記憶體才檢查大小。</li>
+<li>用結構 schema 驗證長度、型別、允許值，再驗證日期次序、權限及資料間約束等業務規則。明定未知欄位政策。禁止不可信資料進入 <code>pickle</code>、動態程式執行或 shell；資料庫使用參數化查詢，輸出依 HTML、JSON 等上下文安全呈現。</li>
+<li>檔案上傳改用伺服器產生的 ID，隔離儲存、不執行；存取權由資料庫紀錄決定。用路徑正規化輔助檢查，不把 <code>resolve()</code> 單獨當作隔離機制；可變 symlink 和檢查與使用之間的競態需由檔案系統或隔離權限處理。</li>
+<li>網路外呼走受控目的地、通過出口限制；網址驗證不能只對照顯示字串，需考慮 DNS、重新導向及所有連線嘗試的網路政策。Webhook 先驗整體簽章與時窗、再驗一次性／重放政策，最後才解析與執行已授權業務。</li></ol>
+<p class="sec-note">對外錯誤只回傳穩定錯誤碼及追蹤 ID；不要回堆疊、SQL、舊密碼或實際規則。以合成資料測超限、無效編碼與未知欄位；測試應證明沒有寫入或副作用，而非只確認 HTTP 回了 4xx。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="secrets" data-group="secrets"><div class="section-head"><div><span class="eyebrow">Secrets</span><h2>Secrets 不應進入程式碼、log 或測試 fixture</h2><p>密碼、token、private key 要有來源、遮罩、輪替與事故處理流程。</p></div></div><div class="sec-study"><h3>先限制誰可取得，再排輪替與撤銷</h3>
+<div class="sec-flow"><ol><li><strong>發行</strong><span>服務獨立身分，短效、窄範圍</span></li><li><strong>使用</strong><span>秘密管理服務；不寫入產物</span></li><li><strong>輪替</strong><span>驗證新憑證後切換；必要時限期並存</span></li><li><strong>失效</strong><span>撤銷舊憑證，驗證拒絕並留證據</span></li></ol></div>
+<p>程式、映像層、CI artifacts、追蹤、錯誤頁與測試 fixture 都不要存真實秘密。環境變數可用作教學分離，不是保險箱：子程序、診斷與記憶體轉儲也可能暴露。生產優先以工作負載身分向秘密管理器取短效憑證，限制誰可讀、向何處送；日誌只允許約定欄位與安全識別碼，不收原始 Authorization、Cookie 或所有 request body。</p>
+<p>外洩時先按事件程序撤銷或限制憑證，記錄使用時間、依賴與影響範圍，再輪替、重新授權並驗證舊憑證不可用。只刪除 Git 檔案或遮罩日誌，不會撤銷外洩的權限。可控的常態輪替與真實外洩時立即撤銷應分開演練。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="supply" data-group="supply"><div class="section-head"><div><span class="eyebrow">Supply Chain</span><h2>套件與建置流程要可追蹤、可重現</h2><p>lock file、hash、SBOM、弱點掃描與版本標註是 Python 交付安全的基本證據。</p></div></div><div class="sec-study"><h3>把交付門檻綁到產物，而不是綁到「某次 CI 綠燈」</h3>
+<div class="sec-flow"><ol><li><strong>受保護原始碼</strong><span>分支保護、必要覆核、最小 CI 權限</span></li><li><strong>隔離建置</strong><span>鎖版及來源、以短時身分存取私有資源</span></li><li><strong>發布證據</strong><span>digest、SBOM、弱點報告、來源證明</span></li><li><strong>部署前驗證</strong><span>身分、產物、政策版本與授權發布點</span></li></ol></div>
+<div class="sec-table" tabindex="0" role="region" aria-label="交付證據"><table><caption>各類證據各自能回答什麼</caption><thead><tr><th scope="col">證據</th><th scope="col">驗證重點</th><th scope="col">不能單獨證明</th></tr></thead><tbody>
+<tr><th scope="row">鎖檔與 hash</th><td>鎖定應用的直接及間接依賴、版本、來源及檔案；私有套件倉庫避免未審核的索引回退</td><td>套件本身沒有已知或未知風險</td></tr>
+<tr><th scope="row">SBOM + SCA</th><td>對實際發布產物產出成分清單，保存掃描日期、資料源與例外理由；高風險看公開利用、可達性、影響和修補</td><td>所有業務邏輯或所有弱點均已測過</td></tr>
+<tr><th scope="row">簽章、來源證明</th><td>依部署策略驗證簽發者、建置器／來源和產物 digest，且與審核提交相符</td><td>可重現建置或產物內容必然安全；SLSA 等級需逐條滿足適用要求</td></tr>
+<tr><th scope="row">例外與到期</th><td>範圍、補償控制、核准者、到期、重驗日期；不合政策預設阻擋</td><td>永久放行，或把過期報告挪作本次證據</td></tr>
+</tbody></table></div>
+<h3>關卡判定與變更後重驗</h3>
+<ul class="sec-list"><li><strong>Pull request：</strong>靜態分析（SAST）、秘密掃描、依賴分析及安全單元測試。失敗先定位到程式或依賴變更，再以人工覆核區辨誤報。除了情境測試，也要查身分與授權模型的變更是否涵蓋新背景工作或 API。</li>
+<li><strong>候選發布：</strong>隔離測試環境以受控合成資料跑整合測試，確認跨組織不洩漏、重送不產生重複副作用、日誌不含秘密。針對實際工件掃描並產生對應的 SBOM，優先審查政策禁止、正在被利用、可到達或高影響的弱點；不能以單一評分代替判斷。</li>
+<li><strong>部署：</strong>發布者與執行身分分離；完整驗證 digest、簽章及允許的建置身分。撤回版本或機密輪替後，重跑相同的必要測試與監控確認。安全工具未執行、資料不新鮮或證據綁錯版本，不應當作綠燈。</li></ul>
+<p>未受信任來源的 PR 只在隔離、無部署秘密的環境作檢查；發布流程與日常 PR 權限分離，第三方工作流程依組織政策固定到已審核版本。鎖檔更新與安全更新都要經複查和重新建置。部署以 digest 提升同一份產物到下一環境，不在部署點邊拉最新版邊建。<a href="https://slsa.dev/spec/v1.2/">SLSA v1.2</a> 定義來源與建置供應鏈要求；<a href="https://pip.pypa.io/en/stable/topics/secure-installs/">pip 安全安裝</a> 說明雜湊驗證模式。</p></div><div class="cards"></div></section>
+      <section class="section-block" id="runtime" data-group="runtime"><div class="section-head"><div><span class="eyebrow">Runtime</span><h2>執行期要能限制濫用並留下審計線索</h2><p>rate limit、secure error、audit log 與 incident playbook 讓安全控制能被驗證與維運。</p></div></div><div class="sec-study"><h3>發布後：先保留可追溯證據，再判斷要停止、隔離或回復</h3>
+<div class="sec-flow"><ol><li><strong>偵測與判斷</strong><span>Owner、告警門檻、影響範圍</span></li><li><strong>保存與圍堵</strong><span>留證、停用受影響身分或功能</span></li><li><strong>校驗與復原</strong><span>已知良好產物、相容性、再驗證</span></li><li><strong>復盤與補測</strong><span>根因、期限、監控與證據回填</span></li></ol></div>
+<ul class="sec-list">
+<li><strong>觀測：</strong>記 UTC、追蹤 ID、非敏感主體代號、動作、資源、決策結果與政策版本。日誌寫入／讀取／保留分權，知道自己有多少事件漏失；按政策移除秘密與不必要個資。</li>
+<li><strong>應對：</strong>先定查核與升級條件，建立清楚的值班與決策權。留存必要證據、記錄誰何時做哪項處置；不要為趕快還原而覆寫原始證據。若有持續損害，依事件指揮優先圍堵。</li>
+<li><strong>回復：</strong>重啟或回滾不等於事件解除。復原前查漏洞是否也存在於舊版本、資料庫結構是否可回退、暴露憑證是否撤銷。先灰度部署已驗證版本，檢查政策、審計、資料一致性與錯誤率，再解除圍堵。</li>
+<li><strong>演練：</strong>故障模擬只對合成環境；演練只用假憑證、離線或明確隔離資料。將偵測與復原時間、回復點、測試報告及修復議題回填需求 ID。</li></ul>
+<p>可用 NIST <a href="https://csrc.nist.gov/pubs/sp/800/61/r3/final">SP 800-61 Rev. 3</a> 的事件回應框架作為組織分工參考；對工控設備，任何實體動作須依已核准的站點操作與安全程序，監控服務不能代替安全連鎖。</p></div><div class="cards"></div></section>
       <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Security Engineering 範例專案</h2><p>`範例程式碼/security_engineering/` 示範 PBKDF2 password hash、RBAC policy、input guard、rate limiter、redacted audit 與 manifest gate。 <a href="範例程式碼/security_engineering/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/security_engineering
 PYTHONPATH=src python3 -m security_engineering.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_security_smoke.py</code></pre><div class="cards"></div>
 <div class="course-example" id="example-security-engineering">
 <h3>範例程式碼 · 授權與稽核</h3>
-<p>追蹤一次存取決策，觀察角色檢查、輸入驗證與稽核紀錄如何配合。</p>
+<p>追蹤一次存取決策，觀察角色檢查、輸入驗證與稽核紀錄如何配合。此離線範例不是多租戶授權、分散式限流或產物簽章的實作；上線需獨立驗收。</p>
 <p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/security_engineering
 PYTHONPATH=src python3 scripts/run_security_smoke.py</code></pre>
 <!-- example-source: security_engineering -->
@@ -466,6 +516,25 @@ if __name__ == "__main__":
 <!-- /example-source -->
 </div>
 </section>
+      <section class="section-block" id="acceptance">
+        <div class="section-head"><div><span class="eyebrow">Release Evidence</span><h2>上線驗收：缺證據，不當作通過</h2></div></div>
+        <div class="sec-study">
+          <ol class="sec-list">
+            <li><strong>需求覆蓋：</strong>以 SEC-01～04 連結測試名稱、執行摘要、資料版本、缺口與所有者。至少驗證允許、拒絕與錯誤路徑；測未授權時沒有存取及副作用。</li>
+            <li><strong>可追溯交付：</strong>把 commit、產物 digest、建置來源、測試、SBOM、弱點資料版本與例外整合成可複驗記錄，而不是將畫面截圖當證據。</li>
+            <li><strong>可復原維運：</strong>保存告警與對應 runbook、撤銷和輪替紀錄、復原時間及資料完整性檢查。確定灰度回退有效且不重新引入已知弱點。</li>
+          </ol>
+          <pre tabindex="0"><code>{
+  "requirement": "SEC-01",
+  "test": "cross_tenant_report_is_denied",
+  "status": "example_only",
+  "evidence_ref": null
+}</code></pre>
+          <p class="sec-note">此 JSON 是證據欄位示意，不是測試通過證明。專案不應宣稱未驗證的控制已完成，也不應把範例操作當成正式合規。</p>
+          <h3>版本查核與原始來源</h3>
+          <p><time datetime="2026-11-26">2026-11-26</time> 查核：<a href="https://csrc.nist.gov/pubs/sp/800/218/final">NIST SSDF 1.1（正式版）</a> 用於規劃與供應鏈流程，<a href="https://csrc.nist.gov/pubs/sp/800/218/r1/ipd">SSDF 1.2（公開草案）</a> 不當作正式版；<a href="https://asvs.owasp.org/downloads/">OWASP ASVS 5.0.0</a> 提供應用程式驗證要求，<a href="https://slsa.dev/spec/v1.2/">SLSA v1.2</a> 用於建置來源證明，<a href="https://www.cisa.gov/sites/default/files/2023-06/principles_approaches_for_security-by-design-default_508c.pdf">CISA Secure by Design</a> 強調安全預設。實際稽核須核對專案適用範圍與採納版本。</p>
+        </div>
+      </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
     </main>
   </div>
@@ -478,7 +547,7 @@ if __name__ == "__main__":
         ["threat-risk-rating", "Threat", "用 impact 與 likelihood 排優先級", "安全工作也要排序，先處理高影響且容易被觸發的風險。", "risk = impact * likelihood", "backlog is risk-based."]
       ],
       identity: [
-        ["identity-password-hash", "Auth", "密碼只存不可逆雜湊", "使用 PBKDF2、bcrypt 或 Argon2；標準庫 baseline 可用 pbkdf2_hmac 示範 salt 與迭代。", "hash = pbkdf2_hmac('sha256', password, salt, 200000)", "plain password is never stored."],
+        ["identity-password-hash", "Auth", "密碼只存不可逆雜湊", "範例用標準庫 PBKDF2 示範 salt 和迭代；範例數值不是正式部署建議，部署須按適用規範、最佳實務及容量測試選值。", "hash = pbkdf2_hmac('sha256', password, salt, 200000)", "plain password is never stored."],
         ["identity-compare", "Auth", "驗證 token 使用 constant-time compare", "避免以普通字串比較造成 timing side channel。", "hmac.compare_digest(expected, actual)", "comparison leaks less timing signal."],
         ["identity-rbac", "AuthZ", "授權規則寫成 policy", "controller 不應散落 if admin；把 role、action、resource 集中成可測規則。", "policy.can(user, 'delete', 'order')", "authorization is testable."],
         ["identity-deny-default", "AuthZ", "授權預設拒絕", "未知 role、未知 action、缺少 tenant context 都應 fail closed。", "return False for unknown permission", "missing rule does not grant access."]
@@ -486,7 +555,7 @@ if __name__ == "__main__":
       input: [
         ["input-schema", "Input", "輸入要有 schema 與型別邊界", "即使不用外部框架，也應檢查必填欄位、型別、長度與允許值。", "validate_payload({'email': value, 'role': role})", "bad shape is rejected."],
         ["input-size", "Input", "限制 payload 與欄位長度", "無限制字串、檔案或 JSON 會造成記憶體與 log 污染風險。", "if len(name) > 80: reject", "resource use is bounded."],
-        ["input-path", "Input", "路徑輸入要防止 traversal", "`../`、絕對路徑與 symlink 風險要在讀寫檔案前處理。", "resolve().is_relative_to(base)", "file access stays in sandbox."],
+        ["input-path", "Input", "路徑輸入要防止 traversal", "`../`、絕對路徑與 symlink 風險要在讀寫檔案前處理。", "resolve().is_relative_to(base)", "normalization is only one control."],
         ["input-error", "Input", "錯誤回應不要洩漏內部細節", "對外回傳安全錯誤碼；內部 log 才保留 trace id 與診斷上下文。", "return {'error':'invalid_request','trace_id': trace_id}", "client sees safe detail level."]
       ],
       secrets: [
