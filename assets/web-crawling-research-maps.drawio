@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="crawl-0" name="授權擷取架構">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="410" grid="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="src" value="&lt;b&gt;授權來源&lt;/b&gt;&lt;br&gt;核准的主機／路徑與配額" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="40" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="fetch" value="&lt;b&gt;擷取控制器&lt;/b&gt;&lt;br&gt;節流、429、內容限制" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="275" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="parse" value="&lt;b&gt;解析與品質&lt;/b&gt;&lt;br&gt;候選、型別、去重、拒絕" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="510" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="out" value="&lt;b&gt;暫存與證據&lt;/b&gt;&lt;br&gt;版本、計數、SHA-256" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="745" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="edge-0" source="src" target="fetch" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-1" source="fetch" target="parse" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-2" source="parse" target="out" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="note" value="本機合成測試；不連外站、不繞過驗證。至少保留來源授權、計數、版本與品質判定。" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="40" y="310" width="915" height="62" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="crawl-1" name="資料品質流程">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="410" grid="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="raw" value="&lt;b&gt;候選輸入&lt;/b&gt;&lt;br&gt;保留缺欄位" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="40" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="validate" value="&lt;b&gt;驗證契約&lt;/b&gt;&lt;br&gt;型別、主鍵、單位與範圍" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="275" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="gate" value="&lt;b&gt;品質閘門&lt;/b&gt;&lt;br&gt;有有效資料且無錯誤？" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="510" y="130" width="176" height="78" />
+        </mxCell>
+        <mxCell id="ok" value="&lt;b&gt;通過&lt;/b&gt;&lt;br&gt;交付可用版本" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="780" y="55" width="176" height="78" />
+        </mxCell>
+        <mxCell id="reject" value="&lt;b&gt;失敗&lt;/b&gt;&lt;br&gt;隔離並保留前版" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="780" y="205" width="176" height="78" />
+        </mxCell>
+        <mxCell id="edge-0" source="raw" target="validate" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-1" source="validate" target="gate" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-2" source="gate" target="ok" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-3" source="gate" target="reject" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#397583;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="note" value="本機合成測試；不連外站、不繞過驗證。至少保留來源授權、計數、版本與品質判定。" parent="1" vertex="1" style="html=1;rounded=1;whiteSpace=wrap;fillColor=#eaf5fb;strokeColor=#6a95aa;fontColor=#153149;fontSize=16;spacing=7;">
+          <mxGeometry as="geometry" x="40" y="310" width="915" height="62" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
