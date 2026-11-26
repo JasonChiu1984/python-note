@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html data-lab-layout lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python 3.15 效能與記憶體工程：Benchmark、Profile 與 Budget</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Google Fonts: Inter, Noto Sans TC, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            canvas: '#0b1120',
+            surface: '#0f172a',
+            card: '#1e293b',
+            emeraldBrand: '#10b981',
+            skyBrand: '#38bdf8',
+            amberBrand: '#f59e0b',
+            roseBrand: '#f43f5e',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* 自訂捲軸與微互動樣式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1120;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* 客製化 Range Slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #334155;
+      height: 6px;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #10b981;
+    }
+
+    /* 分頁淡入動畫 */
+    .tab-panel {
+      animation: fadeSlideIn 0.25s ease-out;
+    }
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 火焰圖區塊微互動 */
+    .flame-frame {
+      transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .flame-frame:hover {
+      filter: brightness(1.15);
+      z-index: 10;
+    }
+    .flame-frame-selected {
+      box-shadow: inset 0 0 0 2px #ffffff, 0 0 12px rgba(56, 189, 248, 0.6);
+      filter: brightness(1.18);
+      z-index: 20;
+    }
+  </style>
+<link rel="stylesheet" href="assets/interactive-labs-responsive.css">
+<style>
+html[data-lab-layout] .lab-note-links{box-sizing:border-box;width:100%;max-width:var(--lab-frame);margin-inline:auto;padding:.55rem var(--lab-gutter);display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem .85rem;overflow-wrap:anywhere}
+html[data-lab-layout] .lab-note-links a{text-decoration:underline}
+html[data-lab-layout] .lab-note-links p{margin:0;font-size:var(--lab-type-detail)}
+html[data-lab-layout] body > header h1 {white-space:normal;overflow:visible;text-overflow:clip}
+html[data-lab-layout] main :is(.grid,.flex)>* {max-inline-size:100%}
+</style>
+</head>
+
+<body class="bg-canvas text-slate-200 font-sans antialiased selection:bg-sky-500/30 selection:text-sky-200 min-h-screen flex flex-col">
+
+  <!-- Toast 通知容器 (取代 alert) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- 頂部導覽與頁首 -->
+  <header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-slate-800/90 shadow-lg shadow-black/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <!-- 品牌與標題 -->
+        <div class="flex items-start sm:items-center gap-3">
+          <div class="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-sky-500/20 border border-emerald-500/40 flex items-center justify-center shadow-inner">
+            <span class="font-mono font-bold text-sm text-emerald-400">3.15</span>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">
+                Python 3.15 效能與記憶體工程工作台
+              </h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                Tachyon · PEP 799
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Benchmark（量化基準）· Profile（Tachyon 採樣與記憶體剖析）· Budget（效能與記憶體預算守護）
+            </p>
+          </div>
+        </div>
+
+        <!-- 狀態指示徽章 -->
+        <div class="hidden lg:flex items-center gap-2 text-xs font-mono text-slate-400 bg-canvas/80 px-3 py-1.5 rounded-lg border border-slate-800">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>CPython 3.15.0 · Frame Pointers ON · GenGC</span>
+        </div>
+      </div>
+
+      <!-- 4 個主要分頁切換按鈕 -->
+      <nav class="mt-4 flex gap-2 overflow-x-auto pb-1 no-scrollbar" aria-label="主要工作台分頁">
+        <button data-tab="tab-overview" class="nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2 border">
+          <span class="font-mono text-xs opacity-80">01</span>
+          <span>工程全景 & 3.15 新特性</span>
+        </button>
+        <button data-tab="tab-benchmark" class="nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2 border">
+          <span class="font-mono text-xs opacity-80">02</span>
+          <span>Benchmark 基準實驗室</span>
+        </button>
+        <button data-tab="tab-profile" class="nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2 border">
+          <span class="font-mono text-xs opacity-80">03</span>
+          <span>Profile 剖析工作台 (Tachyon)</span>
+        </button>
+        <button data-tab="tab-budget" class="nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2 border">
+          <span class="font-mono text-xs opacity-80">04</span>
+          <span>Budget 預算與 CI 門檻</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主內容區域 -->
+  <aside class="lab-note-links" aria-label="實驗連結與說明"><a href="index.html#python-interactive-labs">回互動實驗選單</a><a href="python_performance_memory_engineering_tutorial.html">閱讀完整教材</a><p>基準測試、火焰圖與記憶體圖使用模擬資料，不能當成實際效能驗收。</p></aside>
+<main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- ===================================================================== -->
+    <!-- 分頁 1：01 工程全景 & 3.15 新特性 -->
+    <!-- ===================================================================== -->
+    <section id="tab-overview" class="tab-panel space-y-6">
+
+      <!-- 區塊 1A：閉環工程流程圖 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-sky-400 inline-block"></span>
+              效能與記憶體閉環工程流程
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              點擊任一階段節點，檢視該階段的核心工具、常見誤區與工程驗證指標。
+            </p>
+          </div>
+          <span class="text-xs font-mono text-sky-400 bg-sky-500/10 border border-sky-500/30 px-2.5 py-1 rounded-md self-start sm:self-center">
+            Closed-Loop Performance Engineering
+          </span>
+        </div>
+
+        <!-- 互動式 4 階段節點 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 relative">
+          <!-- 節點由 JS 渲染與綁定事件 -->
+          <div id="lifecycle-nodes" class="contents"></div>
+        </div>
+
+        <!-- 閉環迴路提示條 -->
+        <div class="hidden md:flex items-center justify-center mt-3 text-[11px] font-mono text-slate-500 gap-2">
+          <div class="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-slate-700"></div>
+          <span class="px-2 py-0.5 rounded bg-surface border border-slate-800 text-slate-400">↺ CI 門檻回歸偵測觸發下一輪 Benchmark 量化基準</span>
+          <div class="h-px flex-1 bg-gradient-to-l from-transparent via-slate-700 to-slate-700"></div>
+        </div>
+
+        <!-- 展開的階段詳情面板 -->
+        <div id="lifecycle-detail" class="mt-5 bg-surface/90 border border-slate-700/80 rounded-xl p-5 transition-all">
+          <!-- 動態填充 -->
+        </div>
+      </div>
+
+      <!-- 區塊 1B：Python 3.15 效能與記憶體核心亮點卡片 -->
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <span class="w-2 h-5 rounded-full bg-emerald-400 inline-block"></span>
+            Python 3.15 效能與記憶體工程核心亮點
+          </h2>
+          <span class="text-xs font-mono text-slate-400">Release Highlights</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- 卡片 1: Tachyon -->
+          <article class="bg-card/80 border border-slate-700/70 hover:border-emerald-500/50 rounded-2xl p-5 transition-all shadow-lg flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold text-sm">
+                    ⚡
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-white text-sm sm:text-base">Tachyon 統計採樣剖析器</h3>
+                    <p class="font-mono text-xs text-emerald-400">profiling.sampling · PEP 799</p>
+                  </div>
+                </div>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  近零開銷
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 mt-3 leading-relaxed">
+                基於 PEP 768 安全外部介面，支援對線上行程零重啟 <code class="font-mono text-sky-300 bg-surface px-1.5 py-0.5 rounded">attach</code> 採樣。內建 <code class="font-mono text-sky-300">--mode wall/cpu/gil/exception</code>、<code class="font-mono text-sky-300">--async-aware</code> 與 <code class="font-mono text-sky-300">--opcodes</code>，可直接輸出 Flame Graph、逐行 Heatmap 與 Live TUI；傳統 <code class="font-mono text-slate-400">cProfile</code> 則整併至 <code class="font-mono text-slate-300">profiling.tracing</code>。
+              </p>
+            </div>
+            <div class="mt-4 bg-canvas rounded-lg p-3 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+              <span class="text-slate-500">$</span> python3.15 -m <span class="text-emerald-400">profiling.sampling</span> attach 48210 <span class="text-sky-400">--mode gil --flamegraph</span>
+            </div>
+          </article>
+
+          <!-- 卡片 2: lazy import -->
+          <article class="bg-card/80 border border-slate-700/70 hover:border-sky-500/50 rounded-2xl p-5 transition-all shadow-lg flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 font-mono font-bold text-sm">
+                    ⏳
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-white text-sm sm:text-base">顯式延遲匯入 (Explicit Lazy Import)</h3>
+                    <p class="font-mono text-xs text-sky-400">lazy import · 冷啟動與 RSS 減重</p>
+                  </div>
+                </div>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
+                  啟動加速
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 mt-3 leading-relaxed">
+                以顯式語法延後重型套件（如 <code class="font-mono text-amber-300">torch</code>、<code class="font-mono text-amber-300">pandas</code>、<code class="font-mono text-amber-300">scipy</code>）的實際載入與初始化，直到程式碼首次存取該名稱才觸發匯入。大幅縮短 CLI、Serverless 與微服務冷啟動延遲，並顯著壓低閒置 Worker 的基準 RSS 記憶體佔用。
+              </p>
+            </div>
+            <div class="mt-4 bg-canvas rounded-lg p-3 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+              <span class="text-sky-400">lazy import</span> torch, pandas <span class="text-slate-500"># 僅在實際推論路徑才載入</span>
+            </div>
+          </article>
+
+          <!-- 卡片 3: Generational GC + gc.freeze() + frozendict -->
+          <article class="bg-card/80 border border-slate-700/70 hover:border-amber-500/50 rounded-2xl p-5 transition-all shadow-lg flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-mono font-bold text-sm">
+                    🧊
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-white text-sm sm:text-base">經典分代 GC 回歸與 frozendict</h3>
+                    <p class="font-mono text-xs text-amber-400">Generational GC · gc.freeze() · frozendict</p>
+                  </div>
+                </div>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  CoW 共享
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 mt-3 leading-relaxed">
+                Python 3.15 回歸穩定可預測的經典分代 GC（Generational GC），消除尾延遲不可預期波動。在 Gunicorn/Uvicorn 等 Fork 模型下搭配 <code class="font-mono text-emerald-300">gc.freeze()</code> 凍結常駐物件，避免 GC 寫入標頭破壞 Copy-on-Write (CoW) 共享頁；並內建不可變且可雜湊的 <code class="font-mono text-sky-300">frozendict</code> 提升快取鍵與只讀設定的記憶體安全與效能。
+              </p>
+            </div>
+            <div class="mt-4 bg-canvas rounded-lg p-3 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+              gc.<span class="text-emerald-400">freeze</span>()  <span class="text-slate-500"># Fork 前凍結；</span> cfg = <span class="text-sky-400">frozendict</span>(timeout=30)
+            </div>
+          </article>
+
+          <!-- 卡片 4: Frame Pointers -->
+          <article class="bg-card/80 border border-slate-700/70 hover:border-purple-500/50 rounded-2xl p-5 transition-all shadow-lg flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 font-mono font-bold text-sm">
+                    🔬
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-white text-sm sm:text-base">預設啟用 Frame Pointers</h3>
+                    <p class="font-mono text-xs text-purple-400">perf · eBPF · Native C/Rust Unwinding</p>
+                  </div>
+                </div>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                  全堆疊視野
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 mt-3 leading-relaxed">
+                官方建置預設保留 Frame Pointers（<code class="font-mono text-slate-300">-fno-omit-frame-pointer</code>），讓 Linux <code class="font-mono text-purple-300">perf</code> 與 eBPF 剖析工具能無縫展開原生堆疊，打通 Python 函式與底層 C 擴充套件（NumPy、PyO3/Rust、OpenSSL、SQLite）之間的效能黑盒。
+              </p>
+            </div>
+            <div class="mt-4 bg-canvas rounded-lg p-3 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+              <span class="text-slate-500">$</span> perf record -F 999 -g --call-graph <span class="text-purple-400">fp</span> -- python3.15 app.py
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 分頁 2：02 Benchmark 基準實驗室 -->
+    <!-- ===================================================================== -->
+    <section id="tab-benchmark" class="tab-panel hidden space-y-6">
+
+      <!-- 模擬器主體 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-sky-400 inline-block"></span>
+              互動式 Benchmark 統計與陷阱模擬器
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              調整預熱、GC 隔離與環境雜訊，觀察分佈長尾（P95/P99）與變異係數（CV%）如何影響基準結論。
+            </p>
+          </div>
+          <button id="btn-run-bench" class="shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+            <span>▶</span>
+            <span>執行基準模擬</span>
+          </button>
+        </div>
+
+        <!-- 比較場景選擇 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="bench-scenarios">
+          <button data-scenario="lazy_import" class="bench-scenario-btn text-left p-3.5 rounded-xl border transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-sky-400">SCENARIO 01</span>
+              <span class="font-mono text-[11px] text-slate-400">單位: ms</span>
+            </div>
+            <div class="font-semibold text-sm text-white mt-1">冷啟動比較</div>
+            <div class="text-xs text-slate-400 mt-0.5">Eager Import vs 3.15 <code class="font-mono text-emerald-400">lazy import</code></div>
+          </button>
+
+          <button data-scenario="slots_frozendict" class="bench-scenario-btn text-left p-3.5 rounded-xl border transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-sky-400">SCENARIO 02</span>
+              <span class="font-mono text-[11px] text-slate-400">單位: μs / 1k ops</span>
+            </div>
+            <div class="font-semibold text-sm text-white mt-1">記憶體與存取開銷</div>
+            <div class="text-xs text-slate-400 mt-0.5">一般 dict/class vs <code class="font-mono text-emerald-400">__slots__ + frozendict</code></div>
+          </button>
+
+          <button data-scenario="comp_unpack" class="bench-scenario-btn text-left p-3.5 rounded-xl border transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-sky-400">SCENARIO 03</span>
+              <span class="font-mono text-[11px] text-slate-400">單位: ms</span>
+            </div>
+            <div class="font-semibold text-sm text-white mt-1">資料管線展開</div>
+            <div class="text-xs text-slate-400 mt-0.5">巢狀迴圈 vs <code class="font-mono text-emerald-400">[*b for b in batches]</code></div>
+          </button>
+        </div>
+
+        <!-- 控制參數列 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-surface/90 border border-slate-800 rounded-xl p-4">
+          <!-- Warmup 開關 -->
+          <label class="flex items-start gap-3 cursor-pointer select-none">
+            <input type="checkbox" id="bench-warmup" checked class="mt-1 w-4 h-4 accent-emerald-500 rounded cursor-pointer" />
+            <div>
+              <div class="text-xs sm:text-sm font-medium text-white">啟用 Warmup 預熱</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">穩定 Adaptive Interpreter 特化</div>
+            </div>
+          </label>
+
+          <!-- GC 隔離開關 -->
+          <label class="flex items-start gap-3 cursor-pointer select-none">
+            <input type="checkbox" id="bench-gc" checked class="mt-1 w-4 h-4 accent-emerald-500 rounded cursor-pointer" />
+            <div>
+              <div class="text-xs sm:text-sm font-medium text-white">隔離 GC 干擾</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">控制變數，消除 STW 尖峰</div>
+            </div>
+          </label>
+
+          <!-- 背景雜訊選擇 -->
+          <div>
+            <div class="text-xs sm:text-sm font-medium text-white mb-1.5">背景雜訊 / CPU 頻率抖動</div>
+            <div class="grid grid-cols-3 gap-1.5 bg-canvas p-1 rounded-lg border border-slate-800">
+              <button data-noise="low" class="noise-btn py-1 rounded text-xs font-medium transition-all">低</button>
+              <button data-noise="medium" class="noise-btn py-1 rounded text-xs font-medium transition-all">中</button>
+              <button data-noise="high" class="noise-btn py-1 rounded text-xs font-medium transition-all">高</button>
+            </div>
+          </div>
+
+          <!-- 取樣次數 N -->
+          <div>
+            <div class="flex items-center justify-between text-xs sm:text-sm font-medium text-white mb-1.5">
+              <span>取樣次數 N</span>
+              <span id="bench-n-val" class="font-mono text-sky-400">150</span>
+            </div>
+            <input type="range" id="bench-n" min="20" max="500" step="10" value="150" class="w-full" />
+            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+              <span>20</span>
+              <span>250</span>
+              <span>500</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 統計可信度判定橫幅 -->
+        <div id="bench-verdict-banner" class="rounded-xl p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <!-- 動態渲染 -->
+        </div>
+
+        <!-- 雙組分佈直方圖 + 箱型對比圖 (純 SVG) -->
+        <div class="bg-surface/90 border border-slate-800 rounded-xl p-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 class="text-xs sm:text-sm font-semibold text-slate-200">
+              雙組執行時間分佈直方圖與百分位數對比（P50 / P95 / P99）
+            </h3>
+            <div class="flex flex-wrap items-center gap-4 text-xs font-mono">
+              <span class="flex items-center gap-1.5 text-rose-300">
+                <span class="w-3 h-3 rounded-sm bg-rose-500/60 border border-rose-400 inline-block"></span>
+                <span id="legend-baseline">對照組 (Baseline)</span>
+              </span>
+              <span class="flex items-center gap-1.5 text-emerald-300">
+                <span class="w-3 h-3 rounded-sm bg-emerald-500/60 border border-emerald-400 inline-block"></span>
+                <span id="legend-optimized">Python 3.15 優化組</span>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="lab-diagram-size" data-lab-diagram-size aria-pressed="false" aria-controls="bench-chart-container">放大檢視</button>
+<div id="bench-chart-container" class="w-full overflow-x-auto lab-diagram" role="region" aria-label="效能基準圖表檢視區" tabindex="0">
+            <!-- SVG 圖表由 JS 動態繪製 -->
+          </div>
+        </div>
+
+        <!-- 統計摘要卡片列 -->
+        <div id="bench-stats-grid" class="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <!-- 動態渲染 -->
+        </div>
+      </div>
+
+      <!-- Benchmark 工程檢查清單 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-emerald-400 inline-block"></span>
+              Benchmark 工程檢查清單
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              勾選您已落實的基準測試紀律，即時計算實驗的「基準可靠度分數」。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 bg-surface px-4 py-2.5 rounded-xl border border-slate-700/80">
+            <div class="text-right">
+              <div class="text-[11px] text-slate-400">基準可靠度分數</div>
+              <div id="checklist-score-text" class="font-mono font-bold text-lg text-emerald-400">0%</div>
+            </div>
+            <div class="w-24 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="checklist-score-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="bench-checklist" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Checklist 項目由 JS 渲染 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 分頁 3：03 Profile 剖析工作台 (Tachyon 3.15 & Memory) -->
+    <!-- ===================================================================== -->
+    <section id="tab-profile" class="tab-panel hidden space-y-6">
+
+      <!-- 區塊 3A：Tachyon 指令建構器 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-emerald-400 inline-block"></span>
+              Python 3.15 Tachyon (<code class="font-mono text-emerald-400">profiling.sampling</code>) 指令建構器
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              組合目標模式、量測維度與輸出格式，即時生成可執行的低開銷採樣剖析指令。
+            </p>
+          </div>
+          <div id="tachyon-overhead-badge" class="self-start sm:self-center font-mono text-xs px-3 py-1.5 rounded-lg border">
+            <!-- 動態開銷標章 -->
+          </div>
+        </div>
+
+        <!-- 建構器選項網格 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 1. 目標模式 -->
+          <div class="bg-surface/90 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">1. 目標模式</div>
+            <div class="space-y-1.5" id="tachyon-target-group">
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-target" value="run script.py" checked class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">run script.py</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-target" value="run -m app.server" class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">run -m app.server</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-target" value="attach 48210" class="accent-emerald-500" />
+                <span class="font-mono text-emerald-300">attach &lt;PID&gt;</span>
+                <span class="text-[10px] text-slate-400 ml-auto">線上零重啟</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-target" value="dump 48210" class="accent-emerald-500" />
+                <span class="font-mono text-amber-300">dump &lt;PID&gt;</span>
+                <span class="text-[10px] text-slate-400 ml-auto">卡頓快照</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. 量測維度 -->
+          <div class="bg-surface/90 border border-slate-800 rounded-xl p-3.5 space-y-2" id="tachyon-mode-box">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">2. 量測維度 (--mode)</div>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-mode" value="wall" checked class="accent-sky-400" />
+                <span class="font-mono text-sky-300">wall</span>
+                <span class="text-[11px] text-slate-400 ml-auto">含 I/O 等待</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-mode" value="cpu" class="accent-sky-400" />
+                <span class="font-mono text-sky-300">cpu</span>
+                <span class="text-[11px] text-slate-400 ml-auto">純 CPU 運算</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-mode" value="gil" class="accent-sky-400" />
+                <span class="font-mono text-amber-300">gil</span>
+                <span class="text-[11px] text-slate-400 ml-auto">GIL 持有競爭</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-mode" value="exception" class="accent-sky-400" />
+                <span class="font-mono text-rose-300">exception</span>
+                <span class="text-[11px] text-slate-400 ml-auto">例外處理開銷</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 3. 輸出格式 -->
+          <div class="bg-surface/90 border border-slate-800 rounded-xl p-3.5 space-y-2" id="tachyon-format-box">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">3. 輸出格式</div>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-format" value="--flamegraph -o flame.html" checked class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">--flamegraph</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-format" value="--heatmap -o heatmap/" class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">--heatmap</span>
+                <span class="text-[11px] text-slate-400 ml-auto">逐行熱圖</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-format" value="--gecko -o profile.json" class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">--gecko</span>
+                <span class="text-[11px] text-slate-400 ml-auto">Firefox</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-format" value="--live" class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">--live</span>
+                <span class="text-[11px] text-slate-400 ml-auto">即時 TUI</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="radio" name="t-format" value="--pstats -o out.prof" class="accent-emerald-500" />
+                <span class="font-mono text-slate-200">--pstats</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. 進階旗標 -->
+          <div class="bg-surface/90 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">4. 進階旗標</div>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="checkbox" id="flag-async" class="t-flag accent-sky-400 w-4 h-4" value="--async-aware" />
+                <span class="font-mono text-sky-300">--async-aware</span>
+                <span class="text-[10px] text-slate-400 ml-auto">協程堆疊</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="checkbox" id="flag-opcodes" class="t-flag accent-sky-400 w-4 h-4" value="--opcodes" />
+                <span class="font-mono text-emerald-300">--opcodes</span>
+                <span class="text-[10px] text-slate-400 ml-auto">特化資訊</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="checkbox" id="flag-all" class="t-flag accent-sky-400 w-4 h-4" value="-a" />
+                <span class="font-mono text-slate-200">-a</span>
+                <span class="text-[10px] text-slate-400 ml-auto">所有執行緒</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs sm:text-sm cursor-pointer p-1.5 rounded hover:bg-slate-800/70">
+                <input type="checkbox" id="flag-blocking" class="t-flag accent-amber-400 w-4 h-4" value="--blocking" />
+                <span class="font-mono text-amber-300">--blocking</span>
+                <span class="text-[10px] text-slate-400 ml-auto">一致性 ~1-2%</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 產出的指令與診斷說明 -->
+        <div class="bg-canvas border border-slate-700/80 rounded-xl p-4 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="font-mono text-xs sm:text-sm text-emerald-300 overflow-x-auto whitespace-nowrap py-1" id="tachyon-cmd-output">
+              <!-- 動態指令 -->
+            </div>
+            <button id="btn-copy-tachyon" class="shrink-0 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white border border-slate-600 transition-colors flex items-center justify-center gap-1.5">
+              <span>📋</span>
+              <span>複製指令</span>
+            </button>
+          </div>
+          <div id="tachyon-diagnosis-note" class="text-xs sm:text-sm text-slate-300 border-t border-slate-800 pt-3 leading-relaxed">
+            <!-- 動態解釋 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 區塊 3B：互動式火焰圖與記憶體剖析模擬器 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-rose-400 inline-block"></span>
+              互動式火焰圖與記憶體剖析模擬器 (Flame Graph + <code class="font-mono text-sky-400">tracemalloc</code>)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              切換真實工程場景並點擊火焰圖任一 Frame，右側 Inspector 將顯示 3.15 診斷洞察與重構對比。
+            </p>
+          </div>
+
+          <!-- 3 個場景切換按鈕 -->
+          <div class="flex flex-wrap gap-2" id="flame-scenario-tabs">
+            <button data-fscene="gil_cpu" class="fscene-btn px-3 py-2 rounded-lg text-xs font-medium border transition-all">
+              場景 A：CPU 與 GIL 競爭
+            </button>
+            <button data-fscene="async_block" class="fscene-btn px-3 py-2 rounded-lg text-xs font-medium border transition-all">
+              場景 B：Asyncio 同步阻塞
+            </button>
+            <button data-fscene="mem_bloat" class="fscene-btn px-3 py-2 rounded-lg text-xs font-medium border transition-all">
+              場景 C：記憶體膨脹與冷啟動
+            </button>
+          </div>
+        </div>
+
+        <!-- 左側火焰圖 + 右側 Inspector -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <!-- 火焰圖容器 (7 cols) -->
+          <div class="lg:col-span-7 bg-surface/90 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <span id="flame-meta-title" class="font-mono text-sky-400 font-semibold"></span>
+              <span id="flame-meta-mode" class="font-mono text-slate-400 bg-canvas px-2 py-0.5 rounded border border-slate-800"></span>
+            </div>
+
+            <!-- 火焰圖階層區域 -->
+            <div id="flamegraph-canvas" class="space-y-1.5 py-2 select-none">
+              <!-- 由 JS 渲染階層式火焰圖 -->
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+              <span>💡 提示：點擊上方任意橫條 Frame 以檢視詳細剖析資料</span>
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500/80 inline-block"></span>瓶頸熱點</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500/80 inline-block"></span>中度開銷</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-sky-500/60 inline-block"></span>正常呼叫</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側 Inspector 面板 (5 cols) -->
+          <div id="flame-inspector" class="lg:col-span-5 bg-surface/90 border border-slate-700/80 rounded-xl p-4 sm:p-5 space-y-4">
+            <!-- 動態渲染選定 Frame 之詳細資訊與 Before/After -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 分頁 4：04 Budget 預算與 CI 門檻 -->
+    <!-- ===================================================================== -->
+    <section id="tab-budget" class="tab-panel hidden space-y-6">
+
+      <!-- 區塊 4A：效能與記憶體 Budget 規劃計算器 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl space-y-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-amber-400 inline-block"></span>
+              效能與記憶體 Budget 規劃計算器
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              設定服務 P95 延遲配額與多 Worker 記憶體上限，即時評估 CoW 共享效益與超支風險。
+            </p>
+          </div>
+
+          <!-- 快速範本按鈕 -->
+          <div class="flex flex-wrap gap-2">
+            <button data-preset="fastapi" class="budget-preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-slate-700 text-sky-300 border border-slate-700 transition-colors">
+              🚀 FastAPI 高併發微服務
+            </button>
+            <button data-preset="rag" class="budget-preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-slate-700 text-emerald-300 border border-slate-700 transition-colors">
+              🧠 AI / RAG 推論閘道
+            </button>
+            <button data-preset="worker" class="budget-preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors">
+              ⚙️ 資料處理背景 Worker
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- 左側控制滑桿 (6 cols) -->
+          <div class="lg:col-span-6 space-y-5 bg-surface/90 border border-slate-800 rounded-xl p-4 sm:p-5">
+            <!-- 延遲預算控制 -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-sky-400">延遲預算分配 (ms)</h3>
+                <span class="text-xs font-mono text-slate-400">P95 上限: <strong id="val-p95-limit" class="text-white">120</strong> ms</span>
+              </div>
+              <input type="range" id="slider-p95-limit" min="30" max="800" step="10" value="120" class="w-full" />
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">I/O & DB 查詢</span>
+                    <span class="font-mono text-sky-300"><span id="val-lat-io">45</span> ms</span>
+                  </div>
+                  <input type="range" id="slider-lat-io" min="5" max="400" step="5" value="45" class="w-full" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">Python 業務邏輯</span>
+                    <span class="font-mono text-emerald-300"><span id="val-lat-py">30</span> ms</span>
+                  </div>
+                  <input type="range" id="slider-lat-py" min="5" max="300" step="5" value="30" class="w-full" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">序列化 / Pydantic</span>
+                    <span class="font-mono text-purple-300"><span id="val-lat-ser">20</span> ms</span>
+                  </div>
+                  <input type="range" id="slider-lat-ser" min="2" max="150" step="2" value="20" class="w-full" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">GC 停頓預留</span>
+                    <span class="font-mono text-amber-300"><span id="val-lat-gc">10</span> ms</span>
+                  </div>
+                  <input type="range" id="slider-lat-gc" min="2" max="80" step="2" value="10" class="w-full" />
+                </div>
+              </div>
+            </div>
+
+            <hr class="border-slate-800" />
+
+            <!-- 記憶體與 Worker 控制 -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">記憶體與多進程配置</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">單 Worker RSS 上限</span>
+                    <span class="font-mono text-white"><span id="val-rss-limit">256</span> MB</span>
+                  </div>
+                  <input type="range" id="slider-rss-limit" min="64" max="2048" step="32" value="256" class="w-full" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-slate-300">Worker 進程數 (Fork)</span>
+                    <span class="font-mono text-white"><span id="val-workers">4</span> procs</span>
+                  </div>
+                  <input type="range" id="slider-workers" min="1" max="16" step="1" value="4" class="w-full" />
+                </div>
+              </div>
+
+              <!-- 3.15 最佳化開關 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <label class="flex items-start gap-2.5 p-2.5 rounded-lg bg-canvas border border-slate-800 cursor-pointer hover:border-sky-500/40">
+                  <input type="checkbox" id="budget-lazy" checked class="mt-0.5 w-4 h-4 accent-sky-400" />
+                  <div>
+                    <div class="text-xs font-semibold text-white">啟用 <code class="font-mono text-sky-400">lazy import</code></div>
+                    <div class="text-[11px] text-slate-400">節省啟動時間與基礎 RSS</div>
+                  </div>
+                </label>
+                <label class="flex items-start gap-2.5 p-2.5 rounded-lg bg-canvas border border-slate-800 cursor-pointer hover:border-emerald-500/40">
+                  <input type="checkbox" id="budget-freeze" checked class="mt-0.5 w-4 h-4 accent-emerald-400" />
+                  <div>
+                    <div class="text-xs font-semibold text-white">啟用 <code class="font-mono text-emerald-400">gc.freeze()</code></div>
+                    <div class="text-[11px] text-slate-400">提升 Fork CoW 記憶體共享</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側即時視覺化儀表 (6 cols) -->
+          <div class="lg:col-span-6 space-y-5">
+            <!-- 延遲預算分配條 -->
+            <div id="latency-budget-card" class="bg-surface/90 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-3 transition-all">
+              <div class="flex items-center justify-between gap-2">
+                <h3 class="text-sm font-bold text-white">P95 延遲預算分配條</h3>
+                <span id="latency-status-badge" class="font-mono text-xs px-2.5 py-1 rounded-full font-semibold"></span>
+              </div>
+
+              <!-- 堆疊進度條 -->
+              <div class="w-full h-7 bg-canvas rounded-lg overflow-hidden flex border border-slate-700/80" id="latency-stacked-bar">
+                <!-- JS 動態更新寬度 -->
+              </div>
+
+              <!-- 圖例與數值 -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono pt-1">
+                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-sky-500"></span><span class="text-slate-300">I/O: <b id="bar-txt-io"></b></span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span><span class="text-slate-300">Logic: <b id="bar-txt-py"></b></span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-purple-500"></span><span class="text-slate-300">Serde: <b id="bar-txt-ser"></b></span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span><span class="text-slate-300">GC: <b id="bar-txt-gc"></b></span></div>
+              </div>
+            </div>
+
+            <!-- 總記憶體與 CoW 估算儀表 -->
+            <div class="bg-surface/90 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white">總記憶體與 Copy-on-Write (CoW) 估算</h3>
+                <span id="mem-cow-badge" class="font-mono text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded"></span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-canvas border border-slate-800 rounded-xl p-3">
+                  <div class="text-[11px] text-slate-400">預估單 Worker 有效 RSS</div>
+                  <div class="font-mono text-xl font-bold text-white mt-1"><span id="metric-worker-rss">0</span> <span class="text-xs text-slate-400">MB</span></div>
+                  <div id="metric-worker-rss-note" class="text-[11px] mt-1 font-mono"></div>
+                </div>
+                <div class="bg-canvas border border-slate-800 rounded-xl p-3">
+                  <div class="text-[11px] text-slate-400">總實體記憶體需求 (RAM)</div>
+                  <div class="font-mono text-xl font-bold text-sky-400 mt-1"><span id="metric-total-ram">0</span> <span class="text-xs text-slate-400">MB</span></div>
+                  <div id="metric-cow-ratio" class="text-[11px] text-slate-400 mt-1 font-mono"></div>
+                </div>
+              </div>
+
+              <!-- 最佳化節省摘要 -->
+              <div class="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div class="text-emerald-200">
+                  <strong class="text-emerald-400">Python 3.15 最佳化效益：</strong>
+                  節省實體記憶體 <strong id="metric-saved-mb" class="font-mono text-white">0 MB</strong>，縮短冷啟動延遲 <strong id="metric-saved-ms" class="font-mono text-white">0 ms</strong>。
+                </div>
+                <span id="metric-opt-status" class="font-mono text-[11px] text-emerald-300 shrink-0"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 區塊 4B：CI 門檻程式碼自動生成器 -->
+      <div class="bg-card/80 border border-slate-700/70 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-5 rounded-full bg-sky-400 inline-block"></span>
+              CI 門檻與守護程式碼自動生成器
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              以下程式碼已即時套用您上方設定的 P95 延遲、RSS 上限與 3.15 選項，可直接複製導入專案。
+            </p>
+          </div>
+          <button id="btn-copy-ci" class="shrink-0 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5">
+            <span>📋</span>
+            <span>複製程式碼</span>
+          </button>
+        </div>
+
+        <!-- 3 個程式碼分頁 -->
+        <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3" id="ci-code-tabs">
+          <button data-citab="guard" class="ci-tab-btn px-3.5 py-2 rounded-lg text-xs font-medium border transition-all">
+            1. Python Budget Guard 腳本
+          </button>
+          <button data-citab="gha" class="ci-tab-btn px-3.5 py-2 rounded-lg text-xs font-medium border transition-all">
+            2. GitHub Actions CI 工作流 YAML
+          </button>
+          <button data-citab="tachyon_alert" class="ci-tab-btn px-3.5 py-2 rounded-lg text-xs font-medium border transition-all">
+            3. Tachyon 線上採樣告警腳本
+          </button>
+        </div>
+
+        <!-- 程式碼顯示區 -->
+        <div class="relative bg-canvas border border-slate-800 rounded-xl p-4 overflow-x-auto">
+          <pre id="ci-code-output" class="font-mono text-xs sm:text-[13px] leading-relaxed text-slate-200 whitespace-pre"></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="border-t border-slate-800/80 bg-surface/60 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <div>Python 3.15 效能與記憶體工程工作台 · 專為現代 Python 系統效能工程設計</div>
+      <div class="font-mono">Benchmark · Tachyon (PEP 799) · tracemalloc · Budget Guard</div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- 核心互動邏輯 (原生 JavaScript，無外部依賴失敗風險) -->
+  <!-- ===================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* -------------------------------------------------------------------
+       * 通用工具函式：Toast 通知與剪貼簿複製 (相容 iFrame)
+       * ------------------------------------------------------------------- */
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const colors = {
+          success: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-200',
+          info: 'bg-sky-950/95 border-sky-500/60 text-sky-200',
+          warn: 'bg-amber-950/95 border-amber-500/60 text-amber-200',
+        };
+        toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-medium shadow-xl backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+        setTimeout(() => {
+          toast.classList.add('translate-y-2', 'opacity-0');
+          setTimeout(() => toast.remove(), 300);
+        }, 2400);
+      }
+
+      function copyTextToClipboard(text, label = '內容') {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-9999px';
+          textarea.style.top = '0';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(textarea);
+          if (ok) {
+            showToast(`已複製${label}至剪貼簿`, 'success');
+          } else {
+            showToast('複製失敗，請手動選取複製', 'warn');
+          }
+        } catch (err) {
+          showToast('無法存取剪貼簿，請手動選取複製', 'warn');
+        }
+      }
+
+      /* -------------------------------------------------------------------
+       * 頂部 4 分頁切換邏輯
+       * ------------------------------------------------------------------- */
+      const navTabs = document.querySelectorAll('.nav-tab');
+      const tabPanels = document.querySelectorAll('.tab-panel');
+
+      function switchMainTab(targetId) {
+        navTabs.forEach((btn) => {
+          const isActive = btn.dataset.tab === targetId;
+          if (isActive) {
+            btn.className = 'nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150 flex items-center gap-2 border bg-sky-500/15 text-sky-300 border-sky-500/50 shadow-sm shadow-sky-500/10';
+          } else {
+            btn.className = 'nav-tab shrink-0 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2 border bg-surface/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700';
+          }
+        });
+        tabPanels.forEach((panel) => {
+          if (panel.id === targetId) {
+            panel.classList.remove('hidden');
+          } else {
+            panel.classList.add('hidden');
+          }
+        });
+      }
+
+      navTabs.forEach((btn) => {
+        btn.addEventListener('click', () => switchMainTab(btn.dataset.tab));
+      });
+      switchMainTab('tab-overview');
+
+      /* -------------------------------------------------------------------
+       * 分頁 1：閉環工程流程圖資料與互動
+       * ------------------------------------------------------------------- */
+      const LIFECYCLE_STAGES = [
+        {
+          id: 'benchmark',
+          step: '01',
+          title: 'Benchmark 量化基準',
+          en: 'Measure Before Guessing',
+          color: 'sky',
+          summary: '在修改任何一行程式碼之前，建立可重現、具統計顯著性的基準線（Baseline），量測分佈而非單次耗時。',
+          tools: ['pyperf (多進程隔離)', 'pytest-benchmark', 'hyperfine (冷啟動 CLI)', 'time.perf_counter_ns()'],
+          pitfalls: [
+            '忽略 Warmup 預熱，導致量到未特化的位元組碼（PEP 659 Adaptive Interpreter 尚未收斂）。',
+            '僅看平均值（Mean）忽略 P95 / P99 長尾與變異係數（CV%）。',
+            '在筆電省電模式或高背景負載下跑基準，數據雜訊掩蓋真實差異。'
+          ],
+          metrics: ['P50 / P95 / P99 延遲', '變異係數 CV% < 5%', 'Peak RSS & 冷啟動 ms', '加速比 Speedup 與信賴區間']
+        },
+        {
+          id: 'profile',
+          step: '02',
+          title: 'Profile 定位瓶頸',
+          en: 'Pinpoint Real Hotspots',
+          color: 'emerald',
+          summary: '使用 Python 3.15 內建 Tachyon 採樣剖析器與 tracemalloc，以極低開銷精準找出真正佔用 CPU、GIL、Event Loop 或記憶體的熱點。',
+          tools: ['python3.15 -m profiling.sampling (Tachyon)', 'tracemalloc (Peak/Diff 追蹤)', 'perf / eBPF (Frame Pointers)', 'profiling.tracing (確定性剖析)'],
+          pitfalls: [
+            '在線上高併發服務使用 tracing 剖析器（如舊版 cProfile），引發嚴重觀察者效應與延遲暴增。',
+            '只看 CPU Time 而漏掉 I/O 等待或 GIL 競爭（未切換 --mode wall / --mode gil）。',
+            '忘記開啟 --async-aware，導致 Asyncio 協程堆疊全部擠在 Event Loop 排程器內。'
+          ],
+          metrics: ['Self Time vs Cumulative Time', 'GIL 持有與等待比例', 'Opcode 特化命中率 (--opcodes)', 'tracemalloc Top Allocation 行號']
+        },
+        {
+          id: 'optimize',
+          step: '03',
+          title: 'Optimize 精準優化',
+          en: 'Targeted Refactoring',
+          color: 'amber',
+          summary: '依據 Profile 證據對症下藥：結合演算法降維、Python 3.15 語言新特性與記憶體佈局調整，每次只做單一變因修改並重新 Benchmark。',
+          tools: ['lazy import (延遲載入重型套件)', '__slots__ & frozendict', 'gc.freeze() (Fork CoW 優化)', 'asyncio.to_thread / 向量化 / C-Ext'],
+          pitfalls: [
+            '過早優化冷路徑（Cold Path），犧牲程式碼可讀性卻對整體 P95 毫無幫助。',
+            '在 Asyncio 協程內直接呼叫同步阻塞庫或重度 JSON/正則運算，卡死整個 Event Loop。',
+            '多 Worker Fork 後未呼叫 gc.freeze()，導致 GC 掃描觸發大量 CoW 頁面複製。'
+          ],
+          metrics: ['熱點函式佔比下降幅度', '單請求物件分配數減少', 'Fork CoW 記憶體共享率', '功能與型別回歸測試 100% 通過']
+        },
+        {
+          id: 'budget',
+          step: '04',
+          title: 'Budget 預算門檻守護',
+          en: 'Prevent Regressions in CI',
+          color: 'rose',
+          summary: '將效能與記憶體上限寫入架構規格與 CI/CD 門檻，並於線上配置自動化 Tachyon 採樣告警，確保優化成果不會隨後續 PR 退化。',
+          tools: ['GitHub Actions Benchmark Gate', 'Budget Guard 斷言測試', 'Tachyon 自動 attach 告警腳本', 'Prometheus P95 / RSS 指標'],
+          pitfalls: [
+            '優化完成後沒有自動化門檻，幾個月後新引入的套件讓冷啟動與 RSS 再度膨脹。',
+            '預算設定過於寬鬆或沒有分拆配額（I/O vs Python 邏輯 vs GC），出問題時無法歸責。',
+            'CI 執行環境噪音過大導致門檻頻繁誤報（Flaky），最後被團隊直接關閉。'
+          ],
+          metrics: ['P95 Latency <= Budget (ms)', '單 Worker RSS <= Budget (MB)', '基準回歸容忍度 <= +5%', '線上異常自動產出 Flamegraph']
+        }
+      ];
+
+      let activeStageId = 'benchmark';
+
+      function renderLifecycle() {
+        const nodesContainer = document.getElementById('lifecycle-nodes');
+        const detailContainer = document.getElementById('lifecycle-detail');
+
+        const colorMap = {
+          sky: { ring: 'border-sky-400 bg-sky-500/15 shadow-sky-500/20', badge: 'text-sky-400 bg-sky-500/15 border-sky-500/30', dot: 'bg-sky-400' },
+          emerald: { ring: 'border-emerald-400 bg-emerald-500/15 shadow-emerald-500/20', badge: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30', dot: 'bg-emerald-400' },
+          amber: { ring: 'border-amber-400 bg-amber-500/15 shadow-amber-500/20', badge: 'text-amber-400 bg-amber-500/15 border-amber-500/30', dot: 'bg-amber-400' },
+          rose: { ring: 'border-rose-400 bg-rose-500/15 shadow-rose-500/20', badge: 'text-rose-400 bg-rose-500/15 border-rose-500/30', dot: 'bg-rose-400' },
+        };
+
+        nodesContainer.innerHTML = LIFECYCLE_STAGES.map((stage, idx) => {
+          const isSelected = stage.id === activeStageId;
+          const theme = colorMap[stage.color];
+          return `
+            <button data-stage="${stage.id}" class="lifecycle-btn text-left p-4 rounded-xl border transition-all relative group ${
+              isSelected
+                ? `${theme.ring} shadow-lg`
+                : 'border-slate-700/80 bg-surface/70 hover:border-slate-500 hover:bg-surface'
+            }">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono text-xs px-2 py-0.5 rounded border ${theme.badge}">STEP ${stage.step}</span>
+                ${idx < 3 ? '<span class="hidden md:inline text-slate-500 font-mono text-sm">→</span>' : '<span class="hidden md:inline text-slate-500 font-mono text-sm">↺</span>'}
+              </div>
+              <div class="font-bold text-sm sm:text-base text-white">${stage.title}</div>
+              <div class="font-mono text-[11px] text-slate-400 mt-0.5">${stage.en}</div>
+            </button>
+          `;
+        }).join('');
+
+        const current = LIFECYCLE_STAGES.find((s) => s.id === activeStageId);
+        const theme = colorMap[current.color];
+
+        detailContainer.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full ${theme.dot}"></span>
+              <h3 class="text-base font-bold text-white">${current.step} · ${current.title}</h3>
+            </div>
+            <span class="font-mono text-xs text-slate-400">${current.en}</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 mt-3 leading-relaxed">${current.summary}</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div class="bg-canvas/90 border border-slate-800 rounded-xl p-3.5">
+              <div class="text-xs font-bold text-sky-400 mb-2">🛠 核心工具</div>
+              <ul class="space-y-1.5 text-xs text-slate-300 font-mono">
+                ${current.tools.map((t) => `<li class="flex items-start gap-1.5"><span class="text-sky-500">•</span><span>${t}</span></li>`).join('')}
+              </ul>
+            </div>
+            <div class="bg-canvas/90 border border-slate-800 rounded-xl p-3.5">
+              <div class="text-xs font-bold text-rose-400 mb-2">⚠️ 常見工程誤區</div>
+              <ul class="space-y-1.5 text-xs text-slate-300">
+                ${current.pitfalls.map((p) => `<li class="flex items-start gap-1.5"><span class="text-rose-500">•</span><span>${p}</span></li>`).join('')}
+              </ul>
+            </div>
+            <div class="bg-canvas/90 border border-slate-800 rounded-xl p-3.5">
+              <div class="text-xs font-bold text-emerald-400 mb-2">📊 關鍵驗證指標</div>
+              <ul class="space-y-1.5 text-xs text-slate-300">
+                ${current.metrics.map((m) => `<li class="flex items-start gap-1.5"><span class="text-emerald-500">✓</span><span>${m}</span></li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        `;
+
+        document.querySelectorAll('.lifecycle-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            activeStageId = btn.dataset.stage;
+            renderLifecycle();
+          });
+        });
+      }
+      renderLifecycle();
+
+      /* -------------------------------------------------------------------
+       * 分頁 2：Benchmark 基準實驗室 (統計模擬 + SVG 直方圖/箱型圖 + Checklist)
+       * ------------------------------------------------------------------- */
+      const BENCH_SCENARIOS = {
+        lazy_import: {
+          unit: 'ms',
+          baseLabel: 'Eager Import (傳統匯入)',
+          optLabel: '3.15 lazy import',
+          baseMean: 410,
+          baseStd: 14,
+          optMean: 52,
+          optStd: 3.2,
+          gcSpike: 38,
+          coldMult: 1.35,
+        },
+        slots_frozendict: {
+          unit: 'μs',
+          baseLabel: '一般 dict / class',
+          optLabel: '__slots__ + frozendict',
+          baseMean: 185,
+          baseStd: 8,
+          optMean: 98,
+          optStd: 4.5,
+          gcSpike: 45,
+          coldMult: 1.55,
+        },
+        comp_unpack: {
+          unit: 'ms',
+          baseLabel: '巢狀迴圈 append',
+          optLabel: '[*b for b in batches]',
+          baseMean: 64,
+          baseStd: 2.6,
+          optMean: 34,
+          optStd: 1.5,
+          gcSpike: 14,
+          coldMult: 1.48,
+        },
+      };
+
+      const benchState = {
+        scenario: 'lazy_import',
+        warmup: true,
+        isolateGC: true,
+        noise: 'low',
+        n: 150,
+      };
+
+      // Box-Muller 常態分佈亂數
+      function randNormal() {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      }
+
+      function generateSamples(mean, std, cfg) {
+        const samples = [];
+        const noiseMult = benchState.noise === 'low' ? 1.0 : benchState.noise === 'medium' ? 2.4 : 4.8;
+        for (let i = 0; i < benchState.n; i++) {
+          let val = mean + randNormal() * std * noiseMult;
+
+          // 未開啟 Warmup：前 20% 樣本承受 Adaptive Interpreter 未特化與冷快取延遲
+          if (!benchState.warmup && i < Math.max(4, Math.floor(benchState.n * 0.22))) {
+            val *= cfg.coldMult + Math.random() * 0.28;
+          }
+
+          // 未隔離 GC：約 7% 機率出現 STW 停頓尖峰
+          if (!benchState.isolateGC && Math.random() < 0.075) {
+            val += cfg.gcSpike * (0.7 + Math.random() * 0.8);
+          }
+
+          // 高雜訊環境額外注入 CPU 頻率抖動長尾
+          if (benchState.noise === 'high' && Math.random() < 0.14) {
+            val += mean * (0.25 + Math.random() * 0.35);
+          } else if (benchState.noise === 'medium' && Math.random() < 0.06) {
+            val += mean * (0.12 + Math.random() * 0.15);
+          }
+
+          samples.push(Math.max(mean * 0.45, val));
+        }
+        return samples;
+      }
+
+      function calcStats(arr) {
+        const sorted = [...arr].sort((a, b) => a - b);
+        const n = sorted.length;
+        const mean = sorted.reduce((a, b) => a + b, 0) / n;
+        const variance = sorted.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0) / n;
+        const std = Math.sqrt(variance);
+        const cv = (std / mean) * 100;
+        const pct = (p) => {
+          const idx = Math.min(n - 1, Math.max(0, Math.ceil((p / 100) * n) - 1));
+          return sorted[idx];
+        };
+        return {
+          min: sorted[0],
+          max: sorted[n - 1],
+          mean,
+          std,
+          cv,
+          p25: pct(25),
+          p50: pct(50),
+          p75: pct(75),
+          p95: pct(95),
+          p99: pct(99),
+          sorted,
+        };
+      }
+
+      function renderBenchmarkSVG(baseStats, optStats, unit) {
+        const container = document.getElementById('bench-chart-container');
+        const W = 780;
+        const H = 260;
+        const padL = 46, padR = 24, padT = 22, padB = 64;
+        const plotW = W - padL - padR;
+        const histH = 135;
+        const boxTop = padT + histH + 22;
+
+        const allVals = [...baseStats.sorted, ...optStats.sorted];
+        const minVal = Math.max(0, Math.min(...allVals) * 0.9);
+        const maxVal = Math.max(...allVals) * 1.06;
+        const range = Math.max(1, maxVal - minVal);
+        const xScale = (v) => padL + ((v - minVal) / range) * plotW;
+
+        // 建立直方圖區間 (Bins)
+        const numBins = 36;
+        const binW = range / numBins;
+        const baseBins = new Array(numBins).fill(0);
+        const optBins = new Array(numBins).fill(0);
+
+        baseStats.sorted.forEach((v) => {
+          const bi = Math.min(numBins - 1, Math.max(0, Math.floor((v - minVal) / binW)));
+          baseBins[bi]++;
+        });
+        optStats.sorted.forEach((v) => {
+          const bi = Math.min(numBins - 1, Math.max(0, Math.floor((v - minVal) / binW)));
+          optBins[bi]++;
+        });
+
+        const maxCount = Math.max(1, ...baseBins, ...optBins);
+        const yHist = (c) => padT + histH - (c / maxCount) * histH;
+        const barPxW = plotW / numBins;
+
+        // X 軸刻度
+        const ticks = 6;
+        let ticksSvg = '';
+        for (let i = 0; i <= ticks; i++) {
+          const val = minVal + (range * i) / ticks;
+          const x = xScale(val);
+          ticksSvg += `
+            <line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + histH}" stroke="#1e293b" stroke-width="1" />
+            <text x="${x}" y="${H - 6}" fill="#94a3b8" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">${val.toFixed(0)} ${unit}</text>
+          `;
+        }
+
+        // 直方圖長條
+        let barsSvg = '';
+        for (let i = 0; i < numBins; i++) {
+          const x = padL + i * barPxW;
+          if (baseBins[i] > 0) {
+            const h = (baseBins[i] / maxCount) * histH;
+            barsSvg += `<rect x="${x + 0.5}" y="${padT + histH - h}" width="${Math.max(1, barPxW - 1.5)}" height="${h}" fill="#f43f5e" fill-opacity="0.48" stroke="#fb7185" stroke-width="0.6" rx="1.5" />`;
+          }
+          if (optBins[i] > 0) {
+            const h = (optBins[i] / maxCount) * histH;
+            barsSvg += `<rect x="${x + 0.5}" y="${padT + histH - h}" width="${Math.max(1, barPxW - 1.5)}" height="${h}" fill="#10b981" fill-opacity="0.55" stroke="#34d399" stroke-width="0.6" rx="1.5" />`;
+          }
+        }
+
+        // P50 / P95 / P99 參考線
+        function markerLine(val, label, color, yOffset) {
+          const x = xScale(val);
+          return `
+            <line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + histH}" stroke="${color}" stroke-width="1.3" stroke-dasharray="3 3" />
+            <text x="${x}" y="${padT - 5 + yOffset}" fill="${color}" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">${label}</text>
+          `;
+        }
+
+        // 箱型對比圖 (Boxplot Strip)
+        function drawBox(stats, yCenter, color, fill) {
+          const xP25 = xScale(stats.p25);
+          const xP50 = xScale(stats.p50);
+          const xP75 = xScale(stats.p75);
+          const xMin = xScale(Math.max(stats.min, stats.p25 - 1.5 * (stats.p75 - stats.p25)));
+          const xP95 = xScale(stats.p95);
+          const xP99 = xScale(stats.p99);
+          return `
+            <line x1="${xMin}" y1="${yCenter}" x2="${xP95}" y2="${yCenter}" stroke="${color}" stroke-width="1.5" />
+            <rect x="${xP25}" y="${yCenter - 6}" width="${Math.max(2, xP75 - xP25)}" height="12" fill="${fill}" stroke="${color}" stroke-width="1.4" rx="2" />
+            <line x1="${xP50}" y1="${yCenter - 7}" x2="${xP50}" y2="${yCenter + 7}" stroke="#ffffff" stroke-width="2" />
+            <circle cx="${xP99}" cy="${yCenter}" r="3" fill="${color}" stroke="#0f172a" stroke-width="1" />
+          `;
+        }
+
+        container.innerHTML = `
+          <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto">
+            <!-- 格線與軸 -->
+            ${ticksSvg}
+            <line x1="${padL}" y1="${padT + histH}" x2="${W - padR}" y2="${padT + histH}" stroke="#475569" stroke-width="1.2" />
+            <text x="12" y="${padT + histH / 2}" fill="#64748b" font-size="10" font-family="JetBrains Mono, monospace" transform="rotate(-90 12 ${padT + histH / 2})" text-anchor="middle">樣本數</text>
+
+            <!-- 直方圖 -->
+            ${barsSvg}
+
+            <!-- 百分位數標示 -->
+            ${markerLine(optStats.p50, 'Opt P50', '#34d399', 0)}
+            ${markerLine(optStats.p95, 'Opt P95', '#38bdf8', 0)}
+            ${markerLine(baseStats.p50, 'Base P50', '#fb7185', 0)}
+            ${markerLine(baseStats.p99, 'Base P99', '#f59e0b', 0)}
+
+            <!-- 箱型圖標籤與繪製 -->
+            <text x="${padL - 6}" y="${boxTop + 3}" fill="#34d399" font-size="9.5" font-family="JetBrains Mono, monospace" text-anchor="end">3.15</text>
+            ${drawBox(optStats, boxTop, '#34d399', 'rgba(16,185,129,0.35)')}
+
+            <text x="${padL - 6}" y="${boxTop + 25}" fill="#fb7185" font-size="9.5" font-family="JetBrains Mono, monospace" text-anchor="end">Base</text>
+            ${drawBox(baseStats, boxTop + 22, '#fb7185', 'rgba(244,63,94,0.3)')}
+
+            <text x="${W - padR}" y="${boxTop + 36}" fill="#64748b" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="end">箱體: P25~P75 · 白線: P50 · 圓點: P99 離群尾端</text>
+          </svg>
+        `;
+      }
+
+      function runBenchmarkSimulation() {
+        const cfg = BENCH_SCENARIOS[benchState.scenario];
+        const baseSamples = generateSamples(cfg.baseMean, cfg.baseStd, cfg);
+        const optSamples = generateSamples(cfg.optMean, cfg.optStd, cfg);
+
+        const baseStats = calcStats(baseSamples);
+        const optStats = calcStats(optSamples);
+        const speedup = baseStats.p50 / optStats.p50;
+
+        document.getElementById('legend-baseline').textContent = cfg.baseLabel;
+        document.getElementById('legend-optimized').textContent = cfg.optLabel;
+
+        // 統計可信度判定
+        const issues = [];
+        let severity = 'good'; // good | warn | bad
+        if (!benchState.warmup) {
+          issues.push('未啟用 Warmup：PEP 659 Adaptive Interpreter 尚未完成特化，前段樣本造成雙峰分佈。');
+          severity = 'bad';
+        }
+        if (benchState.noise === 'high') {
+          issues.push('背景雜訊過高：CPU 頻率抖動導致 CV% 飆升，無法安心比較微小差異。');
+          severity = 'bad';
+        } else if (benchState.noise === 'medium') {
+          issues.push('中度背景雜訊：建議於隔離環境或搭配 pyperf 重測以收斂誤差。');
+          if (severity === 'good') severity = 'warn';
+        }
+        if (!benchState.isolateGC) {
+          issues.push('未隔離 GC：P95 / P99 混入隨機垃圾回收 STW 尖峰。');
+          if (severity === 'good') severity = 'warn';
+        }
+        if (benchState.n < 50) {
+          issues.push(`取樣數 N=${benchState.n} 偏低：P99 估計不穩定，建議至少 N ≥ 100。`);
+          if (severity === 'good') severity = 'warn';
+        }
+
+        const banner = document.getElementById('bench-verdict-banner');
+        if (severity === 'good') {
+          banner.className = 'rounded-xl p-4 border bg-emerald-500/10 border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+          banner.innerHTML = `
+            <div class="flex items-start gap-3">
+              <span class="text-lg">✅</span>
+              <div>
+                <div class="text-sm font-bold text-emerald-300">統計可信度判定：高可信度 (Valid Benchmark)</div>
+                <div class="text-xs text-emerald-200/80 mt-0.5">Warmup 已收斂、GC 變因受控且環境雜訊低（優化組 CV = ${optStats.cv.toFixed(1)}%），結論可直接作為工程決策依據。</div>
+              </div>
+            </div>
+            <span class="font-mono text-sm font-bold text-emerald-300 bg-emerald-500/15 px-3 py-1.5 rounded-lg border border-emerald-500/30 shrink-0">加速比 ${speedup.toFixed(2)}x</span>
+          `;
+        } else if (severity === 'warn') {
+          banner.className = 'rounded-xl p-4 border bg-amber-500/10 border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+          banner.innerHTML = `
+            <div class="flex items-start gap-3">
+              <span class="text-lg">⚠️</span>
+              <div>
+                <div class="text-sm font-bold text-amber-300">統計可信度判定：中度警戒（存在干擾變因）</div>
+                <div class="text-xs text-amber-200/85 mt-0.5">${issues.join(' ')}</div>
+              </div>
+            </div>
+            <span class="font-mono text-sm font-bold text-amber-300 bg-amber-500/15 px-3 py-1.5 rounded-lg border border-amber-500/30 shrink-0">參考加速 ${speedup.toFixed(2)}x</span>
+          `;
+        } else {
+          banner.className = 'rounded-xl p-4 border bg-rose-500/10 border-rose-500/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+          banner.innerHTML = `
+            <div class="flex items-start gap-3">
+              <span class="text-lg">🚨</span>
+              <div>
+                <div class="text-sm font-bold text-rose-300">統計可信度判定：結果不可信（請勿採信）</div>
+                <div class="text-xs text-rose-200/85 mt-0.5">${issues.join(' ')}</div>
+              </div>
+            </div>
+            <span class="font-mono text-sm font-bold text-rose-300 bg-rose-500/15 px-3 py-1.5 rounded-lg border border-rose-500/30 shrink-0">CV ${optStats.cv.toFixed(1)}% 過高</span>
+          `;
+        }
+
+        // 繪製 SVG 圖表
+        renderBenchmarkSVG(baseStats, optStats, cfg.unit);
+
+        // 統計摘要卡
+        const statsGrid = document.getElementById('bench-stats-grid');
+        const cards = [
+          { title: 'Mean (平均值)', opt: `${optStats.mean.toFixed(1)} ${cfg.unit}`, base: `Base: ${baseStats.mean.toFixed(1)}` },
+          { title: 'P50 (中位數)', opt: `${optStats.p50.toFixed(1)} ${cfg.unit}`, base: `Base: ${baseStats.p50.toFixed(1)}` },
+          { title: 'P95 (尾延遲)', opt: `${optStats.p95.toFixed(1)} ${cfg.unit}`, base: `Base: ${baseStats.p95.toFixed(1)}` },
+          { title: 'P99 (極端長尾)', opt: `${optStats.p99.toFixed(1)} ${cfg.unit}`, base: `Base: ${baseStats.p99.toFixed(1)}` },
+          {
+            title: '變異係數 CV%',
+            opt: `${optStats.cv.toFixed(1)}%`,
+            base: `Base: ${baseStats.cv.toFixed(1)}%`,
+            highlight: optStats.cv > 12 ? 'text-rose-400' : optStats.cv > 7 ? 'text-amber-400' : 'text-emerald-400',
+          },
+          {
+            title: '中位數加速比',
+            opt: `${speedup.toFixed(2)}x`,
+            base: `節省 ${(((baseStats.p50 - optStats.p50) / baseStats.p50) * 100).toFixed(0)}% 時間`,
+            highlight: 'text-sky-400',
+          },
+        ];
+
+        statsGrid.innerHTML = cards.map((c) => `
+          <div class="bg-surface/90 border border-slate-800 rounded-xl p-3">
+            <div class="text-[11px] text-slate-400">${c.title}</div>
+            <div class="font-mono text-base sm:text-lg font-bold mt-1 ${c.highlight || 'text-white'}">${c.opt}</div>
+            <div class="font-mono text-[11px] text-slate-500 mt-0.5">${c.base}</div>
+          </div>
+        `).join('');
+      }
+
+      function syncBenchUI() {
+        document.querySelectorAll('.bench-scenario-btn').forEach((btn) => {
+          const active = btn.dataset.scenario === benchState.scenario;
+          btn.className = active
+            ? 'bench-scenario-btn text-left p-3.5 rounded-xl border transition-all bg-sky-500/15 border-sky-400 shadow-md shadow-sky-500/10'
+            : 'bench-scenario-btn text-left p-3.5 rounded-xl border transition-all bg-surface/70 border-slate-800 hover:border-slate-600';
+        });
+        document.querySelectorAll('.noise-btn').forEach((btn) => {
+          const active = btn.dataset.noise === benchState.noise;
+          btn.className = active
+            ? 'noise-btn py-1 rounded text-xs font-semibold transition-all bg-sky-500 text-slate-950'
+            : 'noise-btn py-1 rounded text-xs font-medium transition-all text-slate-400 hover:text-white';
+        });
+      }
+
+      document.querySelectorAll('.bench-scenario-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          benchState.scenario = btn.dataset.scenario;
+          syncBenchUI();
+          runBenchmarkSimulation();
+        });
+      });
+      document.querySelectorAll('.noise-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          benchState.noise = btn.dataset.noise;
+          syncBenchUI();
+          runBenchmarkSimulation();
+        });
+      });
+      document.getElementById('bench-warmup').addEventListener('change', (e) => {
+        benchState.warmup = e.target.checked;
+        runBenchmarkSimulation();
+      });
+      document.getElementById('bench-gc').addEventListener('change', (e) => {
+        benchState.isolateGC = e.target.checked;
+        runBenchmarkSimulation();
+      });
+      document.getElementById('bench-n').addEventListener('input', (e) => {
+        benchState.n = Number(e.target.value);
+        document.getElementById('bench-n-val').textContent = benchState.n;
+      });
+      document.getElementById('bench-n').addEventListener('change', runBenchmarkSimulation);
+      document.getElementById('btn-run-bench').addEventListener('click', () => {
+        runBenchmarkSimulation();
+        showToast('已完成新一輪 Benchmark 統計抽樣', 'info');
+      });
+
+      syncBenchUI();
+      runBenchmarkSimulation();
+
+      // Benchmark 工程檢查清單
+      const CHECKLIST_ITEMS = [
+        { id: 'c1', title: '使用 pyperf 進行多進程隔離', desc: '避免單一進程記憶體佈局與 ASLR 偏差，必要時執行 pyperf system tune。', checked: true },
+        { id: 'c2', title: '避開 timeit 微基準陷阱', desc: '確認測試碼不會被常數摺疊，且輸入資料規模貼近真實負載而非完全命中 L1 快取。', checked: true },
+        { id: 'c3', title: '拒絕單次執行結果', desc: '報告完整分佈（P50 / P95 / P99 與 CV%），不以單次最快時間（min）代表線上表現。', checked: true },
+        { id: 'c4', title: '明確區分 Micro vs Macro Benchmark', desc: '微基準驗證演算法/資料結構，端對端基準驗證 I/O、序列化與記憶體開銷。', checked: false },
+        { id: 'c5', title: '充分 Warmup 穩定 Adaptive Interpreter', desc: '在 Python 3.15 測量熱路徑前執行足夠預熱迭代，確保位元組碼完成特化。', checked: true },
+        { id: 'c6', title: '記錄環境指紋與 GC 控制變數', desc: '明確註記 CPython 版本、CPU 頻率鎖定狀態，以及是否停用或固定 GC 週期。', checked: false },
+      ];
+
+      function renderChecklist() {
+        const container = document.getElementById('bench-checklist');
+        container.innerHTML = CHECKLIST_ITEMS.map((item) => `
+          <label class="flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+            item.checked
+              ? 'bg-emerald-500/10 border-emerald-500/40'
+              : 'bg-surface/80 border-slate-800 hover:border-slate-600'
+          }">
+            <input type="checkbox" data-cid="${item.id}" ${item.checked ? 'checked' : ''} class="chk-bench mt-1 w-4 h-4 accent-emerald-500 rounded cursor-pointer" />
+            <div>
+              <div class="text-xs sm:text-sm font-semibold ${item.checked ? 'text-emerald-200' : 'text-slate-200'}">${item.title}</div>
+              <div class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">${item.desc}</div>
+            </div>
+          </label>
+        `).join('');
+
+        const checkedCount = CHECKLIST_ITEMS.filter((i) => i.checked).length;
+        const score = Math.round((checkedCount / CHECKLIST_ITEMS.length) * 100);
+        const scoreTxt = document.getElementById('checklist-score-text');
+        const scoreBar = document.getElementById('checklist-score-bar');
+        scoreTxt.textContent = `${score}%`;
+        scoreBar.style.width = `${score}%`;
+
+        if (score >= 80) {
+          scoreTxt.className = 'font-mono font-bold text-lg text-emerald-400';
+          scoreBar.className = 'h-full bg-emerald-500 transition-all duration-300';
+        } else if (score >= 50) {
+          scoreTxt.className = 'font-mono font-bold text-lg text-amber-400';
+          scoreBar.className = 'h-full bg-amber-500 transition-all duration-300';
+        } else {
+          scoreTxt.className = 'font-mono font-bold text-lg text-rose-400';
+          scoreBar.className = 'h-full bg-rose-500 transition-all duration-300';
+        }
+
+        document.querySelectorAll('.chk-bench').forEach((el) => {
+          el.addEventListener('change', () => {
+            const target = CHECKLIST_ITEMS.find((i) => i.id === el.dataset.cid);
+            if (target) target.checked = el.checked;
+            renderChecklist();
+          });
+        });
+      }
+      renderChecklist();
+
+      /* -------------------------------------------------------------------
+       * 分頁 3A：Tachyon 指令建構器
+       * ------------------------------------------------------------------- */
+      function updateTachyonBuilder() {
+        const target = document.querySelector('input[name="t-target"]:checked').value;
+        const mode = document.querySelector('input[name="t-mode"]:checked').value;
+        const fmt = document.querySelector('input[name="t-format"]:checked').value;
+        const flags = Array.from(document.querySelectorAll('.t-flag:checked')).map((el) => el.value);
+
+        const isDump = target.startsWith('dump');
+        const isBlocking = flags.includes('--blocking');
+        const isAsync = flags.includes('--async-aware');
+        const isOpcodes = flags.includes('--opcodes');
+
+        // 若為 dump 模式，停用 mode/format 的視覺強調
+        document.getElementById('tachyon-mode-box').style.opacity = isDump ? '0.45' : '1';
+        document.getElementById('tachyon-format-box').style.opacity = isDump ? '0.45' : '1';
+
+        let cmd = '';
+        if (isDump) {
+          const dumpFlags = flags.filter((f) => f === '--async-aware' || f === '-a');
+          cmd = `python3.15 -m profiling.sampling ${target}${dumpFlags.length ? ' ' + dumpFlags.join(' ') : ''}`;
+        } else {
+          const parts = ['python3.15 -m profiling.sampling', target, `--mode ${mode}`, fmt, ...flags];
+          cmd = parts.join(' ');
+        }
+
+        document.getElementById('tachyon-cmd-output').textContent = cmd;
+
+        // 預估 Overhead 標章
+        const badge = document.getElementById('tachyon-overhead-badge');
+        if (isDump) {
+          badge.className = 'self-start sm:self-center font-mono text-xs px-3 py-1.5 rounded-lg border bg-sky-500/15 text-sky-300 border-sky-500/40';
+          badge.textContent = '預估開銷：單次瞬間快照 (< 1 ms)';
+        } else if (isBlocking) {
+          badge.className = 'self-start sm:self-center font-mono text-xs px-3 py-1.5 rounded-lg border bg-amber-500/15 text-amber-300 border-amber-500/40';
+          badge.textContent = '預估開銷：~1% - 2% (--blocking 一致性讀取)';
+        } else {
+          badge.className = 'self-start sm:self-center font-mono text-xs px-3 py-1.5 rounded-lg border bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
+          badge.textContent = '預估開銷：< 0.5% (非阻塞外部採樣)';
+        }
+
+        // 診斷說明
+        const modeDesc = {
+          wall: '量測真實牆鐘時間（包含網路 I/O、資料庫等待與鎖阻塞），最適合排查端對端 P95 延遲。',
+          cpu: '僅在執行緒實際佔用 CPU 時取樣，過濾掉 I/O 等待，精準鎖定純運算與序列化瓶頸。',
+          gil: '專門追蹤 GIL 持有與競爭狀況，快速識別多執行緒服務中因純 Python 運算造成的鎖排隊。',
+          exception: '針對頻繁拋出與捕捉例外（如 KeyError/ValidationError 控制流）的隱藏開銷進行採樣。',
+        };
+
+        let note = '';
+        if (isDump) {
+          note = `<strong class="text-amber-300">診斷用途：</strong>對疑似死鎖（Deadlock）或無回應的線上行程 <code class="font-mono">PID 48210</code> 擷取當下所有堆疊快照，無需重啟服務即可定位卡死行號。`;
+        } else {
+          note = `<strong class="text-sky-300">診斷用途：</strong>${modeDesc[mode]}`;
+          if (target.startsWith('attach')) {
+            note += ` 搭配 <code class="font-mono text-emerald-300">attach</code> 可直接對線上運行中的服務進行零重啟熱剖析。`;
+          }
+          if (isAsync) {
+            note += ` 已啟用 <code class="font-mono text-sky-300">--async-aware</code>，會自動將底層事件迴圈還原為清晰的 Asyncio 協程邏輯呼叫樹。`;
+          }
+          if (isOpcodes) {
+            note += ` 已啟用 <code class="font-mono text-emerald-300">--opcodes</code>，可檢查熱點函式是否成功進入 Adaptive Interpreter 特化狀態。`;
+          }
+        }
+        document.getElementById('tachyon-diagnosis-note').innerHTML = note;
+      }
+
+      document.querySelectorAll('input[name="t-target"], input[name="t-mode"], input[name="t-format"], .t-flag').forEach((el) => {
+        el.addEventListener('change', updateTachyonBuilder);
+      });
+      document.getElementById('btn-copy-tachyon').addEventListener('click', () => {
+        const cmd = document.getElementById('tachyon-cmd-output').textContent;
+        copyTextToClipboard(cmd, 'Tachyon 指令');
+      });
+      updateTachyonBuilder();
+
+      /* -------------------------------------------------------------------
+       * 分頁 3B：互動式火焰圖與記憶體剖析模擬器
+       * ------------------------------------------------------------------- */
+      const FLAME_SCENARIOS = {
+        gil_cpu: {
+          title: 'worker_pool.py · 多執行緒 API 聚合服務',
+          modeTag: '--mode gil --opcodes -a',
+          metricLabel: 'GIL 採樣',
+          defaultSelected: 'f_json_parse',
+          rows: [
+            [
+              { id: 'f_root', name: 'ThreadPoolExecutor._worker', pct: 100, left: 0, tone: 'neutral', file: 'concurrent/futures/thread.py:83', selfVal: '1.2%', cumVal: '100.0%', samples: '12,480', insight: '多執行緒池主入口，4 個 Worker 執行緒正激烈競爭同一把 GIL，導致吞吐量無法隨核心數線性擴展。', before: 'with ThreadPoolExecutor(max_workers=4) as ex:\n    results = list(ex.map(transform_payload, batch))', after: '# 改用多進程或釋放 GIL 的向量化套件 (orjson / Polars)\nwith ProcessPoolExecutor(max_workers=4) as ex:\n    results = list(ex.map(transform_payload, batch))' }
+            ],
+            [
+              { id: 'f_handle', name: 'handle_ingest_batch()', pct: 86, left: 0, tone: 'mid', file: 'services/ingest.py:114', selfVal: '4.8%', cumVal: '86.0%', samples: '10,732', insight: '批次處理主函式，絕大部分 GIL 持有時間集中於底層純 Python 字串正規化與動態字典組裝。', before: 'def handle_ingest_batch(rows):\n    return [normalize_and_parse(r) for r in rows]', after: 'def handle_ingest_batch(rows):\n    # 批次交由釋放 GIL 的 C/Rust 擴充處理\n    return fast_native_batch_parse(rows)' },
+              { id: 'f_log', name: 'logging.info()', pct: 14, left: 86, tone: 'cool', file: 'logging/__init__.py:1512', selfVal: '6.1%', cumVal: '14.0%', samples: '1,748', insight: '高頻率同步日誌格式化佔用 14% 採樣，建議降級為 structlog 或改用 QueueHandler 非同步寫出。', before: 'logger.info(f"Processed {len(row)} fields: {row}")', after: 'if logger.isEnabledFor(logging.DEBUG):\n    logger.debug("Processed %d fields", len(row))' }
+            ],
+            [
+              { id: 'f_json_parse', name: 'normalize_records() [GIL HOTSPOT]', pct: 58, left: 0, tone: 'hot', file: 'services/ingest.py:182', selfVal: '51.4%', cumVal: '58.0%', samples: '7,238', insight: 'Tachyon --opcodes 顯示 LOAD_ATTR 頻繁特化失敗（Polymorphic 異質物件），且純 Python 迴圈長時間持有 GIL（持有率 91%），阻塞其他 3 條執行緒。', before: 'out = []\nfor rec in records:\n    # 異質 dict + 重複 regex 編譯\n    val = re.sub(r"\\s+", " ", rec["text"])\n    out.append({"id": rec["id"], "v": val})', after: 'WS_RE = re.compile(r"\\s+")  # 預先編譯\n# 使用 __slots__ dataclass 讓 3.15 特化 LOAD_ATTR_SLOT\n@dataclass(slots=True)\nclass CleanRec: id: int; v: str' },
+              { id: 'f_pydantic', name: 'json.loads() [stdlib]', pct: 28, left: 58, tone: 'mid', file: 'json/decoder.py:337', selfVal: '24.0%', cumVal: '28.0%', samples: '3,494', insight: '標準庫 json.loads 在解析大型巢狀 payload 時佔用 28% 時間且未釋放 GIL，改用 orjson / msgspec 可加速 4-6 倍並減少暫時物件分配。', before: 'import json\ndata = json.loads(raw_bytes.decode("utf-8"))', after: 'import orjson\ndata = orjson.loads(raw_bytes)  # 直接解析 bytes' }
+            ]
+          ]
+        },
+        async_block: {
+          title: 'gateway_api.py · FastAPI + Asyncio 事件迴圈',
+          modeTag: '--mode wall --async-aware',
+          metricLabel: 'Wall 採樣',
+          defaultSelected: 'a_sync_req',
+          rows: [
+            [
+              { id: 'a_loop', name: 'asyncio.BaseEventLoop._run_once', pct: 100, left: 0, tone: 'neutral', file: 'asyncio/base_events.py:1962', selfVal: '2.1%', cumVal: '100.0%', samples: '18,200', insight: '透過 Python 3.15 --async-aware 還原出完整協程呼叫樹，發現單一同步函式卡死整個 Event Loop，拖累所有併發連線 P99 延遲。', before: '# 在單執行緒 Event Loop 中混用同步阻塞呼叫', after: '# 確保所有 I/O 皆為非同步，CPU 密集任務移出 Loop' }
+            ],
+            [
+              { id: 'a_endpoint', name: 'async def chat_completion()', pct: 79, left: 0, tone: 'mid', file: 'api/routes/chat.py:42', selfVal: '3.5%', cumVal: '79.0%', samples: '14,378', insight: '主要 API 端點協程，等待時間中有 62% 並非非同步 await，而是直接阻塞於同步呼叫。', before: 'async def chat_completion(req):\n    ctx = fetch_user_profile_sync(req.uid)\n    return await llm_client.generate(ctx)', after: 'async def chat_completion(req):\n    ctx = await async_http.get_profile(req.uid)\n    return await llm_client.generate(ctx)' },
+              { id: 'a_db', name: 'await asyncpg.Connection.fetch()', pct: 21, left: 79, tone: 'cool', file: 'asyncpg/connection.py:612', selfVal: '1.8%', cumVal: '21.0%', samples: '3,822', insight: '健康的非同步 I/O 等待（協程已正確讓出控制權給 Event Loop），不影響其他併發請求。', before: 'rows = await conn.fetch(SQL, user_id)', after: '# 維持現狀，僅需關注 DB 索引與連線池上限' }
+            ],
+            [
+              { id: 'a_sync_req', name: 'requests.get() [EVENT LOOP BLOCKED]', pct: 62, left: 0, tone: 'hot', file: 'services/auth.py:29', selfVal: '59.8%', cumVal: '62.0%', samples: '11,284', insight: '致命瓶頸！在 async def 內直接呼叫同步的 requests.get()，導致整個 Event Loop 停擺 180ms，期間所有其他請求無法被排程。', before: 'import requests\nasync def verify_token(tok):\n    r = requests.get(AUTH_URL, headers={"X-Tok": tok})\n    return r.json()', after: 'import httpx\n# 複用共享 AsyncClient 連線池\nasync def verify_token(client: httpx.AsyncClient, tok):\n    r = await client.get(AUTH_URL, headers={"X-Tok": tok})\n    return r.json()' },
+              { id: 'a_hash', name: 'hashlib.pbkdf2_hmac() [CPU BLOCK]', pct: 17, left: 62, tone: 'mid', file: 'services/crypto.py:18', selfVal: '17.0%', cumVal: '17.0%', samples: '3,094', insight: '同步密碼雜湊佔用 17% Loop 時間，建議透過 asyncio.to_thread() 移至執行緒池執行。', before: 'digest = hashlib.pbkdf2_hmac("sha256", pwd, salt, 200_000)', after: 'digest = await asyncio.to_thread(\n    hashlib.pbkdf2_hmac, "sha256", pwd, salt, 200_000\n)' }
+            ]
+          ]
+        },
+        mem_bloat: {
+          title: 'cli_infer.py · 記憶體膨脹與冷啟動過慢',
+          modeTag: 'tracemalloc + lazy import',
+          metricLabel: 'Peak RSS 佔比',
+          defaultSelected: 'm_torch',
+          rows: [
+            [
+              { id: 'm_main', name: '<module> cli_infer.py (Total Peak: 486 MB)', pct: 100, left: 0, tone: 'neutral', file: 'cli_infer.py:1', selfVal: '4.2 MB', cumVal: '486.0 MB', samples: 'tracemalloc', insight: '即使使用者只執行 `--help` 或輕量查詢，模組頂層的 Eager Import 與大量動態 dict 物件就已吃掉 486 MB RSS 並耗時 410ms 啟動。', before: 'import torch\nimport pandas as pd\nfrom models import load_records', after: 'lazy import torch\nlazy import pandas as pd\n# 僅在實際需要推論時才載入重型套件' }
+            ],
+            [
+              { id: 'm_torch', name: 'import torch / pandas [EAGER IMPORT]', pct: 64, left: 0, tone: 'hot', file: 'cli_infer.py:3', selfVal: '311.0 MB', cumVal: '311.0 MB', samples: '142,910 blks', insight: 'tracemalloc 與啟動剖析顯示 64% 基準記憶體與 360ms 冷啟動皆來自頂層強制匯入重型 ML 套件。改用 Python 3.15 `lazy import` 可在非推論路徑完全省去此開銷。', before: 'import torch\nimport pandas as pd\n\ndef run_cli(cmd):\n    if cmd == "health": return "ok"', after: 'lazy import torch\nlazy import pandas as pd\n\ndef run_cli(cmd):\n    if cmd == "health": return "ok"  # 0 MB 載入!' },
+              { id: 'm_cache', name: 'load_records() [dict 物件膨脹]', pct: 36, left: 64, tone: 'mid', file: 'data/loader.py:77', selfVal: '170.8 MB', cumVal: '175.0 MB', samples: '850,000 blks', insight: '85 萬筆資料以一般 class（含 __dict__）儲存，每筆額外消耗 ~152 bytes。改用 `__slots__` 與不可變 `frozendict` 可直接減少 ~48% 記憶體佔用。', before: 'class Record:\n    def __init__(self, id, meta):\n        self.id = id\n        self.meta = dict(meta)', after: 'class Record:\n    __slots__ = ("id", "meta")\n    def __init__(self, id, meta):\n        self.id = id\n        self.meta = frozendict(meta)' }
+            ]
+          ]
+        }
+      };
+
+      let activeFlameScene = 'gil_cpu';
+      let selectedFrameId = FLAME_SCENARIOS.gil_cpu.defaultSelected;
+
+      function getAllFrames(sceneKey) {
+        return FLAME_SCENARIOS[sceneKey].rows.flat();
+      }
+
+      function renderFlameGraph() {
+        const scene = FLAME_SCENARIOS[activeFlameScene];
+
+        // 更新場景按鈕樣式
+        document.querySelectorAll('.fscene-btn').forEach((btn) => {
+          const active = btn.dataset.fscene === activeFlameScene;
+          btn.className = active
+            ? 'fscene-btn px-3 py-2 rounded-lg text-xs font-semibold border transition-all bg-rose-500/15 text-rose-300 border-rose-500/50'
+            : 'fscene-btn px-3 py-2 rounded-lg text-xs font-medium border transition-all bg-surface/70 text-slate-400 border-slate-800 hover:text-white hover:border-slate-600';
+        });
+
+        document.getElementById('flame-meta-title').textContent = scene.title;
+        document.getElementById('flame-meta-mode').textContent = scene.modeTag;
+
+        const toneStyles = {
+          hot: 'bg-gradient-to-r from-rose-600/90 to-rose-500/80 border-rose-400/70 text-white',
+          mid: 'bg-gradient-to-r from-amber-600/85 to-amber-500/75 border-amber-400/60 text-slate-950 font-semibold',
+          cool: 'bg-gradient-to-r from-sky-600/75 to-sky-500/65 border-sky-400/50 text-white',
+          neutral: 'bg-slate-700/80 border-slate-500/60 text-slate-100',
+        };
+
+        const canvas = document.getElementById('flamegraph-canvas');
+        canvas.innerHTML = scene.rows.map((row) => `
+          <div class="relative w-full h-10 bg-canvas/50 rounded-md overflow-hidden">
+            ${row.map((frame) => {
+              const isSel = frame.id === selectedFrameId;
+              return `
+                <button
+                  data-fid="${frame.id}"
+                  style="left: ${frame.left}%; width: ${frame.pct}%;"
+                  class="flame-frame absolute top-0 bottom-0 px-2.5 text-left border rounded-md flex items-center justify-between gap-2 overflow-hidden cursor-pointer ${toneStyles[frame.tone]} ${isSel ? 'flame-frame-selected' : ''}"
+                  title="${frame.name} (${frame.pct}%)"
+                >
+                  <span class="font-mono text-[11px] sm:text-xs truncate">${frame.name}</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] shrink-0 opacity-90">${frame.pct}%</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        `).join('');
+
+        // 綁定點擊事件
+        document.querySelectorAll('.flame-frame').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            selectedFrameId = btn.dataset.fid;
+            renderFlameGraph();
+          });
+        });
+
+        // 渲染右側 Inspector
+        const frame = getAllFrames(activeFlameScene).find((f) => f.id === selectedFrameId) || getAllFrames(activeFlameScene)[0];
+        const inspector = document.getElementById('flame-inspector');
+        const badgeColor = frame.tone === 'hot' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : frame.tone === 'mid' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+
+        inspector.innerHTML = `
+          <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-3">
+            <div class="min-w-0">
+              <div class="font-mono text-xs sm:text-sm font-bold text-white break-all">${frame.name}</div>
+              <div class="font-mono text-[11px] text-slate-400 mt-0.5">${frame.file}</div>
+            </div>
+            <span class="shrink-0 font-mono text-xs px-2 py-0.5 rounded border ${badgeColor}">${frame.pct}%</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-canvas rounded-lg p-2 border border-slate-800">
+              <div class="text-[10px] text-slate-400">Self</div>
+              <div class="font-mono text-xs sm:text-sm font-bold text-white mt-0.5">${frame.selfVal}</div>
+            </div>
+            <div class="bg-canvas rounded-lg p-2 border border-slate-800">
+              <div class="text-[10px] text-slate-400">Cumulative</div>
+              <div class="font-mono text-xs sm:text-sm font-bold text-sky-400 mt-0.5">${frame.cumVal}</div>
+            </div>
+            <div class="bg-canvas rounded-lg p-2 border border-slate-800">
+              <div class="text-[10px] text-slate-400">${scene.metricLabel}</div>
+              <div class="font-mono text-xs sm:text-sm font-bold text-emerald-400 mt-0.5">${frame.samples}</div>
+            </div>
+          </div>
+
+          <div class="bg-sky-500/10 border border-sky-500/25 rounded-xl p-3">
+            <div class="text-xs font-bold text-sky-300 mb-1">🔍 Python 3.15 診斷洞察</div>
+            <p class="text-xs text-slate-200 leading-relaxed">${frame.insight}</p>
+          </div>
+
+          <div class="space-y-2.5">
+            <div class="text-xs font-bold text-white">🛠 重構建議（Before → After）</div>
+            <div class="bg-canvas border border-rose-500/30 rounded-lg p-2.5 overflow-x-auto">
+              <div class="font-mono text-[10px] text-rose-400 mb-1">BEFORE (瓶頸寫法)</div>
+              <pre class="font-mono text-[11px] text-slate-300 leading-relaxed whitespace-pre">${frame.before}</pre>
+            </div>
+            <div class="bg-canvas border border-emerald-500/30 rounded-lg p-2.5 overflow-x-auto">
+              <div class="font-mono text-[10px] text-emerald-400 mb-1">AFTER (Python 3.15 優化寫法)</div>
+              <pre class="font-mono text-[11px] text-emerald-200 leading-relaxed whitespace-pre">${frame.after}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      document.querySelectorAll('.fscene-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          activeFlameScene = btn.dataset.fscene;
+          selectedFrameId = FLAME_SCENARIOS[activeFlameScene].defaultSelected;
+          renderFlameGraph();
+        });
+      });
+      renderFlameGraph();
+
+      /* -------------------------------------------------------------------
+       * 分頁 4：Budget 預算計算器與 CI 門檻程式碼自動生成器
+       * ------------------------------------------------------------------- */
+      const BUDGET_PRESETS = {
+        fastapi: { name: 'FastAPI 高併發微服務', p95: 120, io: 45, py: 30, ser: 20, gc: 10, rss: 256, workers: 4, lazy: true, freeze: true },
+        rag: { name: 'AI / RAG 推論閘道', p95: 450, io: 260, py: 90, ser: 45, gc: 20, rss: 1024, workers: 4, lazy: true, freeze: true },
+        worker: { name: '資料處理背景 Worker', p95: 300, io: 80, py: 140, ser: 40, gc: 25, rss: 512, workers: 8, lazy: false, freeze: true },
+      };
+
+      const budgetEls = {
+        p95: document.getElementById('slider-p95-limit'),
+        io: document.getElementById('slider-lat-io'),
+        py: document.getElementById('slider-lat-py'),
+        ser: document.getElementById('slider-lat-ser'),
+        gc: document.getElementById('slider-lat-gc'),
+        rss: document.getElementById('slider-rss-limit'),
+        workers: document.getElementById('slider-workers'),
+        lazy: document.getElementById('budget-lazy'),
+        freeze: document.getElementById('budget-freeze'),
+      };
+
+      let activeCiTab = 'guard';
+
+      function getBudgetValues() {
+        return {
+          p95: Number(budgetEls.p95.value),
+          io: Number(budgetEls.io.value),
+          py: Number(budgetEls.py.value),
+          ser: Number(budgetEls.ser.value),
+          gc: Number(budgetEls.gc.value),
+          rss: Number(budgetEls.rss.value),
+          workers: Number(budgetEls.workers.value),
+          lazy: budgetEls.lazy.checked,
+          freeze: budgetEls.freeze.checked,
+        };
+      }
+
+      function generateCiCode(b, totalRam) {
+        if (activeCiTab === 'guard') {
+          return `# budget_guard.py — Python 3.15 效能與記憶體預算守護腳本
+import gc
+import time
+import tracemalloc
+${b.lazy ? 'lazy import pandas as pd  # Python 3.15 顯式延遲匯入，壓低冷啟動與 RSS' : '# 提示：可於重型套件加上 lazy import 以降低基準 RSS'}
+
+P95_BUDGET_MS = ${b.p95}.0
+RSS_BUDGET_MB = ${b.rss}.0
+
+def enforce_budget(workload_fn, iterations: int = 50):
+    """驗證核心工作負載是否符合 P95 延遲與 Peak 記憶體預算。"""
+    ${b.freeze ? 'gc.freeze()  # 凍結啟動期常駐物件，提升 Fork CoW 共享並縮短 GC 停頓' : '# 建議於 Fork Worker 前呼叫 gc.freeze()'}
+    tracemalloc.start()
+
+    # Warmup 預熱以穩定 Adaptive Interpreter 特化
+    for _ in range(10):
+        workload_fn()
+
+    timings_ms = []
+    for _ in range(iterations):
+        t0 = time.perf_counter()
+        workload_fn()
+        timings_ms.append((time.perf_counter() - t0) * 1000.0)
+
+    _, peak_bytes = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    timings_ms.sort()
+    p95_ms = timings_ms[int(len(timings_ms) * 0.95) - 1]
+    peak_mb = peak_bytes / (1024 * 1024)
+
+    print(f"[Budget Guard] P95={p95_ms:.2f}ms (Limit {P95_BUDGET_MS}ms) | Peak={peak_mb:.2f}MB (Limit {RSS_BUDGET_MB}MB)")
+    assert p95_ms <= P95_BUDGET_MS, f"P95 延遲超支: {p95_ms:.2f}ms > {P95_BUDGET_MS}ms"
+    assert peak_mb <= RSS_BUDGET_MB, f"記憶體峰值超支: {peak_mb:.2f}MB > {RSS_BUDGET_MB}MB"
+`;
+        }
+
+        if (activeCiTab === 'gha') {
+          return `# .github/workflows/perf-budget-gate.yml
+name: Python 3.15 Perf & Memory Budget Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  benchmark-and-budget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.15
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.15"
+
+      - name: Install profiling & benchmark tools
+        run: pip install pyperf pytest
+
+      - name: Run isolated benchmark & compare baseline
+        run: |
+          python3.15 -m pyperf timeit --rigorous -o pr_bench.json -s "from app.core import run_pipeline" "run_pipeline()"
+          python3.15 scripts/check_regression.py --current pr_bench.json --max-p95-ms ${b.p95} --max-regression-pct 5
+
+      - name: Enforce Memory & CoW Budget (${b.workers} Workers / Est. ${totalRam} MB RAM)
+        env:
+          WORKER_RSS_LIMIT_MB: "${b.rss}"
+          ENABLE_LAZY_IMPORT: "${b.lazy ? '1' : '0'}"
+          ENABLE_GC_FREEZE: "${b.freeze ? '1' : '0'}"
+        run: python3.15 tests/budget_guard.py
+`;
+        }
+
+        return `#!/usr/bin/env python3.15
+# tachyon_watchdog.py — 線上 P95 超標自動觸發 Tachyon 採樣告警
+import os
+import subprocess
+import time
+from datetime import datetime
+
+TARGET_PID = int(os.environ.get("APP_WORKER_PID", "48210"))
+P95_THRESHOLD_MS = ${b.p95}.0
+SAMPLE_DURATION_SEC = 15
+
+def trigger_tachyon_profile(observed_p95_ms: float):
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_file = f"/var/log/profiles/flame_{TARGET_PID}_{ts}.html"
+    cmd = [
+        "python3.15", "-m", "profiling.sampling",
+        "attach", str(TARGET_PID),
+        "--mode", "wall",
+        "--async-aware",
+        "--opcodes",
+        "--duration", str(SAMPLE_DURATION_SEC),
+        "--flamegraph", "-o", out_file,
+    ]
+    print(f"[ALERT] P95={observed_p95_ms:.1f}ms 超過預算 {P95_THRESHOLD_MS}ms，自動啟動 Tachyon 採樣...")
+    subprocess.run(cmd, check=True)
+    print(f"[OK] 已產出火焰圖報告：{out_file}")
+
+if __name__ == "__main__":
+    # 模擬由 Prometheus / Metrics Exporter 讀取的即時 P95 延遲
+    current_p95 = ${b.p95 + 25}.0
+    if current_p95 > P95_THRESHOLD_MS:
+        trigger_tachyon_profile(current_p95)
+`;
+      }
+
+      function updateBudgetCalculator() {
+        const b = getBudgetValues();
+
+        // 更新數值標籤
+        document.getElementById('val-p95-limit').textContent = b.p95;
+        document.getElementById('val-lat-io').textContent = b.io;
+        document.getElementById('val-lat-py').textContent = b.py;
+        document.getElementById('val-lat-ser').textContent = b.ser;
+        document.getElementById('val-lat-gc').textContent = b.gc;
+        document.getElementById('val-rss-limit').textContent = b.rss;
+        document.getElementById('val-workers').textContent = b.workers;
+
+        // 延遲預算分析
+        const totalLat = b.io + b.py + b.ser + b.gc;
+        const isOver = totalLat > b.p95;
+        const diff = totalLat - b.p95;
+        const denom = Math.max(b.p95, totalLat);
+
+        document.getElementById('bar-txt-io').textContent = `${b.io}ms`;
+        document.getElementById('bar-txt-py').textContent = `${b.py}ms`;
+        document.getElementById('bar-txt-ser').textContent = `${b.ser}ms`;
+        document.getElementById('bar-txt-gc').textContent = `${b.gc}ms`;
+
+        const bar = document.getElementById('latency-stacked-bar');
+        bar.innerHTML = `
+          <div style="width: ${(b.io / denom) * 100}%" class="bg-sky-500 h-full transition-all duration-200" title="I/O: ${b.io}ms"></div>
+          <div style="width: ${(b.py / denom) * 100}%" class="bg-emerald-500 h-full transition-all duration-200" title="Logic: ${b.py}ms"></div>
+          <div style="width: ${(b.ser / denom) * 100}%" class="bg-purple-500 h-full transition-all duration-200" title="Serde: ${b.ser}ms"></div>
+          <div style="width: ${(b.gc / denom) * 100}%" class="bg-amber-500 h-full transition-all duration-200" title="GC: ${b.gc}ms"></div>
+        `;
+
+        const latCard = document.getElementById('latency-budget-card');
+        const latBadge = document.getElementById('latency-status-badge');
+        if (isOver) {
+          latCard.className = 'bg-rose-950/30 border border-rose-500/70 rounded-xl p-4 sm:p-5 space-y-3 transition-all shadow-lg shadow-rose-500/10';
+          latBadge.className = 'font-mono text-xs px-2.5 py-1 rounded-full font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/50 animate-pulse';
+          latBadge.textContent = `🚨 預算超支 +${diff} ms (${totalLat}/${b.p95} ms)`;
+        } else if (totalLat >= b.p95 * 0.9) {
+          latCard.className = 'bg-surface/90 border border-amber-500/50 rounded-xl p-4 sm:p-5 space-y-3 transition-all';
+          latBadge.className = 'font-mono text-xs px-2.5 py-1 rounded-full font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/40';
+          latBadge.textContent = `⚠️ 接近上限 剩餘 ${-diff} ms (${totalLat}/${b.p95} ms)`;
+        } else {
+          latCard.className = 'bg-surface/90 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-3 transition-all';
+          latBadge.className = 'font-mono text-xs px-2.5 py-1 rounded-full font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40';
+          latBadge.textContent = `✅ 健康餘裕 +${-diff} ms (${totalLat}/${b.p95} ms)`;
+        }
+
+        // 記憶體與 CoW 估算模型
+        // 假設原始未優化每 Worker 佔用約 92% 的設定上限；啟用 lazy import 降低 ~22% 基礎載入記憶體與 ~280ms 冷啟動
+        const rawWorkerRss = Math.round(b.rss * 0.92);
+        const lazyReduction = b.lazy ? Math.round(rawWorkerRss * 0.22) : 0;
+        const effectiveWorkerRss = Math.max(48, rawWorkerRss - lazyReduction);
+
+        // CoW 共享率：未開 gc.freeze() 約 18%，開啟 gc.freeze() 後提升至 ~58%（僅在 workers > 1 時生效）
+        const cowShareRate = b.workers > 1 ? (b.freeze ? 0.58 : 0.18) : 0;
+        const sharedPart = effectiveWorkerRss * cowShareRate;
+        const privatePart = effectiveWorkerRss * (1 - cowShareRate);
+        const totalPhysicalRam = Math.round(sharedPart + privatePart * b.workers);
+
+        // 計算未開啟兩項最佳化時的總實體 RAM，以展示節省效益
+        const baselineCow = b.workers > 1 ? 0.18 : 0;
+        const baselineTotalRam = Math.round(rawWorkerRss * baselineCow + rawWorkerRss * (1 - baselineCow) * b.workers);
+        const savedRam = Math.max(0, baselineTotalRam - totalPhysicalRam);
+        const savedColdStartMs = b.lazy ? Math.round(180 + b.rss * 0.35) : 0;
+
+        document.getElementById('metric-worker-rss').textContent = effectiveWorkerRss;
+        const rssNote = document.getElementById('metric-worker-rss-note');
+        rssNote.textContent = effectiveWorkerRss <= b.rss ? `低於上限 (${b.rss} MB)` : `超出上限！`;
+        rssNote.className = `text-[11px] mt-1 font-mono ${effectiveWorkerRss <= b.rss ? 'text-emerald-400' : 'text-rose-400'}`;
+
+        document.getElementById('metric-total-ram').textContent = totalPhysicalRam;
+        document.getElementById('metric-cow-ratio').textContent = b.workers > 1 ? `CoW 共享頁比例：${Math.round(cowShareRate * 100)}%` : '單 Worker 模式 (無 Fork CoW)';
+        document.getElementById('mem-cow-badge').textContent = b.freeze ? 'gc.freeze() ON' : 'gc.freeze() OFF';
+
+        document.getElementById('metric-saved-mb').textContent = `${savedRam} MB`;
+        document.getElementById('metric-saved-ms').textContent = `${savedColdStartMs} ms`;
+        document.getElementById('metric-opt-status').textContent =
+          b.lazy && b.freeze ? '3.15 全開最佳狀態' : b.lazy || b.freeze ? '部分啟用' : '未啟用 3.15 最佳化';
+
+        // 更新 CI 程式碼生成器
+        document.getElementById('ci-code-output').textContent = generateCiCode(b, totalPhysicalRam);
+      }
+
+      // 綁定滑桿與開關
+      Object.values(budgetEls).forEach((el) => {
+        el.addEventListener('input', updateBudgetCalculator);
+        el.addEventListener('change', updateBudgetCalculator);
+      });
+
+      // 快速載入範本
+      document.querySelectorAll('.budget-preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const p = BUDGET_PRESETS[btn.dataset.preset];
+          budgetEls.p95.value = p.p95;
+          budgetEls.io.value = p.io;
+          budgetEls.py.value = p.py;
+          budgetEls.ser.value = p.ser;
+          budgetEls.gc.value = p.gc;
+          budgetEls.rss.value = p.rss;
+          budgetEls.workers.value = p.workers;
+          budgetEls.lazy.checked = p.lazy;
+          budgetEls.freeze.checked = p.freeze;
+          updateBudgetCalculator();
+          showToast(`已載入「${p.name}」預算範本`, 'info');
+        });
+      });
+
+      // CI 程式碼分頁切換
+      function syncCiTabs() {
+        document.querySelectorAll('.ci-tab-btn').forEach((btn) => {
+          const active = btn.dataset.citab === activeCiTab;
+          btn.className = active
+            ? 'ci-tab-btn px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all bg-sky-500/15 text-sky-300 border-sky-500/50'
+            : 'ci-tab-btn px-3.5 py-2 rounded-lg text-xs font-medium border transition-all bg-surface/70 text-slate-400 border-slate-800 hover:text-white';
+        });
+      }
+
+      document.querySelectorAll('.ci-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          activeCiTab = btn.dataset.citab;
+          syncCiTabs();
+          updateBudgetCalculator();
+        });
+      });
+
+      document.getElementById('btn-copy-ci').addEventListener('click', () => {
+        const code = document.getElementById('ci-code-output').textContent;
+        copyTextToClipboard(code, 'CI 門檻程式碼');
+      });
+
+      syncCiTabs();
+      updateBudgetCalculator();
+    })();
+  </script>
+<script>
+document.querySelectorAll('[data-lab-diagram-size]').forEach(button => {
+  button.addEventListener('click', () => {
+    const panel = document.getElementById(button.getAttribute('aria-controls'));
+    const expanded = panel.toggleAttribute('data-lab-expanded');
+    button.setAttribute('aria-pressed', String(expanded));
+    button.textContent = expanded ? '縮合至頁寬' : '放大檢視';
+  });
+});
+</script>
+</body>
+</html>

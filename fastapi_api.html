@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html data-lab-layout lang="zh-Hant" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FastAPI 指令、API、應用與打包實戰｜互動式工程手冊</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#059669',
+              600: '#009688',
+              700: '#0f766e',
+              900: '#134e4a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui, sans-serif;
+    }
+    .code-scroll::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    .code-scroll::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 9999px;
+    }
+    .code-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .svg-node {
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .svg-node:hover rect {
+      stroke-width: 2.5;
+    }
+    .svg-node.active rect {
+      stroke: #009688;
+      stroke-width: 3;
+      filter: drop-shadow(0 4px 10px rgba(0, 150, 136, 0.25));
+    }
+    .tab-panel {
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+<link rel="stylesheet" href="assets/interactive-labs-responsive.css">
+<style>
+html[data-lab-layout] .lab-note-links{box-sizing:border-box;width:100%;max-width:var(--lab-frame);margin-inline:auto;padding:.55rem var(--lab-gutter);display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem .85rem;overflow-wrap:anywhere}
+html[data-lab-layout] .lab-note-links a{text-decoration:underline}
+html[data-lab-layout] .lab-note-links p{margin:0;font-size:var(--lab-type-detail)}
+html[data-lab-layout] body > header h1 {white-space:normal;overflow:visible;text-overflow:clip}
+html[data-lab-layout] main :is(.grid,.flex)>* {max-inline-size:100%}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen antialiased transition-colors duration-200">
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2 rounded-xl bg-slate-900 dark:bg-emerald-600 text-white px-4 py-3 text-sm font-medium shadow-xl border border-slate-700/60">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 dark:text-white shrink-0"></i>
+    <span id="toastMessage">已複製到剪貼簿</span>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 gap-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white shadow-sm shrink-0">
+            <i data-lucide="zap" class="w-5 h-5"></i>
+          </div>
+          <div class="truncate">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate">FastAPI 實戰互動實驗室</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">指令 CLI · API 沙盒 · 進階應用 · 打包部署</p>
+          </div>
+        </div>
+
+        <!-- Desktop Tabs -->
+        <nav id="desktopNav" class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl" aria-label="主要導覽">
+          <button type="button" data-tab="overview" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all">架構總覽</button>
+          <button type="button" data-tab="cli" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all">指令產生器</button>
+          <button type="button" data-tab="sandbox" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all">API 沙盒</button>
+          <button type="button" data-tab="apps" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all">應用與容量</button>
+          <button type="button" data-tab="packaging" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all">打包與部署</button>
+        </nav>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="themeToggle" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors" title="切換深淺主題" aria-label="切換深淺主題">
+            <i data-lucide="moon" id="themeIconMoon" class="w-4 h-4"></i>
+            <i data-lucide="sun" id="themeIconSun" class="w-4 h-4 hidden"></i>
+          </button>
+          <button type="button" id="mobileMenuBtn" class="md:hidden p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" aria-label="開啟導覽選單">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Dropdown Nav -->
+      <nav id="mobileNav" class="hidden md:hidden pb-3 pt-1 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-1.5">
+        <button type="button" data-tab="overview" class="nav-btn px-3 py-2 rounded-lg text-sm font-medium text-left">架構總覽</button>
+        <button type="button" data-tab="cli" class="nav-btn px-3 py-2 rounded-lg text-sm font-medium text-left">指令產生器</button>
+        <button type="button" data-tab="sandbox" class="nav-btn px-3 py-2 rounded-lg text-sm font-medium text-left">API 沙盒</button>
+        <button type="button" data-tab="apps" class="nav-btn px-3 py-2 rounded-lg text-sm font-medium text-left">應用與容量</button>
+        <button type="button" data-tab="packaging" class="nav-btn px-3 py-2 rounded-lg text-sm font-medium text-left col-span-2">打包與部署</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <aside class="lab-note-links" aria-label="實驗連結與說明"><a href="index.html#python-interactive-labs">回互動實驗選單</a><a href="python_fastapi_engineering_tutorial.html">閱讀完整教材</a><p>API 回應與容量試算為瀏覽器模擬，不會啟動或呼叫 FastAPI 後端。複製部署指令前請核對環境、路徑與設定。</p></aside>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+    <!-- ==================== TAB 1: OVERVIEW ==================== -->
+    <section id="tab-overview" class="tab-panel space-y-6">
+      <!-- Hero Banner -->
+      <div class="rounded-2xl bg-gradient-to-br from-teal-700 via-teal-800 to-slate-900 text-white p-6 sm:p-8 shadow-lg">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div class="space-y-3 max-w-2xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-teal-100 text-xs font-medium border border-white/15">
+              <span>Starlette ASGI + Pydantic v2 + uv 工作流</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">從本機開發到容器上線的 FastAPI 全鏈路實戰</h2>
+            <p class="text-sm sm:text-base text-teal-50/90 leading-relaxed">
+              涵蓋官方 FastAPI CLI 指令組合、互動式 RESTful API 與 Pydantic v2 驗證沙盒、依賴注入與背景任務範本，以及 Docker + uv、Wheel、PyInstaller 與 Systemd 打包部署產生器。
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-3 shrink-0">
+            <button type="button" data-jump="cli" class="quick-jump-btn flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium transition-colors text-left">
+              <i data-lucide="terminal" class="w-4 h-4 text-teal-300 shrink-0"></i>
+              <span>組裝 CLI 指令</span>
+            </button>
+            <button type="button" data-jump="sandbox" class="quick-jump-btn flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium transition-colors text-left">
+              <i data-lucide="play-circle" class="w-4 h-4 text-teal-300 shrink-0"></i>
+              <span>測試 API 沙盒</span>
+            </button>
+            <button type="button" data-jump="apps" class="quick-jump-btn flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium transition-colors text-left">
+              <i data-lucide="layers" class="w-4 h-4 text-teal-300 shrink-0"></i>
+              <span>設計模式與容量</span>
+            </button>
+            <button type="button" data-jump="packaging" class="quick-jump-btn flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium transition-colors text-left">
+              <i data-lucide="package" class="w-4 h-4 text-teal-300 shrink-0"></i>
+              <span>產生打包設定</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive SVG Lifecycle Architecture Diagram -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="git-branch" class="w-5 h-5 text-teal-600"></i>
+              互動式 FastAPI 請求生命週期架構圖
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">點擊下方任一架構節點，檢視該層的職責、運作機制與實戰程式碼。</p>
+          </div>
+          <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 self-start sm:self-auto">點選節點互動檢視</span>
+        </div>
+
+        <button type="button" class="lab-diagram-size" data-lab-diagram-size aria-pressed="false" aria-controls="fastapi-flow">放大檢視</button>
+<div id="fastapi-flow" class="w-full overflow-x-auto pb-2 lab-diagram" role="region" aria-label="FastAPI 請求流程檢視區" tabindex="0">
+          <svg viewBox="0 0 960 190" class="w-full h-auto select-none" role="img" aria-label="FastAPI 請求生命週期架構圖">
+            <defs>
+              <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+              </marker>
+            </defs>
+
+            <!-- Background lane -->
+            <rect x="8" y="14" width="944" height="162" rx="16" fill="currentColor" class="text-slate-50 dark:text-slate-950" stroke="#cbd5e1" stroke-dasharray="4 4" stroke-width="1" opacity="0.7" />
+
+            <!-- Arrows between nodes -->
+            <line x1="156" y1="95" x2="178" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#arrowHead)" />
+            <line x1="312" y1="95" x2="334" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#arrowHead)" />
+            <line x1="468" y1="95" x2="490" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#arrowHead)" />
+            <line x1="624" y1="95" x2="646" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#arrowHead)" />
+            <line x1="780" y1="95" x2="802" y2="95" stroke="#64748b" stroke-width="2" marker-end="url(#arrowHead)" />
+
+            <!-- Node 1: Proxy -->
+            <g class="svg-node active" data-arch-node="proxy">
+              <rect x="24" y="47" width="132" height="96" rx="12" fill="#f0fdfa" stroke="#0d9488" stroke-width="2" />
+              <text x="90" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#0f766e">1. 入口層</text>
+              <text x="90" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Nginx / TLS</text>
+              <text x="90" y="122" text-anchor="middle" font-size="11" fill="#475569">反向代理與轉發</text>
+            </g>
+
+            <!-- Node 2: Uvicorn -->
+            <g class="svg-node" data-arch-node="asgi">
+              <rect x="180" y="47" width="132" height="96" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />
+              <text x="246" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8">2. ASGI 伺服器</text>
+              <text x="246" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Uvicorn</text>
+              <text x="246" y="122" text-anchor="middle" font-size="11" fill="#475569">事件迴圈 / Workers</text>
+            </g>
+
+            <!-- Node 3: Middleware -->
+            <g class="svg-node" data-arch-node="middleware">
+              <rect x="336" y="47" width="132" height="96" rx="12" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.5" />
+              <text x="402" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#6d28d9">3. 中介層</text>
+              <text x="402" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Starlette</text>
+              <text x="402" y="122" text-anchor="middle" font-size="11" fill="#475569">CORS / 稽核紀錄</text>
+            </g>
+
+            <!-- Node 4: Router + DI -->
+            <g class="svg-node" data-arch-node="di">
+              <rect x="492" y="47" width="132" height="96" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="1.5" />
+              <text x="558" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#b45309">4. 路由與注入</text>
+              <text x="558" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Depends()</text>
+              <text x="558" y="122" text-anchor="middle" font-size="11" fill="#475569">鑑權 / DB Session</text>
+            </g>
+
+            <!-- Node 5: Pydantic v2 -->
+            <g class="svg-node" data-arch-node="pydantic">
+              <rect x="648" y="47" width="132" height="96" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5" />
+              <text x="714" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#be185d">5. 型別驗證</text>
+              <text x="714" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Pydantic v2</text>
+              <text x="714" y="122" text-anchor="middle" font-size="11" fill="#475569">驗證與 OpenAPI</text>
+            </g>
+
+            <!-- Node 6: Endpoint & Response -->
+            <g class="svg-node" data-arch-node="endpoint">
+              <rect x="804" y="47" width="132" height="96" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5" />
+              <text x="870" y="76" text-anchor="middle" font-size="11" font-weight="700" fill="#047857">6. 業務與回應</text>
+              <text x="870" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">async / def</text>
+              <text x="870" y="122" text-anchor="middle" font-size="11" fill="#475569">JSON / 背景任務</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Arch Node Inspector Detail -->
+        <div id="archDetailBox" class="rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-6 space-y-2">
+            <div class="flex items-center gap-2">
+              <span id="archBadge" class="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200">1. 入口層</span>
+              <h4 id="archTitle" class="text-base font-bold text-slate-900 dark:text-white">反向代理與 TLS 終結（Nginx / Cloud Load Balancer）</h4>
+            </div>
+            <p id="archDesc" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+            <div class="pt-1">
+              <p class="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                <span id="archPitfall"></span>
+              </p>
+            </div>
+          </div>
+          <div class="lg:col-span-6">
+            <pre class="code-scroll rounded-xl bg-slate-900 text-slate-100 p-3.5 text-xs font-mono overflow-x-auto leading-relaxed"><code id="archCode"></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verified Official Documentation Links -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="https://fastapi.tiangolo.com/fastapi-cli/" target="_blank" rel="noopener noreferrer" class="group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 hover:border-teal-500 transition-all shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-teal-600 dark:text-teal-400">官方文件</span>
+            <i data-lucide="external-link" class="w-4 h-4 text-slate-400 group-hover:text-teal-600"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 dark:text-white mb-1">FastAPI CLI (dev / run)</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">官方 CLI 封裝 Uvicorn，區分開發熱重載模式（fastapi dev）與正式生產模式（fastapi run）。</p>
+        </a>
+
+        <a href="https://docs.astral.sh/uv/guides/integration/fastapi/" target="_blank" rel="noopener noreferrer" class="group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 hover:border-teal-500 transition-all shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-teal-600 dark:text-teal-400">套件與容器整合</span>
+            <i data-lucide="external-link" class="w-4 h-4 text-slate-400 group-hover:text-teal-600"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 dark:text-white mb-1">Astral uv + FastAPI 指南</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">使用 pyproject.toml 與 uv.lock 鎖定相依版本，加速本機虛擬環境建立與 Docker 多階段建置。</p>
+        </a>
+
+        <a href="https://fastapi.tiangolo.com/how-to/migrate-from-pydantic-v1-to-pydantic-v2/" target="_blank" rel="noopener noreferrer" class="group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 hover:border-teal-500 transition-all shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-teal-600 dark:text-teal-400">相容性重點</span>
+            <i data-lucide="external-link" class="w-4 h-4 text-slate-400 group-hover:text-teal-600"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 dark:text-white mb-1">Pydantic v2 與新版本 Python</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">pydantic.v1 已於 Python 3.14+ 停止支援，新專案應全面採用 Pydantic v2 與 Annotated 依賴宣告。</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: CLI COMMAND BUILDER ==================== -->
+    <section id="tab-cli" class="tab-panel hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Controls Panel -->
+        <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-5 shadow-sm">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="terminal" class="w-5 h-5 text-teal-600"></i>
+              啟動指令互動產生器
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">依環境調整選項，即時生成符合最佳實踐的啟動指令與參數解析。</p>
+          </div>
+
+          <!-- Server Mode -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">1. 啟動模式</label>
+            <div class="grid grid-cols-2 gap-2" id="cliModeGroup">
+              <button type="button" data-cli-mode="dev" class="cli-mode-btn px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all">
+                <div>fastapi dev</div>
+                <div class="font-normal opacity-75">本機開發 (熱重載)</div>
+              </button>
+              <button type="button" data-cli-mode="run" class="cli-mode-btn px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all">
+                <div>fastapi run</div>
+                <div class="font-normal opacity-75">正式環境 (無重載)</div>
+              </button>
+              <button type="button" data-cli-mode="uvicorn" class="cli-mode-btn px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all">
+                <div>uvicorn</div>
+                <div class="font-normal opacity-75">直接呼叫 ASGI</div>
+              </button>
+              <button type="button" data-cli-mode="gunicorn" class="cli-mode-btn px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all">
+                <div>gunicorn</div>
+                <div class="font-normal opacity-75">UvicornWorker 管理</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Runner Prefix -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="cliRunner" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">2. 環境執行前綴</label>
+              <select id="cliRunner" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
+                <option value="uv run ">uv run（推薦）</option>
+                <option value=".venv/bin/">.venv/bin/（Systemd/容器）</option>
+                <option value="">直接執行（已啟動 venv）</option>
+              </select>
+            </div>
+            <div>
+              <label for="cliEntry" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">3. 應用進入點</label>
+              <input id="cliEntry" type="text" value="app/main.py" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono" />
+            </div>
+          </div>
+
+          <!-- Host & Port -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="cliHost" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">監聽位址 (--host)</label>
+              <select id="cliHost" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono">
+                <option value="127.0.0.1">127.0.0.1 (僅本機)</option>
+                <option value="0.0.0.0">0.0.0.0 (容器/外部)</option>
+              </select>
+            </div>
+            <div>
+              <label for="cliPort" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">埠號 (--port)</label>
+              <input id="cliPort" type="number" min="1" max="65535" value="8000" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono" />
+            </div>
+          </div>
+
+          <!-- Workers Slider -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label for="cliWorkers" class="text-xs font-semibold text-slate-600 dark:text-slate-300">Worker 程序數 (--workers)</label>
+              <span id="cliWorkersVal" class="text-xs font-mono font-bold text-teal-600 dark:text-teal-400">1</span>
+            </div>
+            <input id="cliWorkers" type="range" min="1" max="16" value="1" class="w-full accent-teal-600" />
+            <p id="cliWorkersHint" class="text-xs text-slate-500 dark:text-slate-400">開發模式啟用自動重載時僅支援單程序。</p>
+          </div>
+
+          <!-- Advanced Flags -->
+          <div class="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="cliProxyHeaders" type="checkbox" class="rounded accent-teal-600 w-4 h-4" />
+              <span>啟用 <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">--proxy-headers</code>（位於 Nginx / LB 後方）</span>
+            </label>
+            <div id="cliForwardedWrap" class="hidden pl-6">
+              <label for="cliForwardedIps" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">信任代理來源 (--forwarded-allow-ips)</label>
+              <select id="cliForwardedIps" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono">
+                <option value="127.0.0.1">127.0.0.1（同機 Nginx 反向代理）</option>
+                <option value="*">*（容器平台受控內網負載平衡器）</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="cliRootPathToggle" type="checkbox" class="rounded accent-teal-600 w-4 h-4" />
+              <span>設定反向代理子路徑 <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">--root-path /api/v1</code></span>
+            </label>
+            <label id="cliNoReloadWrap" class="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="cliNoReload" type="checkbox" class="rounded accent-teal-600 w-4 h-4" />
+              <span>開發模式關閉熱重載 <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">--no-reload</code></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Output & Explanation -->
+        <div class="lg:col-span-7 space-y-5">
+          <!-- Generated Terminal Box -->
+          <div class="rounded-2xl bg-slate-900 text-slate-100 border border-slate-700 overflow-hidden shadow-md">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800/90 border-b border-slate-700">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-mono text-slate-400 ml-2">terminal — bash</span>
+              </div>
+              <button type="button" id="copyCliBtn" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium transition-colors">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                複製指令
+              </button>
+            </div>
+            <div class="p-5 font-mono text-sm sm:text-base overflow-x-auto code-scroll">
+              <span class="text-emerald-400 select-none">$ </span><span id="cliOutput" class="text-teal-200 break-all"></span>
+            </div>
+          </div>
+
+          <!-- Flag Breakdown -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="list-checks" class="w-4 h-4 text-teal-600"></i>
+              參數即時解析
+            </h3>
+            <ul id="cliBreakdownList" class="space-y-2 text-sm"></ul>
+          </div>
+
+          <!-- Dependency Install Callout -->
+          <div class="rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/70 p-4 text-xs sm:text-sm text-teal-900 dark:text-teal-100 space-y-1.5">
+            <p class="font-bold flex items-center gap-1.5">
+              <i data-lucide="info" class="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0"></i>
+              安裝套件常見陷阱：為何出現 <code class="font-mono">fastapi: command not found</code>？
+            </p>
+            <p class="leading-relaxed">
+              僅安裝 <code class="font-mono bg-white/70 dark:bg-slate-900 px-1.5 py-0.5 rounded">uv add fastapi</code> 不含 CLI 與 Uvicorn；請改用 <code class="font-mono bg-white/70 dark:bg-slate-900 px-1.5 py-0.5 rounded">uv add "fastapi[standard]"</code>（若不需 FastAPI Cloud CLI 可用 <code class="font-mono bg-white/70 dark:bg-slate-900 px-1.5 py-0.5 rounded">uv add "fastapi[standard-no-fastapi-cloud-cli]"</code>）。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLI Cheat Sheet Table -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">FastAPI + uv 常用實戰指令速查</h3>
+          <div class="flex flex-wrap gap-1.5" id="cliFilterGroup">
+            <button type="button" data-cli-cat="all" class="cli-cat-btn px-3 py-1 rounded-lg text-xs font-medium">全部</button>
+            <button type="button" data-cli-cat="setup" class="cli-cat-btn px-3 py-1 rounded-lg text-xs font-medium">初始化與套件</button>
+            <button type="button" data-cli-cat="server" class="cli-cat-btn px-3 py-1 rounded-lg text-xs font-medium">伺服器啟動</button>
+            <button type="button" data-cli-cat="ops" class="cli-cat-btn px-3 py-1 rounded-lg text-xs font-medium">遷移與測試</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                <th class="py-2.5 pr-4">分類</th>
+                <th class="py-2.5 pr-4">指令</th>
+                <th class="py-2.5 pr-4">用途說明</th>
+                <th class="py-2.5 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="cliCheatTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/80"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: INTERACTIVE API SANDBOX ==================== -->
+    <section id="tab-sandbox" class="tab-panel hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Request Builder -->
+        <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-sm">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="flask-conical" class="w-5 h-5 text-teal-600"></i>
+                商品庫存 API 互動沙盒
+              </h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">在瀏覽器內即時模擬 FastAPI 路由、Depends 鑑權與 Pydantic v2 驗證 (422)。</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">OpenAPI 3.1</span>
+          </div>
+
+          <!-- Endpoint Selector -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="endpointButtons">
+            <button type="button" data-ep="list" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">GET</span>
+              <span class="truncate">/api/v1/items</span>
+            </button>
+            <button type="button" data-ep="get" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">GET</span>
+              <span class="truncate">/api/v1/items/{id}</span>
+            </button>
+            <button type="button" data-ep="create" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">POST</span>
+              <span class="truncate">/api/v1/items</span>
+            </button>
+            <button type="button" data-ep="patch" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">PATCH</span>
+              <span class="truncate">/api/v1/items/{id}</span>
+            </button>
+            <button type="button" data-ep="delete" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">DEL</span>
+              <span class="truncate">/api/v1/items/{id}</span>
+            </button>
+            <button type="button" data-ep="importCsv" class="ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono text-left transition-all">
+              <span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">POST</span>
+              <span class="truncate">/items/import-csv</span>
+            </button>
+          </div>
+
+          <!-- Auth Header Control -->
+          <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="text-xs">
+              <span class="font-semibold text-slate-700 dark:text-slate-200">Header 鑑權 (Depends)：</span>
+              <code class="font-mono text-teal-600 dark:text-teal-400">X-Token</code>
+            </div>
+            <select id="sandboxAuth" class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-mono">
+              <option value="secret-fastapi-2026">secret-fastapi-2026 (有效 Token)</option>
+              <option value="wrong-token">wrong-token (觸發 401)</option>
+              <option value="">(未帶 Header，觸發 401/422)</option>
+            </select>
+          </div>
+
+          <!-- Dynamic Parameter Fields -->
+          <div id="sandboxParamsArea" class="space-y-3"></div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap items-center gap-2 pt-2">
+            <button type="button" id="sendRequestBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold shadow-sm transition-colors">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              發送模擬請求
+            </button>
+            <button type="button" id="fillInvalidBtn" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 transition-colors">
+              <i data-lucide="bug" class="w-3.5 h-3.5"></i>
+              填入錯誤資料測試 422
+            </button>
+          </div>
+        </div>
+
+        <!-- Response & Code Viewer -->
+        <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col space-y-4 shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <button type="button" id="viewRespTab" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white">HTTP 回應檢視</button>
+              <button type="button" id="viewCodeTab" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">對應 FastAPI 程式碼</button>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <span id="respStatusBadge" class="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800">200 OK</span>
+              <span id="respLatency" class="text-slate-500">1.8 ms</span>
+            </div>
+          </div>
+
+          <div id="respPanel" class="flex-1 flex flex-col space-y-2">
+            <div class="text-xs font-mono text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+              <span>content-type: application/json</span>
+              <span>x-process-time: <span id="respHeaderTime">0.0018</span>s</span>
+            </div>
+            <pre class="code-scroll flex-1 min-h-[260px] max-h-[380px] rounded-xl bg-slate-900 text-emerald-300 p-4 text-xs font-mono overflow-auto leading-relaxed"><code id="respBody"></code></pre>
+          </div>
+
+          <div id="codePanel" class="hidden flex-1 flex flex-col space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-500 dark:text-slate-400">現代化 Python 3.10+ Annotated + Pydantic v2 寫法</span>
+              <button type="button" id="copyEndpointCodeBtn" class="text-xs text-teal-600 dark:text-teal-400 hover:underline font-medium">複製程式碼</button>
+            </div>
+            <pre class="code-scroll flex-1 min-h-[260px] max-h-[380px] rounded-xl bg-slate-900 text-slate-100 p-4 text-xs font-mono overflow-auto leading-relaxed"><code id="endpointCodeBody"></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live In-Memory DB Table + CSV Export -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">沙盒即時資料庫狀態 (<span id="dbCount">5</span> 筆)</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">任何 POST / PATCH / DELETE / CSV 匯入操作皆會即時反映於下表。</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="exportCsvBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-teal-600 hover:opacity-90 text-white text-xs font-medium transition-opacity">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              匯出 CSV
+            </button>
+            <button type="button" id="resetDbBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              重設資料
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                <th class="py-2 pr-4">ID</th>
+                <th class="py-2 pr-4">商品名稱 (name)</th>
+                <th class="py-2 pr-4">分類 (category)</th>
+                <th class="py-2 pr-4">單價 (price)</th>
+                <th class="py-2 pr-4">庫存 (stock)</th>
+                <th class="py-2">備註</th>
+              </tr>
+            </thead>
+            <tbody id="dbTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/80 font-mono text-xs"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: REAL-WORLD APPS & CAPACITY ==================== -->
+    <section id="tab-apps" class="tab-panel hidden space-y-6">
+      <!-- Real-World Pattern Library -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="layers" class="w-5 h-5 text-teal-600"></i>
+              進階應用實戰設計模式庫
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">精選 5 個企業級專案必備架構範本，皆遵循 FastAPI 官方最新寫法。</p>
+          </div>
+          <button type="button" id="copyPatternBtn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium self-start sm:self-auto">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            複製目前範本
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2" id="patternTabs">
+          <button type="button" data-pattern="di" class="pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">1. Annotated + yield 注入</button>
+          <button type="button" data-pattern="lifespan" class="pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">2. Lifespan 生命週期</button>
+          <button type="button" data-pattern="background" class="pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">3. 背景任務 + CSV 串流</button>
+          <button type="button" data-pattern="middleware" class="pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">4. Middleware 與例外處理</button>
+          <button type="button" data-pattern="structure" class="pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">5. 中大型專案分層結構</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1">
+          <div class="lg:col-span-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+            <h3 id="patternTitle" class="font-bold text-slate-900 dark:text-white text-sm"></h3>
+            <p id="patternSummary" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+            <ul id="patternBullets" class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 list-disc pl-4"></ul>
+            <a id="patternDocLink" href="https://fastapi.tiangolo.com/tutorial/dependencies/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline pt-1">
+              <span>閱讀 FastAPI 官方文件</span>
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+          <div class="lg:col-span-8">
+            <pre class="code-scroll rounded-xl bg-slate-900 text-slate-100 p-4 text-xs font-mono overflow-x-auto max-h-[380px] leading-relaxed"><code id="patternCode"></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Worker & Memory Capacity Estimator (Chart.js) -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-5 h-5 text-teal-600"></i>
+              Worker 進程與記憶體容量試算模型
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">依主機 CPU 核心數與單 Worker 記憶體佔用，動態比較三種部署策略的資源預算（公式試算模型）。</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">本地數學公式試算</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div class="lg:col-span-4 space-y-4">
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <label for="calcCpu">可用 CPU 核心數 (vCPU)</label>
+                <span id="calcCpuVal" class="font-mono text-teal-600 dark:text-teal-400">4 核</span>
+              </div>
+              <input id="calcCpu" type="range" min="1" max="16" value="4" class="w-full accent-teal-600" />
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <label for="calcMem">單 Worker 預估記憶體</label>
+                <span id="calcMemVal" class="font-mono text-teal-600 dark:text-teal-400">128 MB</span>
+              </div>
+              <input id="calcMem" type="range" min="64" max="512" step="32" value="128" class="w-full accent-teal-600" />
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <label for="calcReplicas">容器水平副本數 (K8s / Cloud Run)</label>
+                <span id="calcReplicasVal" class="font-mono text-teal-600 dark:text-teal-400">4 副本</span>
+              </div>
+              <input id="calcReplicas" type="range" min="1" max="16" value="4" class="w-full accent-teal-600" />
+            </div>
+
+            <div id="calcSummaryBox" class="rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3.5 text-xs space-y-1.5"></div>
+          </div>
+
+          <div class="lg:col-span-8">
+            <div class="relative h-72 w-full">
+              <canvas id="capacityChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: PACKAGING & DEPLOYMENT ==================== -->
+    <section id="tab-packaging" class="tab-panel hidden space-y-6">
+      <!-- Interactive Packaging Config Generator -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="package" class="w-5 h-5 text-teal-600"></i>
+              打包與部署設定檔產生器
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">切換四種主流打包策略，自訂參數並直接匯出可投入生產的設定檔。</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5" id="pkgTypeGroup">
+            <button type="button" data-pkg="docker" class="pkg-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">Docker + uv</button>
+            <button type="button" data-pkg="wheel" class="pkg-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">pyproject.toml (Wheel)</button>
+            <button type="button" data-pkg="pyinstaller" class="pkg-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">PyInstaller 獨立檔</button>
+            <button type="button" data-pkg="systemd" class="pkg-btn px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all">Systemd + Nginx</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Left Options -->
+          <div id="pkgOptionsArea" class="lg:col-span-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 space-y-4"></div>
+
+          <!-- Right Generated File -->
+          <div class="lg:col-span-8 space-y-3">
+            <div class="rounded-2xl bg-slate-900 text-slate-100 border border-slate-700 overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800 border-b border-slate-700">
+                <span id="pkgFileName" class="text-xs font-mono text-teal-300">Dockerfile</span>
+                <button type="button" id="copyPkgBtn" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  複製設定檔
+                </button>
+              </div>
+              <pre class="code-scroll p-4 text-xs font-mono overflow-x-auto max-h-[380px] leading-relaxed"><code id="pkgCodeOutput"></code></pre>
+            </div>
+            <div class="rounded-xl bg-slate-100 dark:bg-slate-800/80 px-4 py-3 text-xs font-mono flex items-center justify-between gap-2">
+              <div class="truncate">
+                <span class="text-slate-500 select-none">建置指令：</span>
+                <span id="pkgBuildCmd" class="text-slate-900 dark:text-teal-300"></span>
+              </div>
+              <button type="button" id="copyPkgCmdBtn" class="shrink-0 px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-xs hover:bg-slate-50">複製</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Packaging Matrix Comparison Table -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">四種打包與部署方案比較表</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                <th class="py-2.5 pr-4">方案</th>
+                <th class="py-2.5 pr-4">適用場景</th>
+                <th class="py-2.5 pr-4">相依鎖定機制</th>
+                <th class="py-2.5 pr-4">擴展方式</th>
+                <th class="py-2.5">關鍵實戰要點</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+              <tr>
+                <td class="py-3 pr-4 font-bold text-teal-700 dark:text-teal-400">Docker + uv</td>
+                <td class="py-3 pr-4">雲端微服務、K8s、Cloud Run</td>
+                <td class="py-3 pr-4 font-mono text-xs">pyproject.toml + uv.lock</td>
+                <td class="py-3 pr-4">單容器單 Worker + 平台水平副本</td>
+                <td class="py-3">多階段建置、非 root、`exec` PID 1 接收 SIGTERM</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 font-bold text-blue-700 dark:text-blue-400">Wheel (uv build)</td>
+                <td class="py-3 pr-4">內部私有 PyPI、企業元件分發</td>
+                <td class="py-3 pr-4 font-mono text-xs">pyproject.toml (PEP 621)</td>
+                <td class="py-3 pr-4">搭配目標主機 Uvicorn / Gunicorn</td>
+                <td class="py-3">使用 `src/` 佈局與 `hatchling`，明確區分 `fastapi[standard]`</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 font-bold text-purple-700 dark:text-purple-400">PyInstaller</td>
+                <td class="py-3 pr-4">離線內網、本機桌面工具 API</td>
+                <td class="py-3 pr-4 font-mono text-xs">打包整份 Python Runtime</td>
+                <td class="py-3 pr-4">單機單程序執行檔</td>
+                <td class="py-3">必加 Uvicorn hidden-imports，並由程式碼呼叫 `uvicorn.run(app)`</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 font-bold text-amber-700 dark:text-amber-400">Systemd + Nginx</td>
+                <td class="py-3 pr-4">傳統 Linux VM、自架 VPS</td>
+                <td class="py-3 pr-4 font-mono text-xs">.venv + uv sync --locked</td>
+                <td class="py-3 pr-4">`--workers N`（每核 1 Worker）</td>
+                <td class="py-3">Nginx 終結 TLS、綁定 `127.0.0.1`、開啟 `--proxy-headers`</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Production Readiness Checklist -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">上線前打包與部署檢查清單</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">勾選進度自動保存在瀏覽器中，協助團隊上線前逐項核對。</p>
+          </div>
+          <div class="text-right shrink-0">
+            <span id="checklistProgressText" class="text-sm font-bold text-teal-600 dark:text-teal-400 font-mono">0 / 8</span>
+          </div>
+        </div>
+        <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+          <div id="checklistBar" class="h-full bg-teal-600 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div id="checklistGrid" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div>參考來源：
+      <a href="https://fastapi.tiangolo.com/" target="_blank" rel="noopener noreferrer" class="underline hover:text-teal-600">FastAPI Docs</a> ·
+      <a href="https://fastapi.tiangolo.com/deployment/docker/" target="_blank" rel="noopener noreferrer" class="underline hover:text-teal-600">FastAPI Docker</a> ·
+      <a href="https://docs.astral.sh/uv/guides/integration/fastapi/" target="_blank" rel="noopener noreferrer" class="underline hover:text-teal-600">Astral uv</a> ·
+      <a href="https://staxa.dev/guides/fastapi-dockerfile" target="_blank" rel="noopener noreferrer" class="underline hover:text-teal-600">Staxa Dockerfile Guide</a>
+    </div>
+    <div>純瀏覽器端互動教學工具（無需本機後端即可操作）</div>
+  </footer>
+
+  <script>
+    // ==================== UTILITIES ====================
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      toastMsg.textContent = msg;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2200);
+    }
+
+    function copyText(text, label) {
+      const done = () => showToast(label ? `已複製：${label}` : '已複製到剪貼簿');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+      } else {
+        fallbackCopy(text, done);
+      }
+    }
+
+    function fallbackCopy(text, cb) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      cb();
+    }
+
+    function safeGetStorage(key, fallback) {
+      try {
+        const val = localStorage.getItem(key);
+        return val !== null ? JSON.parse(val) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function safeSetStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {}
+    }
+
+    // ==================== THEME & NAVIGATION ====================
+    const state = {
+      activeTab: 'overview',
+      archNode: 'proxy',
+      cliMode: 'dev',
+      cliCategory: 'all',
+      activeEndpoint: 'list',
+      activePattern: 'di',
+      activePkg: 'docker',
+      pkgOptions: {
+        dockerPy: '3.13-slim',
+        dockerNonRoot: true,
+        dockerBytecode: true,
+        dockerExecPid1: true,
+        dockerForwarded: true,
+        wheelName: 'inventory-api',
+        wheelExtra: 'fastapi[standard]',
+        pyiMode: '--onefile',
+        pyiName: 'fastapi_server',
+        sysService: 'inventory-api',
+        sysPort: 8000,
+        sysWorkers: 4
+      },
+      checklist: safeGetStorage('fastapi_lab_checklist_v1', {})
+    };
+
+    function initTheme() {
+      const saved = safeGetStorage('fastapi_lab_theme', 'light');
+      applyTheme(saved === 'dark');
+    }
+
+    function applyTheme(isDark) {
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('themeIconMoon').classList.toggle('hidden', isDark);
+      document.getElementById('themeIconSun').classList.toggle('hidden', !isDark);
+      safeSetStorage('fastapi_lab_theme', isDark ? 'dark' : 'light');
+      if (window._capacityChart) updateCapacityChart();
+    }
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll('.tab-panel').forEach(el => {
+        el.classList.toggle('hidden', el.id !== `tab-${tabId}`);
+      });
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        const active = btn.dataset.tab === tabId;
+        btn.className = active
+          ? 'nav-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-sm transition-all'
+          : 'nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all';
+      });
+      document.getElementById('mobileNav').classList.add('hidden');
+      if (tabId === 'apps') {
+        setTimeout(updateCapacityChart, 30);
+      }
+    }
+
+    // ==================== TAB 1: ARCHITECTURE SVG INSPECTOR ====================
+    const archData = {
+      proxy: {
+        badge: '1. 入口層',
+        title: '反向代理與 TLS 終結（Nginx / Cloud Load Balancer）',
+        desc: '正式環境不建議將 Uvicorn 直接裸露於公網，應由 Nginx、Traefik 或雲端負載平衡器終結 HTTPS/TLS，並透過 X-Forwarded-Proto 與 X-Forwarded-For 傳遞真實客戶端協定與 IP。',
+        pitfall: '常見地雷：忘記開啟 --proxy-headers 與 FORWARDED_ALLOW_IPS，導致 url_for() 或 OAuth 重新導向產生 http:// 而非 https://。',
+        code: `location / {\n    proxy_pass http://127.0.0.1:8000;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}`
+      },
+      asgi: {
+        badge: '2. ASGI 伺服器',
+        title: 'Uvicorn / Gunicorn ASGI 伺服器',
+        desc: 'FastAPI 遵循 ASGI 非同步標準。官方 CLI（fastapi dev / fastapi run）底層即呼叫 Uvicorn，支援單程序高並發事件迴圈（asyncio），亦可透過 --workers 或容器多副本善用多核 CPU。',
+        pitfall: '常見地雷：在多個 Worker 之間使用全域 Python dict 存狀態，各程序記憶體不互通會導致資料錯亂；請改用 Redis 或資料庫。',
+        code: `# 正式環境啟動（關閉 reload、監聽 0.0.0.0）\nuv run fastapi run app/main.py --workers 4 --proxy-headers\n\n# 容器環境使用 exec 讓主程序為 PID 1\nexec .venv/bin/fastapi run app/main.py --port "$PORT"`
+      },
+      middleware: {
+        badge: '3. 中介層',
+        title: 'Starlette Middleware（CORS / TrustedHost / 耗時追蹤）',
+        desc: 'FastAPI 建構於 Starlette 之上，所有請求進入路由前與回應離開前都會經過 Middleware 洋蔥模型，適合處理跨網域 CORS、安全標頭、Request ID 與請求耗時紀錄。',
+        pitfall: '常見地雷：若需高速串流回應，優先撰寫純 ASGI Middleware，避免 BaseHTTPMiddleware 緩衝整個回應主體。',
+        code: `from fastapi.middleware.cors import CORSMiddleware\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=["https://app.example.com"],\n    allow_methods=["*"],\n    allow_headers=["*"],\n)`
+      },
+      di: {
+        badge: '4. 路由與注入',
+        title: 'APIRouter 與 Annotated[..., Depends()] 依賴注入',
+        desc: '依賴注入系統自動解析函式簽章、快取單一請求內的共用依賴，並支援 yield 語法於請求結束後自動釋放資料庫 Session 或外部連線。',
+        pitfall: '常見地雷：Depends(get_db) 要傳入函式本身而非呼叫結果 get_db()；推薦搭配 typing.Annotated 保留靜態型別檢查能力。',
+        code: `from typing import Annotated\nfrom fastapi import Depends, Header, HTTPException\n\nasync def verify_token(x_token: Annotated[str, Header()]):\n    if x_token != "secret-fastapi-2026":\n        raise HTTPException(status_code=401, detail="Invalid X-Token")\n    return x_token`
+      },
+      pydantic: {
+        badge: '5. 型別驗證',
+        title: 'Pydantic v2 驗證、序列化與自動 OpenAPI',
+        desc: '透過 Python Type Hints 與 Pydantic v2（Rust 核心 pydantic-core），自動完成 Path/Query/Body 驗證、型別轉換、422 錯誤格式化，並即時生成 /docs Swagger UI。',
+        pitfall: '常見地雷：Python 3.14+ 已不再支援 pydantic.v1，請全面採用 Pydantic v2 的 model_config、model_dump() 與 Field()。',
+        code: `from pydantic import BaseModel, Field\n\nclass ItemCreate(BaseModel):\n    name: str = Field(min_length=2, max_length=50)\n    price: float = Field(gt=0)\n    stock: int = Field(ge=0, default=0)`
+      },
+      endpoint: {
+        badge: '6. 業務與回應',
+        title: 'async def 事件迴圈 vs def 執行緒池 & 背景任務',
+        desc: '使用 async def 搭配非同步 I/O（如 httpx、asyncpg）可直接運行於主事件迴圈；若使用同步阻塞套件，應改宣告為一般 def，FastAPI 會自動派發至外部執行緒池避免阻塞。',
+        pitfall: '常見地雷：在 async def 內呼叫同步 time.sleep() 或 requests.get() 會卡死整個 Worker 事件迴圈！',
+        code: `@app.post("/items", status_code=201)\nasync def create_item(\n    payload: ItemCreate,\n    bg: BackgroundTasks,\n    token: Annotated[str, Depends(verify_token)],\n):\n    bg.add_task(write_audit_log, payload.name)\n    return {"status": "created", "item": payload}`
+      }
+    };
+
+    function renderArchDetail(nodeKey) {
+      state.archNode = nodeKey;
+      const d = archData[nodeKey];
+      document.querySelectorAll('.svg-node').forEach(el => {
+        el.classList.toggle('active', el.dataset.archNode === nodeKey);
+      });
+      document.getElementById('archBadge').textContent = d.badge;
+      document.getElementById('archTitle').textContent = d.title;
+      document.getElementById('archDesc').textContent = d.desc;
+      document.getElementById('archPitfall').textContent = d.pitfall;
+      document.getElementById('archCode').textContent = d.code;
+    }
+
+    // ==================== TAB 2: CLI COMMAND BUILDER ====================
+    const cliCheatData = [
+      { cat: 'setup', label: '初始化與套件', cmd: 'uv init my-api && cd my-api', desc: '使用 uv 建立包含 pyproject.toml 的現代化 Python 專案' },
+      { cat: 'setup', label: '初始化與套件', cmd: 'uv add "fastapi[standard]"', desc: '安裝 FastAPI 與標準依賴（含 fastapi-cli、uvicorn、email-validator）' },
+      { cat: 'setup', label: '初始化與套件', cmd: 'uv add "fastapi[standard-no-fastapi-cloud-cli]"', desc: '安裝標準依賴但不包含 FastAPI Cloud CLI' },
+      { cat: 'server', label: '伺服器啟動', cmd: 'uv run fastapi dev app/main.py', desc: '本機開發伺服器：自動重載、僅監聽 127.0.0.1:8000' },
+      { cat: 'server', label: '伺服器啟動', cmd: 'uv run fastapi run app/main.py --workers 4', desc: '正式生產伺服器：關閉重載、監聽 0.0.0.0、啟動 4 個 Uvicorn Worker' },
+      { cat: 'server', label: '伺服器啟動', cmd: 'uv run fastapi run --entrypoint app.main:app --proxy-headers', desc: '明確指定模組匯入路徑並信任反向代理 X-Forwarded-* 標頭' },
+      { cat: 'ops', label: '遷移與測試', cmd: 'uv run alembic upgrade head', desc: '套用最新資料庫 Schema 遷移（SQLAlchemy / SQLModel）' },
+      { cat: 'ops', label: '遷移與測試', cmd: 'uv run pytest -q', desc: '搭配 FastAPI TestClient 與 dependency_overrides 執行自動化測試' }
+    ];
+
+    function updateCliBuilder() {
+      const mode = state.cliMode;
+      const runner = document.getElementById('cliRunner').value;
+      const entry = document.getElementById('cliEntry').value.trim() || 'app/main.py';
+      const host = document.getElementById('cliHost').value;
+      const port = parseInt(document.getElementById('cliPort').value, 10) || 8000;
+      const workersInput = document.getElementById('cliWorkers');
+      const workers = parseInt(workersInput.value, 10) || 1;
+      const proxyHeaders = document.getElementById('cliProxyHeaders').checked;
+      const forwardedIps = document.getElementById('cliForwardedIps').value;
+      const rootPath = document.getElementById('cliRootPathToggle').checked;
+      const noReload = document.getElementById('cliNoReload').checked;
+
+      // Update mode buttons UI
+      document.querySelectorAll('.cli-mode-btn').forEach(btn => {
+        const active = btn.dataset.cliMode === mode;
+        btn.className = active
+          ? 'cli-mode-btn px-3 py-2 rounded-xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-900 dark:text-teal-100 text-xs font-semibold text-left transition-all'
+          : 'cli-mode-btn px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 text-slate-700 dark:text-slate-300 text-xs font-semibold text-left transition-all';
+      });
+
+      // Toggle contextual controls
+      const isDev = mode === 'dev';
+      workersInput.disabled = isDev;
+      document.getElementById('cliWorkersVal').textContent = isDev ? '1 (dev 鎖定)' : String(workers);
+      document.getElementById('cliWorkersHint').textContent = isDev
+        ? '開發模式啟用自動重載時僅支援單程序。'
+        : '多核 VM 建議設為 CPU 核心數；若由 Kubernetes / Cloud Run 水平擴展，單容器維持 1 即可。';
+      document.getElementById('cliNoReloadWrap').classList.toggle('hidden', !isDev);
+      document.getElementById('cliForwardedWrap').classList.toggle('hidden', !proxyHeaders);
+
+      // Build module import string for uvicorn/gunicorn
+      const importPath = entry.includes(':')
+        ? entry
+        : entry.replace(/\.py$/, '').replace(/[\\/]+/g, '.') + ':app';
+
+      const parts = [];
+      const breakdown = [];
+
+      if (runner) {
+        parts.push(runner.trim());
+        breakdown.push({
+          flag: runner.trim(),
+          text: runner.includes('uv') ? '透過 uv 自動啟用專案 .venv 並以鎖定依賴執行' : '直接指向專案虛擬環境內的執行檔（適合 Dockerfile / systemd）'
+        });
+      }
+
+      if (mode === 'dev') {
+        parts.push('fastapi dev', entry);
+        breakdown.push({ flag: 'fastapi dev', text: '開發模式：預設開啟檔案變更熱重載並僅綁定本機介面' });
+        if (noReload) {
+          parts.push('--no-reload');
+          breakdown.push({ flag: '--no-reload', text: '關閉開發模式的自動熱重載' });
+        }
+      } else if (mode === 'run') {
+        parts.push('fastapi run', entry);
+        breakdown.push({ flag: 'fastapi run', text: '正式模式：關閉熱重載、預設監聽 0.0.0.0 以接受容器或代理連線' });
+      } else if (mode === 'uvicorn') {
+        parts.push('uvicorn', importPath);
+        breakdown.push({ flag: `uvicorn ${importPath}`, text: '直接以 ASGI 匯入路徑啟動 Uvicorn 伺服器' });
+      } else if (mode === 'gunicorn') {
+        parts.push('gunicorn', importPath, '-k uvicorn.workers.UvicornWorker');
+        breakdown.push({ flag: '-k uvicorn.workers.UvicornWorker', text: '由 Gunicorn 擔任主程序管理器，管理多個 Uvicorn 非同步 Worker' });
+      }
+
+      if (mode === 'gunicorn') {
+        parts.push(`-b ${host}:${port}`);
+        breakdown.push({ flag: `-b ${host}:${port}`, text: `綁定監聽位址 ${host} 與埠號 ${port}` });
+        parts.push(`-w ${workers}`);
+        breakdown.push({ flag: `-w ${workers}`, text: `啟動 ${workers} 個 Worker 程序並行處理請求` });
+        if (proxyHeaders) {
+          parts.push(`--forwarded-allow-ips="${forwardedIps}"`);
+          breakdown.push({ flag: `--forwarded-allow-ips="${forwardedIps}"`, text: '信任指定代理來源的 X-Forwarded-* 標頭' });
+        }
+      } else {
+        if ((mode === 'dev' && host !== '127.0.0.1') || (mode !== 'dev')) {
+          parts.push('--host', host);
+          breakdown.push({ flag: `--host ${host}`, text: host === '0.0.0.0' ? '監聽所有網路介面（Docker / 外部連線必備）' : '僅監聽本機迴路位址（搭配同機 Nginx 反向代理最安全）' });
+        }
+        if (port !== 8000 || mode === 'uvicorn') {
+          parts.push('--port', String(port));
+          breakdown.push({ flag: `--port ${port}`, text: `指定服務監聽埠號為 ${port}` });
+        }
+        if (!isDev && workers > 1) {
+          parts.push('--workers', String(workers));
+          breakdown.push({ flag: `--workers ${workers}`, text: `啟動 ${workers} 個 Uvicorn Worker 程序` });
+        }
+        if (proxyHeaders) {
+          parts.push('--proxy-headers');
+          breakdown.push({ flag: '--proxy-headers', text: '解析反向代理轉發的 X-Forwarded-Proto / X-Forwarded-For 標頭' });
+          if (mode === 'uvicorn') {
+            parts.push('--forwarded-allow-ips', `'${forwardedIps}'`);
+            breakdown.push({ flag: `--forwarded-allow-ips '${forwardedIps}'`, text: '限制僅信任指定代理 IP（或容器內網 *）' });
+          } else {
+            breakdown.push({ flag: `FORWARDED_ALLOW_IPS=${forwardedIps}`, text: '搭配 fastapi run 時建議同時設定環境變數 FORWARDED_ALLOW_IPS' });
+          }
+        }
+        if (rootPath) {
+          parts.push('--root-path', '/api/v1');
+          breakdown.push({ flag: '--root-path /api/v1', text: '告知 OpenAPI /docs 服務掛載於反向代理子路徑 /api/v1 下' });
+        }
+      }
+
+      const cmdStr = parts.join(' ').replace(/\.venv\/bin\/\s+/, '.venv/bin/');
+      document.getElementById('cliOutput').textContent = cmdStr;
+
+      const listEl = document.getElementById('cliBreakdownList');
+      listEl.innerHTML = breakdown.map(item => `
+        <li class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60">
+          <code class="font-mono text-xs font-bold text-teal-700 dark:text-teal-300 shrink-0">${labText(item.flag)}</code>
+          <span class="text-xs text-slate-600 dark:text-slate-300">${labText(item.text)}</span>
+        </li>
+      `).join('');
+    }
+
+    function renderCliCheatTable() {
+      const cat = state.cliCategory;
+      document.querySelectorAll('.cli-cat-btn').forEach(btn => {
+        const active = btn.dataset.cliCat === cat;
+        btn.className = active
+          ? 'cli-cat-btn px-3 py-1 rounded-lg text-xs font-semibold bg-teal-600 text-white'
+          : 'cli-cat-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+      });
+      const rows = cliCheatData.filter(r => cat === 'all' || r.cat === cat);
+      document.getElementById('cliCheatTableBody').innerHTML = rows.map((r, i) => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+          <td class="py-2.5 pr-4 text-xs font-semibold text-teal-700 dark:text-teal-400 whitespace-nowrap">${r.label}</td>
+          <td class="py-2.5 pr-4 font-mono text-xs text-slate-900 dark:text-slate-100 whitespace-nowrap">${r.cmd}</td>
+          <td class="py-2.5 pr-4 text-xs text-slate-600 dark:text-slate-300">${r.desc}</td>
+          <td class="py-2.5 text-right">
+            <button type="button" data-copy-cmd="${r.cmd.replace(/"/g, '&quot;')}" class="copy-cheat-btn px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium">複製</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // ==================== TAB 3: INTERACTIVE API SANDBOX ====================
+    const INITIAL_ITEMS = [
+      { id: 1, name: '機械式無線鍵盤 K8', category: 'hardware', price: 2890, stock: 18, note: '青軸 / 藍牙 5.3' },
+      { id: 2, name: '4K USB-C 雙螢幕擴充座', category: 'accessory', price: 1650, stock: 34, note: '支援 PD 100W' },
+      { id: 3, name: '人體工學垂直滑鼠', category: 'hardware', price: 1290, stock: 9, note: '靜音微動' },
+      { id: 4, name: 'FastAPI 實戰手冊電子版', category: 'book', price: 580, stock: 99, note: '含 Pydantic v2 範例' },
+      { id: 5, name: '防噪會議麥克風', category: 'accessory', price: 2150, stock: 12, note: 'USB-C 隨插即用' }
+    ];
+    let dbItems = INITIAL_ITEMS.map(x => ({ ...x }));
+    let nextId = 6;
+    const VALID_CATEGORIES = ['hardware', 'accessory', 'book', 'software'];
+
+    const endpointSnippets = {
+      list: `@app.get("/api/v1/items", response_model=list[ItemOut])\nasync def list_items(\n    q: str | None = None,\n    category: Category | None = None,\n    skip: int = Query(default=0, ge=0),\n    limit: int = Query(default=20, ge=1, le=100),\n):\n    results = filter_items(q=q, category=category)\n    return results[skip : skip + limit]`,
+      get: `@app.get("/api/v1/items/{item_id}", response_model=ItemOut)\nasync def get_item(item_id: Annotated[int, Path(ge=1)]):\n    item = db.get(item_id)\n    if not item:\n        raise HTTPException(status_code=404, detail="Item not found")\n    return item`,
+      create: `class ItemCreate(BaseModel):\n    name: str = Field(min_length=2, max_length=50)\n    category: Literal["hardware", "accessory", "book", "software"]\n    price: float = Field(gt=0)\n    stock: int = Field(ge=0, default=0)\n    note: str = ""\n\n@app.post("/api/v1/items", status_code=201)\nasync def create_item(\n    payload: ItemCreate,\n    _: Annotated[str, Depends(verify_token)],\n):\n    return save_item(payload)`,
+      patch: `class ItemPatch(BaseModel):\n    name: str | None = Field(default=None, min_length=2, max_length=50)\n    price: float | None = Field(default=None, gt=0)\n    stock: int | None = Field(default=None, ge=0)\n\n@app.patch("/api/v1/items/{item_id}")\nasync def patch_item(\n    item_id: int,\n    payload: ItemPatch,\n    _: Annotated[str, Depends(verify_token)],\n):\n    updates = payload.model_dump(exclude_unset=True)\n    return apply_patch(item_id, updates)`,
+      delete: `@app.delete("/api/v1/items/{item_id}")\nasync def delete_item(\n    item_id: int,\n    _: Annotated[str, Depends(verify_token)],\n):\n    if item_id not in db:\n        raise HTTPException(status_code=404, detail="Item not found")\n    return {"deleted_id": item_id, "status": "ok"}`,
+      importCsv: `@app.post("/api/v1/items/import-csv", status_code=201)\nasync def import_items_csv(\n    file: UploadFile,\n    _: Annotated[str, Depends(verify_token)],\n):\n    text = (await file.read()).decode("utf-8")\n    reader = csv.DictReader(io.StringIO(text))\n    created, errors = [], []\n    for idx, row in enumerate(reader, start=2):\n        try:\n            item = ItemCreate.model_validate(row)\n            created.append(save_item(item))\n        except ValidationError as exc:\n            errors.append({"row": idx, "errors": exc.errors()})\n    return {"created_count": len(created), "failed": errors}`
+    };
+
+    function renderEndpointControls(ep) {
+      state.activeEndpoint = ep;
+      document.querySelectorAll('.ep-btn').forEach(btn => {
+        const active = btn.dataset.ep === ep;
+        btn.className = active
+          ? 'ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-xs font-mono text-left transition-all'
+          : 'ep-btn flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 text-xs font-mono text-left transition-all';
+      });
+
+      const area = document.getElementById('sandboxParamsArea');
+      const invalidBtn = document.getElementById('fillInvalidBtn');
+      invalidBtn.classList.toggle('hidden', ep !== 'create' && ep !== 'patch');
+
+      if (ep === 'list') {
+        area.innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold mb-1">關鍵字 (q)</label>
+              <input id="p_q" type="text" placeholder="例如：鍵盤" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">分類 (category)</label>
+              <select id="p_cat" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs">
+                <option value="">全部</option>
+                <option value="hardware">hardware</option>
+                <option value="accessory">accessory</option>
+                <option value="book">book</option>
+                <option value="software">software</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">跳過筆數 (skip)</label>
+              <input id="p_skip" type="number" value="0" min="0" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">上限筆數 (limit)</label>
+              <input id="p_limit" type="number" value="20" min="1" max="100" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono" />
+            </div>
+          </div>`;
+      } else if (ep === 'get' || ep === 'delete') {
+        area.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">路徑參數 item_id (輸入 999 可測試 404)</label>
+            <input id="p_id" type="number" value="1" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono" />
+          </div>`;
+      } else if (ep === 'create') {
+        area.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">JSON Request Body (Pydantic v2 驗證)</label>
+            <textarea id="p_json" rows="7" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-900 text-teal-200 p-3 text-xs font-mono leading-relaxed">${JSON.stringify({
+              name: 'USB-C 行動固態硬碟 2TB',
+              category: 'hardware',
+              price: 3490,
+              stock: 15,
+              note: '讀寫 1050MB/s'
+            }, null, 2)}</textarea>
+          </div>`;
+      } else if (ep === 'patch') {
+        area.innerHTML = `
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1">目標 item_id</label>
+              <input id="p_id" type="number" value="1" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">部分更新 JSON Body (exclude_unset=True)</label>
+              <textarea id="p_json" rows="5" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-900 text-teal-200 p-3 text-xs font-mono leading-relaxed">${JSON.stringify({
+                price: 2690,
+                stock: 25
+              }, null, 2)}</textarea>
+            </div>
+          </div>`;
+      } else if (ep === 'importCsv') {
+        area.innerHTML = `
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold">CSV 批次匯入內容（含表頭：name,category,price,stock,note）</label>
+            <textarea id="p_csv" rows="6" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-900 text-teal-200 p-3 text-xs font-mono leading-relaxed">name,category,price,stock,note
+Linux 系統維運指南,book,620,40,第二版
+無效價格測試商品,hardware,-50,5,觸發 Pydantic 驗證失敗
+雲端監控儀表板授權,software,1980,100,年約版</textarea>
+            <p class="text-xs text-slate-500 dark:text-slate-400">範例第 2 筆故意包含負數價格，可即時觀察部分成功 + 逐列驗證錯誤回報。</p>
+          </div>`;
+      }
+
+      document.getElementById('endpointCodeBody').textContent = endpointSnippets[ep];
+    }
+
+    function validateItemPayload(obj, partial) {
+      const errors = [];
+      if (!partial || obj.name !== undefined) {
+        if (typeof obj.name !== 'string' || obj.name.trim().length < 2 || obj.name.trim().length > 50) {
+          errors.push({ type: 'string_too_short', loc: ['body', 'name'], msg: 'String should have between 2 and 50 characters', input: obj.name ?? null });
+        }
+      }
+      if (!partial || obj.category !== undefined) {
+        if (!VALID_CATEGORIES.includes(obj.category)) {
+          errors.push({ type: 'literal_error', loc: ['body', 'category'], msg: `Input should be one of: ${VALID_CATEGORIES.join(', ')}`, input: obj.category ?? null });
+        }
+      }
+      if (!partial || obj.price !== undefined) {
+        const p = Number(obj.price);
+        if (obj.price === '' || obj.price === null || Number.isNaN(p) || p <= 0) {
+          errors.push({ type: 'greater_than', loc: ['body', 'price'], msg: 'Input should be greater than 0', input: obj.price ?? null });
+        }
+      }
+      if (!partial || obj.stock !== undefined) {
+        const s = Number(obj.stock);
+        if (obj.stock === '' || obj.stock === null || !Number.isInteger(s) || s < 0) {
+          errors.push({ type: 'greater_than_equal', loc: ['body', 'stock'], msg: 'Input should be a non-negative integer', input: obj.stock ?? null });
+        }
+      }
+      return errors;
+    }
+
+    function executeSandboxRequest() {
+      const ep = state.activeEndpoint;
+      const token = document.getElementById('sandboxAuth').value;
+      const t0 = performance.now();
+      let status = 200;
+      let statusText = '200 OK';
+      let body = {};
+
+      const requireAuth = () => {
+        if (!token) {
+          status = 422;
+          statusText = '422 Unprocessable Entity';
+          body = { detail: [{ type: 'missing', loc: ['header', 'x-token'], msg: 'Field required', input: null }] };
+          return false;
+        }
+        if (token !== 'secret-fastapi-2026') {
+          status = 401;
+          statusText = '401 Unauthorized';
+          body = { detail: 'Invalid X-Token header' };
+          return false;
+        }
+        return true;
+      };
+
+      if (ep === 'list') {
+        const q = (document.getElementById('p_q')?.value || '').trim().toLowerCase();
+        const cat = document.getElementById('p_cat')?.value || '';
+        const skip = Math.max(0, parseInt(document.getElementById('p_skip')?.value || '0', 10) || 0);
+        const limit = Math.max(1, parseInt(document.getElementById('p_limit')?.value || '20', 10) || 20);
+        let res = dbItems.filter(it => {
+          const matchQ = !q || it.name.toLowerCase().includes(q) || (it.note || '').toLowerCase().includes(q);
+          const matchCat = !cat || it.category === cat;
+          return matchQ && matchCat;
+        });
+        const total = res.length;
+        res = res.slice(skip, skip + limit);
+        body = { total, skip, limit, items: res };
+      } else if (ep === 'get') {
+        const id = parseInt(document.getElementById('p_id')?.value || '0', 10);
+        const found = dbItems.find(x => x.id === id);
+        if (!found) {
+          status = 404;
+          statusText = '404 Not Found';
+          body = { detail: `Item with id=${id} not found` };
+        } else {
+          body = found;
+        }
+      } else if (ep === 'create') {
+        if (requireAuth()) {
+          try {
+            const parsed = JSON.parse(document.getElementById('p_json').value);
+            const errs = validateItemPayload(parsed, false);
+            if (errs.length) {
+              status = 422;
+              statusText = '422 Unprocessable Entity';
+              body = { detail: errs };
+            } else {
+              const created = {
+                id: nextId++,
+                name: parsed.name.trim(),
+                category: parsed.category,
+                price: Number(parsed.price),
+                stock: Number(parsed.stock),
+                note: parsed.note ? String(parsed.note) : ''
+              };
+              dbItems.push(created);
+              status = 201;
+              statusText = '201 Created';
+              body = created;
+              renderDbTable();
+            }
+          } catch (err) {
+            status = 422;
+            statusText = '422 Unprocessable Entity';
+            body = { detail: [{ type: 'json_invalid', loc: ['body'], msg: 'JSON decode error: ' + err.message }] };
+          }
+        }
+      } else if (ep === 'patch') {
+        if (requireAuth()) {
+          const id = parseInt(document.getElementById('p_id')?.value || '0', 10);
+          const idx = dbItems.findIndex(x => x.id === id);
+          if (idx === -1) {
+            status = 404;
+            statusText = '404 Not Found';
+            body = { detail: `Item with id=${id} not found` };
+          } else {
+            try {
+              const parsed = JSON.parse(document.getElementById('p_json').value);
+              const errs = validateItemPayload(parsed, true);
+              if (errs.length) {
+                status = 422;
+                statusText = '422 Unprocessable Entity';
+                body = { detail: errs };
+              } else {
+                const updated = { ...dbItems[idx] };
+                if (parsed.name !== undefined) updated.name = parsed.name.trim();
+                if (parsed.category !== undefined) updated.category = parsed.category;
+                if (parsed.price !== undefined) updated.price = Number(parsed.price);
+                if (parsed.stock !== undefined) updated.stock = Number(parsed.stock);
+                if (parsed.note !== undefined) updated.note = String(parsed.note);
+                dbItems[idx] = updated;
+                body = updated;
+                renderDbTable();
+              }
+            } catch (err) {
+              status = 422;
+              statusText = '422 Unprocessable Entity';
+              body = { detail: [{ type: 'json_invalid', loc: ['body'], msg: 'JSON decode error: ' + err.message }] };
+            }
+          }
+        }
+      } else if (ep === 'delete') {
+        if (requireAuth()) {
+          const id = parseInt(document.getElementById('p_id')?.value || '0', 10);
+          const idx = dbItems.findIndex(x => x.id === id);
+          if (idx === -1) {
+            status = 404;
+            statusText = '404 Not Found';
+            body = { detail: `Item with id=${id} not found` };
+          } else {
+            const removed = dbItems.splice(idx, 1)[0];
+            body = { status: 'deleted', deleted_item: removed };
+            renderDbTable();
+          }
+        }
+      } else if (ep === 'importCsv') {
+        if (requireAuth()) {
+          const raw = (document.getElementById('p_csv')?.value || '').trim();
+          const lines = raw.split(/\r?\n/).filter(Boolean);
+          if (lines.length < 2) {
+            status = 422;
+            statusText = '422 Unprocessable Entity';
+            body = { detail: 'CSV 至少需要表頭與一筆資料列' };
+          } else {
+            const headers = lines[0].split(',').map(h => h.trim());
+            const created = [];
+            const failed = [];
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(',').map(c => c.trim());
+              const rowObj = {};
+              headers.forEach((h, idx) => { rowObj[h] = cols[idx] ?? ''; });
+              const errs = validateItemPayload({
+                name: rowObj.name,
+                category: rowObj.category,
+                price: rowObj.price,
+                stock: rowObj.stock === '' ? 0 : Number(rowObj.stock)
+              }, false);
+              if (errs.length) {
+                failed.push({ row: i + 1, raw: lines[i], errors: errs });
+              } else {
+                const item = {
+                  id: nextId++,
+                  name: rowObj.name,
+                  category: rowObj.category,
+                  price: Number(rowObj.price),
+                  stock: Number(rowObj.stock || 0),
+                  note: rowObj.note || ''
+                };
+                dbItems.push(item);
+                created.push(item);
+              }
+            }
+            status = 201;
+            statusText = '201 Created';
+            body = { created_count: created.length, failed_count: failed.length, created, failed };
+            renderDbTable();
+          }
+        }
+      }
+
+      const elapsed = Math.max(0.4, performance.now() - t0 + 1.1);
+      const badge = document.getElementById('respStatusBadge');
+      badge.textContent = statusText;
+      badge.className = status < 300
+        ? 'px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800'
+        : status < 500
+          ? 'px-2 py-0.5 rounded-md font-bold bg-amber-100 text-amber-800'
+          : 'px-2 py-0.5 rounded-md font-bold bg-rose-100 text-rose-800';
+      document.getElementById('respLatency').textContent = `${elapsed.toFixed(1)} ms`;
+      document.getElementById('respHeaderTime').textContent = (elapsed / 1000).toFixed(4);
+      document.getElementById('respBody').textContent = JSON.stringify(body, null, 2);
+    }
+
+    function labText(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function renderDbTable() {
+      document.getElementById('dbCount').textContent = String(dbItems.length);
+      document.getElementById('dbTableBody').innerHTML = dbItems.map(it => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+          <td class="py-2 pr-4 font-bold text-teal-600 dark:text-teal-400">#${labText(it.id)}</td>
+          <td class="py-2 pr-4 font-sans font-medium text-slate-900 dark:text-slate-100">${labText(it.name)}</td>
+          <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800">${labText(it.category)}</span></td>
+          <td class="py-2 pr-4">NT$ ${labText(it.price.toLocaleString())}</td>
+          <td class="py-2 pr-4">${labText(it.stock)}</td>
+          <td class="py-2 font-sans text-slate-500 dark:text-slate-400">${labText(it.note || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportDbCsv() {
+      const header = 'id,name,category,price,stock,note';
+      const rows = dbItems.map(it => {
+        const esc = v => {
+          let text = String(v ?? '');
+          if (typeof v === 'string' && /^[\s\uFEFF]*[=+@-]/.test(text)) text = "'" + text;
+          return `"${text.replace(/"/g, '""')}"`;
+        };
+        return [it.id, esc(it.name), esc(it.category), it.price, it.stock, esc(it.note)].join(',');
+      });
+      const csv = '\uFEFF' + [header, ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'fastapi_items_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('已匯出 fastapi_items_export.csv');
+    }
+
+    // ==================== TAB 4: PATTERNS & CAPACITY CHART ====================
+    const patternLibrary = {
+      di: {
+        title: 'Annotated + Depends 與 yield 資料庫連線管理',
+        summary: '使用 typing.Annotated 結合 Depends() 是 FastAPI 官方推薦的現代寫法，可在多個路由間重複使用型別別名，並以 yield 確保連線於回應送出後安全關閉。',
+        bullets: [
+          '型別別名 DbSession = Annotated[Session, Depends(get_db)] 讓路由簽章更精簡',
+          'yield 之後的 finally 區塊保證即使路由拋出例外也能釋放連線',
+          '測試時可直接透過 app.dependency_overrides[get_db] 替換為記憶體 SQLite'
+        ],
+        docUrl: 'https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/',
+        code: `from typing import Annotated, Generator
+from fastapi import Depends, FastAPI
+from sqlmodel import Session, create_engine
+
+engine = create_engine("sqlite:///./data/app.db")
+
+def get_db() -> Generator[Session, None, None]:
+    with Session(engine) as session:
+        yield session
+
+DbSession = Annotated[Session, Depends(get_db)]
+
+app = FastAPI()
+
+@app.get("/healthz")
+def health_check(db: DbSession):
+    return {"status": "ok", "db_bound": db.is_active}`
+      },
+      lifespan: {
+        title: 'Lifespan 應用生命週期管理（取代 on_event）',
+        summary: '透過 async context manager 集中管理應用程式啟動前的資源初始化（連線池、ML 模型載入、HTTP Client）與關閉前的優雅清理。',
+        bullets: [
+          'yield 之前於服務啟動時執行一次，yield 之後於收到 SIGTERM 關閉時執行',
+          '將共用 httpx.AsyncClient 掛載於 app.state，避免每個請求重複建立 TCP 連線',
+          '搭配容器 exec PID 1 可確保關閉鉤子確實執行'
+        ],
+        docUrl: 'https://fastapi.tiangolo.com/advanced/events/',
+        code: `from contextlib import asynccontextmanager
+import httpx
+from fastapi import FastAPI, Request
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: 建立共用的非同步 HTTP 連線池
+    app.state.http = httpx.AsyncClient(timeout=10.0)
+    yield
+    # Shutdown: 優雅關閉連線池
+    await app.state.http.aclose()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/proxy-status")
+async def check_upstream(request: Request):
+    resp = await request.app.state.http.get("https://httpbin.org/status/200")
+    return {"upstream_status": resp.status_code}`
+      },
+      background: {
+        title: 'BackgroundTasks 背景任務與 CSV 串流下載',
+        summary: '輕量級非阻塞工作（如寄送通知、寫入稽核日誌）可交給內建 BackgroundTasks；大量資料匯出則使用 StreamingResponse 逐塊輸出，避免爆記憶體。',
+        bullets: [
+          'BackgroundTasks 來自 Starlette，於回應回傳客戶端後在同程序執行',
+          '若需重度運算或跨節點佇列重試，建議改用 Celery / ARQ / Dramatiq',
+          'StreamingResponse 搭配產生器可邊查邊寫出大型 CSV 報表'
+        ],
+        docUrl: 'https://fastapi.tiangolo.com/tutorial/background-tasks/',
+        code: `import csv, io
+from fastapi import BackgroundTasks, FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+def record_export_audit(user_id: str, rows: int) -> None:
+    print(f"[AUDIT] user={user_id} exported {rows} rows")
+
+@app.get("/reports/items.csv")
+async def download_csv(bg: BackgroundTasks):
+    data = [{"id": 1, "name": "Keyboard", "price": 2890}]
+    bg.add_task(record_export_audit, user_id="admin", rows=len(data))
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=["id", "name", "price"])
+        writer.writeheader()
+        yield buf.getvalue()
+        for row in data:
+            buf.seek(0); buf.truncate(0)
+            writer.writerow(row)
+            yield buf.getvalue()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=items.csv"},
+    )`
+      },
+      middleware: {
+        title: 'Middleware 耗時追蹤與自訂領域例外處理',
+        summary: '統一攔截領域例外並轉為結構化 JSON 錯誤，同時在回應標頭注入處理耗時（X-Process-Time），方便 APM 與維運除錯。',
+        bullets: [
+          '使用 @app.exception_handler 集中管理自訂商業邏輯例外',
+          'TrustedHostMiddleware 可防止 HTTP Host Header 偽造攻擊',
+          '統一錯誤格式有助於前端與行動端標準化錯誤提示'
+        ],
+        docUrl: 'https://fastapi.tiangolo.com/tutorial/handling-errors/',
+        code: `import time
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+class InsufficientStockError(Exception):
+    def __init__(self, item_id: int, remain: int):
+        self.item_id = item_id
+        self.remain = remain
+
+app = FastAPI()
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["api.example.com", "localhost"])
+
+@app.exception_handler(InsufficientStockError)
+async def stock_error_handler(_: Request, exc: InsufficientStockError):
+    return JSONResponse(
+        status_code=409,
+        content={"error": "INSUFFICIENT_STOCK", "item_id": exc.item_id, "remain": exc.remain},
+    )
+
+@app.middleware("http")
+async def add_process_time(request: Request, call_next):
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    response.headers["X-Process-Time"] = f"{time.perf_counter() - t0:.4f}"
+    return response`
+      },
+      structure: {
+        title: '中大型 FastAPI 專案模組化分層結構',
+        summary: '隨著端點增加，應透過 APIRouter 拆分領域模組，並將 Pydantic Schema、商業邏輯 Service 與設定 Config 分層管理。',
+        bullets: [
+          'pyproject.toml 與 uv.lock 置於專案根目錄，便於 Docker 分層快取',
+          'app/core/config.py 使用 pydantic-settings 集中驗證環境變數',
+          'app/api/v1/routers/ 掛載各模組 APIRouter，維持 app/main.py 精簡'
+        ],
+        docUrl: 'https://fastapi.tiangolo.com/tutorial/bigger-applications/',
+        code: `my-fastapi-service/
+├── pyproject.toml          # 專案元資料與直接相依宣告
+├── uv.lock                 # 鎖定完整依賴版本樹（必進 Git）
+├── Dockerfile              # 多階段建置（uv + python:3.13-slim）
+├── .dockerignore           # 排除 .venv / .git / __pycache__
+├── alembic.ini             # 資料庫遷移設定
+├── app/
+│   ├── main.py             # 建立 FastAPI(lifespan=...) 與掛載 Router
+│   ├── core/
+│   │   ├── config.py       # pydantic-settings 環境變數設定
+│   │   └── security.py     # JWT / Token 驗證與 Depends
+│   ├── api/v1/
+│   │   ├── router.py       # 彙整所有 v1 路由
+│   │   └── endpoints/
+│   │       └── items.py    # 單一領域端點
+│   ├── schemas/items.py    # Pydantic v2 Request / Response 模型
+│   ├── services/items.py   # 商業邏輯層（與 HTTP 解耦）
+│   └── db/session.py       # Engine 與 get_db yield 注入
+└── tests/
+    └── test_items.py       # TestClient 與 dependency_overrides`
+      }
+    };
+
+    function renderPattern(key) {
+      state.activePattern = key;
+      const p = patternLibrary[key];
+      document.querySelectorAll('.pattern-btn').forEach(btn => {
+        const active = btn.dataset.pattern === key;
+        btn.className = active
+          ? 'pattern-btn px-3 py-1.5 rounded-xl text-xs font-semibold border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 transition-all'
+          : 'pattern-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400 transition-all';
+      });
+      document.getElementById('patternTitle').textContent = p.title;
+      document.getElementById('patternSummary').textContent = p.summary;
+      document.getElementById('patternBullets').innerHTML = p.bullets.map(b => `<li>${b}</li>`).join('');
+      document.getElementById('patternDocLink').href = p.docUrl;
+      document.getElementById('patternCode').textContent = p.code;
+    }
+
+    function updateCapacityChart() {
+      const cpu = parseInt(document.getElementById('calcCpu').value, 10) || 4;
+      const memPerWorker = parseInt(document.getElementById('calcMem').value, 10) || 128;
+      const replicas = parseInt(document.getElementById('calcReplicas').value, 10) || 4;
+
+      document.getElementById('calcCpuVal').textContent = `${cpu} 核`;
+      document.getElementById('calcMemVal').textContent = `${memPerWorker} MB`;
+      document.getElementById('calcReplicasVal').textContent = `${replicas} 副本`;
+
+      // Pure mathematical capacity estimation formulas
+      const k8sTotalWorkers = replicas;
+      const k8sTotalMem = replicas * memPerWorker;
+
+      const uvicornWorkers = cpu;
+      const uvicornTotalMem = uvicornWorkers * memPerWorker;
+
+      const gunicornWorkers = Math.min(32, cpu * 2 + 1);
+      const gunicornTotalMem = gunicornWorkers * memPerWorker + 40; // ~40MB master overhead estimate
+
+      document.getElementById('calcSummaryBox').innerHTML = `
+        <div class="font-bold text-slate-800 dark:text-slate-100">試算公式摘要</div>
+        <div class="flex justify-between"><span>容器單 Worker × ${replicas} 副本：</span><span class="font-mono font-semibold text-teal-600 dark:text-teal-400">${k8sTotalMem} MB</span></div>
+        <div class="flex justify-between"><span>fastapi run --workers ${uvicornWorkers}：</span><span class="font-mono font-semibold text-blue-600 dark:text-blue-400">${uvicornTotalMem} MB</span></div>
+        <div class="flex justify-between"><span>Gunicorn (2×CPU+1=${gunicornWorkers})：</span><span class="font-mono font-semibold text-purple-600 dark:text-purple-400">${gunicornTotalMem} MB</span></div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 pt-1">註：實際記憶體視套件載入量（如 pandas/ML 模型）與請求併發而定，上線前請以負載測試實測。</p>
+      `;
+
+      const ctx = document.getElementById('capacityChart');
+      if (!ctx || typeof Chart === 'undefined') return;
+      const isDark = document.documentElement.classList.contains('dark');
+      const gridColor = isDark ? 'rgba(148,163,184,0.18)' : 'rgba(148,163,184,0.25)';
+      const textColor = isDark ? '#cbd5e1' : '#334155';
+
+      if (window._capacityChart) {
+        window._capacityChart.destroy();
+      }
+      window._capacityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['容器水平擴展\n(1 Worker/容器)', `fastapi run\n(--workers ${uvicornWorkers})`, `Gunicorn + Uvicorn\n(-w ${gunicornWorkers})`],
+          datasets: [
+            {
+              label: '預估總記憶體 (MB)',
+              data: [k8sTotalMem, uvicornTotalMem, gunicornTotalMem],
+              backgroundColor: ['#0d9488', '#3b82f6', '#8b5cf6'],
+              borderRadius: 8,
+              yAxisID: 'y'
+            },
+            {
+              label: '總 Worker 進程數',
+              data: [k8sTotalWorkers, uvicornWorkers, gunicornWorkers],
+              type: 'line',
+              borderColor: '#f59e0b',
+              backgroundColor: '#f59e0b',
+              borderWidth: 2.5,
+              pointRadius: 5,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: textColor, font: { size: 12 } } }
+          },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { display: false } },
+            y: {
+              position: 'left',
+              beginAtZero: true,
+              title: { display: true, text: '預估總記憶體 (MB)', color: textColor },
+              ticks: { color: textColor },
+              grid: { color: gridColor }
+            },
+            y1: {
+              position: 'right',
+              beginAtZero: true,
+              title: { display: true, text: 'Worker 進程數', color: textColor },
+              ticks: { color: textColor, precision: 0 },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+
+    // ==================== TAB 5: PACKAGING GENERATOR & CHECKLIST ====================
+    const CHECKLIST_ITEMS = [
+      { id: 'lock', title: '鎖定相依版本 (uv.lock)', desc: '確認 uv.lock 已提交至版本控制，建置時使用 --locked 確保環境一致。' },
+      { id: 'noreload', title: '關閉開發熱重載', desc: '正式環境改用 fastapi run 或不帶 --reload 的 uvicorn。' },
+      { id: 'nonroot', title: '容器以非 root 使用者執行', desc: '在 Dockerfile 建立系統使用者 app 並以 USER app 啟動服務。' },
+      { id: 'pid1', title: '確保主程序為 PID 1', desc: '使用 JSON exec 格式或 sh -c "exec ..." 確保能即時接收 SIGTERM 優雅關機。' },
+      { id: 'proxy', title: '設定代理標頭信任', desc: '位於 Nginx/LB 後方時開啟 --proxy-headers 並妥善配置 FORWARDED_ALLOW_IPS。' },
+      { id: 'stateless', title: '移出程序記憶體狀態', desc: '多 Worker 或多副本間不共用記憶體，Session 與快取須放 Redis/DB。' },
+      { id: 'healthz', title: '提供健康檢查端點', desc: '實作 /healthz 供負載平衡器與容器編排器探測就緒狀態。' },
+      { id: 'pydantic2', title: '確認 Pydantic v2 相容性', desc: '移除舊版 pydantic.v1 寫法，確保順利升級至 Python 3.14+。' }
+    ];
+
+    function renderPackagingOptions() {
+      const pkg = state.activePkg;
+      const opt = state.pkgOptions;
+      document.querySelectorAll('.pkg-btn').forEach(btn => {
+        const active = btn.dataset.pkg === pkg;
+        btn.className = active
+          ? 'pkg-btn px-3 py-1.5 rounded-xl text-xs font-semibold border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 transition-all'
+          : 'pkg-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400 transition-all';
+      });
+
+      const area = document.getElementById('pkgOptionsArea');
+      if (pkg === 'docker') {
+        area.innerHTML = `
+          <h3 class="text-sm font-bold">Docker + uv 建置選項</h3>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Python 基礎映像</label>
+            <select id="opt_dockerPy" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono">
+              <option value="3.12-slim" ${opt.dockerPy === '3.12-slim' ? 'selected' : ''}>python:3.12-slim</option>
+              <option value="3.13-slim" ${opt.dockerPy === '3.13-slim' ? 'selected' : ''}>python:3.13-slim</option>
+              <option value="3.14-slim" ${opt.dockerPy === '3.14-slim' ? 'selected' : ''}>python:3.14-slim</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input id="opt_dockerNonRoot" type="checkbox" ${opt.dockerNonRoot ? 'checked' : ''} class="accent-teal-600 w-4 h-4" />
+            <span>建立非 root 使用者 (useradd app)</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input id="opt_dockerBytecode" type="checkbox" ${opt.dockerBytecode ? 'checked' : ''} class="accent-teal-600 w-4 h-4" />
+            <span>預先編譯位元組碼 (UV_COMPILE_BYTECODE=1)</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input id="opt_dockerExecPid1" type="checkbox" ${opt.dockerExecPid1 ? 'checked' : ''} class="accent-teal-600 w-4 h-4" />
+            <span>支援動態 $PORT 與 exec PID 1 優雅關機</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input id="opt_dockerForwarded" type="checkbox" ${opt.dockerForwarded ? 'checked' : ''} class="accent-teal-600 w-4 h-4" />
+            <span>注入 FORWARDED_ALLOW_IPS=*（雲端代理）</span>
+          </label>`;
+      } else if (pkg === 'wheel') {
+        area.innerHTML = `
+          <h3 class="text-sm font-bold">pyproject.toml 套件設定</h3>
+          <div>
+            <label class="block text-xs font-semibold mb-1">套件名稱 (name)</label>
+            <input id="opt_wheelName" type="text" value="${labText(opt.wheelName)}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">FastAPI 依賴組合</label>
+            <select id="opt_wheelExtra" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono">
+              <option value="fastapi[standard]" ${opt.wheelExtra === 'fastapi[standard]' ? 'selected' : ''}>fastapi[standard]</option>
+              <option value="fastapi[standard-no-fastapi-cloud-cli]" ${opt.wheelExtra === 'fastapi[standard-no-fastapi-cloud-cli]' ? 'selected' : ''}>fastapi[standard-no-fastapi-cloud-cli]</option>
+              <option value="fastapi" ${opt.wheelExtra === 'fastapi' ? 'selected' : ''}>fastapi（僅核心，自備 ASGI）</option>
+            </select>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">執行 <code class="font-mono">uv build</code> 後將於 <code class="font-mono">dist/</code> 產生 <code class="font-mono">.whl</code> 與 <code class="font-mono">.tar.gz</code>。</p>`;
+      } else if (pkg === 'pyinstaller') {
+        area.innerHTML = `
+          <h3 class="text-sm font-bold">PyInstaller 獨立執行檔選項</h3>
+          <div>
+            <label class="block text-xs font-semibold mb-1">輸出模式</label>
+            <select id="opt_pyiMode" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono">
+              <option value="--onefile" ${opt.pyiMode === '--onefile' ? 'selected' : ''}>--onefile（單一執行檔，啟動較慢）</option>
+              <option value="--onedir" ${opt.pyiMode === '--onedir' ? 'selected' : ''}>--onedir（資料夾模式，啟動最快）</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">執行檔名稱 (--name)</label>
+            <input id="opt_pyiName" type="text" value="${labText(opt.pyiName)}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono" />
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">PyInstaller 無法動態掃描字串匯入，故進入點應直接傳入 <code class="font-mono">uvicorn.run(app, ...)</code> 物件而非 <code class="font-mono">"main:app"</code>。</p>`;
+      } else if (pkg === 'systemd') {
+        area.innerHTML = `
+          <h3 class="text-sm font-bold">Systemd + Nginx VM 部署選項</h3>
+          <div>
+            <label class="block text-xs font-semibold mb-1">服務名稱</label>
+            <input id="opt_sysService" type="text" value="${labText(opt.sysService)}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-semibold mb-1">本機埠號</label>
+              <input id="opt_sysPort" type="number" value="${labText(opt.sysPort)}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Workers 數</label>
+              <input id="opt_sysWorkers" type="number" min="1" max="16" value="${labText(opt.sysWorkers)}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-mono" />
+            </div>
+          </div>`;
+      }
+
+      area.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('input', syncPkgOptions);
+        el.addEventListener('change', syncPkgOptions);
+      });
+      renderPackagingOutput();
+    }
+
+    function syncPkgOptions() {
+      const o = state.pkgOptions;
+      if (document.getElementById('opt_dockerPy')) o.dockerPy = document.getElementById('opt_dockerPy').value;
+      if (document.getElementById('opt_dockerNonRoot')) o.dockerNonRoot = document.getElementById('opt_dockerNonRoot').checked;
+      if (document.getElementById('opt_dockerBytecode')) o.dockerBytecode = document.getElementById('opt_dockerBytecode').checked;
+      if (document.getElementById('opt_dockerExecPid1')) o.dockerExecPid1 = document.getElementById('opt_dockerExecPid1').checked;
+      if (document.getElementById('opt_dockerForwarded')) o.dockerForwarded = document.getElementById('opt_dockerForwarded').checked;
+      if (document.getElementById('opt_wheelName')) o.wheelName = document.getElementById('opt_wheelName').value.trim() || 'inventory-api';
+      if (document.getElementById('opt_wheelExtra')) o.wheelExtra = document.getElementById('opt_wheelExtra').value;
+      if (document.getElementById('opt_pyiMode')) o.pyiMode = document.getElementById('opt_pyiMode').value;
+      if (document.getElementById('opt_pyiName')) o.pyiName = document.getElementById('opt_pyiName').value.trim() || 'fastapi_server';
+      if (document.getElementById('opt_sysService')) o.sysService = document.getElementById('opt_sysService').value.trim() || 'inventory-api';
+      if (document.getElementById('opt_sysPort')) o.sysPort = parseInt(document.getElementById('opt_sysPort').value, 10) || 8000;
+      if (document.getElementById('opt_sysWorkers')) o.sysWorkers = parseInt(document.getElementById('opt_sysWorkers').value, 10) || 4;
+      renderPackagingOutput();
+    }
+
+    function renderPackagingOutput() {
+      const pkg = state.activePkg;
+      const o = state.pkgOptions;
+      let fileName = '';
+      let code = '';
+      let buildCmd = '';
+
+      if (pkg === 'docker') {
+        fileName = 'Dockerfile (Multi-stage + uv)';
+        code = `# syntax=docker/dockerfile:1
+FROM ghcr.io/astral-sh/uv:python${o.dockerPy.replace('-slim', '')}-bookworm-slim AS builder
+WORKDIR /app
+${o.dockerBytecode ? 'ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy\n' : 'ENV UV_LINK_MODE=copy\n'}
+# 1. 先複製相依宣告檔，最大化 Docker 層快取
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-install-project --no-dev
+
+# 2. 複製應用程式碼並完成安裝
+COPY app ./app
+RUN uv sync --locked --no-dev
+
+# --- Runtime Stage ---
+FROM python:${o.dockerPy}
+WORKDIR /app
+${o.dockerNonRoot ? 'RUN useradd --system --create-home app\n' : ''}COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/app /app/app
+
+ENV PATH="/app/.venv/bin:$PATH" \\
+    PORT=8000${o.dockerForwarded ? ' \\\n    FORWARDED_ALLOW_IPS="*"' : ''}
+${o.dockerNonRoot ? '\nUSER app' : ''}
+EXPOSE 8000
+${o.dockerExecPid1
+  ? 'CMD ["sh", "-c", "exec fastapi run app/main.py --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]'
+  : 'CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]'}`;
+        buildCmd = 'docker build -t my-fastapi:latest . && docker run -p 8000:8000 my-fastapi:latest';
+      } else if (pkg === 'wheel') {
+        fileName = 'pyproject.toml';
+        const modName = o.wheelName.replace(/-/g, '_');
+        code = `[project]
+name = "${o.wheelName}"
+version = "1.0.0"
+description = "Production FastAPI service packaged with uv"
+requires-python = ">=3.12"
+dependencies = [
+    "${o.wheelExtra}>=0.115.0",
+    "pydantic-settings>=2.6.0",
+]
+
+[project.scripts]
+${o.wheelName} = "${modName}.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/${modName}"]`;
+        buildCmd = 'uv lock && uv build --wheel --sdist';
+      } else if (pkg === 'pyinstaller') {
+        fileName = 'run_server.py + PyInstaller 指令';
+        code = `# run_server.py（PyInstaller 專用進入點）
+import multiprocessing
+import uvicorn
+from app.main import app  # 直接匯入 app 物件，避免字串動態載入失敗
+
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    uvicorn.run(
+        app,
+        host="127.0.0.1",
+        port=8000,
+        log_level="info",
+    )`;
+        buildCmd = `uv run pyinstaller ${o.pyiMode} --name ${o.pyiName} --hidden-import=uvicorn.logging --hidden-import=uvicorn.loops.auto --hidden-import=uvicorn.protocols.http.auto --hidden-import=uvicorn.lifespan.on run_server.py`;
+      } else if (pkg === 'systemd') {
+        fileName = `/etc/systemd/system/${o.sysService}.service`;
+        code = `[Unit]
+Description=${o.sysService} FastAPI Service
+After=network.target
+
+[Service]
+User=app
+Group=app
+WorkingDirectory=/opt/${o.sysService}
+EnvironmentFile=/opt/${o.sysService}/.env
+ExecStart=/opt/${o.sysService}/.venv/bin/uvicorn app.main:app \\
+    --host 127.0.0.1 \\
+    --port ${o.sysPort} \\
+    --workers ${o.sysWorkers} \\
+    --proxy-headers \\
+    --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target`;
+        buildCmd = `sudo systemctl daemon-reload && sudo systemctl enable --now ${o.sysService}`;
+      }
+
+      document.getElementById('pkgFileName').textContent = fileName;
+      document.getElementById('pkgCodeOutput').textContent = code;
+      document.getElementById('pkgBuildCmd').textContent = buildCmd;
+    }
+
+    function renderChecklist() {
+      const grid = document.getElementById('checklistGrid');
+      grid.innerHTML = CHECKLIST_ITEMS.map(item => {
+        const checked = !!state.checklist[item.id];
+        return `
+          <label class="flex items-start gap-3 p-3 rounded-xl border ${checked ? 'border-teal-500/60 bg-teal-50/60 dark:bg-teal-950/30' : 'border-slate-200 dark:border-slate-800'} cursor-pointer transition-colors">
+            <input type="checkbox" data-chk-id="${item.id}" ${checked ? 'checked' : ''} class="chk-item mt-0.5 w-4 h-4 rounded accent-teal-600 shrink-0" />
+            <div class="space-y-0.5">
+              <div class="text-xs font-bold ${checked ? 'line-through text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${item.title}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">${item.desc}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      const doneCount = CHECKLIST_ITEMS.filter(i => state.checklist[i.id]).length;
+      document.getElementById('checklistProgressText').textContent = `${doneCount} / ${CHECKLIST_ITEMS.length}`;
+      document.getElementById('checklistBar').style.width = `${Math.round((doneCount / CHECKLIST_ITEMS.length) * 100)}%`;
+    }
+
+    // ==================== EVENT WIRING & INIT ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      if (window.lucide) lucide.createIcons();
+
+      // Nav & Quick jump
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+      document.querySelectorAll('.quick-jump-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.jump));
+      });
+      document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+        document.getElementById('mobileNav').classList.toggle('hidden');
+      });
+      document.getElementById('themeToggle').addEventListener('click', () => {
+        applyTheme(!document.documentElement.classList.contains('dark'));
+      });
+
+      // Tab 1 SVG nodes
+      document.querySelectorAll('.svg-node').forEach(node => {
+        node.addEventListener('click', () => renderArchDetail(node.dataset.archNode));
+      });
+
+      // Tab 2 CLI builder
+      document.querySelectorAll('.cli-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.cliMode = btn.dataset.cliMode;
+          if (state.cliMode === 'dev') {
+            document.getElementById('cliHost').value = '127.0.0.1';
+          } else {
+            document.getElementById('cliHost').value = '0.0.0.0';
+          }
+          updateCliBuilder();
+        });
+      });
+      ['cliRunner', 'cliEntry', 'cliHost', 'cliPort', 'cliWorkers', 'cliProxyHeaders', 'cliForwardedIps', 'cliRootPathToggle', 'cliNoReload'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('input', updateCliBuilder);
+        el.addEventListener('change', updateCliBuilder);
+      });
+      document.getElementById('copyCliBtn').addEventListener('click', () => {
+        copyText(document.getElementById('cliOutput').textContent, '啟動指令');
+      });
+      document.querySelectorAll('.cli-cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.cliCategory = btn.dataset.cliCat;
+          renderCliCheatTable();
+        });
+      });
+      document.getElementById('cliCheatTableBody').addEventListener('click', e => {
+        const btn = e.target.closest('.copy-cheat-btn');
+        if (btn) copyText(btn.dataset.copyCmd, '速查指令');
+      });
+
+      // Tab 3 Sandbox
+      document.querySelectorAll('.ep-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          renderEndpointControls(btn.dataset.ep);
+          executeSandboxRequest();
+        });
+      });
+      document.getElementById('sendRequestBtn').addEventListener('click', executeSandboxRequest);
+      document.getElementById('fillInvalidBtn').addEventListener('click', () => {
+        const ta = document.getElementById('p_json');
+        if (ta) {
+          ta.value = JSON.stringify({ name: 'A', category: 'invalid_cat', price: -100, stock: -3 }, null, 2);
+          executeSandboxRequest();
+        }
+      });
+      document.getElementById('viewRespTab').addEventListener('click', () => {
+        document.getElementById('respPanel').classList.remove('hidden');
+        document.getElementById('codePanel').classList.add('hidden');
+        document.getElementById('viewRespTab').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white';
+        document.getElementById('viewCodeTab').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+      });
+      document.getElementById('viewCodeTab').addEventListener('click', () => {
+        document.getElementById('respPanel').classList.add('hidden');
+        document.getElementById('codePanel').classList.remove('hidden');
+        document.getElementById('viewCodeTab').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white';
+        document.getElementById('viewRespTab').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+      });
+      document.getElementById('copyEndpointCodeBtn').addEventListener('click', () => {
+        copyText(document.getElementById('endpointCodeBody').textContent, '端點程式碼');
+      });
+      document.getElementById('exportCsvBtn').addEventListener('click', exportDbCsv);
+      document.getElementById('resetDbBtn').addEventListener('click', () => {
+        dbItems = INITIAL_ITEMS.map(x => ({ ...x }));
+        nextId = 6;
+        renderDbTable();
+        executeSandboxRequest();
+        showToast('已重設沙盒商品資料');
+      });
+
+      // Tab 4 Patterns & Capacity Chart
+      document.querySelectorAll('.pattern-btn').forEach(btn => {
+        btn.addEventListener('click', () => renderPattern(btn.dataset.pattern));
+      });
+      document.getElementById('copyPatternBtn').addEventListener('click', () => {
+        copyText(document.getElementById('patternCode').textContent, '應用範本程式碼');
+      });
+      ['calcCpu', 'calcMem', 'calcReplicas'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateCapacityChart);
+      });
+
+      // Tab 5 Packaging & Checklist
+      document.querySelectorAll('.pkg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activePkg = btn.dataset.pkg;
+          renderPackagingOptions();
+        });
+      });
+      document.getElementById('copyPkgBtn').addEventListener('click', () => {
+        copyText(document.getElementById('pkgCodeOutput').textContent, document.getElementById('pkgFileName').textContent);
+      });
+      document.getElementById('copyPkgCmdBtn').addEventListener('click', () => {
+        copyText(document.getElementById('pkgBuildCmd').textContent, '建置指令');
+      });
+      document.getElementById('checklistGrid').addEventListener('change', e => {
+        const chk = e.target.closest('.chk-item');
+        if (chk) {
+          state.checklist[chk.dataset.chkId] = chk.checked;
+          safeSetStorage('fastapi_lab_checklist_v1', state.checklist);
+          renderChecklist();
+        }
+      });
+
+      // Initial renders
+      switchTab('overview');
+      renderArchDetail('proxy');
+      updateCliBuilder();
+      renderCliCheatTable();
+      renderEndpointControls('list');
+      renderDbTable();
+      executeSandboxRequest();
+      renderPattern('di');
+      renderPackagingOptions();
+      renderChecklist();
+    });
+  </script>
+<script>
+document.querySelectorAll('[data-lab-diagram-size]').forEach(button => {
+  button.addEventListener('click', () => {
+    const panel = document.getElementById(button.getAttribute('aria-controls'));
+    const expanded = panel.toggleAttribute('data-lab-expanded');
+    button.setAttribute('aria-pressed', String(expanded));
+    button.textContent = expanded ? '縮合至頁寬' : '放大檢視';
+  });
+});
+</script>
+</body>
+</html>
