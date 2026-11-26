@@ -25,7 +25,21 @@ main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 #liquid-metrics [id^="lc-"]{scroll-margin-block-start:1rem}
 #liquid-metrics tr:target > :is(th,td),#liquid-metrics li[id^="lc-"]:target{background:#fff1c9}
 #liquid-metrics :is(h3,li)[id]:target{outline:2px solid #a7681c;outline-offset:2px}
-</style></head><body id="top"><header><div><p class="kicker">DATA CENTER / PYTHON FIELD GUIDE</p><h1>機房能源效率：從電表到可驗證指標</h1><p>同一時窗算 PUE、分開看用水與碳、用冰水 ΔT 與 kW/RT 解釋冷卻廠變化。</p><p><a href="index.html">回 Python 教材首頁</a> · <a href="python_industrial_data_gateway_tutorial.html">工業資料閘道</a></p></div></header>
+</style>
+<style id="roadmap-ot-study-style">
+.ot-study{--ot-ink:#102c47;--ot-sub:#2c465f;--ot-pane:#fff;--ot-line:#b7cadd;--ot-faint:#f1f7fc;--ot-accent:#195d85;background:var(--ot-pane);color:var(--ot-ink);border:1px solid var(--ot-line);border-radius:16px;padding:clamp(.65rem,2.4vw,1.5rem);margin:1.35rem 0;max-width:100%;min-width:0;scroll-margin-top:1rem;overflow-wrap:anywhere}
+.ot-study h2,.ot-study h3{color:var(--ot-ink)} .ot-study p,.ot-study li,.ot-study td,.ot-study dd{color:var(--ot-sub)}
+.ot-study figure{margin:.9rem 0;padding:.65rem;border:1px solid var(--ot-line);border-radius:10px;background:var(--ot-faint);min-width:0}
+.ot-study figcaption{font-weight:750;color:var(--ot-ink);margin-bottom:.6rem}
+.ot-study-arch,.ot-study-flow{padding:0;margin:0;list-style:none;display:grid;gap:.65rem;max-width:none!important;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ot-study-flow{grid-template-columns:repeat(4,minmax(0,1fr));counter-reset:ot}
+.ot-study-arch li,.ot-study-flow li{background:var(--ot-pane);border:1px solid var(--ot-line);border-radius:8px;padding:.52rem;min-width:0;overflow-wrap:anywhere}
+.ot-study-arch{gap:1.35rem}.ot-study-arch li{position:relative}.ot-study-arch li:not(:last-child)::after{content:"→";position:absolute;right:-1.15rem;top:42%;color:var(--ot-accent);font-weight:800;line-height:1} .ot-study-arch strong{display:block;color:var(--ot-ink)} .ot-study-flow li::before{counter-increment:ot;content:counter(ot) " · ";font-weight:800;color:var(--ot-accent)}
+.ot-study-bars{margin:0;display:grid;gap:.52rem}.ot-study-bar{display:grid;grid-template-columns:minmax(6.25rem,11rem) minmax(0,1fr) minmax(3.2rem,max-content);gap:.5rem;align-items:center}.ot-study-track{height:.9rem;background:#dbe8f4;border-radius:12px;min-width:0}.ot-study-fill{display:block;height:100%;background:#237497;border-radius:12px}.ot-study-bar:nth-child(2) .ot-study-fill{background:#7b542c}.ot-study-bar strong{text-align:right;font-variant-numeric:tabular-nums}
+.ot-study-evidence{display:grid;gap:.55rem}.ot-study-evidence>div{background:#f2f7fb;border:1px solid var(--ot-line);border-radius:9px;padding:.6rem}.ot-study-evidence dt{font-weight:750;color:var(--ot-ink)}.ot-study-evidence dd{margin:.2rem 0}.ot-study pre{max-width:100%;overflow:auto}.ot-study a{color:#124c74;text-decoration:underline;text-underline-offset:.15em}
+@media(max-width:700px){.ot-study-arch li:not(:last-child)::after{content:"↓";top:auto;right:48%;bottom:-1.15rem}.ot-study-arch,.ot-study-flow{grid-template-columns:1fr}.ot-study-bar{grid-template-columns:minmax(5rem,1.3fr) minmax(0,1fr) minmax(3rem,max-content);gap:.3rem}}
+</style>
+</head><body id="top"><header><div><p class="kicker">DATA CENTER / PYTHON FIELD GUIDE</p><h1>機房能源效率：從電表到可驗證指標</h1><p><a href="#roadmap-ot-study">研究實作：架構、流程、圖表與 Python 證據</a></p><p>同一時窗算 PUE、分開看用水與碳、用冰水 ΔT 與 kW/RT 解釋冷卻廠變化。</p><p><a href="index.html">回 Python 教材首頁</a> · <a href="python_industrial_data_gateway_tutorial.html">工業資料閘道</a></p></div></header>
 <main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#cdu-energy">CDU 能耗</a><a href="#airflow">機房氣流計算</a><a href="#liquid-metrics">液冷能效指標</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
 
 <section id="formula-sheet"><p class="kicker">FORMULA SHEET</p><h2>機房能效指標｜計算公式速查</h2><p>用下表直接查分子、分母、單位及原案例代入。要查原始分表、逐步驗算與資料品質，見 <a href="#worked-calculations">同一機房詳細計算</a>；水側例見 <a href="#cooling">冷卻系統</a>；風量與旁通見 <a href="#airflow">機房氣流計算</a>。</p>
@@ -311,4 +325,19 @@ assert pue([(20, 10), (45, 30)]) != (2.0 + 1.5) / 2</code></pre></details>
 <section id="commissioning"><p class="kicker">07 / ACCEPTANCE</p><h2>驗收：先交付可追溯證據，再談改善目標</h2>
 <ol><li>檢查電力單線、冷卻及水路邊界。記錄電表序號、CT/PT 倍率、方向、表位與資料品質映射。</li><li>取一段正常與一段切換時窗，對照總表、IT 分表與冷卻電表，查重複與未計量項；另用重置、缺值、零分母等測例檢查拒絕路徑。</li><li>留存時間窗、時區、覆蓋率、有效窗數、分攤方法、量綱、版號與可追溯原始值。補資料後能重算，不能悄悄覆蓋歷史。</li><li>營運比較除 PUE 同時看設施與 IT 的 kWh、冷卻 kW/RT、負載、環境及可服務的 IT 工作；冷卻策略須另驗設備廠規格、最低流量、冷卻塔濕球條件、備援和現場連鎖。</li></ol>
 <p>方法和程式為教材，不含實際機房電表、效能承諾或申報結果。</p></section>
+<section id="roadmap-ot-study" class="ot-study" aria-labelledby="roadmap-ot-study-title">
+<h2 id="roadmap-ot-study-title">研究實作｜水側同窗配對：平均流量乘平均 ΔT，為什麼會算錯？</h2>
+<p>兩個等長半小時窗的流量、ΔT 同向上升；共用同一組純水教學近似。對比正確的逐窗乘積積分與錯誤的乘積平均，避免熱量低估導致 CDU 電耗強度被高估。</p>
+<figure><figcaption>架構圖｜責任邊界，資料由左至右（手機由上至下）</figcaption><ul class="ot-study-arch"><li><strong>同側量熱</strong>量同一支路流量與成對供／回液溫度，記流體物性</li><li><strong>同窗積分</strong>逐窗算 ρcₚQΔT × 小時；同步取 CDU 電能</li><li><strong>報表分界</strong>分開電 kWh 與熱 kWh，同一熱流不重複加總</li></ul></figure>
+<figure><figcaption>流程圖｜按編號重跑驗證</figcaption><ol class="ot-study-flow"><li>檢查量測邊界與時間戳</li><li>依窗配對 Q、ΔT、kW</li><li>加總有效熱量與電量</li><li>先對帳，再報強度</li></ol></figure>
+<figure><figcaption>圖表｜同一合成案例的移熱量（kWhₜₕ）</figcaption><div class="ot-study-bars"><div class="ot-study-bar"><span>配對積分（正確）</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:100%"></span></span><strong>186.04</strong></div><div class="ot-study-bar"><span>平均數相乘（錯誤）</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:93.75%"></span></span><strong>174.42</strong></div></div></figure>
+<p>配對積分為 186.04 kWhₜₕ，乘平均約 174.42 kWhₜₕ。因本例流量與溫差正相關，錯誤捷徑低估熱量 6.25%；非所有工況都同方向。</p>
+<h3>詳細解析與驗收</h3><dl class="ot-study-evidence"><div><dt>A、B 窗</dt><dd>每窗各 0.5 h；A 為 10 m³/h、8 K、2.5 kWₑ；B 為 20 m³/h、12 K、3.5 kWₑ。</dd><dd><strong>驗證：</strong>轉 m³/s（除以 3600），密度假設 1000 kg/m³，比熱 4.186 kJ/(kg·K)。</dd></div><div><dt>偏差來源</dt><dd>此案例 E[QΔT] &gt; E[Q]E[ΔT]，兩者差是同窗共變；符號視現場趨勢而定。</dd><dd><strong>驗證：</strong>不規則時間間隔要按每窗時長積分，資料不同步或缺失不能靠乘平均來補。</dd></div><div><dt>比率邊界</dt><dd>同窗 CDU 輸入為 3.00 kWhₑ，除以 186.04 kWhₜₕ 約 0.0161 kWhₑ/kWhₜₕ。</dd><dd><strong>驗證：</strong>若用錯誤的 174.42，數值約 0.0172，約高估 6.7%；機房整體 PUE 不由此單機強度替代。</dd></div><div><dt>量測驗證</dt><dd>流量與供回溫度取自指定換熱面同一側，先比校驗與時間偏差。</dd><dd><strong>驗證：</strong>熱量若在 TCS、FWS 兩面都量到，使用其中一面為效率分母，另一面對帳，不相加。</dd></div></dl>
+<h3>Python 離線實作</h3>
+<p>下載 <a href="python_roadmap_ot_research_lab.py" download>OT 研究實驗程式</a>。使用 Python 3.11+ 標準庫；不開啟任何網路或設備連線。</p>
+<pre><code>python python_roadmap_ot_research_lab.py datacenter
+python python_roadmap_ot_research_lab.py datacenter --test</code></pre>
+<details><summary>本章核心運算（簡化節錄）</summary><pre><code>energy_th = sum(hours * flow * delta_t * k for hours, flow, delta_t, _ in windows)</code></pre></details>
+<p>一手資料：<a href="https://www.energy.gov/cmei/femp/articles/best-practices-guide-energy-efficient-data-center-design">美國 DOE 機房能效設計指南</a> · <a href="https://handbook.ashrae.org/handbooks/S20/SI/s20_ch13/s20_ch13_si.aspx">ASHRAE Hydronic Heating and Cooling</a></p>
+</section>
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>

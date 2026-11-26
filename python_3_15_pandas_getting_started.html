@@ -151,17 +151,36 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       white-space: pre-wrap;
     }
-  </style>
+  
+.rd-data{box-sizing:border-box;display:block;width:100%;min-width:0;margin:1.6rem 0;padding:clamp(.8rem,2vw,1.35rem);border:1px solid #b6cbd5;border-radius:.7rem;background:#f8fcfe;color:#153242;scroll-margin-top:5rem;overflow-wrap:break-word}
+.rd-data h2,.rd-data h3,.rd-data p{color:#153242}
+.rd-data a{color:#125577;text-decoration:underline;text-underline-offset:.2em}
+.rd-data figure{min-width:0;margin:.8rem 0;padding:.7rem;border:1px solid #c8dae2;background:#fff;border-radius:.55rem}
+.rd-data figcaption{color:#23475b;font-weight:700;margin-bottom:.5rem}
+.rd-data .rd-grid{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.15rem;padding:0;margin:0}
+.rd-data .rd-grid li{position:relative;min-width:0;padding:.55rem;border-radius:.4rem;border:1px solid #a9c5d3;background:#edf6fb;margin:0}
+.rd-data .rd-grid li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:calc(50% - .6em);color:#125577;font-weight:700}
+.rd-data .rd-grid :is(strong,span){display:block;overflow-wrap:anywhere}
+.rd-data .rd-plot{display:grid;gap:.4rem;margin:.2rem 0}
+.rd-data .rd-row{min-width:0;display:grid;grid-template-columns:minmax(6rem,23%) minmax(2rem,1fr) minmax(2.6rem,max-content);gap:.4rem;align-items:center}
+.rd-data .rd-track{min-width:0;height:.75rem;background:#e1edf3;border-radius:.2rem}
+.rd-data .rd-track i{display:block;height:100%;background:#167191;border-radius:.2rem}
+.rd-data pre{width:100%;max-width:100%;overflow:auto;white-space:pre;padding:.7em;background:#173142;color:#f4f8ff;border-radius:.4rem}
+.rd-data pre code{color:inherit;white-space:pre}
+@media(max-width:720px){.rd-data .rd-grid{grid-template-columns:1fr}.rd-data .rd-grid li:not(:last-child)::after{content:"↓";left:calc(50% - .3em);top:calc(100% + .02rem)}}
+@media(max-width:380px){.rd-data .rd-row{grid-template-columns:minmax(5rem,32%) minmax(0,1fr) minmax(2.5rem,max-content)}}
+</style>
 <link rel="stylesheet" href="assets/interactive-labs-responsive.css">
 </head>
 <body>
   <div class="container lab-pandas-shell">
+<div class="lab-primary-return"><a class="lab-return-button" href="python_pandas_engineering_tutorial.html">← 回主教程</a></div>
     <header>
       <h1>Python 3.15 × Pandas Getting Started 全方位互動指南</h1>
       <p class="subtitle">
         參照 <a href="https://pandas.pydata.org/docs/getting_started/index.html" target="_blank" rel="noopener">pandas Getting Started 官方指南</a>，結合 Python 3.15 新語法、SQL/Excel 對照、應用圖表、Table Visualization 與 CSV 工作台
       </p>
-    </header>
+    <p><a href="#roadmap-data-research">工程驗證補充</a></p></header>
 
     <div class="toolbar">
       <div class="search-row">
@@ -253,6 +272,21 @@
     </section>
 
     <div id="grid" class="grid"></div>
+<section class="rd-data" id="roadmap-data-research" aria-labelledby="rd-data-title">
+<p><strong>工程研究補充｜</strong><time datetime="2026-11-26">2026-11-26</time></p>
+<h2 id="rd-data-title">讀 CSV 前先定義字典：點號、缺值和零不能互換</h2><p><code>001</code> 是點位代碼，不是可以加總的整數；<code>NA</code> 也可能是業務代碼，不一定是缺值。Pandas 的預設缺值表包含空白與 <code>NA</code> 等字串。若同時存在代碼欄與讀值欄，要分欄指定欄位型態和缺值規則，而不是全表 <code>fillna(0)</code>。</p>
+<figure><figcaption>流程圖｜依序執行</figcaption><ol class='rd-grid'><li><strong>1. 欄位契約</strong><span>point_id 是文字；kw 是可空 Float64</span></li><li><strong>2. 解析政策</strong><span>keep_default_na=False；只在 kw 欄宣告缺值字串</span></li><li><strong>3. 品質與追溯</strong><span>拒絕空點號；真零和缺測各自統計</span></li></ol></figure>
+<figure><figcaption>架構圖｜三層分工</figcaption><ol class='rd-grid'><li><strong>來源層</strong><span>保留原始 CSV 及欄位名稱。</span></li><li><strong>規則層</strong><span>版本化 dtype 與缺值詞；變更先跑歷史樣本。</span></li><li><strong>報表層</strong><span>顯示有效筆數、缺測筆數，保留 kW 單位。</span></li></ol></figure>
+<figure><figcaption>三筆合成資料的量測狀態（筆）</figcaption><div class='rd-plot'><div class='rd-row'><span>真實 0 kW</span><span class='rd-track' aria-hidden='true'><i style='width:33.3333%'></i></span><strong>1</strong></div><div class='rd-row'><span>缺測</span><span class='rd-track' aria-hidden='true'><i style='width:66.6667%'></i></span><strong>2</strong></div></div></figure>
+<h3>可執行算例與判讀</h3>
+<p><a href="python_roadmap_data_lab.py" download>下載離線實驗程式</a>。輸入全為合成資料，程式不寫設備或外部服務。另需先安裝 <code>pandas</code>。</p>
+<pre tabindex="0" aria-label="Python 執行命令"><code>python python_roadmap_data_lab.py csv</code></pre>
+<p>程式摘錄（變數和匯入見下載檔）：</p><pre tabindex="0" aria-label="關鍵程式碼"><code>df = pd.read_csv(raw, dtype={&quot;point_id&quot;: &quot;string&quot;, &quot;kw&quot;: &quot;Float64&quot;},
+                 keep_default_na=False, na_values={&quot;kw&quot;: [&quot;&quot;, &quot;N/A&quot;]})</code></pre>
+<p>範例保住 <code>001</code> 的前導零及合法代碼 <code>NA</code>，空白與 <code>N/A</code> 僅在 <code>kw</code> 視為缺值。<code>sum(min_count=1)</code> 讓全缺測時回傳缺值、有效的零仍是 0。正式資料另需明訂重複點號的語意，以及功率 kW 不可不經時窗積分就稱用電量 kWh。Pandas 3 的預設字串推斷已改變，本契約用明確 <code>dtype</code>，不靠版本推斷結果。</p>
+<p>原始參考：<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html">pandas.read_csv 官方參數</a> · <a href="https://pandas.pydata.org/docs/user_guide/migration.html#the-new-string-data-type">pandas 3.0 字串遷移</a>。</p>
+</section>
+
   </div>
 
   <script>

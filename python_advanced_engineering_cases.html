@@ -660,6 +660,25 @@
     .production-slice, .production-slice > *, .production-slice .slice-grid > * { min-width: 0; }
     .production-slice :is(h3, h4, p, li, .slice-card) { overflow-wrap: anywhere; }
     .production-slice .slice-card code { white-space: normal; }
+
+.capstone-lab{min-width:0;overflow-wrap:anywhere;container-type:inline-size}
+.capstone-lab p{margin:.55rem 0}
+.capstone-lab h3{margin:1.05rem 0 .5rem}
+.capstone-lab a{color:#126985}
+.capstone-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.05rem;list-style:none;padding:0;margin:.45rem 0 1rem;counter-reset:capnode}
+.capstone-flow li{border:1px solid #8ab5c4;border-top:3px solid #328498;background:#edf6fa;color:#162f47;min-width:0;position:relative;border-radius:.6rem;padding:.6rem;overflow-wrap:anywhere;counter-increment:capnode}
+.capstone-flow li strong,.capstone-flow li span{display:block;min-width:0}
+.capstone-flow li span{margin-top:.2rem;color:#38536b}
+.capstone-chart{margin:1rem 0;padding:.75rem;border:1px solid #abbfd0;background:#f1f7fb;border-radius:.6rem;color:#192f44}
+.capstone-chart figcaption{font-weight:bold;color:#192f44}
+.capstone-bar-row{display:grid;grid-template-columns:minmax(4.4rem,6rem) minmax(0,1fr) minmax(3.1rem,4.3rem);align-items:center;gap:.5rem;margin:.4rem 0;text-align:left}
+.capstone-track{min-width:0;height:.75rem;background:#d5e0e8;border-radius:.4rem;overflow:hidden}
+.capstone-track span{display:block;height:100%;background:#117787}
+.capstone-track.negative span{background:#a64326}
+.capstone-lab pre{max-width:100%;overflow:auto}
+.capstone-flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:47%;color:#246f87;font-size:.83rem;line-height:1}
+@container (max-width:38rem){.capstone-flow{grid-template-columns:1fr}.capstone-flow li:not(:last-child)::after{content:"↓";left:50%;top:calc(100% + .11rem)}}
+
   </style>
 </head>
 <body>
@@ -708,6 +727,7 @@
       </nav>
     </aside>
     <main>
+      <p class="capstone-jump" style="margin:.65rem clamp(.8rem,3vw,1.6rem)"><a href="#roadmap-outbox-capstone">交易式寄件匣實作</a></p>
       <header class="hero">
         <div>
           <span class="eyebrow">v1.9.0 / 高階教材 / 語意校閱批次 100/100 / 20年專案工程師視角</span>
@@ -1051,6 +1071,37 @@ runbook: verify data count, version, and audit log</pre>
       <footer>
         範例輸出為教學用預期結果，不會在瀏覽器中執行 Python。高階案例強調工程判斷、取捨與驗收證據。
       </footer>
+    <section id="roadmap-outbox-capstone" class="section capstone-lab">
+  <h2>路線圖實作｜收到重複資料，也只計入一次</h2>
+  <p>從既有 100 案例延伸一個端到端故障：報表服務完成三筆資料後要通知統計系統。資料庫的提交與通知不是同一個動作；通知成功後，本端也可能還沒記錄確認就中斷。把通知重送當成正常情境，不將傳輸「收到一次」誤當成業務「只生效一次」。</p>
+  <h3>架構圖｜各自的交易不能跨資料庫假裝成一筆</h3>
+  <ol class="capstone-flow" aria-label="交易式寄件匣架構">
+    <li><strong>報表服務</strong><span>一次來源交易寫報表及 outbox</span></li>
+    <li><strong>轉送工作</strong><span>取未確認紀錄，重送沿用同一事件 ID</span></li>
+    <li><strong>統計消費端</strong><span>一次接收交易寫去重紀錄及統計結果</span></li>
+    <li><strong>交付確認</strong><span>確認後更新來源 outbox；未知則稍後重試</span></li>
+  </ol>
+  <h3>故障流程圖｜消費端已提交，來源沒記到確認</h3>
+  <ol class="capstone-flow" aria-label="確認遺失失效流程">
+    <li><strong>① 首次接收</strong><span>新 ID → +3，記錄該 ID</span></li>
+    <li><strong>② 確認遺失</strong><span>來源仍認為待送；不必猜測統計端狀態</span></li>
+    <li><strong>③ 重送</strong><span>同 ID 同內容 → 不再 +3</span></li>
+    <li><strong>④ 核對</strong><span>收到成功確認後標完成，總數仍 3</span></li>
+  </ol>
+  <figure class="capstone-chart"><figcaption>一次確認遺失的合成紀錄（以 2 次為共同比較上限）</figcaption>
+    <div class="capstone-bar-row"><span>傳送嘗試</span><span class="capstone-track" aria-hidden="true"><span style="width:100%"></span></span><strong>2 次</strong></div>
+    <div class="capstone-bar-row"><span>統計套用</span><span class="capstone-track" aria-hidden="true"><span style="width:50%"></span></span><strong>1 次</strong></div>
+    <div class="capstone-bar-row"><span>仍待送</span><span class="capstone-track" aria-hidden="true"><span style="width:0%"></span></span><strong>0 筆</strong></div>
+    <p>報表數量是這一個合成事件的 3 筆，不是 3 個事件。傳送仍可能重複；只有受同一接收交易保護的結果在此案例去重。沒有以此宣告其他副作用或分散式網路恰好一次。</p>
+  </figure>
+  <h3>離線實驗｜先證明寫入會一起回滾，再驗證重送</h3>
+  <p>下載 <a href="python_advanced_outbox_capstone_lab.py" download>完整 Python 程式</a>。在 Python 3.11 以上、含 SQLite 的直譯器執行。兩個獨立的記憶體資料庫模擬來源與接收，班上不需要 broker 或網路。</p>
+  <pre tabindex="0"><code>python python_advanced_outbox_capstone_lab.py --test
+python python_advanced_outbox_capstone_lab.py</code></pre>
+  <p>三項測試重演：來源交易失敗時報表和 outbox 都不存在；確認遺失後仍只加一次；同 ID 不同內容視為契約衝突而拒絕。正式上線另定工作認領與租約、重試上限、積壓年齡、死信與補償機制，以及去重記錄 TTL；TTL 必須涵蓋最長允許重送／回放時窗。範例無多 worker、沒有跨事件順序保證，也不具備重啟持久性。</p>
+  <p>延伸：<a href="https://docs.python.org/3/library/sqlite3.html#transaction-control">Python sqlite3 交易控制</a>、<a href="https://www.sqlite.org/lang_upsert.html">SQLite UPSERT</a>。</p>
+</section>
+
     </main>
     <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

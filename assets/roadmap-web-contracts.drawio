@@ -1,0 +1,203 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="web-1" name="FastAPI 啟停與回應契約">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="520" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" value="架構圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="20" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n0-0" parent="1" vertex="1" value="&lt;b&gt;負載平衡器&lt;/b&gt;&lt;br&gt;只將流量交給已就緒的 worker；存活檢查不應因外部依賴瞬斷重啟所有程序。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n0-1" parent="1" vertex="1" value="&lt;b&gt;ASGI lifespan&lt;/b&gt;&lt;br&gt;進入時初始化池或快照；退出時釋放。每個 worker 各自啟停。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-1" parent="1" edge="1" source="n0-0" target="n0-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-2" parent="1" vertex="1" value="&lt;b&gt;路由與依賴&lt;/b&gt;&lt;br&gt;驗證識別、授權與輸入；商業規則和 HTTP 對應分離。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-2" parent="1" edge="1" source="n0-1" target="n0-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-3" parent="1" vertex="1" value="&lt;b&gt;公開 response_model&lt;/b&gt;&lt;br&gt;序列化、驗證並過濾輸出；持久狀態另存外部資料庫。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="904" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-3" parent="1" edge="1" source="n0-2" target="n0-3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="t1" value="流程圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="250" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n1-0" parent="1" vertex="1" value="&lt;b&gt;測試啟動&lt;/b&gt;&lt;br&gt;開啟 TestClient 的 with 區塊，確認 startup 被執行。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n1-1" parent="1" vertex="1" value="&lt;b&gt;驗證執行期&lt;/b&gt;&lt;br&gt;測 200 回應欄位、未知設備 404，OpenAPI 與實際回應都核對。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-1" parent="1" edge="1" source="n1-0" target="n1-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n1-2" parent="1" vertex="1" value="&lt;b&gt;資源退出&lt;/b&gt;&lt;br&gt;離開 with 後檢查資源已釋放；實際部署另做停止期間 drain 演練。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-2" parent="1" edge="1" source="n1-1" target="n1-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="web-2" name="前後端串流重同步">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="520" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" value="架構圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="20" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n0-0" parent="1" vertex="1" value="&lt;b&gt;事件來源&lt;/b&gt;&lt;br&gt;在單一分區使用 stream ID 與連號序號；重啟換 ID，不將壁鐘時間當主鍵。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n0-1" parent="1" vertex="1" value="&lt;b&gt;API 與串流&lt;/b&gt;&lt;br&gt;HTTP 取快照及當前識別；SSE／WebSocket 以有限保留紀錄輔助補送。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-1" parent="1" edge="1" source="n0-0" target="n0-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-2" parent="1" vertex="1" value="&lt;b&gt;前端狀態層&lt;/b&gt;&lt;br&gt;分辨重複／缺口／重啟；競態期間暫存有限事件，溢位重新同步。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-2" parent="1" edge="1" source="n0-1" target="n0-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-3" parent="1" vertex="1" value="&lt;b&gt;畫面&lt;/b&gt;&lt;br&gt;以一筆已提交的版本更新圖卡，失聯時顯示上次來源時間及過期標記。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="904" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-3" parent="1" edge="1" source="n0-2" target="n0-3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="t1" value="流程圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="250" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n1-0" parent="1" vertex="1" value="&lt;b&gt;可信快照&lt;/b&gt;&lt;br&gt;先從 API 取快照；以快照為基準重放可接續增量。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n1-1" parent="1" vertex="1" value="&lt;b&gt;比較 stream 與 seq&lt;/b&gt;&lt;br&gt;相同 ID 且下一號才套用；重複或較舊序號捨棄。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-1" parent="1" edge="1" source="n1-0" target="n1-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n1-2" parent="1" vertex="1" value="&lt;b&gt;重建狀態&lt;/b&gt;&lt;br&gt;跳號、換 ID 或超出重播保留期，重新取可信快照；舊畫面不偽裝新鮮。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-2" parent="1" edge="1" source="n1-1" target="n1-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="web-3" name="外部整合重試政策">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="520" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" value="架構圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="20" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n0-0" parent="1" vertex="1" value="&lt;b&gt;應用呼叫端&lt;/b&gt;&lt;br&gt;提供單調時鐘 deadline、冪等契約與操作 ID。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n0-1" parent="1" vertex="1" value="&lt;b&gt;Transport&lt;/b&gt;&lt;br&gt;使用獨立 connect、read 等逾時；輸出狀態與正規化 Retry-After。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-1" parent="1" edge="1" source="n0-0" target="n0-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-2" parent="1" vertex="1" value="&lt;b&gt;重試決策&lt;/b&gt;&lt;br&gt;用指數退避的抖動值和 Retry-After 的較大值，套剩餘預算與重試次數。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-2" parent="1" edge="1" source="n0-1" target="n0-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-3" parent="1" vertex="1" value="&lt;b&gt;依賴與證據&lt;/b&gt;&lt;br&gt;只在一層決定重試；記錄實際嘗試數、等候原因和取消。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="904" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-3" parent="1" edge="1" source="n0-2" target="n0-3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="t1" value="流程圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="250" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n1-0" parent="1" vertex="1" value="&lt;b&gt;判定資格&lt;/b&gt;&lt;br&gt;不能確認寫入行為冪等先對帳；不要重送不明結果。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n1-1" parent="1" vertex="1" value="&lt;b&gt;取較大等待&lt;/b&gt;&lt;br&gt;Retry-After 可能為整數秒或 HTTP-date；HTTP-date 先轉等待長度且偵測時鐘偏差。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-1" parent="1" edge="1" source="n1-0" target="n1-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n1-2" parent="1" vertex="1" value="&lt;b&gt;比對剩餘預算&lt;/b&gt;&lt;br&gt;本實驗預留 50 ms；不足則不睡也不重送，將明確原因交給上層。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-2" parent="1" edge="1" source="n1-1" target="n1-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="web-4" name="本地 DOM 解析契約">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="520" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" value="架構圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="20" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n0-0" parent="1" vertex="1" value="&lt;b&gt;樣本層&lt;/b&gt;&lt;br&gt;保存固定 HTML、來源候選與解析器名稱；CI 不向真實網站請求。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n0-1" parent="1" vertex="1" value="&lt;b&gt;DOM 層&lt;/b&gt;&lt;br&gt;BeautifulSoup 以主區域和 data-device 定位，不拿 re 解析整份 HTML。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-1" parent="1" edge="1" source="n0-0" target="n0-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-2" parent="1" vertex="1" value="&lt;b&gt;欄位層&lt;/b&gt;&lt;br&gt;只對設備 ID 用 re.fullmatch；標題由 get_text 取得，再檢查空字串與重複。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-2" parent="1" edge="1" source="n0-1" target="n0-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n0-3" parent="1" vertex="1" value="&lt;b&gt;交付層&lt;/b&gt;&lt;br&gt;整批驗證完成後再發布結果；錯誤保留最後成功版本與診斷紀錄。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="904" y="70" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e0-3" parent="1" edge="1" source="n0-2" target="n0-3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="t1" value="流程圖" vertex="1" parent="1" style="text;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;html=1;">
+          <mxGeometry as="geometry" x="40" y="250" width="240" height="42" />
+        </mxCell>
+        <mxCell id="n1-0" parent="1" vertex="1" value="&lt;b&gt;分離來源與解析&lt;/b&gt;&lt;br&gt;以固定 fixture、固定解析器重現，避免網路或 parser 變因。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="40" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="n1-1" parent="1" vertex="1" value="&lt;b&gt;檢查空集合與契約&lt;/b&gt;&lt;br&gt;至少一筆、ID 格式、唯一性及標題必填；記錄當時版本。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="328" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-1" parent="1" edge="1" source="n1-0" target="n1-1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n1-2" parent="1" vertex="1" value="&lt;b&gt;驗收與退回&lt;/b&gt;&lt;br&gt;任何一筆失敗都不要用部份輸出覆蓋正確結果；字串呈現用文字而非 innerHTML。" style="rounded=1;whiteSpace=wrap;html=1;spacing=12;fillColor=#eaf5ff;strokeColor=#92b4cf;fontSize=15;">
+          <mxGeometry as="geometry" x="616" y="300" width="252" height="125" />
+        </mxCell>
+        <mxCell id="e1-2" parent="1" edge="1" source="n1-1" target="n1-2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;strokeColor=#246fa4;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

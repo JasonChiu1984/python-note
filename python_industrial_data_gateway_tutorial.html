@@ -136,6 +136,20 @@
     @media(max-width:980px){aside{padding:.75rem 1rem;border-right:0;border-bottom:1px solid var(--line)}.hero{padding-top:1.5rem}}
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+
+<style id="roadmap-ot-study-style">
+.ot-study{--ot-ink:#102c47;--ot-sub:#2c465f;--ot-pane:#fff;--ot-line:#b7cadd;--ot-faint:#f1f7fc;--ot-accent:#195d85;background:var(--ot-pane);color:var(--ot-ink);border:1px solid var(--ot-line);border-radius:16px;padding:clamp(.65rem,2.4vw,1.5rem);margin:1.35rem 0;max-width:100%;min-width:0;scroll-margin-top:1rem;overflow-wrap:anywhere}
+.ot-study h2,.ot-study h3{color:var(--ot-ink)} .ot-study p,.ot-study li,.ot-study td,.ot-study dd{color:var(--ot-sub)}
+.ot-study figure{margin:.9rem 0;padding:.65rem;border:1px solid var(--ot-line);border-radius:10px;background:var(--ot-faint);min-width:0}
+.ot-study figcaption{font-weight:750;color:var(--ot-ink);margin-bottom:.6rem}
+.ot-study-arch,.ot-study-flow{padding:0;margin:0;list-style:none;display:grid;gap:.65rem;max-width:none!important;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ot-study-flow{grid-template-columns:repeat(4,minmax(0,1fr));counter-reset:ot}
+.ot-study-arch li,.ot-study-flow li{background:var(--ot-pane);border:1px solid var(--ot-line);border-radius:8px;padding:.52rem;min-width:0;overflow-wrap:anywhere}
+.ot-study-arch{gap:1.35rem}.ot-study-arch li{position:relative}.ot-study-arch li:not(:last-child)::after{content:"→";position:absolute;right:-1.15rem;top:42%;color:var(--ot-accent);font-weight:800;line-height:1} .ot-study-arch strong{display:block;color:var(--ot-ink)} .ot-study-flow li::before{counter-increment:ot;content:counter(ot) " · ";font-weight:800;color:var(--ot-accent)}
+.ot-study-bars{margin:0;display:grid;gap:.52rem}.ot-study-bar{display:grid;grid-template-columns:minmax(6.25rem,11rem) minmax(0,1fr) minmax(3.2rem,max-content);gap:.5rem;align-items:center}.ot-study-track{height:.9rem;background:#dbe8f4;border-radius:12px;min-width:0}.ot-study-fill{display:block;height:100%;background:#237497;border-radius:12px}.ot-study-bar:nth-child(2) .ot-study-fill{background:#7b542c}.ot-study-bar strong{text-align:right;font-variant-numeric:tabular-nums}
+.ot-study-evidence{display:grid;gap:.55rem}.ot-study-evidence>div{background:#f2f7fb;border:1px solid var(--ot-line);border-radius:9px;padding:.6rem}.ot-study-evidence dt{font-weight:750;color:var(--ot-ink)}.ot-study-evidence dd{margin:.2rem 0}.ot-study pre{max-width:100%;overflow:auto}.ot-study a{color:#124c74;text-decoration:underline;text-underline-offset:.15em}
+@media(max-width:700px){.ot-study-arch li:not(:last-child)::after{content:"↓";top:auto;right:48%;bottom:-1.15rem}.ot-study-arch,.ot-study-flow{grid-template-columns:1fr}.ot-study-bar{grid-template-columns:minmax(5rem,1.3fr) minmax(0,1fr) minmax(3rem,max-content);gap:.3rem}}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -173,7 +187,7 @@
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Industrial Data Gateway</span>
-          <h1>工業資料採集 Gateway 架構</h1>
+          <h1>工業資料採集 Gateway 架構</h1><p><a href="#roadmap-ot-study">研究實作：架構、流程、圖表與 Python 證據</a></p>
           <p>把 PLC、DDC、電表與變頻器的不同資料格式，轉成帶來源、時間和品質的事件。Gateway 負責遙測採集與分發；PLC／DDC 保留閉迴路控制，經驗證的安全連鎖不依賴 Python、Broker 或雲端。</p>
           <div class="status-strip"><span>v2.6.1</span><span>36 張互動卡</span><span>standard library sample</span><span>六類採集／分發介面</span><span>2026-11-26 更新（台灣）</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始 Gateway 課程</a><a class="button blue" href="python_industrial_protocol_comparison_tutorial.html">看協定比較專題</a><a class="button" href="index.html">回教材入口</a></div>
@@ -707,7 +721,22 @@ if __name__ == "__main__":
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <section id="roadmap-ot-study" class="ot-study" aria-labelledby="roadmap-ot-study-title">
+<h2 id="roadmap-ot-study-title">研究實作｜Gateway 補送：確認遺失時，為什麼兩筆會看到四次？</h2>
+<p>此實驗驗證資料跨過 Gateway 的可靠性邊界，不測連線、不呼叫 PLC，也不送訊息到真實 Broker。假設發送端及接收端各有獨立的本地交易；示例刻意在消費端提交後丟失應用確認。</p>
+<figure><figcaption>架構圖｜責任邊界，資料由左至右（手機由上至下）</figcaption><ul class="ot-study-arch"><li><strong>持久 Outbox</strong>點表正規化＋觀察時間＋穩定 event_id，以交易寫入</li><li><strong>應用確認</strong>接收端依 event_id 去重並提交，提交後才回傳確認</li><li><strong>補送與回收</strong>確認遺失重送同一 ID；收到所需確認才刪 outbox</li></ul></figure>
+<figure><figcaption>流程圖｜按編號重跑驗證</figcaption><ol class="ot-study-flow"><li>兩筆寫入出站佇列</li><li>接收端提交，確認遺失</li><li>重送相同 event_id</li><li>接收端去重，確認後釋放</li></ol></figure>
+<figure><figcaption>圖表｜確認遺失的一次合成重播（筆次或列（各列依標籤））</figcaption><div class="ot-study-bars"><div class="ot-study-bar"><span>發送嘗試次數</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:100%"></span></span><strong>4</strong></div><div class="ot-study-bar"><span>接收端實際列數</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:50%"></span></span><strong>2</strong></div><div class="ot-study-bar"><span>確認後未送列數</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:0%"></span></span><strong>0</strong></div></div></figure>
+<p>傳送了四次，但接收端只有兩列；沒有收到應用確認前，發送端仍保留兩列。這不是「網路 exactly once」，而是允許重送後由接收端維持冪等。</p>
+<h3>詳細解析與驗收</h3><dl class="ot-study-evidence"><div><dt>訊息身分</dt><dd>發送前建立事件 ID。跨重啟不能用裸序號；正式可採來源識別＋啟動世代＋序號，或持久 UUID。</dd><dd><strong>驗證：</strong>相同 ID 帶不同 payload 是資料契約違反。正式接收端保存內容指紋並告警，不盲目覆蓋。</dd></div><div><dt>確認邊界</dt><dd>MQTT QoS 1 是協定同行間的「至少一次」。有些架構只承諾送達 Broker；要承諾落庫須另外定義應用層確認及回傳通道。</dd><dd><strong>驗證：</strong>緩衝容量接近上限，觀察最老未確認事件年齡、等待列數、剩餘磁碟、逾期與丟棄數。不能偷改承諾。</dd></div><div><dt>恢復控制</dt><dd>把即時遙測與積欠補送分額度，恢復後限制補送速率和批次大小。</dd><dd><strong>驗證：</strong>接收端需要在可能重複的期間保留去重紀錄，或以真正冪等的業務鍵處理。</dd></div><div><dt>程式邊界</dt><dd>實驗用兩個記憶體 SQLite 連線模擬發送與接收交易，證明確認遺失的去重語意。</dd><dd><strong>驗證：</strong>不測落盤／斷電保存；實場要驗證磁碟持久性、重啟恢復、配額及服務端確認。</dd></div></dl>
+<h3>Python 離線實作</h3>
+<p>下載 <a href="python_roadmap_ot_research_lab.py" download>OT 研究實驗程式</a>。使用 Python 3.11+ 標準庫；不開啟任何網路或設備連線。</p>
+<pre><code>python python_roadmap_ot_research_lab.py gateway
+python python_roadmap_ot_research_lab.py gateway --test</code></pre>
+<details><summary>本章核心運算（簡化節錄）</summary><pre><code>INSERT INTO samples VALUES (?, ?) ON CONFLICT(id) DO NOTHING</code></pre></details>
+<p>一手資料：<a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a> · <a href="https://www.sqlite.org/lang_upsert.html">SQLite UPSERT</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev.3</a></p>
+</section>
+</main>
   </div>
   <script>
     const lessonGroups = {

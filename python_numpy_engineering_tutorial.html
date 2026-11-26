@@ -477,7 +477,27 @@
       .button { width: 100%; }
       h1 { max-width: 12ch; }
     }
-  </style>
+  
+.rd-data{box-sizing:border-box;display:block;width:100%;min-width:0;margin:1.6rem 0;padding:clamp(.8rem,2vw,1.35rem);border:1px solid #b6cbd5;border-radius:.7rem;background:#f8fcfe;color:#153242;scroll-margin-top:5rem;overflow-wrap:break-word}
+.rd-data h2,.rd-data h3,.rd-data p{color:#153242}
+.rd-data a{color:#125577;text-decoration:underline;text-underline-offset:.2em}
+.rd-data figure{min-width:0;margin:.8rem 0;padding:.7rem;border:1px solid #c8dae2;background:#fff;border-radius:.55rem}
+.rd-data figcaption{color:#23475b;font-weight:700;margin-bottom:.5rem}
+.rd-data .rd-grid{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.15rem;padding:0;margin:0}
+.rd-data .rd-grid li{position:relative;min-width:0;padding:.55rem;border-radius:.4rem;border:1px solid #a9c5d3;background:#edf6fb;margin:0}
+.rd-data .rd-grid li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:calc(50% - .6em);color:#125577;font-weight:700}
+.rd-data .rd-grid :is(strong,span){display:block;overflow-wrap:anywhere}
+.rd-data .rd-plot{display:grid;gap:.4rem;margin:.2rem 0}
+.rd-data .rd-row{min-width:0;display:grid;grid-template-columns:minmax(6rem,23%) minmax(2rem,1fr) minmax(2.6rem,max-content);gap:.4rem;align-items:center}
+.rd-data .rd-track{min-width:0;height:.75rem;background:#e1edf3;border-radius:.2rem}
+.rd-data .rd-track i{display:block;height:100%;background:#167191;border-radius:.2rem}
+.rd-data pre{width:100%;max-width:100%;overflow:auto;white-space:pre;padding:.7em;background:#173142;color:#f4f8ff;border-radius:.4rem}
+.rd-data pre code{color:inherit;white-space:pre}
+@media(max-width:720px){.rd-data .rd-grid{grid-template-columns:1fr}.rd-data .rd-grid li:not(:last-child)::after{content:"↓";left:calc(50% - .3em);top:calc(100% + .02rem)}}
+@media(max-width:380px){.rd-data .rd-row{grid-template-columns:minmax(5rem,32%) minmax(0,1fr) minmax(2.5rem,max-content)}}
+
+@media(max-width:420px){#sample-project .mini{min-width:0;overflow-wrap:anywhere}}
+</style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
@@ -491,7 +511,7 @@
     <a href="#packaging">打包</a>
     <a href="#cases">案例</a>
     <a href="#checklist">檢查表</a>
-  </nav>
+  <a href="#roadmap-data-research">工程驗證補充</a></nav>
 
   <div class="layout">
     <aside class="sidebar" aria-label="側邊導覽">
@@ -519,7 +539,7 @@
         <a href="#cases">專案案例</a>
         <a href="#checklist">上線檢查表</a>
         <a href="index.html">回教材入口</a>
-      </nav>
+      <a href="#roadmap-data-research">工程驗證補充</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 32</div>
     </aside>
 
@@ -900,7 +920,27 @@ def test_write_feature_outputs(tmp_path):
           <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>
       </button>
-    </main>
+    
+<section class="rd-data" id="roadmap-data-research" aria-labelledby="rd-data-title">
+<p><strong>工程研究補充｜</strong><time datetime="2026-11-26">2026-11-26</time></p>
+<h2 id="rd-data-title">遙測 ndarray 的兩個靜默錯誤：窄整數回繞、遮罩留下未初始化值</h2><p>類比輸入的計數加上補償值後，不見得裝得回儲存用的 dtype。<code>int16</code> 最大 32,767；30,000＋10,000 若仍以 <code>int16</code> 計算，範例會回繞為 −25,536。在運算後才 <code>astype</code> 無法回復答案。NumPy 2 的型態提升準則也不保證 Python 純量會把窄陣列自動擴寬。</p>
+<figure><figcaption>流程圖｜依序執行</figcaption><ol class='rd-grid'><li><strong>1. 宣告原始型態</strong><span>原始計數用 int16；先估算加法可能的數值範圍</span></li><li><strong>2. 在運算前擴寬</strong><span>np.add 指定 dtype=int64，保留物理值範圍</span></li><li><strong>3. 保留無效狀態</strong><span>只除以有限正值；out 先填 NaN</span></li></ol></figure>
+<figure><figcaption>架構圖｜三層分工</figcaption><ol class='rd-grid'><li><strong>原始資料層</strong><span>原始計數、校正值及單位。</span></li><li><strong>向量運算層</strong><span>dtype、形狀、遮罩與錯誤政策。</span></li><li><strong>品質層</strong><span>逐筆輸出數值與無效狀態；不能以回繞結果放行。</span></li></ol></figure>
+<figure><figcaption>前兩筆補償後的絕對差（計數；比較 int64 與回繞的 int16）</figcaption><div class='rd-plot'><div class='rd-row'><span>第 1 筆</span><span class='rd-track' aria-hidden='true'><i style='width:100.0000%'></i></span><strong>65,536</strong></div><div class='rd-row'><span>第 2 筆</span><span class='rd-track' aria-hidden='true'><i style='width:100.0000%'></i></span><strong>65,536</strong></div><div class='rd-row'><span>第 3 筆</span><span class='rd-track' aria-hidden='true'><i style='width:0.0000%'></i></span><strong>0</strong></div></div></figure>
+<h3>可執行算例與判讀</h3>
+<p><a href="python_roadmap_data_lab.py" download>下載離線實驗程式</a>。輸入全為合成資料，程式不寫設備或外部服務。另需先安裝 <code>numpy</code>。</p>
+<pre tabindex="0" aria-label="Python 執行命令"><code>python python_roadmap_data_lab.py numpy</code></pre>
+<p>程式摘錄（變數和匯入見下載檔）：</p><pre tabindex="0" aria-label="關鍵程式碼"><code>narrow = readings + step
+wide = np.add(readings, step, dtype=np.int64)
+reference = np.array([20000., np.nan, 0.])
+valid = np.isfinite(reference) &amp; (reference &gt; 0)
+normalized = np.full(reference.shape, np.nan, dtype=np.float64)
+with np.errstate(divide=&quot;raise&quot;, invalid=&quot;raise&quot;, over=&quot;raise&quot;):
+    np.divide(wide, reference, out=normalized, where=valid)</code></pre>
+<p>在分母有效的第一筆，比例 40,000 / 20,000 = 2；後兩筆分別因缺值及分母為 0，保持為 NaN（JSON 輸出 <code>null</code>）。<code>np.divide(where=...)</code> 只寫入真值位置，不提供已初始化的 <code>out</code> 時，假位置無已定義結果。<code>errstate</code> 可攔浮點除零或溢位，不應當成整數陣列的通用範圍檢查。生產門檻還要由感測器、校正模型及極限值測試約束。</p>
+<p>原始參考：<a href="https://numpy.org/doc/stable/reference/arrays.promotion.html">NumPy 型態提升</a> · <a href="https://numpy.org/doc/stable/reference/generated/numpy.divide.html">NumPy divide 的 out 與 where</a>。</p>
+</section>
+</main>
   </div>
 
   <script>

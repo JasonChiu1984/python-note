@@ -75,6 +75,25 @@
     #setup > p, .meta { overflow-wrap: anywhere; }
     .table-scroll { max-width: 100%; overflow-x: auto; }
     .table-scroll:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+.capstone-lab{min-width:0;overflow-wrap:anywhere;container-type:inline-size}
+.capstone-lab p{margin:.55rem 0}
+.capstone-lab h3{margin:1.05rem 0 .5rem}
+.capstone-lab a{color:#126985}
+.capstone-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.05rem;list-style:none;padding:0;margin:.45rem 0 1rem;counter-reset:capnode}
+.capstone-flow li{border:1px solid #8ab5c4;border-top:3px solid #328498;background:#edf6fa;color:#162f47;min-width:0;position:relative;border-radius:.6rem;padding:.6rem;overflow-wrap:anywhere;counter-increment:capnode}
+.capstone-flow li strong,.capstone-flow li span{display:block;min-width:0}
+.capstone-flow li span{margin-top:.2rem;color:#38536b}
+.capstone-chart{margin:1rem 0;padding:.75rem;border:1px solid #abbfd0;background:#f1f7fb;border-radius:.6rem;color:#192f44}
+.capstone-chart figcaption{font-weight:bold;color:#192f44}
+.capstone-bar-row{display:grid;grid-template-columns:minmax(4.4rem,6rem) minmax(0,1fr) minmax(3.1rem,4.3rem);align-items:center;gap:.5rem;margin:.4rem 0;text-align:left}
+.capstone-track{min-width:0;height:.75rem;background:#d5e0e8;border-radius:.4rem;overflow:hidden}
+.capstone-track span{display:block;height:100%;background:#117787}
+.capstone-track.negative span{background:#a64326}
+.capstone-lab pre{max-width:100%;overflow:auto}
+.capstone-flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:47%;color:#246f87;font-size:.83rem;line-height:1}
+@container (max-width:38rem){.capstone-flow{grid-template-columns:1fr}.capstone-flow li:not(:last-child)::after{content:"↓";left:50%;top:calc(100% + .11rem)}}
+
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -100,6 +119,7 @@
       </nav>
     </aside>
     <main>
+      <p class="capstone-jump" style="margin:.65rem clamp(.8rem,3vw,1.6rem)"><a href="#roadmap-delivery-evidence">交付證據實作</a></p>
       <section class="hero">
         <div class="hero-copy">
           <span class="eyebrow">v4.2.40 documentation-oriented maintenance</span>
@@ -552,6 +572,38 @@ node -e "const fs=require('fs'); for (const f of ['python_project_delivery_bluep
         本頁對應範例：<code>範例程式碼/project_delivery_blueprint</code>。建議把它當成後續 FastAPI、工業閘道或 workflow 專案的起始骨架，而不是一次性 demo。
       </div>
       <div class="footer">Python Project Delivery Blueprint 教學頁。可直接用瀏覽器開啟，無需額外建置。版本：v4.2.40，發布重點：以本地最新 `v4.2.39` 為 baseline 再次確認教程深度、廣度、頁面版本與 dated maintenance artifacts 後，沒有新增章節需求、lesson regression 或 artifact-chain 缺口。本輪主要處理的仍是尚未完成的 Git publish traceability gap，且 `origin/main` 仍停在已發布的 `v4.2.31`，因此同步補上今日 maintenance evidence，並把首頁、repo metadata 與 major pages 一起提升到新的 documentation-oriented maintenance release。</div>
+    <section id="roadmap-delivery-evidence" class="section capstone-lab">
+  <h2>路線圖實作｜同一份交付包能不能被重驗？</h2>
+  <p>情境：將三份合成報表產物交給另一位工程師操作：<code>README.md</code> 告訴他怎麼重跑，<code>report.json</code> 是機器可讀的結果，<code>runbook.md</code> 記錄回退步驟。重點是讓接手者不必信任某張 CI 綠燈的截圖：他能確認眼前的檔案是不是同一份、驗證了什麼、回退是否已演練。</p>
+  <h3>架構圖｜生成、覆核與部署權限分離</h3>
+  <ol class="capstone-flow" aria-label="交付架構">
+    <li><strong>建置端</strong><span>合成輸入 → 報表與交接文件</span></li>
+    <li><strong>證據倉</strong><span>已核准的摘要、測試結果、回退紀錄</span></li>
+    <li><strong>部署關卡</strong><span>以可信證據比對候選產物</span></li>
+    <li><strong>接手維運</strong><span>依已驗證的版本與 runbook 作業</span></li>
+  </ol>
+  <p>不要讓部署關卡從待驗的資料夾讀取「預期摘要」再當成信任依據；那只是在驗證候選資料與自己的摘要是否一致。正式環境應從獨立受控的核准來源取期望值，驗證簽發身分、建置來源與候選 digest；雜湊本身不證明來源、授權或安全。</p>
+  <h3>決策流程圖｜比對順序固定，失敗比情況清單更好定位</h3>
+  <ol class="capstone-flow" aria-label="交付關卡順序">
+    <li><strong>① 核對檔案集合</strong><span>缺少／多出檔案 → 阻擋</span></li>
+    <li><strong>② 核對摘要</strong><span>內容與核准版本不一致 → 阻擋</span></li>
+    <li><strong>③ 讀取測試證據</strong><span>測試失敗或證據缺漏 → 阻擋</span></li>
+    <li><strong>④ 驗證回復準備</strong><span>未演練回退 → 阻擋；全通過才進人工授權</span></li>
+  </ol>
+  <figure class="capstone-chart"><figcaption>五個獨立合成情境：一次可進下一關，四次阻擋</figcaption>
+    <div class="capstone-bar-row"><span>待授權</span><span class="capstone-track" aria-hidden="true"><span style="width:20%"></span></span><strong>1 / 5</strong></div>
+    <div class="capstone-bar-row"><span>阻擋</span><span class="capstone-track negative" aria-hidden="true"><span style="width:80%"></span></span><strong>4 / 5</strong></div>
+    <p>阻擋情境：缺 runbook、報表和核准摘要不符、缺合格測試結果、缺回退演練。比例只描述這五個教材情境，不代表發版成功率，也不是安全性評分。</p>
+  </figure>
+  <h3>離線實驗｜刻意檢查好資料和壞資料的退出狀態</h3>
+  <p>下載 <a href="python_delivery_evidence_capstone_lab.py" download>完整 Python 程式</a>。用 Python 3.11 以上執行；不連網、不寫入、也沒有部署動作。</p>
+  <pre tabindex="0"><code>python python_delivery_evidence_capstone_lab.py --test
+python python_delivery_evidence_capstone_lab.py
+python python_delivery_evidence_capstone_lab.py --changed-fixture</code></pre>
+  <p>第二行輸出 <code>ready for authorized promotion</code>，表示證據關卡通過、仍須授權。第三行輸出 <code>blocked: digest</code> 並回傳結束代碼 1。正式案另記錄環境、建置器、測試報告與移轉版本；要驗收回復，還要演練資料結構相容性並記錄恢復時間，不能只留布林值。</p>
+  <p>延伸：<a href="https://docs.python.org/3/library/hashlib.html">Python hashlib</a>、<a href="https://slsa.dev/spec/v1.2/provenance">SLSA v1.2 來源證明</a>。</p>
+</section>
+
     </main>
   </div>
   <script>

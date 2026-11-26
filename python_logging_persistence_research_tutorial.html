@@ -2,8 +2,31 @@
 <style>
 :root{font:1rem/1.68 system-ui,sans-serif;color:#183149;background:#edf5f9}*{box-sizing:border-box}body{margin:0}main{padding:clamp(.7rem,2vw,2rem)}header,section{border:1px solid #c5d6e4;border-radius:.75rem;background:white;padding:clamp(.75rem,2vw,1.5rem);margin:0 0 1rem;overflow-wrap:anywhere}h1{font-size:clamp(1.65rem,4vw,2.65rem);line-height:1.2;margin:.35rem 0}a{color:#185b89}nav{display:flex;gap:.5rem;flex-wrap:wrap}nav a{border:1px solid #bdd5e4;border-radius:.4rem;padding:.25rem .6rem;background:#eaf4fa}figure{margin:.6rem 0 1rem}figcaption{font-weight:800}.flow{padding:0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.28rem}.flow li{min-width:0;position:relative;border:1px solid #bfd6e4;border-radius:.5rem;background:#edf6fa;padding:.55rem}.flow li:not(:last-child)::after{position:absolute;content:"→";top:calc(50% - .75rem);right:-1.13rem}.flow b,.flow span{display:block}.tablebox{overflow:auto;border:1px solid #bdd3e0;border-radius:.5rem}.tablebox table{border-collapse:collapse;width:100%;min-width:36rem}.tablebox :is(th,td){padding:.5rem;text-align:left;vertical-align:top;border-bottom:1px solid #bdd3e0}.tablebox th{background:#edf6fa}pre{overflow:auto;max-width:100%;padding:.65rem;color:white;background:#142d43;border-radius:.45rem}.note{border-left:.25rem solid #2b7196;background:#edf6fa;padding:.55rem .75rem}summary{cursor:pointer;font-weight:750}.bar{height:.85rem;display:flex;overflow:hidden;background:#e8edf0;border-radius:.45rem;max-width:48rem}.accepted{width:40%;background:#387ca2}.lost{width:60%;background:#a8554a}
 @media(max-width:760px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:auto;right:50%;bottom:-1.35rem}}
-</style></head><body><main>
-<header><a href="python_observability_operations_tutorial.html#logging">回可觀測性教材入口</a><h1>Python 寫 Log、記憶體緩衝與狀態持久化</h1><p>以工程研究方法回答三個問題：日誌事件到哪裡才可被觀察？佇列塞滿時會丟多少？重啟後應以日誌、快照還是資料庫找回狀態？</p><nav><a href="#architecture">架構</a><a href="#logging">日誌模組</a><a href="#persistence">狀態持久化</a><a href="#experiment">實驗</a><a href="#evaluation">研究設計</a></nav></header>
+</style>
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
+</head><body><main>
+<header><a href="python_observability_operations_tutorial.html#logging">回可觀測性教材入口</a><h1>Python 寫 Log、記憶體緩衝與狀態持久化</h1><p>以工程研究方法回答三個問題：日誌事件到哪裡才可被觀察？佇列塞滿時會丟多少？重啟後應以日誌、快照還是資料庫找回狀態？</p><nav><a href="#architecture">架構</a><a href="#logging">日誌模組</a><a href="#persistence">狀態持久化</a><a href="#experiment">實驗</a><a href="#evaluation">研究設計</a><a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav></header>
 <section id="architecture"><h2>1｜三種成功條件不能混在一起</h2>
 <p><strong>日誌</strong>為可追加的事件紀錄，主要回答發生什麼、何時發生。<strong>程式狀態</strong>回答什麼已完成，以及重啟時從哪裡繼續。<strong>記憶體緩衝</strong>只調節尖峰或傳輸批次；程序崩潰時，未落地資料可能全部消失。Log 出現「完成」不代表業務交易已 commit，反過來也可能 commit 已成功但 log 遺失。</p>
 <figure><figcaption>日誌路徑｜產生、排隊、落地、保留</figcaption><ol class="flow"><li><b>Producer</b><span>建立 LogRecord，帶固定事件名、run ID、結果。</span></li><li><b>有界佇列</b><span>決定阻塞、丟棄、分流及計量，不假設等於落地。</span></li><li><b>單一 Writer</b><span>格式化、寫檔／送採集器，記錄寫失敗。</span></li><li><b>保留與分析</b><span>讀取 NDJSON，管理存取、輪替與刪除期限。</span></li></ol></figure>
@@ -39,4 +62,21 @@ python python_logging_persistence_research_lab.py --test</code></pre>
 <section id="evaluation"><h2>5｜研究設計：如何比較，而不只列模組</h2>
 <ol><li><strong>控制變因：</strong>固定 Python 版、檔案系統、記錄長度、佇列大小、producer 數、測試時長、同步與輪替設定。設定暖機，使用不同重複批次，標示測試環境。</li><li><strong>候選組：</strong>同步檔案 vs. 有界 queue＋單 writer；狀態比較整份快照 vs. 交易增量。不要將 log 平均延遲當資料庫提交延遲。比較時功能前提需相同。</li><li><strong>指標：</strong>量 producer latency（p50/p95/p99）、事件輸入率、sink 吞吐、丟失／重覆率、佇列與磁碟上界、停機排空時間及重啟後缺失。分母需含未落地及 dropped，不只用成品 log 算成功率。</li><li><strong>故障注入：</strong>用本地暫存設計 queue 滿、寫入失敗、輪替、程序中斷與重播測試；報告是否可復原、重送是否重複。正式 RPO/RTO 不能由此單例推出。</li></ol>
 <p>官方參考：<a href="https://docs.python.org/3/howto/logging-cookbook.html">Logging Cookbook</a>、<a href="https://docs.python.org/3/library/logging.html">Logger 階層</a>、<a href="https://docs.python.org/3/library/logging.handlers.html">Handlers</a>、<a href="https://docs.python.org/3/library/os.html#os.replace">os.replace</a>、<a href="https://docs.python.org/3/library/sqlite3.html">sqlite3</a>、<a href="https://docs.python.org/3/library/pickle.html">pickle 的信任警告</a>。</p></section>
+<section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">讓事件與 checkpoint 同交易提交，重啟後才不跳筆</h2><p>log、資料寫入和重送確認三者的成功時機不同；離線模擬在提交前中斷。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. 事件入口</strong><span>ID、值與來源游標</span></li><li><strong>2. 交易界線</strong><span>事件資料與 checkpoint 同步更新</span></li><li><strong>3. 重啟重讀</strong><span>已提交游標回復起點</span></li><li><strong>4. 重送處置</strong><span>一致重送略過，衝突拒絕</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 讀游標</strong><span>確認下一筆唯一 ID</span></li><li><strong>2. 同交易寫入</strong><span>INSERT + UPDATE</span></li><li><strong>3. 故障或提交</strong><span>失敗 rollback；成功才可確認</span></li><li><strong>4. 回放</strong><span>已存在且相同：duplicate</span></li></ol></figure>
+<figure><figcaption>圖表｜游標位置（已提交最後序號）</figcaption><ul class='rr-chart'><li>第一筆後：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:50.00%"></i></span></li><li>第二筆失敗後：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:50.00%"></i></span></li><li>重放成功後：<strong>2</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>觀察點</th><th scope='col'>資料庫記錄</th><th scope='col'>checkpoint</th></tr></thead><tbody><tr><td>第一筆已提交</td><td>1 筆</td><td>1</td></tr><tr><td>第二筆故障後重開</td><td>仍 1 筆</td><td>仍 1</td></tr><tr><td>重送第一筆、第二筆成功</td><td>2 筆</td><td>2</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>不要用看到 log 當作成功依據：</strong>python logging 收到一筆、listener 寫入檔案與應用交易 commit 是不同狀態。外部來源 ack 應等應用交易成功；若 commit 後 ack 之前中斷，來源仍會重送。</p><p><strong>單交易修補確認空窗：</strong>若先提交 checkpoint 再寫事件，重啟可能跳過未入庫資料；若先提交事件、游標獨立寫入，重啟會重送並可能重複計數。把資料與游標放到同一交易，使用 ID 唯一約束做去重；同 ID 異內容只能告警或人工釐清。</p><p><strong>這不是 distributed exactly-once：</strong>實驗是單 writer、連續整數 ID、SQLite 單 DB。多分區需每個來源游標與唯一鍵，跨 DB、PLC 命令或外部通知不能被這個本地交易回滾；可考慮 outbox 加冪等消費，另測服務崩潰後是否補送。</p><p><strong>區分測到什麼：</strong>此處是程式內例外後重新開啟 DB，不是斷電、檔案系統或損壞測試。正式選 journal/synchronous 之前先定 RPO、允許重送量、儲存媒介，以及正常關機與故障復原的對照。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>persistence</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py persistence
+# after_error_cursor: 1；replay: [duplicate, committed]；final_cursor: 2</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>with closing(sqlite3.connect(path)) as conn, conn:
+    conn.execute(&quot;INSERT INTO events VALUES (?,?)&quot;, (event_id, value))
+    conn.execute(&quot;UPDATE state SET checkpoint=?&quot;, (event_id,))</code></pre>
+<p>官方資料：<a href="https://docs.python.org/3/library/sqlite3.html#how-to-use-the-connection-context-manager">Python：SQLite 交易與 context manager</a>、<a href="https://sqlite.org/atomiccommit.html">SQLite：原子提交機制</a>。</p>
+</section>
 </main></body></html>

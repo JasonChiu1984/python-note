@@ -15,7 +15,25 @@ section,pre,.scroll{min-width:0;max-width:100%}
 .excel-usage-grid article{min-width:0;padding:.85rem;border:1px solid #d5e3ed;border-radius:.7rem;background:#fff;overflow-wrap:anywhere}
 .excel-usage-grid article h3{margin-top:0;color:#19496f}
 .excel-usage-grid pre{max-width:100%;overflow:auto}
-</style></head><body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#workflow">讀寫流程</a></li><li><a href="#schema">欄位與資料型別</a></li><li><a href="#table-border">表格與框線</a></li><li><a href="#lab">實作與驗證</a></li><li><a href="#analysis">資料清理與分析</a></li><li><a href="#safety">安全修改檔案</a></li><li><a href="#references">官方資料</a></li><li><a href="#usage-reference">API 細項用法</a></li></ul></nav><main>
+
+.rd-data{box-sizing:border-box;display:block;width:100%;min-width:0;margin:1.6rem 0;padding:clamp(.8rem,2vw,1.35rem);border:1px solid #b6cbd5;border-radius:.7rem;background:#f8fcfe;color:#153242;scroll-margin-top:5rem;overflow-wrap:break-word}
+.rd-data h2,.rd-data h3,.rd-data p{color:#153242}
+.rd-data a{color:#125577;text-decoration:underline;text-underline-offset:.2em}
+.rd-data figure{min-width:0;margin:.8rem 0;padding:.7rem;border:1px solid #c8dae2;background:#fff;border-radius:.55rem}
+.rd-data figcaption{color:#23475b;font-weight:700;margin-bottom:.5rem}
+.rd-data .rd-grid{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.15rem;padding:0;margin:0}
+.rd-data .rd-grid li{position:relative;min-width:0;padding:.55rem;border-radius:.4rem;border:1px solid #a9c5d3;background:#edf6fb;margin:0}
+.rd-data .rd-grid li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:calc(50% - .6em);color:#125577;font-weight:700}
+.rd-data .rd-grid :is(strong,span){display:block;overflow-wrap:anywhere}
+.rd-data .rd-plot{display:grid;gap:.4rem;margin:.2rem 0}
+.rd-data .rd-row{min-width:0;display:grid;grid-template-columns:minmax(6rem,23%) minmax(2rem,1fr) minmax(2.6rem,max-content);gap:.4rem;align-items:center}
+.rd-data .rd-track{min-width:0;height:.75rem;background:#e1edf3;border-radius:.2rem}
+.rd-data .rd-track i{display:block;height:100%;background:#167191;border-radius:.2rem}
+.rd-data pre{width:100%;max-width:100%;overflow:auto;white-space:pre;padding:.7em;background:#173142;color:#f4f8ff;border-radius:.4rem}
+.rd-data pre code{color:inherit;white-space:pre}
+@media(max-width:720px){.rd-data .rd-grid{grid-template-columns:1fr}.rd-data .rd-grid li:not(:last-child)::after{content:"↓";left:calc(50% - .3em);top:calc(100% + .02rem)}}
+@media(max-width:380px){.rd-data .rd-row{grid-template-columns:minmax(5rem,32%) minmax(0,1fr) minmax(2.5rem,max-content)}}
+</style></head><body><div class="wrap"><nav aria-label="章節導覽"><a href="index.html">← 回 Python 教材路線</a><ul><li><a href="#workflow">讀寫流程</a></li><li><a href="#roadmap-data-research">工程驗證補充</a></li><li><a href="#schema">欄位與資料型別</a></li><li><a href="#table-border">表格與框線</a></li><li><a href="#lab">實作與驗證</a></li><li><a href="#analysis">資料清理與分析</a></li><li><a href="#safety">安全修改檔案</a></li><li><a href="#references">官方資料</a></li><li><a href="#usage-reference">API 細項用法</a></li></ul></nav><main>
 <header><span class="tag">PYTHON ENGINEERING · XLSX</span><h1>Python Excel 資料處理</h1><p>用 openpyxl 從零建立設備點表，寫入文字、數字、日期與公式，加上真正的 Excel 表格和框線，存檔後再讀回驗證。</p></header>
 <section id="workflow"><h2>01｜一份點表的讀寫流程</h2><ol class="flow"><li>定義欄位<span>識別碼、設備、讀值、時間</span></li><li>逐列寫入<span>表頭與資料各用 append</span></li><li>建立表格<span>指定 Table 範圍及樣式</span></li><li>套框線<span>指定四邊與凍結表頭</span></li><li>存檔驗收<span>重開 .xlsx，檢查值、型別、公式與格式</span></li></ol><p>不要只看寫入時的記憶體物件。檔案格式、Excel 表格元件與公式都應從存檔結果讀回檢查。</p>
 <h3>從命令列到驗收</h3><p><code>python -m pip install openpyxl</code> 把套件裝到目前的 Python；建議在專用虛擬環境執行。<code>ArgumentParser</code> 讀取可省略的 <code>output</code>，用 <code>Path</code> 建立路徑；沒指定時使用 <code>hvac_readings.xlsx</code>。入口先呼叫 <code>write_report()</code>，再由 <code>read_and_check()</code> 重開成品。檔案成功寫入不代表內容正確；兩階段都成功才算通過。</p>
@@ -251,4 +269,21 @@ df[&quot;溫度&quot;] = pd.to_numeric(df[&quot;溫度&quot;], errors=&quot;coer
 assert df[&quot;ID&quot;].is_unique and df[&quot;溫度&quot;].between(-50, 100).all()
 summary = df.groupby(&quot;狀態&quot;, dropna=False)[&quot;溫度&quot;].agg([&quot;count&quot;, &quot;mean&quot;])</code></pre><p><strong>如何驗：</strong>驗證 ID 0012、0048 與分組結果。dtype=string 只能保存來源的文字，不能憑空恢復只靠數字格式顯示的前導零；輸出新檔，別假定 DataFrame 往返會保留圖表、公式或樣式。</p></article>
 </div><p>查官方參考：<a href="https://openpyxl.readthedocs.io/en/stable/filters.html">篩選與排序</a>、<a href="https://openpyxl.readthedocs.io/en/stable/validation.html">資料驗證</a>、<a href="https://openpyxl.readthedocs.io/en/stable/formatting.html">條件格式</a>、<a href="https://openpyxl.readthedocs.io/en/stable/optimized.html">串流模式</a>、<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html">pandas.read_excel</a>。</p></section>
+
+<section class="rd-data" id="roadmap-data-research" aria-labelledby="rd-data-title">
+<p><strong>工程研究補充｜</strong><time datetime="2026-11-26">2026-11-26</time></p>
+<h2 id="rd-data-title">交付 Excel 要交兩種值：原始公式，與獨立核對值</h2><p>用 openpyxl 新寫 <code>=SUM(...)</code>，能保存公式但不會執行它。<code>data_only=True</code> 看的是工作簿最後保存的計算快取，可能是空，也可能是修改輸入前的舊值。新寫檔不可用這個欄位當成程式計算結果。</p>
+<figure><figcaption>流程圖｜依序執行</figcaption><ol class='rd-grid'><li><strong>1. 寫入新檔</strong><span>可信模板寫公式；外部匯入文字用明確文字儲存格</span></li><li><strong>2. 雙路回讀</strong><span>data_only=False 看公式；True 查快取, 不假定有值</span></li><li><strong>3. 隔離驗收</strong><span>Python 另算核對值；確需公式結果才指定重算環境</span></li></ol></figure>
+<figure><figcaption>架構圖｜三層分工</figcaption><ol class='rd-grid'><li><strong>來源契約</strong><span>區分代碼、數值、外部文字與可執行公式。</span></li><li><strong>工作簿產物</strong><span>可信公式可編輯；外來文字保留字面和前導零。</span></li><li><strong>驗收證據</strong><span>記錄模板版本，交付前核對各欄型別、Python 結果及重算狀態。</span></li></ol></figure>
+<figure><figcaption>工作簿 B1、B2 與 Python 驗證欄（同單位）；公式快取缺失不繪成零</figcaption><div class='rd-plot'><div class='rd-row'><span>B1 原始值</span><span class='rd-track' aria-hidden='true'><i style='width:60.0000%'></i></span><strong>12</strong></div><div class='rd-row'><span>B2 原始值</span><span class='rd-track' aria-hidden='true'><i style='width:40.0000%'></i></span><strong>8</strong></div><div class='rd-row'><span>D3 Python 複核</span><span class='rd-track' aria-hidden='true'><i style='width:100.0000%'></i></span><strong>20</strong></div></div></figure>
+<h3>可執行算例與判讀</h3>
+<p><a href="python_roadmap_data_lab.py" download>下載離線實驗程式</a>。輸入全為合成資料，程式不寫設備或外部服務。另需先安裝 <code>openpyxl</code>。</p>
+<pre tabindex="0" aria-label="Python 執行命令"><code>python python_roadmap_data_lab.py excel</code></pre>
+<p>程式摘錄（變數和匯入見下載檔）：</p><pre tabindex="0" aria-label="關鍵程式碼"><code>sheet[&quot;B3&quot;] = &quot;=SUM(B1:B2)&quot;  # 來自教材程式的可信公式
+sheet[&quot;C1&quot;] = &quot;=1+1&quot;        # 來自外部欄位的合成字串
+sheet[&quot;C1&quot;].data_type = &quot;s&quot;  # 明確存成文字，不交給試算表當公式
+sheet[&quot;D3&quot;] = sum(sheet[f&quot;B{r}&quot;].value for r in (1, 2))  # Python 驗證值</code></pre>
+<p>範例重開新工作簿後，<code>B3</code> 公式存在而快取為 <code>None</code>；<code>D3</code> 有可核對的 20。另用無害的示例字串 <code>=1+1</code> 確認外部欄位序列化為文字，避免把外部資料當公式。這是 XLSX 型別的策略，轉成 CSV 就沒有儲存格型別保證，需另外定義匯出政策。重算後還要驗證第三方工具對圖表、功能及版式的相容性，不能宣稱 openpyxl 自動重算。</p>
+<p>原始參考：<a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl 官方工作簿讀寫與 data_only</a> · <a href="https://openpyxl.readthedocs.io/en/stable/simple_formulae.html">openpyxl 公式使用限制</a>。</p>
+</section>
 <section id="references"><h2>官方資料</h2><ul><li><a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl：建立、儲存、載入工作簿</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html">openpyxl：工作表表格</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/styles.html">openpyxl：儲存格樣式</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/datetime.html">openpyxl：日期及時間</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/charts/bar.html">openpyxl：長條圖、資料範圍與類別</a></li></ul></section></main></div></body></html>

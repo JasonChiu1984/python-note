@@ -91,6 +91,29 @@
 
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -106,7 +129,7 @@
         <a href="#delivery-gate-deep-dive">交付閘門詳解</a>
         <a href="#release">Release</a>
         <a href="#sample">範例專案</a>
-      </nav>
+      <a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
     </aside>
     <main>
@@ -479,7 +502,25 @@ if __name__ == "__main__":
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">同一顆成品才算驗過：用 digest 綁定品質證據</h2><p>綠燈只描述曾有檢查通過。發布關卡還要證明每一份檢查對應目前候選成品。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. 來源修訂</strong><span>revision 固定、工作目錄乾淨</span></li><li><strong>2. 唯一成品</strong><span>build 一次、計算 SHA-256</span></li><li><strong>3. 多道關卡</strong><span>unit / install / smoke 證據</span></li><li><strong>4. 發布閘門</strong><span>資料完整且綁定 digest 才放行</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 建置與摘要</strong><span>確立候選 bytes 和來源</span></li><li><strong>2. 各節點驗證</strong><span>對應測試出具明確證據</span></li><li><strong>3. 匯集核對</strong><span>每項一次、pass、revision、digest</span></li><li><strong>4. 是否放行</strong><span>缺少、失敗或對錯成品即停止</span></li></ol></figure>
+<figure><figcaption>圖表｜阻擋規則觸發數</figcaption><ul class='rr-chart'><li>乾淨：<strong>0</strong><span class="rr-bar" aria-hidden="true"><i style="width:0.00%"></i></span></li><li>缺 smoke：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:33.33%"></i></span></li><li>bytes 改動：<strong>3</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li><li>來源修訂不同：<strong>3</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>案例</th><th scope='col'>違規數</th><th scope='col'>實驗結論</th></tr></thead><tbody><tr><td>乾淨候選＋完整三項</td><td>0</td><td>允許</td></tr><tr><td>缺 smoke</td><td>1</td><td>阻擋</td></tr><tr><td>候選 bytes 改動</td><td>3</td><td>所有原 digest 失效</td></tr><tr><td>改成另一個 revision</td><td>3</td><td>所有原 revision 錯誤</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>矩陣上綠不等於交付可用：</strong>Job A 建置、Job B 檢查，若 Job C 重新 build 再發布，已不是確定測過的 bytes。建置一次並用 digest 取成品，保留 policy 版本與環境；不同平台 wheel 各自建立證據，不假設所有平台有相同 digest。</p><p><strong>允許手段要能被稽核：</strong>本例要求 unit、install、smoke 皆唯一且通過，沒有人工豁免。若實務允許例外，應有明確範圍、原因、逾期、擁有人與簽核證據；不同報告重複不能取最後綠燈來掩蓋。</p><p><strong>digest 本身不是信任：</strong>JSON 若能由不可信人員重寫，攻擊者仍可換掉成品與所有摘要。正式應確認報告或 attestations 的簽章、可驗證身分、受信任 CI 工作流程，以及 attestation 主體是實際部署的成品。此實驗故意不對接真實憑證或上傳。</p><p><strong>區分測試種類：</strong>此合成資料讓每項報告指向同一 digest；實務原始碼 unit test 可只對 revision，另設產物 install/smoke 對 digest，不能把只測原始碼的 unit 改名為已執行該 wheel。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>ci</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py ci
+# clean: []；missing: [smoke:count]；異動成品與修訂都拒放</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>if entry.get(&quot;sha256&quot;) != digest(candidate):
+    failures.append(name + &quot;:digest&quot;)
+if entry.get(&quot;revision&quot;) != expected_revision:
+    failures.append(name + &quot;:revision&quot;)</code></pre>
+<p>官方資料：<a href="https://docs.github.com/en/actions/concepts/security/artifact-attestations">GitHub：artifact attestations 的定位</a>、<a href="https://docs.python.org/3/library/hashlib.html">Python：hashlib</a>。</p>
+</section>
+</main>
   </div>
   <script>
     const lessonGroups = {

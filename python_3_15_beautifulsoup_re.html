@@ -696,6 +696,21 @@
     .mb-3 { margin-bottom: 12px; }
   </style>
 <link rel="stylesheet" href="assets/interactive-labs-responsive.css">
+<style>
+.web-contract{color:#e6f3ff;background:#102539;border:1px solid #335775;border-radius:1rem;padding:clamp(.85rem,3vw,2rem);margin:1.5rem 0;min-width:0;overflow-wrap:anywhere;scroll-margin-top:6rem}
+.web-contract :is(h2,h3,strong){color:#f2f8ff}.web-contract p,.web-contract li{line-height:1.65}.web-contract a{color:#9bdfff;text-decoration:underline}
+.web-contract figure{margin:1rem 0;padding:0;min-width:0}
+.web-contract figcaption{font-weight:750;margin-bottom:.55rem;color:#9bdfff}
+.wc-nodes{list-style:none;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1rem;padding:0;margin:0}
+.wc-nodes li{position:relative;border:1px solid #416b8c;background:#162f46;padding:.68rem;border-radius:.7rem;min-width:0}
+.wc-nodes span{display:block;color:#cfdfec;font-size:.94em}.wc-nodes li:not(:last-child)::after{content:"→";position:absolute;right:-.93rem;top:50%;transform:translateY(-50%);color:#99dafc}
+.wc-bars{display:grid;gap:.45rem;max-width:46rem}.wc-bar{display:grid;grid-template-columns:minmax(7rem,1fr) minmax(2rem,1fr) minmax(3rem,auto);align-items:center;gap:.5rem}
+.wc-bar i{height:.6rem;background:linear-gradient(90deg,#64c4fb var(--level),#34536b var(--level));border-radius:.4rem}
+.web-contract table{border-collapse:collapse;width:100%;min-width:0;table-layout:fixed;color:#e6f3ff}
+.web-contract th,.web-contract td{border:1px solid #426581;text-align:left;vertical-align:top;padding:.6rem;background:#142b41;color:#e6f3ff}
+.web-contract tbody th{width:25%}.web-contract pre{color:#e6f3ff;background:#0a1b2b;border:1px solid #335775;border-radius:.6rem;padding:.85rem;overflow:auto;max-width:100%;white-space:pre}
+@media(max-width:700px){.wc-nodes{grid-template-columns:minmax(0,1fr)}.wc-nodes li:not(:last-child)::after{content:"↓";top:auto;bottom:-1.15rem;right:50%;transform:translateX(50%)}}
+</style>
 </head>
 <body>
 
@@ -741,10 +756,12 @@
     </div>
   </header>
 
+  <div class="main-container"><a href="#contract-research">跳到離線解析研究</a></div>
   <!-- =========================================================================
        MAIN WORKSPACE
        ========================================================================= -->
   <main class="main-container">
+<div class="lab-primary-return"><a class="lab-return-button" href="python_web_crawling_tutorial.html">← 回主教程</a></div>
 
     <!-- =======================================================================
          TAB 1 (DEFAULT): 🚀 實戰應用（股價 & 空品氣象）
@@ -1362,7 +1379,36 @@ merged = {**d for d in ds}</pre>
       </div>
     </section>
 
-  </main>
+  <section class="web-contract" id="contract-research" aria-labelledby="wc-title">
+<h2 id="wc-title">研究實作｜本地樣本、抽取契約與版型變動</h2><p>選擇器找得到內容不代表抽到了正確資料；找不到內容也不等於當天沒有資料。以下用本地 HTML 樣本重現欄位缺失、重複與版型改變，不連線或擷取任何站點。</p>
+<figure><figcaption>架構圖｜各層責任</figcaption><ol class="wc-nodes" role="list" style="--n:4"><li><strong>01 樣本層</strong><span>保存固定 HTML、來源候選與解析器名稱；CI 不向真實網站請求。</span></li><li><strong>02 DOM 層</strong><span>BeautifulSoup 以主區域和 data-device 定位，不拿 re 解析整份 HTML。</span></li><li><strong>03 欄位層</strong><span>只對設備 ID 用 re.fullmatch；標題由 get_text 取得，再檢查空字串與重複。</span></li><li><strong>04 交付層</strong><span>整批驗證完成後再發布結果；錯誤保留最後成功版本與診斷紀錄。</span></li></ol></figure><figure><figcaption>流程圖｜正常與失敗路徑</figcaption><ol class="wc-nodes" role="list" style="--n:3"><li><strong>01 分離來源與解析</strong><span>以固定 fixture、固定解析器重現，避免網路或 parser 變因。</span></li><li><strong>02 檢查空集合與契約</strong><span>至少一筆、ID 格式、唯一性及標題必填；記錄當時版本。</span></li><li><strong>03 驗收與退回</strong><span>任何一筆失敗都不要用部份輸出覆蓋正確結果；字串呈現用文字而非 innerHTML。</span></li></ol></figure>
+<p><a href="assets/roadmap-web-contracts.drawio" download>下載四章架構與流程圖的 draw.io 原稿</a></p>
+<figure class="wc-bars"><figcaption>離線算例｜尺度 0–4 個測試情境（不是現場基準測試）</figcaption><div class="wc-bar" style="--level:50.00%"><span>可接受：正常、帶有標籤字樣的純文字</span><i aria-hidden="true"></i><strong>2</strong></div><div class="wc-bar" style="--level:100.00%"><span>拒絕：空集合、ID 錯誤、欄位缺失、ID 重複</span><i aria-hidden="true"></i><strong>4</strong></div></figure>
+<h3>工程決策與驗收</h3><table><thead><tr><th scope="col" style="width:26%">項目</th><th scope="col">驗證重點</th></tr></thead><tbody><tr><th scope="row">解析器差異</th><td>破損 HTML 在不同解析器可能結成不同 DOM；固定 html.parser 搭配 fixture 才能重現。get_text 不是 HTML sanitizer，也不保證頁面顯示意義，僅提取指定元素文字。</td></tr><tr><th scope="row">格式驗證</th><td>re.search 會命中子字串，不能驗證整個設備 ID。此處用 fullmatch 加上 [0-9] 明確限制 ASCII 數字；3.15 的 prefixmatch 是前綴比對，不取代 fullmatch。</td></tr><tr><th scope="row">可重跑交付</th><td>extract 是惰性 iterator；先 list(extract(...)) 確保整批通過再交給下游。快照測試覆蓋無結果和重複，不把空報表當成功。</td></tr></tbody></table>
+<h3>核心程式</h3><p>下段摘錄自 <a href="python_roadmap_web_contract_lab.py" download>離線範例與測試</a>；執行請使用完整檔案。</p><details><summary>展開程式碼</summary><pre tabindex="0"><code>DEVICE = re.compile(r&quot;[A-Z]{2}-[0-9]{2}&quot;)
+FIXTURE = &#x27;&lt;main&gt;&lt;article data-device=&quot;CH-01&quot;&gt;&lt;h2&gt; 並聯 冰機 &lt;/h2&gt;&lt;/article&gt;&lt;/main&gt;&#x27;
+
+
+def extract(html):
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, &quot;html.parser&quot;)
+    seen = set()
+    for article in soup.select(&quot;main article[data-device]&quot;):
+        key = article.get(&quot;data-device&quot;)
+        heading = article.select_one(&quot;h2&quot;)
+        if not isinstance(key, str) or not DEVICE.fullmatch(key) or key in seen or heading is None:
+            raise ValueError(&quot;source schema changed&quot;)
+        text = heading.get_text(&quot; &quot;, strip=True)
+        if not text:
+            raise ValueError(&quot;empty heading&quot;)
+        seen.add(key)
+        yield key, text
+    if not seen:
+        raise ValueError(&quot;no records; check the fixture or selector&quot;)</code></pre></details>
+<pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_parser</code></pre>
+<p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
+<p>官方參考：<a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup：官方文件</a> · <a href="https://docs.python.org/3.15/library/re.html">Python 3.15：re</a>。內容校閱：2026-11-26（台灣）。</p></section>
+</main>
 
   <footer class="site-footer">
     <div class="footer-inner">

@@ -102,12 +102,14 @@
     @media(max-width:570px){.cli-deep-diagram,.cli-deep-matrix{grid-template-columns:minmax(0,1fr)}}
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+<link rel="stylesheet" href="assets/roadmap-core-research.css">
 </head>
 <body>
   <div class="layout">
     <aside>
       <a class="brand" href="#top"><span class="logo">CLI</span><span><strong>CLI 自動化工程</strong><br><small>subcommand、dry-run、report</small></span></a>
       <nav aria-label="章節導覽">
+        <a href="#roadmap-core-research">深度研究與實作</a>
         <a href="index.html">回教材入口</a>
         <a href="#overview">Overview</a>
         <a href="#architecture">Architecture</a>
@@ -567,7 +569,32 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>命令出問題先看契約與 report</h2><p>CLI 問題大多來自參數漂移、dry-run 缺位、錯誤碼不穩或輸出不可解析。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>把 CLI 當正式交付物，而不是工具人的祕密腳本</h2><p>只要命令會進排程、進 CI、交給其他工程師或現場人員，就應有正式工程品質。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-      <section class="section-block" id="cli-internals">
+      <section class="section rm-core" id="roadmap-core-research" aria-labelledby="rm-core-title">
+<h2 id="rm-core-title">CLI 交付研究｜預設不寫、同目錄切換與失敗證據</h2><p>CLI 先在記憶體完成驗證，再組出可重跑成品。預設預覽不寫入，只有明確給 --apply 及 --output 才允許在本機現有目錄替換檔案。實驗採單一寫入者與合成資料；正式多進程搶寫應由交易或鎖實作，不靠 os.replace() 充作併發控制。</p>
+<figure><figcaption><strong>架構圖｜責任分層</strong></figcaption><ol class="rm-flow"><li><b>1｜命令層</b><span>argparse 解析模式與參數，區分設定錯誤、執行失敗與成功。</span></li><li><b>2｜純規則層</b><span>先建立同一份 Plan，產物內容與摘要可復算。</span></li><li><b>3｜檔案適配器</b><span>同目錄暫存、寫完同步檔案，再 replace；沒成功不碰原檔。</span></li></ol></figure>
+<figure><figcaption><strong>流程圖｜執行與判定順序</strong></figcaption><ol class="rm-flow"><li><b>1｜預覽</b><span>不經檔案適配器；stderr 告知數量、摘要、written=no。</span></li><li><b>2｜明確套用</b><span>給 --apply；暫存檔與目標同目錄，os.replace 成功後才算可見。</span></li><li><b>3｜驗證與回退</b><span>重跑比對摘要；失敗檢查舊檔仍在及暫存清理。</span></li></ol></figure>
+<div class="rm-table" role="region" tabindex="0" aria-label="設計比對"><table><thead><tr><th scope="col">概念／步驟</th><th scope="col">驗收與限制</th></tr></thead><tbody><tr><th scope="row">退出碼 0</th><td>預覽完成或套用成功；用 written 欄位區分。</td></tr><tr><th scope="row">退出碼 1／2</th><td>I/O 失敗是 1；argparse 參數錯誤是 2。stderr 診斷不混入 JSON。</td></tr><tr><th scope="row">斷電與競爭</th><td>原子更換防半成品可見，不等於完全耐斷電；需要時另驗證檔案系統與目錄同步。</td></tr></tbody></table></div>
+<figure><figcaption><strong>對照圖｜單次合成驗收。保留原檔、故意失敗及成功要分開測，不用這些數字推估磁碟效能。</strong></figcaption><ul class="rm-bars"><li><span>預覽寫入</span><meter min="0" max="1" value="0" aria-label="預覽寫入 0"></meter><b>0</b></li><li><span>套用寫入</span><meter min="0" max="1" value="1" aria-label="套用寫入 1"></meter><b>1</b></li><li><span>殘留暫存</span><meter min="0" max="1" value="0" aria-label="殘留暫存 0"></meter><b>0</b></li></ul></figure>
+<h3>核心程式與復算</h3><p>下方摘錄與可下載檔案同步。完整檔自帶合成資料，不連接裝置或外部服務。</p>
+<pre tabindex="0"><code>def publish_snapshot(path: Path, artifact: bytes) -&gt; None:
+    &quot;&quot;&quot;Same-directory replace; one writer, existing authorized output directory.&quot;&quot;&quot;
+    temporary = None
+    try:
+        with NamedTemporaryFile(dir=path.parent, prefix=&quot;.snapshot-&quot;, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(artifact)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)</code></pre>
+<p><a href="python_roadmap_core_lab.py" download>下載離線程式和自測</a> · <a href="https://docs.python.org/3/library/os.html#os.replace">Python os.replace</a> · <a href="python_learning_roadmap.html">回教材路線圖</a></p>
+<pre tabindex="0"><code>python3 python_roadmap_core_lab.py publish --output ./demo-snapshot.json
+# 確認預覽後才在允許的測試目錄執行：
+python3 python_roadmap_core_lab.py publish --output ./demo-snapshot.json --apply
+python3 -m unittest -v python_roadmap_core_lab</code></pre></section>
+<section class="section-block" id="cli-internals">
         <div class="section-head"><div><span class="eyebrow">Internal Design</span><h2>從 argv 到可驗收的退出結果</h2><p>用一個標準庫案例看清命令列介面、規則、寫入與證據四層，而不是把所有工作塞進 main()。</p></div></div>
         <article class="surface cli-article cli-deep">
           <h3>架構圖｜把可變動的介面和副作用留在外層</h3>

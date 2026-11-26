@@ -493,7 +493,25 @@
       .button { width: 100%; }
       h1 { max-width: 12ch; }
     }
-  </style>
+  
+.rd-data{box-sizing:border-box;display:block;width:100%;min-width:0;margin:1.6rem 0;padding:clamp(.8rem,2vw,1.35rem);border:1px solid #b6cbd5;border-radius:.7rem;background:#f8fcfe;color:#153242;scroll-margin-top:5rem;overflow-wrap:break-word}
+.rd-data h2,.rd-data h3,.rd-data p{color:#153242}
+.rd-data a{color:#125577;text-decoration:underline;text-underline-offset:.2em}
+.rd-data figure{min-width:0;margin:.8rem 0;padding:.7rem;border:1px solid #c8dae2;background:#fff;border-radius:.55rem}
+.rd-data figcaption{color:#23475b;font-weight:700;margin-bottom:.5rem}
+.rd-data .rd-grid{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.15rem;padding:0;margin:0}
+.rd-data .rd-grid li{position:relative;min-width:0;padding:.55rem;border-radius:.4rem;border:1px solid #a9c5d3;background:#edf6fb;margin:0}
+.rd-data .rd-grid li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .1rem);top:calc(50% - .6em);color:#125577;font-weight:700}
+.rd-data .rd-grid :is(strong,span){display:block;overflow-wrap:anywhere}
+.rd-data .rd-plot{display:grid;gap:.4rem;margin:.2rem 0}
+.rd-data .rd-row{min-width:0;display:grid;grid-template-columns:minmax(6rem,23%) minmax(2rem,1fr) minmax(2.6rem,max-content);gap:.4rem;align-items:center}
+.rd-data .rd-track{min-width:0;height:.75rem;background:#e1edf3;border-radius:.2rem}
+.rd-data .rd-track i{display:block;height:100%;background:#167191;border-radius:.2rem}
+.rd-data pre{width:100%;max-width:100%;overflow:auto;white-space:pre;padding:.7em;background:#173142;color:#f4f8ff;border-radius:.4rem}
+.rd-data pre code{color:inherit;white-space:pre}
+@media(max-width:720px){.rd-data .rd-grid{grid-template-columns:1fr}.rd-data .rd-grid li:not(:last-child)::after{content:"↓";left:calc(50% - .3em);top:calc(100% + .02rem)}}
+@media(max-width:380px){.rd-data .rd-row{grid-template-columns:minmax(5rem,32%) minmax(0,1fr) minmax(2.5rem,max-content)}}
+</style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
@@ -507,7 +525,7 @@
     <a href="#packaging">打包</a>
     <a href="#cases">案例</a>
     <a href="#checklist">檢查表</a>
-  </nav>
+  <a href="#roadmap-data-research">工程驗證補充</a></nav>
 
   <div class="layout">
     <aside class="sidebar" aria-label="側邊導覽">
@@ -535,7 +553,7 @@
         <a href="#cases">專案案例</a>
         <a href="#checklist">上線檢查表</a>
         <a href="index.html">回教材入口</a>
-      </nav>
+      <a href="#roadmap-data-research">工程驗證補充</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 35</div>
     </aside>
 
@@ -937,7 +955,25 @@ def test_month_uses_utc_boundary(tmp_path):
           <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>
       </button>
-    </main>
+    
+<section class="rd-data" id="roadmap-data-research" aria-labelledby="rd-data-title">
+<p><strong>工程研究補充｜</strong><time datetime="2026-11-26">2026-11-26</time></p>
+<h2 id="rd-data-title">可對帳的 DataFrame join：筆數不變也要保住能量</h2><p>將能耗明細連到設備主檔之前，先定義資料粒度：左邊一列是一個讀值，右邊每個設備只能對應一筆主檔。Pandas <code>merge</code> 可以把兩側空鍵相互配對，不能照搬一般 SQL NULL 的假設。空鍵應事先隔離；缺主檔的有效鍵應保留在帳上並列為一個類別。</p>
+<figure><figcaption>流程圖｜依序執行</figcaption><ol class='rd-grid'><li><strong>1. 先分空鍵</strong><span>明細空鍵留下原值，對照表空鍵不可參與</span></li><li><strong>2. 驗證多對一</strong><span>left merge + validate=many_to_one + indicator</span></li><li><strong>3. 分三類對帳</strong><span>成功、未映射及空鍵：分別核對列數和 kWh</span></li></ol></figure>
+<figure><figcaption>架構圖｜三層分工</figcaption><ol class='rd-grid'><li><strong>事實表</strong><span>設備代碼、時間窗、kWh；一個設備可有多筆。</span></li><li><strong>對照維度</strong><span>同一設備鍵只出現一次；若主檔有效期變動，先解析同窗唯一版本。</span></li><li><strong>控制總帳</strong><span>三類能量之和等於來源，重複鍵不自動吞掉。</span></li></ol></figure>
+<figure><figcaption>合成明細合計 128 kWh：去向分解（kWh）</figcaption><div class='rd-plot'><div class='rd-row'><span>已映射</span><span class='rd-track' aria-hidden='true'><i style='width:19.5312%'></i></span><strong>25</strong></div><div class='rd-row'><span>設備無主檔</span><span class='rd-track' aria-hidden='true'><i style='width:3.1250%'></i></span><strong>4</strong></div><div class='rd-row'><span>明細鍵空白</span><span class='rd-track' aria-hidden='true'><i style='width:77.3438%'></i></span><strong>99</strong></div></div></figure>
+<h3>可執行算例與判讀</h3>
+<p><a href="python_roadmap_data_lab.py" download>下載離線實驗程式</a>。輸入全為合成資料，程式不寫設備或外部服務。另需先安裝 <code>pandas</code>。</p>
+<pre tabindex="0" aria-label="Python 執行命令"><code>python python_roadmap_data_lab.py join</code></pre>
+<p>程式摘錄（變數和匯入見下載檔）：</p><pre tabindex="0" aria-label="關鍵程式碼"><code>without_key = facts.loc[facts[&quot;id&quot;].isna()]
+source = facts.dropna(subset=[&quot;id&quot;])
+dimension = mapping.dropna(subset=[&quot;id&quot;])
+merged = source.merge(dimension, on=&quot;id&quot;, how=&quot;left&quot;,
+                      validate=&quot;many_to_one&quot;, indicator=True)</code></pre>
+<p>範例輸入 5 筆、有效鍵連接後 4 筆；另 1 筆空鍵的 99 kWh 保存可查。加入重複的主檔 A 會得到 <code>MergeError</code>，而不是默默把 A 的用電翻倍。別用 <code>drop_duplicates</code> 任選一列來修復衝突；由負責人確認有效日期、代碼格式及主檔來源。若明細使用欠量表示沖銷，還要交叉對帳絕對值或正負分項，避免相反誤差抵銷。</p>
+<p>原始參考：<a href="https://pandas.pydata.org/docs/reference/api/pandas.merge.html">pandas.merge：validate、indicator 與空鍵</a>。</p>
+</section>
+</main>
   </div>
 
   <script>

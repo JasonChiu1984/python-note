@@ -115,6 +115,29 @@
     }
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -130,7 +153,7 @@
         <a href="#preflight-checklist">上線前檢驗工具</a>
         <a href="#operations">Operations</a>
         <a href="#sample">範例專案</a>
-      </nav>
+      <a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 28</div>
     </aside>
     <main>
@@ -962,7 +985,24 @@ class MessageTest(unittest.TestCase):
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">看懂 wheel RECORD：內部一致不等於可信成品</h2><p>從 zip 成員與 RECORD 比對內部檔案；再清楚區分外部 digest、來源證明與安裝驗收。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. wheel bytes</strong><span>下載或由 build 產生的 zip</span></li><li><strong>2. RECORD 表</strong><span>成員路徑、雜湊、位元組數</span></li><li><strong>3. 證據比對</strong><span>不解壓、不執行成員</span></li><li><strong>4. 交付查核</strong><span>可信 digest／來源＋目標環境實測</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 限制輸入</strong><span>大小、zip 成員數及路徑</span></li><li><strong>2. 核對範圍</strong><span>成員與 RECORD 一一對應</span></li><li><strong>3. 比對內容</strong><span>逐檔 SHA-256 與大小；RECORD 無自我摘要</span></li><li><strong>4. 做出判斷</strong><span>輸出異常清單；來源需獨立驗證</span></li></ol></figure>
+<figure><figcaption>圖表｜內部 RECORD 不一致成員數</figcaption><ul class='rr-chart'><li>合成檔原樣：<strong>0</strong><span class="rr-bar" aria-hidden="true"><i style="width:0.00%"></i></span></li><li>單檔成員替換：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>機制</th><th scope='col'>能回答</th><th scope='col'>不能證明</th></tr></thead><tbody><tr><td>內部 RECORD</td><td>檔案集合、大小與雜湊是否一致</td><td>誰產生 wheel</td></tr><tr><td>可信通路的 SHA-256</td><td>是否同一份 wheel bytes</td><td>建置程序與依賴安全</td></tr><tr><td>簽署證據／attestation</td><td>是否符合明定發布者與程序政策</td><td>在目前環境可正常安裝</td></tr><tr><td>乾淨 venv 驗收</td><td>目標 wheel 可安裝與執行 smoke</td><td>所有平台與輸入都適用</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>RECORD 自查細節：</strong>wheel 安裝前 RECORD 用 CSV，路徑欄不是可以任意解壓的指令。雜湊欄記演算法與以 URL-safe Base64 去掉填補符號的 digest；即使內容長度相同，hash 不同仍要阻擋。</p><p><strong>範例故意不是通用驗證器：</strong>它只接受小型、合成、SHA‑256 wheel 與單一 RECORD，拒絕訓練規則以外的 archive。正式 wheel 規範支援的雜湊與歷史簽章成員有其他細節；安裝後 RECORD 是另一階段，不能直接套此範例。</p><p><strong>內部一致並非來源：</strong>若資料和 RECORD 一起被重寫，內部仍可能一致。需透過可信發布來源取得外部 digest，或驗證來源證明與簽署身分；若須驗可重建性，還需固定建置輸入再比較產物。</p><p><strong>不在測試工具解壓執行未知檔：</strong>離線實驗只處理自行建出的 zip；正式環境先核對來源與平台 tags，再以隔離環境安裝，記錄發行檔 digest、運行時 ABI 與 smoke 結果。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>packaging</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py packaging
+# clean RECORD；變更同長度 bytes 時報 demo_pkg/__init__.py</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>content = archive.read(name)
+if tagged_hash != record_hash(content) or length != str(len(content)):
+    failures.append(name)</code></pre>
+<p>官方資料：<a href="https://packaging.python.org/en/latest/specifications/binary-distribution-format/">PyPA：Binary distribution format / RECORD</a>、<a href="https://docs.python.org/3/library/zipfile.html">Python：zipfile</a>。</p>
+</section>
+</main>
   </div>
   <script>
     const lessonGroups = {

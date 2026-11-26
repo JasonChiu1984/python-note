@@ -79,9 +79,24 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
 #frontend-auto-refresh pre{max-width:100%;overflow:auto}
 @media(max-width:32rem){#frontend-auto-refresh .afr-values{grid-template-columns:1fr;gap:.18rem}#frontend-auto-refresh .afr-values dd{margin-bottom:.45rem}}
 
-</style></head><body><main>
+</style><style>
+.web-contract{color:#e6f3ff;background:#102539;border:1px solid #335775;border-radius:1rem;padding:clamp(.85rem,3vw,2rem);margin:1.5rem 0;min-width:0;overflow-wrap:anywhere;scroll-margin-top:6rem}
+.web-contract :is(h2,h3,strong){color:#f2f8ff}.web-contract p,.web-contract li{line-height:1.65}.web-contract a{color:#9bdfff;text-decoration:underline}
+.web-contract figure{margin:1rem 0;padding:0;min-width:0}
+.web-contract figcaption{font-weight:750;margin-bottom:.55rem;color:#9bdfff}
+.wc-nodes{list-style:none;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1rem;padding:0;margin:0}
+.wc-nodes li{position:relative;border:1px solid #416b8c;background:#162f46;padding:.68rem;border-radius:.7rem;min-width:0}
+.wc-nodes span{display:block;color:#cfdfec;font-size:.94em}.wc-nodes li:not(:last-child)::after{content:"→";position:absolute;right:-.93rem;top:50%;transform:translateY(-50%);color:#99dafc}
+.wc-bars{display:grid;gap:.45rem;max-width:46rem}.wc-bar{display:grid;grid-template-columns:minmax(7rem,1fr) minmax(2rem,1fr) minmax(3rem,auto);align-items:center;gap:.5rem}
+.wc-bar i{height:.6rem;background:linear-gradient(90deg,#64c4fb var(--level),#34536b var(--level));border-radius:.4rem}
+.web-contract table{border-collapse:collapse;width:100%;min-width:0;table-layout:fixed;color:#e6f3ff}
+.web-contract th,.web-contract td{border:1px solid #426581;text-align:left;vertical-align:top;padding:.6rem;background:#142b41;color:#e6f3ff}
+.web-contract tbody th{width:25%}.web-contract pre{color:#e6f3ff;background:#0a1b2b;border:1px solid #335775;border-radius:.6rem;padding:.85rem;overflow:auto;max-width:100%;white-space:pre}
+@media(max-width:700px){.wc-nodes{grid-template-columns:minmax(0,1fr)}.wc-nodes li:not(:last-child)::after{content:"↓";top:auto;bottom:-1.15rem;right:50%;transform:translateX(50%)}}
+</style>
+</head><body><main>
 <header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
-<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#websocket-deep-dive">WebSocket 深度</a><a href="#frontend-auto-refresh">自動刷新</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a></nav>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#websocket-deep-dive">WebSocket 深度</a><a href="#frontend-auto-refresh">自動刷新</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a><a href="#contract-research">契約研究與實作</a></nav>
 </header>
 <section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
 <figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
@@ -519,7 +534,35 @@ python3 python_web_frontend_dataflow_lab.py --test</code></pre>
 <ol><li>按「讀取三個設備」，用 Network 定位 GET，核對狀態碼與三列資料。</li><li>按「製造逾時」，確認約 1.2 秒停止等待，剛才圖表仍保留。</li><li>按「送出無效查詢」，確認 HTTP 400，而非取樣結果被清空。</li><li>試改 POST 的 Content-Type 或門檻型別，辨認 415 和 400 的差異。</li><li>開啟輪詢後手動更新，再停用，檢查沒有累積舊請求。</li></ol>
 <p>補充資料：<a href="https://developer.mozilla.org/zh-TW/docs/Web/API/Fetch_API/Using_Fetch">MDN Fetch</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">MDN CORS</a> · <a href="https://docs.python.org/3/library/http.server.html">Python http.server</a></p></div>
 </section>
-<a href="#top">回到上方</a></main>
+<a href="#top">回到上方</a><section class="web-contract" id="contract-research" aria-labelledby="wc-title">
+<h2 id="wc-title">研究實作｜從序號缺口回到一致畫面</h2><p>輪詢、SSE、WebSocket 的選型不能只看雙工。畫面真正需要的是一個跨傳輸的一致性規則：先拿可信快照，再接續連號增量；斷線或發現缺口就保留舊值並標示過期。</p>
+<figure><figcaption>架構圖｜各層責任</figcaption><ol class="wc-nodes" role="list" style="--n:4"><li><strong>01 事件來源</strong><span>在單一分區使用 stream ID 與連號序號；重啟換 ID，不將壁鐘時間當主鍵。</span></li><li><strong>02 API 與串流</strong><span>HTTP 取快照及當前識別；SSE／WebSocket 以有限保留紀錄輔助補送。</span></li><li><strong>03 前端狀態層</strong><span>分辨重複／缺口／重啟；競態期間暫存有限事件，溢位重新同步。</span></li><li><strong>04 畫面</strong><span>以一筆已提交的版本更新圖卡，失聯時顯示上次來源時間及過期標記。</span></li></ol></figure><figure><figcaption>流程圖｜正常與失敗路徑</figcaption><ol class="wc-nodes" role="list" style="--n:3"><li><strong>01 可信快照</strong><span>先從 API 取快照；以快照為基準重放可接續增量。</span></li><li><strong>02 比較 stream 與 seq</strong><span>相同 ID 且下一號才套用；重複或較舊序號捨棄。</span></li><li><strong>03 重建狀態</strong><span>跳號、換 ID 或超出重播保留期，重新取可信快照；舊畫面不偽裝新鮮。</span></li></ol></figure>
+<p><a href="assets/roadmap-web-contracts.drawio" download>下載四章架構與流程圖的 draw.io 原稿</a></p>
+<figure class="wc-bars"><figcaption>離線算例｜尺度 0–3 個測試情境（不是現場基準測試）</figcaption><div class="wc-bar" style="--level:66.67%"><span>立即套用：初始快照與下一號</span><i aria-hidden="true"></i><strong>2</strong></div><div class="wc-bar" style="--level:100.00%"><span>要求重同步：無快照／跳號／重啟</span><i aria-hidden="true"></i><strong>3</strong></div><div class="wc-bar" style="--level:33.33%"><span>忽略：重複序號</span><i aria-hidden="true"></i><strong>1</strong></div></figure>
+<h3>工程決策與驗收</h3><table><thead><tr><th scope="col" style="width:26%">項目</th><th scope="col">驗證重點</th></tr></thead><tbody><tr><th scope="row">輪詢</th><td>用請求完成後才排下一次，避免 setInterval 疊請求；變更設備或頁面關閉時取消舊請求。304 不含新的快照內容，也不代表現場設備剛採樣。</td></tr><tr><th scope="row">SSE</th><td>EventSource 重連攜帶 Last-Event-ID 不等於伺服器自動補送；服務要保存有限歷史並定義游標過期時的 reset。驗證代理緩衝、閒置期限與心跳。</td></tr><tr><th scope="row">WebSocket</th><td>應用層可定義 resume/snapshot；瀏覽器傳統 WebSocket API 不提供接收背壓，慢頁需合併串流狀態或斷線重同步。告警等不可遺漏事件與可丟棄的畫面更新應分流。</td></tr></tbody></table>
+<h3>核心程式</h3><p>下段摘錄自 <a href="python_roadmap_web_contract_lab.py" download>離線範例與測試</a>；執行請使用完整檔案。</p><details><summary>展開程式碼</summary><pre tabindex="0"><code>@dataclass(frozen=True)
+class Message:
+    stream: str
+    seq: int
+    value: str
+
+
+def merge(current, incoming, *, snapshot=False):
+    &quot;&quot;&quot;此模型每個 stream 內連號；重啟換 stream 必須經過可信快照。&quot;&quot;&quot;
+    if type(incoming.seq) is not int or incoming.seq &lt; 0 or not incoming.stream:
+        raise ValueError(&quot;invalid event&quot;)
+    if current is not None and incoming.stream == current.stream:
+        if incoming.seq &lt;= current.seq:
+            return &quot;ignore&quot;, current
+        if snapshot or incoming.seq == current.seq + 1:
+            return &quot;apply&quot;, incoming
+    elif snapshot:
+        return &quot;apply&quot;, incoming
+    return &quot;resync&quot;, current</code></pre></details>
+<pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_stream</code></pre>
+<p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
+<p>官方參考：<a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG：Server-Sent Events</a> · <a href="https://websockets.spec.whatwg.org/">WHATWG：WebSockets API</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-conditional-requests">RFC 9110：HTTP 條件請求</a>。內容校閱：2026-11-26（台灣）。</p></section>
+</main>
 <script>
 "use strict";
 const live = document.documentElement.dataset.transport === "http";

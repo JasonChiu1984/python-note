@@ -438,6 +438,7 @@
       .grid.two, .checklist-grid { grid-template-columns: minmax(0, 1fr); }
     }
   </style>
+<link rel="stylesheet" href="assets/roadmap-core-research.css">
 </head>
 <body>
   <nav class="mobile-nav" aria-label="行動版章節導覽">
@@ -475,6 +476,7 @@
         </div>
       </div>
       <nav class="nav" aria-label="主要章節">
+        <a href="#roadmap-core-research">深度研究與實作</a>
         <a href="index.html">教材入口</a>
         <a href="python_beginner_interactive_tutorial.html">初級教材</a>
         <a href="#roadmap">中級路線</a>
@@ -543,7 +545,35 @@
         </div>
       </section>
 
-      <section id="architecture" class="section">
+      <section class="section rm-core" id="roadmap-core-research" aria-labelledby="rm-core-title">
+<h2 id="rm-core-title">中級工程研究｜純計畫、上游適配器與確定性輸出</h2><p>應用層先從合成列建立 Plan，再由 IO 層寫快照。處理相同事實的行序不同，不應得到不同成品；若同一批次同一點位給出不同值，傳回衝突而非任意採最後一筆。這條契約只針對單一快照，不能拿來合併時序真實資料。</p>
+<figure><figcaption><strong>架構圖｜責任分層</strong></figcaption><ol class="rm-flow"><li><b>1｜來源適配器</b><span>CSV、API 或檔案將各自格式轉成教學列；不把網路傳輸交給純計畫。</span></li><li><b>2｜領域計畫</b><span>plan() 只驗證、去重、排序。不讀當前時間，不寫檔。</span></li><li><b>3｜發行適配器</b><span>取得已證實有效的 bytes，另做本機原子切換或資料庫交易。</span></li></ol></figure>
+<figure><figcaption><strong>流程圖｜執行與判定順序</strong></figcaption><ol class="rm-flow"><li><b>1｜查鍵值</b><span>同值可去重，不同值、空批次或壞欄位停止。</span></li><li><b>2｜固定序</b><span>排序點位並固定 JSON 欄位與十進位表示。</span></li><li><b>3｜驗成品</b><span>反序輸入位元組相同；兩個相異值不得發布。</span></li></ol></figure>
+<div class="rm-table" role="region" tabindex="0" aria-label="設計比對"><table><thead><tr><th scope="col">概念／步驟</th><th scope="col">驗收與限制</th></tr></thead><tbody><tr><th scope="row">同值重播</th><td>25.5 和 25.50 比對相等，固定輸出兩位小數。</td></tr><tr><th scope="row">順序變動</th><td>用逆序輸入和 SHA-256 驗證同一成品，不用時間戳或 Dict 建立順序。</td></tr><tr><th scope="row">寫入邊界</th><td>hash 說明位元組的一致性，不代表資料由可信來源產出或已被簽署。</td></tr></tbody></table></div>
+<figure><figcaption><strong>對照圖｜合成批次 3 筆：2 個唯一點位，加上 1 筆同值重播。相異值另作失敗案例。</strong></figcaption><ul class="rm-bars"><li><span>原始候選</span><meter min="0" max="3" value="3" aria-label="原始候選 3"></meter><b>3</b></li><li><span>接受點位</span><meter min="0" max="3" value="2" aria-label="接受點位 2"></meter><b>2</b></li><li><span>同值重複</span><meter min="0" max="3" value="1" aria-label="同值重複 1"></meter><b>1</b></li></ul></figure>
+<h3>核心程式與復算</h3><p>下方摘錄與可下載檔案同步。完整檔自帶合成資料，不連接裝置或外部服務。</p>
+<pre tabindex="0"><code>def plan(lines) -&gt; Plan:
+    accepted = {}
+    duplicated = 0
+    for n, line in enumerate(lines, 1):
+        try:
+            reading = parse_reading(line)
+            existing = accepted.get(reading.point_id)
+            if existing and existing != reading:
+                raise ValueError(f&quot;conflicting value for {reading.point_id}&quot;)
+            if existing:
+                duplicated += 1
+            else:
+                accepted[reading.point_id] = reading
+        except ValueError as exc:
+            raise ValueError(f&quot;row {n}: {exc}&quot;) from exc
+    if not accepted:
+        raise ValueError(&quot;empty input is not a valid snapshot&quot;)
+    return Plan(tuple(accepted[k] for k in sorted(accepted)), duplicated)</code></pre>
+<p><a href="python_roadmap_core_lab.py" download>下載離線程式和自測</a> · <a href="https://docs.python.org/3/library/dataclasses.html">Python dataclasses</a> · <a href="python_learning_roadmap.html">回教材路線圖</a></p>
+<pre tabindex="0"><code>python3 python_roadmap_core_lab.py plan
+python3 -m unittest -v python_roadmap_core_lab</code></pre></section>
+<section id="architecture" class="section">
         <div class="section-head">
           <h2>大型專案架構圖</h2>
           <p class="lead">專案長大後，穩定性來自邊界。CLI/API 只處理輸入輸出，service 管規則，repository 管資料來源，domain model 表達核心概念。</p>

@@ -90,6 +90,29 @@
 @media(max-width:540px){.ql-flow li:not(:last-child)::after{content:"↓"}}
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -105,7 +128,7 @@
         <a href="#quality">品質</a>
         <a href="#ci">CI Gate</a>
         <a href="#sample">範例專案</a>
-      </nav>
+      <a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 30</div>
     </aside>
     <main>
@@ -565,7 +588,23 @@ if __name__ == "__main__":
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">變形測試：換順序、重送仍應得到同一結果</h2><p>把例子、可重複的不變性與失敗測試分開，辨認重送與內容衝突。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. 固定事件</strong><span>ID、區域、整數用量</span></li><li><strong>2. 聚合規則</strong><span>重送去重、衝突拒絕</span></li><li><strong>3. 變形輸入</strong><span>反序、輪替、附加相同事件</span></li><li><strong>4. 測試斷言</strong><span>比語意，不比 dict 顯示順序</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 建立基準</strong><span>人工計算兩區小計</span></li><li><strong>2. 套用變形</strong><span>挑選符合契約的輸入重排</span></li><li><strong>3. 檢查不變性</strong><span>比較每區小計與預期</span></li><li><strong>4. 確認拒絕</strong><span>同 ID 改值必須被拒絕</span></li></ol></figure>
+<figure><figcaption>圖表｜每類案例數</figcaption><ul class='rr-chart'><li>基準與變形成功：<strong>4</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li><li>預期拒絕：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:25.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>測試輸入</th><th scope='col'>預期結果</th><th scope='col'>保護風險</th></tr></thead><tbody><tr><td>原始、反序、輪替</td><td>a=17，b=7</td><td>順序變動不改聚合</td></tr><tr><td>附加原事件</td><td>a=17，b=7</td><td>exact replay 不重複計算</td></tr><tr><td>同 ID 改值</td><td>ValueError</td><td>衝突不被覆寫</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>不變性要從契約而來：</strong>重排對整數批次加總成立，未必對 FIFO 工單、時間窗或浮點加總成立。只在系統明文允許亂序而且事件歸屬不變時採用。若正式邏輯是小數和使用連續計量單位，另驗誤差政策和舍入點。</p><p><strong>比對不是只跑原函式兩次：</strong>將人工小樣本 a=17、b=7 寫成獨立真值，再用變形關係擴增。若只驗兩份輸出相同，永遠回傳空字典也會通過。衝突案例用不同內容、相同 ID，避免測到完全相同的正常重送。</p><p><strong>最小反例與放置位置：</strong>Unit 檢查 pure aggregation；整合測試重啟資料庫後再重送；端到端抽測實際回應碼、訊息 ID 並檢查監控。可定位的失敗輸入與 seed 比單純產生大量隨機輸入更重要。</p><p><strong>測試證據：</strong>分別記錄正向樣本、變形路徑與負向拒絕。四個通過的不變性案例不等於四個獨立風險或一份覆蓋率保證。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>testing</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py testing
+# variants_passed: 4；conflict_rejected: true</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>for variant in variants:
+    check(totals(variant) == reference, &quot;reference or metamorphic relation failed&quot;)</code></pre>
+<p>官方資料：<a href="https://docs.python.org/3/library/unittest.html">Python：unittest 的 subTest、assertRaises</a>。</p>
+</section>
+</main>
   </div>
   <script>
     const lessonGroups = {

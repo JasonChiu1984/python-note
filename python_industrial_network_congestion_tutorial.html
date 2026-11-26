@@ -14,8 +14,22 @@
 #scenario-selector .scenario-card dd{margin:0;min-width:0}
 #scenario-selector .scenario-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;margin:0}
 @media(max-width:38rem){#scenario-selector .scenario-card dl{grid-template-columns:1fr;gap:.15rem}#scenario-selector .scenario-card dd{margin-bottom:.48rem}}
-</style></head><body id="top">
-<header><div><p class="kicker">INDUSTRIAL NETWORK / PYTHON FIELD GUIDE</p><h1>工業通訊塞車：先找到排隊的位置</h1><p>以機房 PLC、管理型交換器、RS‑485 閘道與監控採集為例。位元率、延遲與點位新鮮度是三種不同訊號。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業協定比較</a> · <a href="python_industrial_ethernet_speed_tutorial.html">100M／1GbE 速度計算</a></p></div></header>
+</style>
+<style id="roadmap-ot-study-style">
+.ot-study{--ot-ink:#102c47;--ot-sub:#2c465f;--ot-pane:#fff;--ot-line:#b7cadd;--ot-faint:#f1f7fc;--ot-accent:#195d85;background:var(--ot-pane);color:var(--ot-ink);border:1px solid var(--ot-line);border-radius:16px;padding:clamp(.65rem,2.4vw,1.5rem);margin:1.35rem 0;max-width:100%;min-width:0;scroll-margin-top:1rem;overflow-wrap:anywhere}
+.ot-study h2,.ot-study h3{color:var(--ot-ink)} .ot-study p,.ot-study li,.ot-study td,.ot-study dd{color:var(--ot-sub)}
+.ot-study figure{margin:.9rem 0;padding:.65rem;border:1px solid var(--ot-line);border-radius:10px;background:var(--ot-faint);min-width:0}
+.ot-study figcaption{font-weight:750;color:var(--ot-ink);margin-bottom:.6rem}
+.ot-study-arch,.ot-study-flow{padding:0;margin:0;list-style:none;display:grid;gap:.65rem;max-width:none!important;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ot-study-flow{grid-template-columns:repeat(4,minmax(0,1fr));counter-reset:ot}
+.ot-study-arch li,.ot-study-flow li{background:var(--ot-pane);border:1px solid var(--ot-line);border-radius:8px;padding:.52rem;min-width:0;overflow-wrap:anywhere}
+.ot-study-arch{gap:1.35rem}.ot-study-arch li{position:relative}.ot-study-arch li:not(:last-child)::after{content:"→";position:absolute;right:-1.15rem;top:42%;color:var(--ot-accent);font-weight:800;line-height:1} .ot-study-arch strong{display:block;color:var(--ot-ink)} .ot-study-flow li::before{counter-increment:ot;content:counter(ot) " · ";font-weight:800;color:var(--ot-accent)}
+.ot-study-bars{margin:0;display:grid;gap:.52rem}.ot-study-bar{display:grid;grid-template-columns:minmax(6.25rem,11rem) minmax(0,1fr) minmax(3.2rem,max-content);gap:.5rem;align-items:center}.ot-study-track{height:.9rem;background:#dbe8f4;border-radius:12px;min-width:0}.ot-study-fill{display:block;height:100%;background:#237497;border-radius:12px}.ot-study-bar:nth-child(2) .ot-study-fill{background:#7b542c}.ot-study-bar strong{text-align:right;font-variant-numeric:tabular-nums}
+.ot-study-evidence{display:grid;gap:.55rem}.ot-study-evidence>div{background:#f2f7fb;border:1px solid var(--ot-line);border-radius:9px;padding:.6rem}.ot-study-evidence dt{font-weight:750;color:var(--ot-ink)}.ot-study-evidence dd{margin:.2rem 0}.ot-study pre{max-width:100%;overflow:auto}.ot-study a{color:#124c74;text-decoration:underline;text-underline-offset:.15em}
+@media(max-width:700px){.ot-study-arch li:not(:last-child)::after{content:"↓";top:auto;right:48%;bottom:-1.15rem}.ot-study-arch,.ot-study-flow{grid-template-columns:1fr}.ot-study-bar{grid-template-columns:minmax(5rem,1.3fr) minmax(0,1fr) minmax(3rem,max-content);gap:.3rem}}
+</style>
+</head><body id="top">
+<header><div><p class="kicker">INDUSTRIAL NETWORK / PYTHON FIELD GUIDE</p><h1>工業通訊塞車：先找到排隊的位置</h1><p><a href="#roadmap-ot-study">研究實作：架構、流程、圖表與 Python 證據</a></p><p>以機房 PLC、管理型交換器、RS‑485 閘道與監控採集為例。位元率、延遲與點位新鮮度是三種不同訊號。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業協定比較</a> · <a href="python_industrial_ethernet_speed_tutorial.html">100M／1GbE 速度計算</a></p></div></header>
 <main><nav aria-label="章節"><a href="#scenario-selector">情境與解決方案</a><a href="#architecture">架構</a><a href="#causes">瓶頸矩陣</a><a href="#depth">深度原因與雙圖</a><a href="#workflow">診斷流程</a><a href="#passive">被動計數</a><a href="#simulation">合成實驗</a><a href="#acceptance">驗收</a></nav>
 <section id="scenario-selector" aria-labelledby="scenario-selector-title">
 <p class="kicker">FIELD TRIAGE / SCENARIO SELECTOR</p><h2 id="scenario-selector-title">選一個塞車情境，找到先查與解決方案</h2>
@@ -220,6 +234,21 @@ if __name__ == &quot;__main__&quot;:
 
 <section id="acceptance"><p class="kicker">06 / BEFORE &amp; AFTER</p><h2>改善驗收：不要拿丟更多資料換好看的延遲</h2>
 <p>在同點位、同採集窗口與設備負荷下，比較成功率、timeout、跳過／拒絕、重試、應用佇列水位、p95、p99 和最舊資料年齡。採樣降頻必須確認告警時效；清掉壞站、縮短逾時與限併發都要保留故障／陳舊標記，不能拿上一筆值冒充即時。最後再確認備援路徑及現場控制連鎖未被上位機策略改變。</p></section>
+<section id="roadmap-ot-study" class="ot-study" aria-labelledby="roadmap-ot-study-title">
+<h2 id="roadmap-ot-study-title">研究實作｜RS‑485 串列掃描：把單次逾時換成可量的排程代價</h2>
+<p>合成案例只有一條半雙工匯流排和六站；健康站各耗 25 ms，第二站完全不應答。比較兩種逾時預算。比較只改一個參數，不觸碰真實設備。</p>
+<figure><figcaption>架構圖｜責任邊界，資料由左至右（手機由上至下）</figcaption><ul class="ot-study-arch"><li><strong>掃描排程</strong>一次只對此串列分段執行一個請求，依站號輪詢</li><li><strong>慢站隔離</strong>每站有明確等待預算；故障時依實場策略退避、保留 stale</li><li><strong>量測與驗收</strong>記放行數、超時數、整輪耗時與健康站 p95</li></ul></figure>
+<figure><figcaption>流程圖｜按編號重跑驗證</figcaption><ol class="ot-study-flow"><li>固定六站順序</li><li>給第二站合成逾時</li><li>比較 600／200 ms 預算</li><li>維持成功率才採用</li></ol></figure>
+<figure><figcaption>圖表｜相同掃描與成功率下的整輪耗時（ms）</figcaption><div class="ot-study-bars"><div class="ot-study-bar"><span>等待 600 ms</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:100%"></span></span><strong>725</strong></div><div class="ot-study-bar"><span>等待 200 ms</span><span class="ot-study-track" aria-hidden="true"><span class="ot-study-fill" style="width:44.83%"></span></span><strong>325</strong></div></div></figure>
+<p>相同的 5 成功＋1 逾時下，整輪 725 → 325 ms（縮短約 55.2%）。若改變預算讓成功數下降，不能只拿 325 ms 宣稱改善。</p>
+<h3>詳細解析與驗收</h3><dl class="ot-study-evidence"><div><dt>量測起點</dt><dd>健康站完成時間以本輪開始為起點；nearest-rank p95 在僅五站時就是最大值。</dd><dd><strong>驗證：</strong>請勿把這組數字當作設備服務時間分布或跨數日基準。</dd></div><div><dt>哪裡排隊</dt><dd>一條串列下游總線是一個服務通道；TCP client 增加並不產生多條實體 RS-485。</dd><dd><strong>驗證：</strong>看站級回應時間與 gateway 佇列、重試和無回應數，避免用單一 RTT 判斷。</dd></div><div><dt>縮短的代價</dt><dd>改變等待預算要先量健康站及偶發慢站的 P95／P99 與最大受允許延遲。</dd><dd><strong>驗證：</strong>等待過短會把本來可以成功的回應變成 timeout；須同時比較成功率、漏資料、資料年齡。</dd></div><div><dt>診斷分流</dt><dd>不同串列分段可以獨立分配配額，慢站暫時退避；資料品質仍須在北向表明。</dd><dd><strong>驗證：</strong>避免多套應用不受控輪詢和重試疊加；從南向點表和採集頻率去重。</dd></div></dl>
+<h3>Python 離線實作</h3>
+<p>下載 <a href="python_roadmap_ot_research_lab.py" download>OT 研究實驗程式</a>。使用 Python 3.11+ 標準庫；不開啟任何網路或設備連線。</p>
+<pre><code>python python_roadmap_ot_research_lab.py congestion
+python python_roadmap_ot_research_lab.py congestion --test</code></pre>
+<details><summary>本章核心運算（簡化節錄）</summary><pre><code>finish_ms += 25 if outcome == &quot;ok&quot; else timeout_ms</code></pre></details>
+<p>一手資料：<a href="https://www.modbus.org/file/secure/modbusoverserial.pdf">Modbus Serial Line 1.02</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST OT 安全與可用性</a></p>
+</section>
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer><script>
 (() => {
   "use strict";

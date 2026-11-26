@@ -90,6 +90,29 @@
   @media (max-width:980px){.layout,.hero,.tool-panel,.cards,.steps{grid-template-columns:minmax(0,1fr)}}
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -105,7 +128,7 @@
         <a href="#verification">Verification</a>
         <a href="#troubleshooting">Troubleshooting</a>
         <a href="#best-practices">Best Practices</a>
-      </nav>
+      <a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 34</div>
     </aside>
     <main>
@@ -426,7 +449,25 @@ class DependencyEnvironmentGovernanceTests(unittest.TestCase):
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>環境問題要先看契約，再看框架</h2><p>本機與 CI 不一致時，通常不是框架壞掉，而是依賴治理層鬆散。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓依賴治理與版本發布同時存在</h2><p>release note、constraints、runtime baseline 與 smoke evidence 應一起交付。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">鎖定不是實測：用安裝快照找依賴漂移</h2><p>把預期選用的套件與乾淨環境實際可見的 distribution 做逐項比對，再把結果納入驗收。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. 目標條件</strong><span>直譯器、OS、架構、ABI、extras</span></li><li><strong>2. 已解析清單</strong><span>同一目標的名稱與版本</span></li><li><strong>3. 實際安裝</strong><span>乾淨 venv 的 distribution 快照</span></li><li><strong>4. 差異政策</strong><span>缺項、版本漂移、額外項</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 固定基準</strong><span>確認 runtime 與目標 marker</span></li><li><strong>2. 正規化</strong><span>名稱大小寫及 -_. 統一</span></li><li><strong>3. 分類差異</strong><span>預期缺少、版本不同、實際額外</span></li><li><strong>4. 處置</strong><span>拒絕或核准例外；不重寫鎖檔</span></li></ol></figure>
+<figure><figcaption>圖表｜每類發現項數</figcaption><ul class='rr-chart'><li>缺項：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li><li>變更：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li><li>額外：<strong>1</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>差異類別</th><th scope='col'>離線實驗</th><th scope='col'>交付判斷</th></tr></thead><tbody><tr><td>缺少</td><td>factory-math</td><td>阻擋；檢查平台 wheel 與 extras</td></tr><tr><td>版本不同</td><td>factory-probe 2.0 → 2.1</td><td>阻擋；查 install 輸入是否偏離鎖定</td></tr><tr><td>實際額外</td><td>debug-tool</td><td>依專用 runtime 政策阻擋；開發工具另列</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>基準要用同一份契約：</strong>先針對目標環境解析適用的 marker 與 extras；不直接把跨平台鎖檔的全套候選拿來跟單一 venv 比較。以同一個可執行直譯器查 installed metadata，避免把系統 Python 或 PYTHONPATH 上的額外 distribution 混進報告。</p><p><strong>分清四道驗證：</strong>名稱正規化、版本與依賴一致性、檔案 digest、可信來源各驗不同問題。此實驗只對預先解析好的名單做字串等值；不是 PEP 440 版本等價演算、resolver、目錄掃描，也不是漏洞掃描。</p><p><strong>處理衝突而不是挑一個：</strong>Factory_Core 和 factory-core 指向同一正規化名稱。發現重複正規名稱時先中止，因為任選其中一個會隱藏路徑污染。pip、啟動工具等可列明確許可名單；不能為了全綠而忽略所有額外項。</p><p><strong>上線證據：</strong>保留 Python build、平台、鎖定版、實際安裝清單與成品 digest。讓懷疑漂移的同事可重建同一輸入，再把核准例外綁定有效期。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>dependencies</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py dependencies
+# missing: factory-math；changed: factory-probe；extra: debug-tool</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>if key in result:
+    raise ValueError(&quot;ambiguous duplicate distribution&quot;)
+# 對兩份同目標快照分類，而非變更環境
+result[key] = version</code></pre>
+<p>官方資料：<a href="https://packaging.python.org/en/latest/specifications/name-normalization/">PyPA：名稱正規化</a>、<a href="https://docs.python.org/3/library/importlib.metadata.html">Python：installed metadata</a>。</p>
+</section>
+</main>
   </div>
   <script>
     const lessonGroups = {

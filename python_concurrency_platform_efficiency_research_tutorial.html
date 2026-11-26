@@ -2,10 +2,33 @@
 <title>Python 並發與平行效率研究｜執行模型、平台與實測</title>
 <style>
 :root{font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.7;color:#163247;background:#edf5f7;--ink:#163247;--accent:#006779;--line:#b5cdd7;--soft:#e6f2f6}*{box-sizing:border-box}body{margin:0}header{background:#102e43;color:white;padding:clamp(1rem,4vw,3rem);border-bottom:.35rem solid #42b4b7}header>div,main{max-width:75rem;margin:auto}header a{color:#a6edf0}h1{font-size:clamp(1.8rem,5vw,3.6rem);line-height:1.2;margin:.3rem 0 .65rem}h2,h3{line-height:1.35;margin:.3rem 0 .65rem}p{max-width:90ch}main{padding:clamp(.65rem,2.2vw,1.6rem)}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin:.25rem 0 .9rem}nav a{background:#fff;border:1px solid var(--line);border-radius:.4rem;padding:.25rem .58rem}a{color:var(--accent);text-underline-offset:.18em}a:focus-visible,[tabindex]:focus-visible{outline:3px solid #08687b;outline-offset:3px}section{background:white;border:1px solid var(--line);border-radius:.65rem;padding:clamp(.74rem,2vw,1.45rem);margin-bottom:.9rem;overflow-wrap:anywhere}.kicker{font-size:.83rem;letter-spacing:.07em;font-weight:700;color:#8fe1e7}.tablebox{overflow:auto;border:1px solid var(--line);border-radius:.42rem}table{min-width:44rem;border-collapse:collapse;width:100%}caption{text-align:left;font-weight:720;padding:.6rem}td,th{padding:.42rem .55rem;border:1px solid #c6d9e2;text-align:left;vertical-align:top}thead th{background:var(--soft);color:#163247}pre{background:#102c42;color:white;overflow:auto;border-radius:.43rem;padding:.7rem;max-width:100%}.read{border-inline-start:.25rem solid #25859a;background:#edf7fa;padding:.48rem .65rem}.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.panels article{background:var(--soft);padding:.58rem .72rem;border:1px solid var(--line);border-radius:.4rem}.bars{list-style:none;padding:0}.bars li{display:grid;grid-template-columns:6.2rem minmax(2rem,1fr) 5.8rem;gap:.4rem;align-items:center;margin:.2rem 0}.track{height:.75rem;background:#dbeaf0;border-radius:.32rem;overflow:hidden}.b{height:100%;background:#137891}.barval{font-variant-numeric:tabular-nums;text-align:right}figure{margin:.7rem 0 1rem}figcaption{font-weight:700}@media(max-width:43rem){.panels{grid-template-columns:1fr}}@media(max-width:23rem){.bars li{grid-template-columns:4.8rem minmax(1rem,1fr) 5.1rem}}
-</style></head><body>
+</style>
+<style id="rr-release-research-style">
+#roadmap-release-research{width:100%;max-width:100%;min-width:0;margin:1.5rem 0;padding:clamp(.75rem,2.5vw,1.5rem);border:1px solid #b6cce3;border-radius:.75rem;background:#f6faff;color:#16324a;overflow-wrap:anywhere}
+#roadmap-release-research *{box-sizing:border-box}
+#roadmap-release-research a{color:#075885;text-decoration:underline}
+#roadmap-release-research h2,#roadmap-release-research h3{color:#16324a}
+#roadmap-release-research p{color:#234559}
+#roadmap-release-research pre{display:block;overflow:auto;white-space:pre;overflow-wrap:normal;max-width:100%;background:#142a3e;color:#edf7ff;padding:.75rem;border-radius:.5rem}
+#roadmap-release-research pre code{font:inherit;color:inherit;background:transparent;padding:0}
+#roadmap-release-research figure{margin:1rem 0;width:100%;min-width:0}
+#roadmap-release-research figcaption{margin:.4rem 0;font-weight:750}
+#roadmap-release-research .rr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:.65rem;list-style:none;padding:0;margin:.5rem 0}
+#roadmap-release-research .rr-nodes li{min-width:0;padding:.7rem;border:1px solid #b1c9db;border-radius:.45rem;background:#e8f3fa;color:#153554}
+#roadmap-release-research .rr-nodes span{display:block;margin:.2rem 0 0;color:#234559}
+#roadmap-release-research .rr-chart{display:grid;gap:.65rem;list-style:none;padding:0}
+#roadmap-release-research .rr-bar{height:.6rem;display:block;border-radius:1rem;background:#dce8f7;margin-top:.2rem;overflow:hidden}
+#roadmap-release-research .rr-bar i{height:100%;display:block;background:#1676a7}
+#roadmap-release-research table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:.7rem 0;background:white;color:#173651}
+#roadmap-release-research th,#roadmap-release-research td{white-space:normal;overflow-wrap:anywhere;vertical-align:top;padding:.55rem;border:1px solid #d1deea;text-align:left;color:#173651}
+#roadmap-release-research th{background:#e6eff7}
+#roadmap-release-link{display:inline-block;padding:.4rem .6rem}
+.course-example .example-file summary,.section-block h3{overflow-wrap:anywhere}
+</style>
+</head><body>
 <header><div><p class="kicker">PYTHON NOTES / CONCURRENCY RESEARCH</p><h1>執行緒、並發與平台效率研究</h1><p>用控制變因、實際輸出驗證與可重複計時，區分工作模式適用性與平台差異；不是跨平台排名。</p><p>最後更新 <time datetime="2026-11-25">2026-11-25</time> · <a href="index.html">Python 教材入口</a></p></div></header>
 <main>
-<nav aria-label="本章目錄"><a href="#question">研究問題</a><a href="#models">執行模型</a><a href="#platforms">平台差異</a><a href="#methods">方法</a><a href="#results">實測</a><a href="#production">工程判讀</a><a href="#references">官方資料</a></nav>
+<nav aria-label="本章目錄"><a href="#question">研究問題</a><a href="#models">執行模型</a><a href="#platforms">平台差異</a><a href="#methods">方法</a><a href="#results">實測</a><a href="#production">工程判讀</a><a href="#references">官方資料</a><a id="roadmap-release-link" href="#roadmap-release-research">深度研究與實作</a></nav>
 <section id="question"><h2>1｜研究問題、假說與變因</h2>
 <p><strong>並發</strong>是多個工作的生命週期交錯；<strong>平行</strong>是同一時刻有多個運算單位實際工作。單執行緒事件迴圈能讓 I/O 並發，不會讓不含讓出點的純 Python 迴圈在多個核心平行。本文把「效率」拆成一批完成時間、穩態吞吐、單筆尾端延遲、峰值資源與故障後行為；它們可能互相衝突。</p>
 <ul><li>H1：固定等待工作，四個工作者可重疊等待，整批耗時應低於序列。</li><li>H2：一般 GIL 下，純 Python CPU 工作放進同直譯器執行緒不會因此多核加速；程序與隔離直譯器可能受複製、排程和序列化抵消。</li><li>H3：關掉 GIL 的建置允許執行緒同時執行 Python bytecode；加速幅度仍取決於工作量、核心額度與共享資料爭用。</li></ul>
@@ -52,4 +75,21 @@ python3.15t concurrency_platform_benchmark.py --start spawn &gt; result-ft.json<
 <li><a href="https://docs.python.org/3.15/howto/free-threading-python.html">Python 3.15 free-threading HOWTO</a></li>
 <li><a href="https://docs.python.org/3.15/library/asyncio-task.html#task-groups">Python 3.15 asyncio：TaskGroup 與取消</a></li>
 <li><a href="https://docs.python.org/3.15/library/queue.html">Python queue：執行緒間多生產者、多消費者佇列</a></li></ul>
-</section></main></body></html>
+</section><section id="roadmap-release-research" aria-labelledby="rr-release-title">
+<h2 id="rr-release-title">用有界提交把過載和運算效能分開量</h2><p>worker 數不是排隊上限。先限制未交付工作，再比較等待、吞吐與尾延遲。</p>
+<figure><figcaption>架構圖｜資料與責任</figcaption><ol class='rr-nodes'><li><strong>1. 生產者</strong><span>逐項讀取輸入，保留背壓</span></li><li><strong>2. 提交窗</strong><span>未退役 Future 最多 3</span></li><li><strong>3. 執行池</strong><span>2 個 worker 執行純函式</span></li><li><strong>4. 收集器</strong><span>完成後退役，結果不保證順序</span></li></ol></figure>
+<figure><figcaption>流程圖｜從輸入到驗收</figcaption><ol class='rr-nodes'><li><strong>1. 填入空位</strong><span>最多提交到可用額度</span></li><li><strong>2. 等待完成</strong><span>FIRST_COMPLETED</span></li><li><strong>3. 回收 Future</strong><span>取 result；保留例外</span></li><li><strong>4. 繼續或結束</strong><span>回填額度；沒有待辦則結束</span></li></ol></figure>
+<figure><figcaption>圖表｜未退役未超過提交額度；長條呈現工作數量（非時間）</figcaption><ul class='rr-chart'><li>工作總數：<strong>12</strong><span class="rr-bar" aria-hidden="true"><i style="width:100.00%"></i></span></li><li>worker 上限：<strong>2</strong><span class="rr-bar" aria-hidden="true"><i style="width:16.67%"></i></span></li><li>未退役峰值：<strong>3</strong><span class="rr-bar" aria-hidden="true"><i style="width:25.00%"></i></span></li></ul></figure>
+<table><caption>離線案例判讀表</caption><thead><tr><th scope='col'>觀測值</th><th scope='col'>本機離線實驗</th><th scope='col'>不能推論</th></tr></thead><tbody><tr><td>工作數</td><td>12</td><td>未測 sustained 吞吐</td></tr><tr><td>worker 上限</td><td>2</td><td>未量 OS 實際同時排程</td></tr><tr><td>未退役峰值</td><td>3</td><td>未量 RSS 或每任務記憶體</td></tr><tr><td>順序</td><td>不保證</td><td>消費者不可用抵達位置當序號</td></tr></tbody></table>
+<h3>深入解析與評估邊界</h3>
+<p><strong>先定義計數範圍：</strong>提交窗含已排隊、執行中與已完成但尚未退役的 Future。它不是 worker 活躍負載，也不是整體記憶體上限：實驗把結果保存到 list，服務若需限制儲存量應逐筆下游消費，另限 payload 大小。</p><p><strong>兩條時間線：</strong>對每筆記錄入列、開始、完成三個單調時間；排隊延遲＝開始−入列，服務延遲＝完成−開始。固定輸入、池大小與過載政策，分別測冷啟動和熱池；至少列測試次數、p50、p95 和丟棄率，不用單一最快值。</p><p><strong>不把正確執行誤成 CPU 平行：</strong>本 lab 是 ThreadPoolExecutor 的提交界線，不測 thread、process、free-threaded 或 interpreter 的速度勝負。純 Python CPU、原生會釋放 GIL 的運算、等待型負載要分開比較；程序與子直譯器還需把資料移動與啟動成本算進去。</p><p><strong>處理取消和錯誤：</strong>future.result() 會把工作錯誤帶回呼叫者。本例離開 executor context 會等待，不承諾正在執行的工作可取消。正式服務應定義拒絕新任務、合作式取消、收尾期限、監控與客戶的可預期回應。</p>
+<h3>可重跑程式｜只需 Python 3.10+ 標準函式庫</h3>
+<p><a href="python_roadmap_release_lab.py" download>下載六章共用實驗程式</a>；此章僅執行 <code>concurrency</code>，不安裝、不連線、不碰正式資料。另可下載 <a href="python_roadmap_release_diagrams.drawio" download>可編輯架構與流程圖</a>，在工作表選擇本章。</p>
+<pre><code>python3 python_roadmap_release_lab.py concurrency
+# jobs: 12；workers: 2；peak_outstanding: 3</code></pre>
+<p>關鍵程式摘錄（上下文見下載檔）：</p><pre><code>finished, pending = concurrent.futures.wait(
+    pending, return_when=concurrent.futures.FIRST_COMPLETED)
+results.extend(future.result() for future in finished)</code></pre>
+<p>官方資料：<a href="https://docs.python.org/3/library/concurrent.futures.html">Python：Future、wait 與 executor 生命週期</a>、<a href="https://docs.python.org/3/library/time.html#time.perf_counter">Python：以單調時鐘量耗時</a>。</p>
+</section>
+</main></body></html>
