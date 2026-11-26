@@ -115,6 +115,15 @@
     .gw-steps li::marker{color:var(--green);font-weight:900}
     @media(max-width:950px){.gw-architecture picture{max-width:450px;margin-inline:auto}}
     @media(max-width:670px){.gw-table table,.gw-table tbody,.gw-table tr,.gw-table td,.gw-table th[scope=row]{display:block}.gw-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.gw-table td::before{display:block;content:attr(data-col);color:#385267;font-weight:800;font-size:.84rem}}
+
+    .gw-fw-map{margin:0 0 1rem;min-width:0}
+    .gw-fw-map figcaption{font-weight:850;margin-bottom:.6rem}
+    .gw-fw-map ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.42rem}
+    .gw-fw-map li{display:grid;align-content:start;gap:.25rem;margin:0;padding:.48rem;min-width:0;border:1px solid #9bbac8;border-radius:.55rem;background:#edf6fb;overflow-wrap:anywhere}
+    .gw-fw-map li.gw-fw-boundary{background:#fff4d9;border-color:#ceb372}
+    .gw-fw-map li span{font-size:.89rem;line-height:1.45}
+    .gw-fw-map p,#firewall .gw-table{margin:.7rem 0}
+    @media(max-width:1100px){.gw-fw-map ol{grid-template-columns:minmax(0,1fr)}}
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -125,6 +134,8 @@
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
         <a href="#architecture">系統架構</a>
+        <a href="#firewall">防火牆、分區與放行規則</a>
+        <a href="#kernel-security">Linux 核心與模組安全</a>
         <a href="#mapping">點位與資料契約</a>
         <a href="#modbus">Modbus</a>
         <a href="#opcua">OPC UA</a>
@@ -167,11 +178,83 @@
 <figure class="gw-architecture" aria-labelledby="gw-architecture-caption"><figcaption id="gw-architecture-caption">架構圖｜現場控制、邊緣資料與 OT DMZ 分層</figcaption>
 <picture><source media="(max-width: 950px)" srcset="assets/industrial-gateway-architecture-mobile.svg"><img src="assets/industrial-gateway-architecture.svg" alt="PLC、DDC 與現場設備的唯讀遙測進入南向轉接器；經點表正規化與持久佇列後，從隔離區送到 Broker 及資料平台。現場即時控制及安全連鎖不走這條遙測線。"></picture>
 <p>箭頭表示觀測資料的方向；輪詢協定實際上仍由 Gateway 主動送出讀取請求。控制器的原生循環 I/O 與安全鏈和這條遙測路徑分開。</p>
-<a href="assets/industrial-gateway-architecture.drawio" download>下載可編輯架構圖（draw.io）</a>
+<a href="assets/industrial-gateway-architecture.drawio" download>下載可編輯架構圖（draw.io）</a> · <a href="#firewall">看防火牆分區與放行規則</a>
 </figure>
 <ol class="gw-steps"><li><strong>設備層：</strong>PLC／DDC 維持 PID、設備保護與本地告警；安全功能由經設計驗證的獨立路徑負責。</li><li><strong>資料轉接：</strong>各協定有獨立輪詢／訂閱預算。串列區段共享一條總線，單一慢站不能拖垮其他區段。</li><li><strong>正規化：</strong>依有版本的點表確認型別、單位、品質和時間，無效資料不能悄悄轉成 0。</li><li><strong>持久佇列：</strong>交易內存放資料與穩定事件 ID；只有達到選定的確認邊界才釋放。磁碟滿要告警，不得無聲覆寫。</li><li><strong>OT DMZ／北向：</strong>只開必要來源與目的地；向 Broker 或 HTTPS 匯入服務送資料，不讓 IT 網段直接操作 PLC。</li></ol>
 </div>
 <div class="cards"></div></section>
+      <section class="section-block" id="firewall" aria-labelledby="gw-fw-title">
+        <div class="section-head"><div><span class="eyebrow">OT FIREWALL · 2026-11-26</span><h2 id="gw-fw-title">防火牆：把現場控制、資料採集與 IT 存取分開</h2><p>跨區預設拒絕，只放行已定義的端點、服務和連線發起方向。工業閘道採集資料，不用第二張網卡把 OT 與 IT 直接橋接。</p></div></div>
+        <div class="gw-guide">
+          <figure class="gw-fw-map" aria-labelledby="gw-fw-caption">
+            <figcaption id="gw-fw-caption">網路分區示例｜不是實際設備接線或防火牆設定</figcaption>
+            <ol role="list">
+              <li><strong>OT 現場區</strong><span>PLC、DDC、電表、變頻器；控制與保護在現場完成</span></li>
+              <li class="gw-fw-boundary"><strong>區界 A</strong><span>允許 Gateway 向指定設備採集；通知路徑另行核准</span></li>
+              <li><strong>OT 採集區</strong><span>Gateway／協定轉接器；正規化、品質、斷線暫存</span></li>
+              <li class="gw-fw-boundary"><strong>區界 B</strong><span>只允許 Gateway 向 DMZ 服務發起上送</span></li>
+              <li><strong>工業 DMZ</strong><span>Broker、資料接收 API、監控接入服務；不轉送 IT 到 PLC</span></li>
+              <li class="gw-fw-boundary"><strong>區界 C</strong><span>只允許指定 IT 應用連到 DMZ 服務</span></li>
+              <li><strong>IT／應用區</strong><span>SCADA／FMCS 上層應用、歷史庫、報表；不直連現場</span></li>
+            </ol>
+            <p>由左至右（手機由上至下）是區域排列，不是所有 TCP 連線的發起方向。A／B／C 是政策邊界，不代表一定需要三台實體防火牆；不得讓跨區流量繞過任何應經的邊界。 <a href="assets/industrial-gateway-firewall.drawio" download>下載可編輯分區圖（draw.io）</a></p>
+          </figure>
+          <h3>規則表：先寫發起方向，再填實際端點</h3>
+          <p>下表連接埠是例子，不是整批放行清單。同一套設備只開所使用的路徑；逐條記錄來源區與主機、目的區與主機、實際傳輸與埠、責任人、用途、日誌與覆核日期。臨時例外另外記到期和撤銷條件。狀態式防火牆依既有連線允許回程，不額外開反向新連線；UDP 回應依設備的追蹤與逾時策略驗證。</p>
+          <div class="gw-table" role="region" tabindex="0" aria-label="Gateway 防火牆規則範例">
+            <table><thead><tr><th scope="col">規則</th><th scope="col">連線發起 → 目的</th><th scope="col">服務示例</th><th scope="col">條件與放行限制</th></tr></thead><tbody>
+            <tr><th scope="row">A-01｜Modbus TCP</th><td data-col="發起 → 目的">採集 Gateway → 指定電表、VFD 或 TCP／RTU Gateway</td><td data-col="服務">TCP 502（典型）</td><td data-col="限制">只允許指定主機。串列 Modbus RTU 沒有 TCP 埠；傳統 Modbus TCP 沒有原生鑑別或加密，僅開 TCP 502 不等於限制成唯讀。若需強制唯讀，由裝置或能驗證功能碼的應用閘道另行控管。</td></tr>
+            <tr><th scope="row">A-02｜OPC UA</th><td data-col="發起 → 目的">Gateway Client → PLC／設備 OPC UA Server</td><td data-col="服務">UA TCP，例如 TCP 4840；依部署端點</td><td data-col="限制">指定端點、信任清單、支援的 SignAndEncrypt、唯讀身分。訂閱沿既有會話處理，不必為通知另外放行一條通用反向連線。</td></tr>
+            <tr><th scope="row">A-03｜BACnet/IP</th><td data-col="發起 → 目的">Gateway／核准的樓控端點 ↔ 指定 DDC、路由器或 BBMD，依服務分開</td><td data-col="服務">UDP 47808（常見）；依設備</td><td data-col="限制">單播讀取、跨子網廣播、FD 註冊及 COV 通知不能當成同一條規則。確有 COV 需求時，驗證由指定裝置發出的通知與續訂；不要把跨區廣播當成預設。</td></tr>
+            <tr><th scope="row">A-04｜BACnet/SC</th><td data-col="發起 → 目的">SC 節點 → 核准的 Hub／備援 Hub</td><td data-col="服務">TLS WebSocket；依 Hub URI／實際 TCP 埠</td><td data-col="限制">核對憑證、信任鏈、有效期與重連。若經路由器跨入傳統 BACnet 網段，傳統段不會因 SC 而加密。</td></tr>
+            <tr><th scope="row">B-01｜遙測上送</th><td data-col="發起 → 目的">Gateway → DMZ Broker 或接收 API</td><td data-col="服務">MQTT over TLS（常見 TCP 8883）或 HTTPS（常見 TCP 443）</td><td data-col="限制">驗證服務身分；限制 MQTT topic／API 權限，必要時用 mTLS。只允許 Gateway 上送指定資料，不因此開放上層寫入控制器。</td></tr>
+            <tr><th scope="row">C-01｜上層讀取</th><td data-col="發起 → 目的">核准的 SCADA／FMCS／歷史採集服務 → DMZ 應用端點</td><td data-col="服務">依使用的介面，如 HTTPS 或 MQTT over TLS</td><td data-col="限制">在 DMZ 服務終止連線。資料可由 DMZ 接收，再由合法消費端讀取；不做透明轉送到 OT 私網。</td></tr>
+            <tr><th scope="row">M-01｜維運與基礎服務</th><td data-col="發起 → 目的">維護專區跳板 → 受管主機；受管主機 → 指定 DNS／NTP／日誌服務（按需各訂一條）</td><td data-col="服務">依核准的管理協定、解析、授時與日誌端點</td><td data-col="限制">跳板使用受控身分、MFA、限時授權與稽核；禁止公網直接管理。不要用一條「管理區任意通訊」涵蓋所有設備。</td></tr>
+            <tr><th scope="row">D-01｜其餘跨區</th><td data-col="發起 → 目的">其他來源或目的，包括 IT／Internet → PLC、DDC</td><td data-col="服務">未核准一律拒絕</td><td data-col="限制">記錄必要的拒絕事件並設告警與速率上限。原生 PROFINET／EtherCAT 循環網路留在現場，不為採集需求跨 DMZ 延伸二層網路。</td></tr>
+            </tbody></table>
+          </div>
+          <p><strong>雙網卡不是隔離：</strong>若 Gateway 接兩個網段，確認未啟用非預期的 IP 轉送、套件橋接或透明代理。VLAN 只負責分段，跨 VLAN 流量仍須由政策設備檢查；同 VLAN 裝置彼此通訊通常不會經過區界防火牆，必要時另做設備或交換器層隔離。</p>
+          <h3>上線前驗收</h3>
+          <ol class="gw-steps">
+            <li><strong>對照現場：</strong>確認 VLAN、路由、實際端點、連線發起者和既有路徑；比對規則順序、物件群組與任何可能繞過防火牆的連接。</li>
+            <li><strong>正向與反向驗證：</strong>在測試台或核准維護窗口，用授權 Client 驗證合法採集與上送；以受控連線確認 IT 無法直連 PLC、未授權的寫入遭到拒絕。應用層拒絕與防火牆拒絕分開記錄，不在生產線上掃描或做寫入測試。</li>
+            <li><strong>故障驗證：</strong>模擬北向斷線，確認 PLC／DDC 持續按既定邏輯運作、Gateway 限量暫存並標示陳舊資料；復原後查補送與重複處理。若有防火牆備援，量測切換、會話復原和首筆有效新資料時間。</li>
+            <li><strong>交付及回退：</strong>保留規則版本、測試時段、命中與拒絕日誌、時間同步證據及回退設定。若影響現場控制或必要資料中斷，依核准程序回退，不臨時改成全開。</li>
+          </ol>
+          <p>參考：<a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev. 3：OT 安全與分區</a> · <a href="https://www.cisa.gov/sites/default/files/publications/layering-network-security-segmentation_infographic_508_0.pdf">CISA：網路分區與 DMZ</a> · <a href="https://www.modbus.org/modbus-specifications">Modbus 規格</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-6/7.6">OPC UA 傳輸端點</a> · <a href="https://bacnetinternational.org/bacnetsc/">BACnet/SC</a> · <a href="python_security_engineering_tutorial.html#acceptance">資訊安全上線驗收</a>。</p>
+        </div>
+      </section>
+      <section class="section-block" id="kernel-security" aria-labelledby="gw-kernel-title">
+        <div class="section-head"><div><span class="eyebrow">LINUX GATEWAY HARDENING · 2026-11-26</span><h2 id="gw-kernel-title">作業系統核心與模組安全：保護防火牆後的 Gateway</h2><p>防火牆管跨區連線；核心、驅動和服務權限決定 Gateway 收到資料後能做什麼。以下以 Linux 工業閘道為例，不把任何單一 Linux 發行版的設定套到所有工業設備。</p></div></div>
+        <div class="gw-guide">
+          <ol class="gw-steps">
+            <li><strong>開機信任：</strong>平台支援時使用 Secure Boot 或設備原廠提供的簽署開機鏈。確認實際信任的金鑰、可接受的映像及復原路徑。UEFI Secure Boot 已啟用不代表所有平台都會以相同方式限制模組；開機信任也不等於根檔案系統完整性驗證。</li>
+            <li><strong>核心更新：</strong>從設備原廠或 Linux 發行版取得支援中的核心套件。依安全公告核對已部署的套件版本與發行版修補，不能只用上游版本號判定；發行版可能向舊版本回補修正。安裝後按核准流程啟動新核心，用 <code>uname -r</code> 核對實際執行版本，再跑驅動與通訊回歸。不是套件安裝完成就算更新驗收。</li>
+            <li><strong>核心模組：</strong><code>.ko</code> 驅動在核心權限下執行，準備網卡、RS-485、USB 串列、儲存和防火牆需要的清單。Linux 支援模組簽章；只有在執行中的核心強制信任政策時，不受信任的外掛模組才會被拒絕。<code>CONFIG_MODULE_SIG_FORCE</code> 或 <code>module.sig_enforce=1</code> 是 upstream 所列途徑，仍須核對發行版的 Secure Boot、金鑰與載入政策。核心內建的驅動不出現在 <code>lsmod</code>，不能據此判定設備沒用該驅動。</li>
+            <li><strong>限制載入：</strong>移除不需要的第三方驅動，核對 DKMS 模組能否在新核心建置並由受信任金鑰簽署。不要讓採集服務擁有 <code>CAP_SYS_MODULE</code>；它會影響核心模組操作。若評估 <code>kernel.modules_disabled=1</code>，先驗證熱插拔、網路重連、備援和維修：設為 1 後，本次開機期間不能再載入或卸載模組，也不能把值改回 0。不是一般 Gateway 的預設建議。</li>
+            <li><strong>隔離使用者空間：</strong>採集器用專用非 root 帳號，依現場需要開放指定串列裝置與資料目錄。若用 systemd，可在測試環境逐項驗證 <code>NoNewPrivileges=yes</code>、<code>ProtectSystem=strict</code> 和只允許寫入暫存目錄；<code>PrivateDevices=yes</code> 可能使實體串列裝置不可見，不可直接套用。網路防火牆與本機裝置權限要各自驗收。</li>
+          </ol>
+          <h3>核心模組與 Python 模組是不同的安全邊界</h3>
+          <div class="gw-table" role="region" tabindex="0" aria-label="Gateway 模組安全對照">
+            <table><thead><tr><th scope="col">對象</th><th scope="col">要控管什麼</th><th scope="col">驗收證據</th></tr></thead><tbody>
+              <tr><th scope="row">Linux 核心／開機映像</th><td data-col="控管">來源、開機簽署、核心套件、執行中版本與可復原映像。</td><td data-col="驗收">版本與安全公告對照、正常重開、開機信任狀態與回退演練。</td></tr>
+              <tr><th scope="row">核心模組（驅動、DKMS）</th><td data-col="控管">只保留必要驅動；核對新核心相容性、模組簽章與金鑰。簽章確認來源，不表示沒有漏洞。</td><td data-col="驗收">白名單、必要裝置正常；在獨立測試機以無功能的測試模組驗證未受信任的簽章會被拒絕，不對正式系統做載入測試。</td></tr>
+              <tr><th scope="row">使用者空間模組（Python 套件）</th><td data-col="控管">鎖定相容版本與套件雜湊，從核准來源部署並審查依賴；非 root 執行。原生延伸即使在使用者空間也仍有記憶體安全風險。</td><td data-col="驗收">依賴清單、可重現安裝、所用 Python 版本下的測試、服務實際權限與資料目錄範圍。</td></tr>
+            </tbody></table>
+          </div>
+          <h3>只讀盤點：不改核心、不載入模組</h3>
+          <pre tabindex="0"><code>uname -r
+lsmod
+cat /proc/sys/kernel/modules_disabled
+modinfo -F signer 模組名稱  # 換成已確認的實際名稱
+# 如設備採 UEFI 且已安裝 mokutil，可另外查 Secure Boot：
+mokutil --sb-state</code></pre>
+          <p><code>modinfo</code> 的簽署者欄位只描述找到的模組檔案，不等於該模組已載入，也不等於核心會信任它。型號不同、使用精簡工具或沒有 UEFI 時，改按原廠文件查證，不為了盤點額外在正式設備安裝工具。</p>
+          <h3>升版驗收：先做一台，再擴大部署</h3>
+          <p>記錄目前映像與規則 → 在同型號測試機更新 → 重開後測網卡、RS-485、授時、防火牆、遙測新鮮度與暫存恢復 → 核准後小量部署 → 達門檻才擴大。若核心／模組無法啟動、必要設備消失或資料超過允許中斷時間，回到事前核准的映像或 A/B 啟動槽；也要驗證新舊映像的設定、憑證和暫存資料能否相容。若回退重新暴露已知漏洞，須限時、隔離並留下置換計畫。</p>
+          <p>參考：<a href="https://docs.kernel.org/admin-guide/module-signing.html">Linux：模組簽章</a> · <a href="https://docs.kernel.org/admin-guide/sysctl/kernel.html#modules-disabled">Linux：modules_disabled</a> · <a href="https://documentation.ubuntu.com/security/security-features/platform-protections/secure-boot/">Ubuntu：Secure Boot 實作例</a> · <a href="https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html">systemd：服務執行與隔離</a>。</p>
+        </div>
+      </section>
       <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>IO map 必須包含 register、datatype、unit、alarm、fail-safe 與上層資料名稱。</p></div></div><div class="gw-guide">
 <h3>點位表示和事件格式</h3><p>固定 <code>point_id</code>，把來源定位與工程含義分開。至少記錄裝置、協定定位、原始型別、符號／位元序、倍率、工程單位、有效範圍、更新策略、最大資料年齡與點表版本。改倍率或單位應留版本、遷移方式和測試向量。</p>
 <pre tabindex="0"><code>{
