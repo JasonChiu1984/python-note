@@ -13,10 +13,11 @@ header :is(p,ul),main section :is(p,ul:not([class]),ol:not([class])),main figure
 #worked-calculations :is(p,ul),#formula-sheet>p{max-inline-size:var(--lesson-prose-width)}
 /* These list elements are visual diagrams, not paragraph columns. */
 main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
+#airflow .flow li span{display:block;overflow-wrap:anywhere} #airflow .flow li strong{overflow-wrap:anywhere} #airflow .bar-row{grid-template-columns:3rem minmax(0,1fr) 5.5rem} #airflow .bar-row strong{text-align:right;font-variant-numeric:tabular-nums}
 </style></head><body id="top"><header><div><p class="kicker">DATA CENTER / PYTHON FIELD GUIDE</p><h1>機房能源效率：從電表到可驗證指標</h1><p>同一時窗算 PUE、分開看用水與碳、用冰水 ΔT 與 kW/RT 解釋冷卻廠變化。</p><p><a href="index.html">回 Python 教材首頁</a> · <a href="python_industrial_data_gateway_tutorial.html">工業資料閘道</a></p></div></header>
-<main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#cdu-energy">CDU 能耗</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
+<main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#cdu-energy">CDU 能耗</a><a href="#airflow">機房氣流計算</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
 
-<section id="formula-sheet"><p class="kicker">FORMULA SHEET</p><h2>機房能效指標｜計算公式速查</h2><p>用下表直接查分子、分母、單位及原案例代入。要查原始分表、逐步驗算與資料品質，見 <a href="#worked-calculations">同一機房詳細計算</a>；水側例見 <a href="#cooling">冷卻系統</a>。</p>
+<section id="formula-sheet"><p class="kicker">FORMULA SHEET</p><h2>機房能效指標｜計算公式速查</h2><p>用下表直接查分子、分母、單位及原案例代入。要查原始分表、逐步驗算與資料品質，見 <a href="#worked-calculations">同一機房詳細計算</a>；水側例見 <a href="#cooling">冷卻系統</a>；風量與旁通見 <a href="#airflow">機房氣流計算</a>。</p>
 <h3>能效、用水與碳</h3><div class="scroll" role="region" aria-label="能效、用水與碳公式" tabindex="0"><table class="formula-sheet-table"><thead><tr><th scope="col">指標</th><th scope="col">計算公式</th><th scope="col">單位</th><th scope="col">原案例代入／查核</th></tr></thead><tbody>
 <tr><th scope="row">正式 PUE</th><td data-label="計算公式">連續 12 個月設施總耗能 ÷ 同窗 IT 設備耗能</td><td data-label="單位">無量綱</td><td data-label="原案例代入／查核">只有 60 分鐘資料，不計正式 PUE；見 iPUE。</td></tr>
 <tr><th scope="row">iPUE（期間 PUE）</th><td data-label="計算公式">指定期間設施總耗能 ÷ 同窗 IT 設備耗能</td><td data-label="單位">無量綱</td><td data-label="原案例代入／查核">935 kWh ÷ 700 kWh = 1.3357</td></tr>
@@ -161,6 +162,51 @@ print(round(heat, 2), round(elec, 2), round(elec / heat, 5))
 <p>一併記錄機型、泵/備援模式、兩側流量壓差與溫度、流體性質、電表位置與覆蓋率。沒有通用節能閾值；同機型、同負載與邊界，再用有校正的趨勢比較。</p>
 <p>原始參考：<a href="https://www.opencompute.org/documents/ocp-wp-l-lcdu-test-methodology-performance-rating-r1-pdf/">OCP 液對液 CDU 測試方法與效能額定</a> · <a href="https://www.vertiv.com/49eb71/globalassets/shared/vertiv-coolchip-cdu-600-application-guide-sl-07624.pdf">Vertiv CDU 600 應用指南：容量、流量與 ATD 曲線（機型例，不作共通限值）</a>。</p>
 </section>
+<section id="airflow"><p class="kicker">05B / DATA HALL AIRFLOW</p><h2>機房氣流計算：先算熱量，再查冷風有沒有穿過機櫃</h2>
+<p>更新：<time datetime="2026-11-26">2026-11-26（台灣時間）</time>。本節以穩態顯熱做初估。設備額定風量、現場測試與故障工況仍要分開驗證；以下 46 櫃資料都是合成算例，不是實場量測或風機設定值。</p>
+
+<figure><figcaption>主氣流路徑｜順著風路配對測點，不拿機房平均溫度替代機櫃進風</figcaption>
+<ol class="flow"><li><strong>CRAH／CRAC 送風</strong><span>量供風溫度、實際送風量與風機功率。</span></li><li><strong>冷通道</strong><span>調查地板出風、封板、穿線孔與漏風。</span></li><li><strong>IT 機櫃</strong><span>同窗取 IT 功率與進出風溫差；進風量測上、中、下。</span></li><li><strong>熱通道</strong><span>找熱排風回到機櫃前方的路徑。</span></li><li><strong>回風／盤管</strong><span>確認回風量測面與供風屬於同一氣流邊界。</span></li></ol>
+<p><strong>冷風旁通：</strong>送風沒有穿過設備就回到空調。<strong>熱風回流：</strong>設備排風重新進入設備；同一房間內兩者可同時存在。</p></figure>
+
+<h3>公式與量測邊界</h3>
+<div class="scroll" role="region" aria-label="機房氣流計算公式" tabindex="0"><table class="formula-sheet-table"><thead><tr><th scope="col">算什麼</th><th scope="col">公式</th><th scope="col">注意事項</th></tr></thead><tbody>
+<tr><th scope="row">空氣承擔熱負載</th><td data-label="公式">Q<sub>air</sub> = P<sub>IT</sub> − Q<sub>direct-liquid</sub> + Q<sub>other-air</sub>（kW）</td><td data-label="注意事項">全氣冷的 IT 功率可近似轉為顯熱；混合液冷只扣已由液體直接帶走的 IT 熱。若加同區 UPS 損耗、照明等，須與取樣邊界一致，不可計入已在 IT 功率中的熱。機櫃風量不加機房其他負載。</td></tr>
+<tr><th scope="row">有效需求風量</th><td data-label="公式">V̇ = Q<sub>air</sub> / (ρ c<sub>p</sub> ΔT)；m³/h = m³/s × 3,600；CFM = m³/s × 2,118.88</td><td data-label="注意事項">ρ 暫用 1.20 kg/m³；c<sub>p</sub> 暫用 1.006 kJ/(kg·K)。高海拔或明顯不同的溫濕度應修正密度。ΔT（K）和 °C 溫差數值相同。</td></tr>
+<tr><th scope="row">旁通後有效送風</th><td data-label="公式">V̇<sub>有效</sub> = V̇<sub>總送</sub>(1 − b)；V̇<sub>總送需求</sub> = V̇<sub>需求</sub> / (1 − b)</td><td data-label="注意事項">b 是冷風旁通占總送風的比例，不是熱風回流率。只有在同一區、同一觀測窗、旁通定義一致時才可對帳。</td></tr>
+<tr><th scope="row">以風速估風量</th><td data-label="公式">V̇ = Σ(v<sub>i</sub>A<sub>i</sub>)</td><td data-label="注意事項">以面積加權的平均法向風速乘量測截面，或用校驗過的流量罩。單點風速、VFD 百分比、格柵標稱面積不能直接代替實測流量。</td></tr>
+<tr><th scope="row">風機選點與電功率</th><td data-label="公式">P<sub>elec</sub> ≈ V̇ Δp / η<sub>total</sub>（W）</td><td data-label="注意事項">風量用 m³/s、壓差用 Pa；壓力定義須與效率一致。選型看風機曲線及實際系統阻力，不拿自由出風量當裝設後風量。</td></tr>
+</tbody></table></div>
+<p class="callout"><strong>不要混用三種溫差。</strong>機櫃 ΔT 是設備排風減進風；空調回送風 ΔT 是空調回風減送風，混風時通常不同；冰水 ΔT 則是水側量測。表中的 12 K 是合成設計假設，不是設備設定值，也不是 ASHRAE 的進風溫度上限。</p>
+
+<h3>46 櫃試算｜在同一熱負載下重算風機失效</h3>
+<p>46 × 8 kW＝<strong>368 kW</strong> 由空氣承擔，先不計其他區內顯熱。假設機櫃溫升 12 K，每櫃約 1,988 m³/h（1,170 CFM）；整區有效需求 <strong>91,451 m³/h（53,826 CFM）</strong>。若旁通率是 10%，總送風需求為 <strong>101,613 m³/h</strong>。</p>
+<div class="scroll" role="region" aria-label="合成機房送風情境比較" tabindex="0"><table class="formula-sheet-table"><thead><tr><th scope="col">情境</th><th scope="col">總送風</th><th scope="col">有效送風</th><th scope="col">相對需求餘量</th></tr></thead><tbody>
+<tr><th scope="row">停一台後，剩 3 × 36,000</th><td data-label="總送風">108,000 m³/h</td><td data-label="有效送風">97,200 m³/h</td><td data-label="餘量">+5,749 m³/h（+6.3%）</td></tr>
+<tr><th scope="row">停一台後，剩 3 × 30,000</th><td data-label="總送風">90,000 m³/h</td><td data-label="有效送風">81,000 m³/h</td><td data-label="餘量">−10,451 m³/h（−11.4%）</td></tr>
+</tbody></table></div>
+<p>兩列是不同的合成工況，三台的風量是假定的<strong>失效後實際運轉點</strong>，不是額定值相加的保證。即使總量有餘，也不能據此宣告 N+1 驗收通過。混合液冷另例：若 70% 的 IT 熱直接走液體、同邊界另有 12 kW 顯熱，空氣承擔 122.4 kW；同樣 12 K 時需求約 30,417 m³/h，但仍要逐櫃驗證剩餘氣冷需求。</p>
+
+<h3>敏感度｜固定熱負載，調整的是設計溫升假設</h3>
+<figure class="chart-block"><figcaption>368 kW 顯熱：有效需求風量（m³/h；未加旁通）</figcaption>
+<div class="bar-row"><span>8 K</span><div class="bar-track" aria-hidden="true"><div class="bar" style="width:100%"></div></div><strong>137,177</strong></div>
+<div class="bar-row"><span>10 K</span><div class="bar-track" aria-hidden="true"><div class="bar" style="width:80%"></div></div><strong>109,742</strong></div>
+<div class="bar-row"><span>12 K</span><div class="bar-track" aria-hidden="true"><div class="bar alt" style="width:66.67%"></div></div><strong>91,451</strong></div>
+<div class="bar-row"><span>15 K</span><div class="bar-track" aria-hidden="true"><div class="bar" style="width:53.33%"></div></div><strong>73,161</strong></div>
+</figure>
+<p>從 12 K 降到 8 K，估算風量增加 50%。這不表示可自行提高設備允許溫升來降風量；仍須核對機櫃進風、排風與設備風扇控制。另一個獨立算例：風機實際風量為 30 m³/s、總壓升 250 Pa、含馬達與驅動器的總效率 0.60，輸入功率約 12.5 kW。用同一量測工況的電表實值驗證。</p>
+
+<h3>上線驗收：先定位，再調風量</h3>
+<ol><li><strong>同時取樣：</strong>同時窗保存每櫃 IT kW、進風上／中／下溫度、出風、實測風量與空調狀態。優先查最高進風溫度與熱點位置，不用平均值判定所有機櫃合格。</li><li><strong>供風足但局部進風熱：</strong>先測空櫃位封板、機櫃間縫隙、地板孔洞、冷熱通道隔離及側進風設備；別先把整區風機轉速往上加。</li><li><strong>有效風量確實不足：</strong>查風機運轉點、濾網／盤管壓差、風路阻塞與並聯設備分配；按核准程序驗證尖峰與 N+1，記錄失效切換期間的最高進風和恢復時間。</li><li><strong>溫度用設備進風驗收：</strong>依 IT 原廠與現場環境等級。ASHRAE A1–A4 常用建議進風乾球 18–27 °C；不是送風設定值，也不能拿來取代廠商的限制或合約條件。</li></ol>
+
+<h3>Python 可重跑範例</h3>
+<p><a href="python_datacenter_airflow_lab.py" download>下載機房氣流計算程式</a>，Python 3.11 以上標準庫。負的 <code>margin_m3_h</code> 表示同區穩態風量估算不足，不等於已量到溫度超標。</p>
+<pre><code>python python_datacenter_airflow_lab.py --test
+python python_datacenter_airflow_lab.py --it-kw 368 --delta-t-k 12 --bypass 0.10 --supply-m3-h 108000
+python python_datacenter_airflow_lab.py --it-kw 368 --delta-t-k 12 --liquid-fraction 0.70 --extra-air-kw 12</code></pre>
+<p>原始參考：<a href="https://www.energy.gov/sites/default/files/2024-07/best-practice-guide-data-center-design.pdf">美國 DOE 機房節能設計指南</a> · <a href="https://betterbuildingssolutioncenter.energy.gov/sites/default/files/Data%20Center%20Air%20Management.pdf">DOE／LBNL 氣流管理：旁通與回流</a> · <a href="https://handbook.ashrae.org/Handbooks/A23/SI/A23_Ch20/a23_ch20_si.aspx">ASHRAE Handbook：機房空氣冷卻與進風環境</a></p>
+</section>
+
 <section id="lab"><p class="kicker">06 / PYTHON LAB</p><h2>可執行的資料清理與聚合</h2>
 <p>標準函式庫；合成 CSV 四列與上方圖表完全相同。以 UTC 轉出標準化半開視窗，不接受缺窗或重複資料；保留錯誤並且不發布指標。時間欄代表區間起點。正式系統還要納入量測儀器、取樣整合、區間品質與原始值治理。</p>
 <p><a class="button" href="python_datacenter_efficiency_lab.py" download>下載完整 Python 實驗</a> <a class="button" href="python_datacenter_efficiency_fixture.csv" download>下載同一資料 CSV</a></p>
