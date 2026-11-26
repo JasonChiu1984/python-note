@@ -122,7 +122,11 @@ class TimedFlow:
 def integrate_total(
     samples: Iterable[TimedFlow], *, max_gap_s: float, bidirectional: bool = False,
 ) -> dict:
-    """梯形積分，只跨連續且兩端有效的樣本。時間為同一基準的秒數。"""
+    """梯形積分：只採用相鄰輸入、兩端有效且未超過間隔上限的區段。
+
+    時間為同一基準的秒數。函式不知道預期的採樣排程，無法辨識未傳入的樣本。
+    覆蓋率分母是第一筆至最後一筆輸入的時間差，不是預定報表窗口。
+    """
     positive("最大允許採樣間距", max_gap_s)
     last: TimedFlow | None = None
     increments: list[float] = []
@@ -237,6 +241,18 @@ class FlowTests(unittest.TestCase):
         self.assertIsNone(integrate_total([TimedFlow(0, 60), TimedFlow(61, 60)], max_gap_s=60)["total_m3_valid_segments"])
         self.assertIsNone(integrate_total([TimedFlow(0, 0), TimedFlow(60, 0, "low_flow_cutoff")], max_gap_s=60)["total_m3_valid_segments"])
         self.assertEqual(integrate_total([TimedFlow(0, 0), TimedFlow(60, 0)], max_gap_s=60)["total_m3_valid_segments"], 0)
+
+    def test_unreported_gap_differs_from_explicit_missing_slot(self):
+        endpoints = [TimedFlow(0, 60), TimedFlow(60, 60)]
+        implicit = integrate_total(endpoints, max_gap_s=60)
+        self.assertEqual(implicit["total_m3_valid_segments"], 1.0)
+        self.assertEqual((implicit["covered_s"], implicit["coverage"], implicit["skipped_segments"]), (60, 1, 0))
+        explicit = integrate_total(
+            [endpoints[0], TimedFlow(30, None, "missing"), endpoints[1]], max_gap_s=60,
+        )
+        self.assertIsNone(explicit["total_m3_valid_segments"])
+        self.assertEqual((explicit["covered_s"], explicit["coverage"], explicit["skipped_segments"]), (0, 0, 2))
+        self.assertEqual(implicit["elapsed_s_between_first_last"], explicit["elapsed_s_between_first_last"])
 
     def test_time_order_and_empty(self):
         for t in (0, -1):
