@@ -151,7 +151,8 @@
 <p><a href="python_batch_scheduler_operating_diagrams.drawio" download>下載可編輯的架構圖與流程圖</a></p>
 <h3>時間與鍵：同一天不一定是 24 小時</h3>
 <ul><li><strong>邏輯日 ≠ 實際開跑時間：</strong>2025-03-09 的報表可以次日或多日後補跑，仍以該日的輸入界線為準。以 <code>[start, end)</code> 查詢避免相鄰批次重複讀取；儲存 UTC 界線，另保留 IANA 時區、原邏輯日與時區資料版本／來源。</li>
-<li><strong>夏令時間：</strong>New York 行政日 2025-03-09 為 23 小時，2025-11-02 為 25 小時。按下一個本地邊界計算，不能將 UTC 起點一律加 24 小時。重複的本地時間要明訂 <code>fold</code>，不存在的時間則需明訂拒絕、跳過或調整政策；本例午夜界線只驗證上述時區日期，不是所有 IANA 轉換規則的通用驗證器。</li>
+<li><strong>夏令時間：</strong>New York 行政日 2025-03-09 為 23 小時，2025-11-02 為 25 小時。按下一個本地邊界計算，不能將 UTC 起點一律加 24 小時。重複的本地時間要明訂 <code>fold</code>，不存在的時間則需明訂拒絕、跳過或調整政策；本例以 UTC 終點必須晚於起點作為入帳前檢查，不是所有 IANA 轉換規則的通用驗證器。</li>
+<li><strong>曆日被跳過：</strong><code>Pacific/Apia</code> 的 2011-12-30 在時區調整時被跳過；該日兩個午夜界線依此範例都轉成 <code>2011-12-30T10:00:00Z</code>，區間長度為 0。這不是「當天沒有資料」，而是該行政日不存在。範例在寫入執行紀錄或任何彙總前拒絕該區間，CLI 回傳 2。參考 <a href="https://data.iana.org/time-zones/tzdb/australasia">IANA tzdb：Pacific/Apia</a>、<a href="https://peps.python.org/pep-0495/#mind-the-gap">PEP 495：不存在的本地時間</a>。</li>
 <li><strong>鍵區分三層：</strong>用 job、租戶、固定 UTC 區間和處理修訂識別同一次邏輯處理；每次重試另有 attempt ID。重試不得改 run key；更正資料而需產生新版本時，先明確定義覆蓋或另外保存結果及核准規則。</li></ul>
 <h3>故障與交接矩陣</h3>
 <div class="bsd-table" role="region" tabindex="0" aria-label="排程交接矩陣"><table><thead><tr><th scope="col">情境</th><th scope="col">工程規則</th><th scope="col">交接證據</th></tr></thead><tbody>
@@ -167,6 +168,8 @@
 python python_batch_scheduler_deep_lab.py --date 2025-03-09 --zone UTC
 python python_batch_scheduler_deep_lab.py --date 2025-03-09 --zone America/New_York</code></pre>
 <p>標準輸出 JSON 應依序出現 <code>retryable → committed → duplicate_skipped</code>，且只存入一列結果。此命令刻意注入預期故障並恢復，所以成功完成整組實驗回傳 0；正式 runner 應對不可恢復錯誤回傳非 0，並用結構化欄位區分重試、故障與正常去重。</p>
+<p>反例：以下命令應在標準錯誤輸出「未形成正長度的行政日區間」，不會輸出彙總 JSON。</p>
+<pre><code>python python_batch_scheduler_deep_lab.py --date 2011-12-30 --zone Pacific/Apia</code></pre>
 <ul><li><code>date.fromisoformat()</code> 解析邏輯日；<code>ZoneInfo()</code> 按 IANA 名稱載入時區，<code>astimezone()</code> 轉換 UTC。</li>
 <li><code>sqlite3.connect(..., isolation_level=None)</code> 搭配明確 <code>BEGIN IMMEDIATE</code>，<code>commit()</code>／<code>rollback()</code> 決定同庫原子性；<code>contextlib.closing()</code> 保證關閉連線，交易回滾和資源關閉不是同一件事。</li>
 <li><code>execute(sql, (run_key,))</code> 使用參數綁定，避免將資料插進 SQL 字串；<code>json.dumps()</code> 輸出可自動查核的報告。</li></ul>

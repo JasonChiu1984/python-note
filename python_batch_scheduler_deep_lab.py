@@ -15,9 +15,12 @@ class DemoRetryable(RuntimeError):
 def daily_bounds(logical_date, zone):
     """以行政日的兩個本地午夜建立 [start,end)，再各自轉 UTC。"""
     d = date.fromisoformat(logical_date)
-    zone = ZoneInfo(zone)
-    return tuple(datetime.combine(day, time.min, zone).astimezone(timezone.utc)
-                 for day in (d, d + timedelta(days=1)))
+    tz = ZoneInfo(zone)
+    start, end = (datetime.combine(day, time.min, tz).astimezone(timezone.utc)
+                  for day in (d, d + timedelta(days=1)))
+    if end <= start:
+        raise ValueError(f"{logical_date} 在 {zone} 未形成正長度的行政日區間")
+    return start, end
 
 
 def prepare(db):
@@ -87,6 +90,24 @@ class Tests(unittest.TestCase):
             for day in ("2025-03-09","2025-03-10"):
                 self.assertEqual(run(db, day)["result"], "committed")
             self.assertEqual(db.execute("SELECT COUNT(*) FROM daily_summary").fetchone()[0], 2)
+
+    def test_skipped_civil_day_does_not_write(self):
+        try:
+            before = daily_bounds("2011-12-29", "Pacific/Apia")
+            after = daily_bounds("2011-12-31", "Pacific/Apia")
+            taipei = daily_bounds("2025-03-09", "Asia/Taipei")
+        except ZoneInfoNotFoundError:
+            self.skipTest("沒有 IANA 時區資料；請依部署政策提供時區資料")
+        self.assertEqual(before[1], after[0])
+        for start, end in (before, after, taipei):
+            self.assertEqual(end - start, timedelta(hours=24))
+        with closing(sqlite3.connect(":memory:", isolation_level=None)) as db:
+            prepare(db)
+            with self.assertRaisesRegex(ValueError, "未形成正長度"):
+                run(db, "2011-12-30", "Pacific/Apia")
+            self.assertFalse(db.in_transaction)
+            for table in ("run_ledger", "daily_summary"):
+                self.assertEqual(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
 
     def test_dst(self):
         try:
