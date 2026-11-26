@@ -1,0 +1,2547 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CPython 工具項目與打包封裝選項 — 互動式技術指南</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .tab-btn {
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background-color: #1e293b;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+    }
+    .code-surface {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .card-hover {
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.12);
+    }
+    .toast-enter {
+      animation: toastSlideIn 0.22s ease forwards;
+    }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+  <aside aria-label="教材校閱說明" style="max-width:82rem;margin:auto;padding:.7rem 1rem;color:#1a365b">
+    <a href="index.html#python-interactive-labs" style="display:inline-block;margin-bottom:.5rem;color:inherit;font-weight:700;text-decoration:underline">← 回互動實驗選單</a><p style="margin:0">校閱：2026-11-26。比較表與精靈是選型提示，不是效能實測、交付保證或命令執行器。正式發行以工具版本、目標 OS／架構、Python ABI、最低系統版本與乾淨機器的測試證據為準。</p>
+    <p style="margin:.35rem 0 0">原生編譯或封裝並非加密，不能保證原始邏輯無法分析，勿把密鑰打包進客戶端。CPython 3.15 的 <a href="https://peps.python.org/pep-0803/" style="text-decoration:underline">abi3t（PEP 803）</a> 是自由執行緒穩定 ABI 的選項，不表示既有 abi3 wheel 自動相容；以工具鏈實際產出的標籤與雙環境安裝驗證。</p>
+  </aside>
+
+
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-medium mb-2.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            <span>CPython Internals &amp; Distribution Interactive Guide</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">CPython 工具項目與打包封裝選項</h1>
+          <p class="text-slate-300 text-sm sm:text-base mt-1.5 max-w-2xl">
+            探索 CPython 原始碼 <code class="text-amber-300 bg-slate-800/80 px-1.5 py-0.5 rounded text-xs">Tools/</code> 開發與基準工具鏈，並透過架構圖、決策精靈與指令產生器快速選定最適合的打包封裝方案。
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5 text-xs">
+          <div class="bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5">
+            <div class="text-slate-400">CPython 核心工具</div>
+            <div class="text-lg font-bold text-white" id="stat-tools-count">13 項</div>
+          </div>
+          <div class="bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5">
+            <div class="text-slate-400">打包封裝方案</div>
+            <div class="text-lg font-bold text-emerald-400" id="stat-pkg-count">9 種</div>
+          </div>
+          <div class="bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5">
+            <div class="text-slate-400">架構哲學分類</div>
+            <div class="text-lg font-bold text-sky-400">5 大類</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="mt-6 flex flex-wrap gap-2" aria-label="主要功能頁籤">
+        <button type="button" data-tab="tools" class="tab-btn active inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/20">
+          <i data-lucide="wrench" class="w-4 h-4"></i>
+          <span>CPython Tools/ 工具箱</span>
+        </button>
+        <button type="button" data-tab="packaging" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/20">
+          <i data-lucide="package" class="w-4 h-4"></i>
+          <span>打包封裝全景與架構</span>
+        </button>
+        <button type="button" data-tab="wizard" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/20">
+          <i data-lucide="compass" class="w-4 h-4"></i>
+          <span>互動選型決策精靈</span>
+        </button>
+        <button type="button" data-tab="so-guide" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/20">
+          <i data-lucide="binary" class="w-4 h-4"></i>
+          <span>.so 與多平台產物</span>
+        </button>
+        <button type="button" data-tab="builder" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/20">
+          <i data-lucide="terminal" class="w-4 h-4"></i>
+          <span>實戰指令產生器</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ==================== TAB 1: CPython Tools/ ==================== -->
+    <section id="panel-tools" class="space-y-6">
+      <!-- CPython Tools Pipeline SVG -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="git-branch" class="w-5 h-5 text-indigo-600"></i>
+              CPython <code class="text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-sm">Tools/</code> 建置與工具鏈管線圖
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">展示 CPython 原始碼中各程式碼產生器、編譯工具與品質分析器如何銜接直譯器核心產物</p>
+          </div>
+          <a href="https://github.com/python/cpython/blob/master/Tools/README" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+            <span>官方 Tools/README</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+        <div class="w-full overflow-x-auto">
+          <svg viewBox="0 0 920 270" class="w-full min-w-[680px] h-auto" role="img" aria-label="CPython Tools 建置管線圖">
+            <defs>
+              <marker id="arrow-indigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
+              </marker>
+              <marker id="arrow-emerald" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+              </marker>
+            </defs>
+
+            <!-- Column Headers -->
+            <text x="115" y="22" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700">1. 原始定義檔 (Inputs)</text>
+            <text x="415" y="22" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700">2. Tools/ 產生與建置工具</text>
+            <text x="755" y="22" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700">3. CPython 核心產物 (Outputs)</text>
+
+            <!-- Row 1: Grammar -> peg_generator -> Parser/parser.c -->
+            <rect x="20" y="38" width="190" height="46" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="115" y="58" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="600">Grammar/python.gram</text>
+            <text x="115" y="74" text-anchor="middle" fill="#64748b" font-size="10.5">Python 語法 PEG 規則</text>
+
+            <line x1="210" y1="61" x2="295" y2="61" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="300" y="38" width="230" height="46" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5" />
+            <text x="415" y="58" text-anchor="middle" fill="#312e81" font-size="12" font-weight="700">Tools/peg_generator/</text>
+            <text x="415" y="74" text-anchor="middle" fill="#4338ca" font-size="10.5">pegen 解析器產生器</text>
+
+            <line x1="530" y1="61" x2="615" y2="61" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="620" y="38" width="275" height="46" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+            <text x="757" y="58" text-anchor="middle" fill="#065f46" font-size="12" font-weight="600">Parser/parser.c</text>
+            <text x="757" y="74" text-anchor="middle" fill="#047857" font-size="10.5">C 語法解析函式 (file_rule 等)</text>
+
+            <!-- Row 2: bytecodes.c -> cases_generator & jit -> generated_cases.c.h -->
+            <rect x="20" y="100" width="190" height="46" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="115" y="120" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="600">Python/bytecodes.c</text>
+            <text x="115" y="136" text-anchor="middle" fill="#64748b" font-size="10.5">VM Opcode 規格定義</text>
+
+            <line x1="210" y1="123" x2="295" y2="123" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="300" y="100" width="230" height="46" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5" />
+            <text x="415" y="120" text-anchor="middle" fill="#312e81" font-size="12" font-weight="700">cases_generator + jit</text>
+            <text x="415" y="136" text-anchor="middle" fill="#4338ca" font-size="10.5">直譯器分派表與 JIT 模板建置</text>
+
+            <line x1="530" y1="123" x2="615" y2="123" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="620" y="100" width="275" height="46" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+            <text x="757" y="120" text-anchor="middle" fill="#065f46" font-size="12" font-weight="600">Python/generated_cases.c.h</text>
+            <text x="757" y="136" text-anchor="middle" fill="#047857" font-size="10.5">Tier 1 / Tier 2 / JIT 執行路徑</text>
+
+            <!-- Row 3: Modules/*.c -> clinic -> clinic/*.c.h -->
+            <rect x="20" y="162" width="190" height="46" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="115" y="182" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="600">Modules/ &amp; Objects/*.c</text>
+            <text x="115" y="198" text-anchor="middle" fill="#64748b" font-size="10.5">內建函式與模組 C 碼</text>
+
+            <line x1="210" y1="185" x2="295" y2="185" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="300" y="162" width="230" height="46" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5" />
+            <text x="415" y="182" text-anchor="middle" fill="#312e81" font-size="12" font-weight="700">Tools/clinic/clinic.py</text>
+            <text x="415" y="198" text-anchor="middle" fill="#4338ca" font-size="10.5">Argument Clinic (PEP 436)</text>
+
+            <line x1="530" y1="185" x2="615" y2="185" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)" />
+
+            <rect x="620" y="162" width="275" height="46" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+            <text x="757" y="182" text-anchor="middle" fill="#065f46" font-size="12" font-weight="600">clinic/*.c.h 樣板標頭</text>
+            <text x="757" y="198" text-anchor="middle" fill="#047857" font-size="10.5">高效參數解析與 inspect 簽章</text>
+
+            <!-- Bottom Bar: Verification, Benchmarks & Packaging -->
+            <rect x="20" y="222" width="875" height="36" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2" />
+            <text x="457" y="244" text-anchor="middle" fill="#92400e" font-size="11.5" font-weight="600">
+              品質與效能驗證層：c-analyzer (全域變數) ｜ build/ (警告與 SBOM) ｜ ftscalingbench &amp; lockbench (No-GIL) ｜ freeze &amp; wasm (封裝移植)
+            </text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Filter & Search Bar -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap gap-2" id="tool-category-filters">
+          <button type="button" data-tool-cat="all" class="tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">全部 (13)</button>
+          <button type="button" data-tool-cat="codegen" class="tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">程式碼生成與編譯 (4)</button>
+          <button type="button" data-tool-cat="build" class="tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">打包與跨平台建置 (4)</button>
+          <button type="button" data-tool-cat="perf" class="tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">效能與並行基準 (3)</button>
+          <button type="button" data-tool-cat="analysis" class="tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">靜態分析與除錯 (2)</button>
+        </div>
+        <div class="relative w-full md:w-72">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input id="tool-search-input" type="text" placeholder="搜尋工具名稱、路徑或關鍵字..." class="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+      </div>
+
+      <!-- Tools Master-Detail Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Left List -->
+        <div id="tools-grid" class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+
+        <!-- Right Detail Inspector -->
+        <div class="lg:col-span-5 lg:sticky lg:top-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-5" id="tool-detail-panel">
+          <!-- Dynamically rendered -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: Packaging Overview & Architecture ==================== -->
+    <section id="panel-packaging" class="hidden space-y-6">
+      <!-- Interactive Packaging Architecture Diagram -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="layers" class="w-5 h-5 text-emerald-600"></i>
+              五大打包封裝架構哲學 — 互動式流程圖
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">點選下方任一代表架構，即時檢視從原始碼到目標機器執行的完整轉換管線</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5" id="arch-selector-btns">
+            <button type="button" data-arch="pyinstaller" class="arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">PyInstaller (凍結)</button>
+            <button type="button" data-arch="nuitka" class="arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Nuitka (AOT 編譯)</button>
+            <button type="button" data-arch="pyapp" class="arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">PyApp (執行期自舉)</button>
+            <button type="button" data-arch="zipapp" class="arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">zipapp (可執行 ZIP)</button>
+            <button type="button" data-arch="wheel" class="arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Wheel/sdist (PyPI)</button>
+          </div>
+        </div>
+
+        <div class="w-full overflow-x-auto">
+          <svg id="packaging-arch-svg" viewBox="0 0 920 185" class="w-full min-w-[680px] h-auto" role="img" aria-label="打包封裝架構流程圖"></svg>
+        </div>
+        <div id="arch-caption" class="mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed"></div>
+      </div>
+
+      <!-- Filter & Export Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap gap-2" id="pkg-category-filters">
+          <button type="button" data-pkg-cat="all" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">全部方案 (9)</button>
+          <button type="button" data-pkg-cat="freeze" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">凍結打包 (3)</button>
+          <button type="button" data-pkg-cat="compile" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">原生編譯 (1)</button>
+          <button type="button" data-pkg-cat="bootstrap" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">自舉與原生應用 (2)</button>
+          <button type="button" data-pkg-cat="zip" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">輕量壓縮檔 (2)</button>
+          <button type="button" data-pkg-cat="dist" class="pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">套件分發標準 (1)</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-export-csv" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+            <span>匯出 CSV 矩陣</span>
+          </button>
+          <button type="button" id="btn-export-json" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100">
+            <i data-lucide="braces" class="w-3.5 h-3.5"></i>
+            <span>匯出 JSON</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Packaging Cards Grid -->
+      <div id="packaging-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+      <!-- Comparison Matrix Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900 text-base">打包封裝方案完整比較表</h3>
+          <span class="text-xs text-slate-500">依據官方文件與實作機制整理</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <th class="py-3 px-4 font-semibold">工具 / 方案</th>
+                <th class="py-3 px-4 font-semibold">核心原理</th>
+                <th class="py-3 px-4 font-semibold">需目標機裝 Python</th>
+                <th class="py-3 px-4 font-semibold">產出型態</th>
+                <th class="py-3 px-4 font-semibold">智財保護</th>
+                <th class="py-3 px-4 font-semibold">最佳適用場景</th>
+              </tr>
+            </thead>
+            <tbody id="packaging-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: Interactive Decision Wizard ==================== -->
+    <section id="panel-wizard" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Controls -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+              專案需求條件設定
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">調整以下 5 項實際部署約束，右側將即時計算各封裝工具的適配度並給出推薦理由。</p>
+          </div>
+
+          <div class="space-y-4 text-sm">
+            <div>
+              <label for="wiz-python" class="block font-semibold text-slate-800 mb-1.5">1. 目標環境是否已預裝相容 Python？</label>
+              <select id="wiz-python" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="no">否（終端使用者未安裝 Python，必須獨立執行）</option>
+                <option value="yes">是（內部伺服器 / 開發者環境已有 Python）</option>
+                <option value="pypi">給開發者以 pip / uv 安裝的函式庫</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="wiz-apptype" class="block font-semibold text-slate-800 mb-1.5">2. 主要專案類型</label>
+              <select id="wiz-apptype" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="cli">CLI 命令列工具 / 自動化腳本</option>
+                <option value="datascience">科學計算 / 資料分析 (NumPy, pandas, scipy)</option>
+                <option value="web">Web 服務 (FastAPI / Uvicorn / Flask)</option>
+                <option value="gui">跨平台桌面或行動裝置原生 GUI App</option>
+                <option value="lib">可重複使用的 Python 套件 / 模組</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="wiz-ip" class="block font-semibold text-slate-800 mb-1.5">3. 原始碼智財保護 (IP Protection) 需求</label>
+              <select id="wiz-ip" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="low">低（內部工具或開源專案，不介意 .pyc）</option>
+                <option value="high">高（商業閉源交付，需編譯為原生二進位檔）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="wiz-os" class="block font-semibold text-slate-800 mb-1.5">4. 目標發行平台</label>
+              <select id="wiz-os" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="desktop">桌面平台（Windows / macOS / Linux）</option>
+                <option value="linux_srv">Linux 伺服器 / CI 管線</option>
+                <option value="mobile_native">需涵蓋行動裝置（iOS / Android）或原生安裝包</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="wiz-priority" class="block font-semibold text-slate-800 mb-1.5">5. 建置與執行優先考量</label>
+              <select id="wiz-priority" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="startup">優先考量快速啟動與執行效能（CI 編譯久沒關係）</option>
+                <option value="fastbuild">優先考量打包速度快與套件相容性</option>
+                <option value="selfupdate">優先考量輕量分發與內建自我更新機制</option>
+              </select>
+            </div>
+
+            <button type="button" id="btn-reset-wizard" class="w-full py-2 px-4 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+              重設為預設條件
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Recommendations & Chart -->
+        <div class="lg:col-span-7 space-y-5">
+          <!-- Top 3 Recommendations -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                推薦封裝方案 Top 3
+              </h3>
+              <span class="text-xs text-slate-500">點擊可直接載入至指令產生器</span>
+            </div>
+            <div id="wizard-top3" class="space-y-3"></div>
+          </div>
+
+          <!-- Chart.js Suitability Bar Chart -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+              <h3 class="text-base font-bold text-slate-900">各方案情境適配度評分 (0–100)</h3>
+              <span class="text-xs text-slate-500">依目前選取條件動態加權計算之工程適配指標</span>
+            </div>
+            <div class="relative h-72">
+              <canvas id="wizard-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: .so Shared Object Guide ==================== -->
+    <section id="panel-so-guide" class="hidden space-y-6">
+      <!-- Dual Pipeline SVG -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="binary" class="w-5 h-5 text-indigo-600"></i>
+              Python 封裝 <code class="text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-sm">.so</code> 檔雙路線架構圖
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">區分「將 Python 編譯為 .so 擴充模組」與「將既有 C/C++ .so 動態函式庫打包進發行包」兩大流程</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold">路線 A：編譯產出 .so</span>
+            <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">路線 B：打包既有 .so</span>
+          </div>
+        </div>
+        <div class="w-full overflow-x-auto">
+          <svg viewBox="0 0 920 230" class="w-full min-w-[680px] h-auto" role="img" aria-label="Python 封裝 .so 檔雙路線架構圖">
+            <defs>
+              <marker id="arrow-so-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
+              </marker>
+              <marker id="arrow-so-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+              </marker>
+            </defs>
+
+            <!-- Route A -->
+            <text x="20" y="22" fill="#4338ca" font-size="12" font-weight="700">路線 A：將 Python 原始碼編譯為原生 .so 擴充模組（加速運算 / 原始碼保護）</text>
+            <rect x="20" y="34" width="185" height="62" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="112" y="59" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="700">.py / .pyx 原始碼</text>
+            <text x="112" y="77" text-anchor="middle" fill="#64748b" font-size="10.5">純 Python 或型別標註</text>
+
+            <line x1="205" y1="65" x2="255" y2="65" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-so-a)" />
+
+            <rect x="260" y="34" width="215" height="62" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5" />
+            <text x="367" y="59" text-anchor="middle" fill="#312e81" font-size="12" font-weight="700">Nuitka / Cython 轉譯</text>
+            <text x="367" y="77" text-anchor="middle" fill="#4338ca" font-size="10.5">--mode=module 或 cythonize</text>
+
+            <line x1="475" y1="65" x2="525" y2="65" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-so-a)" />
+
+            <rect x="530" y="34" width="185" height="62" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="622" y="59" text-anchor="middle" fill="#78350f" font-size="12" font-weight="700">mod.cpython-*.so</text>
+            <text x="622" y="77" text-anchor="middle" fill="#92400e" font-size="10.5">含 PyInit_mod 進入點</text>
+
+            <line x1="715" y1="65" x2="755" y2="65" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-so-a)" />
+
+            <rect x="760" y="34" width="140" height="62" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+            <text x="830" y="59" text-anchor="middle" fill="#065f46" font-size="12" font-weight="700">直接 import</text>
+            <text x="830" y="77" text-anchor="middle" fill="#047857" font-size="10.5">同版本 CPython 載入</text>
+
+            <!-- Route B -->
+            <text x="20" y="132" fill="#047857" font-size="12" font-weight="700">路線 B：將既有 C/C++ .so 動態函式庫打包進發行產物（跨主機免手動裝系統依賴）</text>
+            <rect x="20" y="144" width="185" height="62" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="112" y="169" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="700">外部 lib*.so 函式庫</text>
+            <text x="112" y="187" text-anchor="middle" fill="#64748b" font-size="10.5">ctypes 或 C 擴充依賴</text>
+
+            <line x1="205" y1="175" x2="255" y2="175" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-so-b)" />
+
+            <rect x="260" y="144" width="215" height="62" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" />
+            <text x="367" y="169" text-anchor="middle" fill="#065f46" font-size="12" font-weight="700">auditwheel / PyInstaller</text>
+            <text x="367" y="187" text-anchor="middle" fill="#047857" font-size="10.5">repair 改 RPATH 或 --add-binary</text>
+
+            <line x1="475" y1="175" x2="525" y2="175" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-so-b)" />
+
+            <rect x="530" y="144" width="185" height="62" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="622" y="169" text-anchor="middle" fill="#78350f" font-size="12" font-weight="700">manylinux .whl / EXE</text>
+            <text x="622" y="187" text-anchor="middle" fill="#92400e" font-size="10.5">內嵌 .so 與相依動態庫</text>
+
+            <line x1="715" y1="175" x2="755" y2="175" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-so-b)" />
+
+            <rect x="760" y="144" width="140" height="62" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5" />
+            <text x="830" y="169" text-anchor="middle" fill="#312e81" font-size="12" font-weight="700">跨發行版佈署</text>
+            <text x="830" y="187" text-anchor="middle" fill="#4338ca" font-size="10.5">無須目標機預裝 .so</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap gap-2" id="so-category-filters">
+          <button type="button" data-so-cat="all" class="so-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">全部方式 (4)</button>
+          <button type="button" data-so-cat="compile" class="so-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">路線 A：編譯 .py 為 .so (2)</button>
+          <button type="button" data-so-cat="bundle" class="so-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">路線 B：打包既有 .so (2)</button>
+        </div>
+        <span class="text-xs text-slate-500">每張卡片皆支援複製範例指令或載入至指令產生器</span>
+      </div>
+
+      <!-- .so Method Cards -->
+      <div id="so-methods-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+
+      <!-- Multi-Platform Artifact Comparison Matrix -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="monitor-smartphone" class="w-5 h-5 text-indigo-600"></i>
+              Linux / macOS / Windows 多平台產物對照矩陣
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">比較三大作業系統在擴充模組、外部動態庫、Wheel 修復工具、平台標籤與獨立應用程式產物的關鍵差異</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-semibold" id="mp-os-highlight">
+              <button type="button" data-mp-os="all" class="mp-os-btn px-2.5 py-1 rounded-lg bg-slate-900 text-white">全部平台</button>
+              <button type="button" data-mp-os="linux" class="mp-os-btn px-2.5 py-1 rounded-lg text-slate-700 hover:text-slate-900">Linux</button>
+              <button type="button" data-mp-os="macos" class="mp-os-btn px-2.5 py-1 rounded-lg text-slate-700 hover:text-slate-900">macOS</button>
+              <button type="button" data-mp-os="windows" class="mp-os-btn px-2.5 py-1 rounded-lg text-slate-700 hover:text-slate-900">Windows</button>
+            </div>
+            <button type="button" id="btn-export-mp-csv" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+              <span>匯出對照 CSV</span>
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-700">
+                <th class="py-3 px-4 font-semibold w-40">比較項目</th>
+                <th class="py-3 px-4 font-semibold" id="mp-th-linux">Linux (ELF)</th>
+                <th class="py-3 px-4 font-semibold" id="mp-th-macos">macOS (Mach-O)</th>
+                <th class="py-3 px-4 font-semibold" id="mp-th-windows">Windows (PE)</th>
+              </tr>
+            </thead>
+            <tbody id="mp-matrix-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Interactive Multi-Platform Artifact & Wheel Tag Previewer -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="tags" class="w-5 h-5 text-sky-600"></i>
+              多平台產物檔名與修復指令模擬器
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">選擇目標平台、CPython 版本與 ABI 模式，即時檢視對應的擴充模組、Wheel 標籤與修復指令</p>
+          </div>
+          <a href="https://cibuildwheel.pypa.io/en/2.x/options/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+            <span>PyPA cibuildwheel 自動化文件</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-xs sm:text-sm">
+          <div>
+            <label for="mp-sim-os" class="block font-semibold text-slate-700 mb-1">目標作業系統與架構</label>
+            <select id="mp-sim-os" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="linux_x86_64">Linux x86_64 (manylinux_2_28)</option>
+              <option value="linux_musl">Linux Alpine (musllinux_1_2)</option>
+              <option value="macos_arm64">macOS Apple Silicon (arm64)</option>
+              <option value="macos_universal2">macOS Universal2 (arm64 + x86_64)</option>
+              <option value="win_amd64">Windows 64-bit (win_amd64)</option>
+            </select>
+          </div>
+          <div>
+            <label for="mp-sim-py" class="block font-semibold text-slate-700 mb-1">CPython 版本標籤</label>
+            <select id="mp-sim-py" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="cp315">CPython 3.15 (標準 GIL)</option>
+              <option value="cp315t">CPython 3.15t (Free-Threaded No-GIL)</option>
+              <option value="cp314">CPython 3.14</option>
+              <option value="cp313">CPython 3.13</option>
+            </select>
+          </div>
+          <div>
+            <label for="mp-sim-abi" class="block font-semibold text-slate-700 mb-1">ABI 相容模式</label>
+            <select id="mp-sim-abi" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="versioned">版本綁定 ABI（預設最佳效能）</option>
+              <option value="abi3">Limited API (abi3，跨次版本相容)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="mp-sim-output" class="grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
+      </div>
+
+      <!-- Interactive .so Preflight Checklist -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-600"></i>
+              .so 封裝與發行前實務檢核表
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">勾選確認各項二進位與 ABI 相容性條件，避免部署至目標主機時發生 ImportError 或符號錯誤</p>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <span id="so-check-progress-text" class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">0 / 4 已確認</span>
+            <button type="button" id="btn-reset-so-checks" class="text-xs text-slate-500 hover:text-slate-800 underline">重設</button>
+          </div>
+        </div>
+        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
+          <div id="so-check-progress-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 0%;"></div>
+        </div>
+        <div id="so-checklist-items" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: Interactive Command Builder ==================== -->
+    <section id="panel-builder" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Builder Config Form -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="terminal" class="w-5 h-5 text-indigo-600"></i>
+              打包指令參數設定
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">選擇工具並切換官方支援的常用旗標，即時組裝可複製執行的 CLI 指令。</p>
+          </div>
+
+          <div class="space-y-3.5 text-sm">
+            <div>
+              <label for="bld-tool" class="block font-semibold text-slate-800 mb-1">目標打包工具</label>
+              <select id="bld-tool" class="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="pyinstaller">PyInstaller (凍結打包)</option>
+                <option value="nuitka">Nuitka (C 轉譯原生編譯)</option>
+                <option value="zipapp">Python 標準庫 zipapp (.pyz)</option>
+                <option value="cxfreeze">cx_Freeze (目錄凍結)</option>
+                <option value="wheel">PyPA 標準 Wheel / sdist (Hatch / build)</option>
+                <option value="nuitka_so">Nuitka 編譯 .so 擴充模組 (--mode=module)</option>
+                <option value="cython_so">Cython 編譯 .so (build_ext / gcc)</option>
+                <option value="auditwheel_so">auditwheel 封裝外部 .so 進 manylinux Wheel</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="bld-entry" class="block font-semibold text-slate-800 mb-1">入口檔案 / 目錄</label>
+                <input id="bld-entry" type="text" value="app.py" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label for="bld-name" class="block font-semibold text-slate-800 mb-1">輸出名稱</label>
+                <input id="bld-name" type="text" value="my_tool" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+
+            <!-- Dynamic Tool-Specific Options Container -->
+            <div id="bld-dynamic-options" class="space-y-3 pt-2 border-t border-slate-100"></div>
+          </div>
+        </div>
+
+        <!-- Generated Command Output & Pitfalls -->
+        <div class="lg:col-span-7 space-y-5">
+          <div class="code-surface rounded-2xl p-5 shadow-md border border-slate-800">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span class="text-xs text-slate-400 font-mono ml-1" id="bld-cmd-label">Generated CLI Command</span>
+              </div>
+              <button type="button" id="btn-copy-builder-cmd" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span>複製指令</span>
+              </button>
+            </div>
+            <pre id="bld-cmd-output" class="text-xs sm:text-sm font-mono text-emerald-300 whitespace-pre-wrap break-all leading-relaxed overflow-x-auto"></pre>
+            <div id="bld-flags-breakdown" class="mt-4 pt-3.5 border-t border-slate-700/80 space-y-1.5 text-xs text-slate-300"></div>
+          </div>
+
+          <!-- Official Best Practices & Pitfalls -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <i data-lucide="shield-alert" class="w-5 h-5 text-amber-500"></i>
+              實務除錯與官方注意事項
+            </h3>
+            <ul id="bld-pitfalls-list" class="space-y-2.5 text-xs sm:text-sm text-slate-700"></ul>
+            <div id="bld-doc-link" class="mt-4 pt-3 border-t border-slate-100"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <div>資料來源依據 CPython 官方原始碼庫、Python Developer's Guide、PyPA Packaging Guide 與各工具官方文件。</div>
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="https://github.com/python/cpython/blob/master/Tools/README" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-600 underline">CPython Tools</a>
+        <a href="https://devguide.python.org/development-tools/" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-600 underline">Python Devguide</a>
+        <a href="https://packaging.python.org/tutorials/packaging-projects/" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-600 underline">PyPA Packaging</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 pointer-events-none"></div>
+
+  <script>
+    // ===================== GROUNDED DATASETS =====================
+    const CPYTHON_TOOLS = [
+      {
+        id: 'clinic',
+        name: 'Argument Clinic',
+        path: 'Tools/clinic/clinic.py',
+        category: 'codegen',
+        categoryLabel: '程式碼生成與編譯',
+        badge: 'PEP 436',
+        summary: 'CPython C 檔案的參數解析前置處理器，自動生成內建函式與模組方法的高效能參數解析樣板碼與 inspect 簽章。',
+        commands: [
+          'python3 Tools/clinic/clinic.py Modules/posixmodule.c',
+          'python3 Tools/clinic/clinic.py --converters'
+        ],
+        details: [
+          '自 Python 3.4 隨 PEP 436 引入，將註解中的 /*[clinic input]*/ 宣告轉換為最佳化 C 參數解析程式碼。',
+          '支援自訂函式名稱（使用 as 關鍵字），自動產生基礎函式與對應的 _impl 實作函式。',
+          '官方提醒：Argument Clinic 僅供 CPython 內部使用，不保證對外部 C 擴充模組的向後相容性。'
+        ],
+        docUrl: 'https://devguide.python.org/development-tools/clinic/',
+        docLabel: 'Python Devguide — Argument Clinic'
+      },
+      {
+        id: 'cases_generator',
+        name: 'Cases Generator',
+        path: 'Tools/cases_generator/',
+        category: 'codegen',
+        categoryLabel: '程式碼生成與編譯',
+        badge: 'VM / Tier 2',
+        summary: '讀取 Python/bytecodes.c 中的位元組碼指令定義，產生直譯器分派表與 Tier 1 / Tier 2 / JIT 最佳化路徑。',
+        commands: [
+          'make regen-cases',
+          'python3 Tools/cases_generator/tier1_generator.py'
+        ],
+        details: [
+          'Python/bytecodes.c 定義了 CPython VM 的核心 opcode（如 LOAD_FAST、BINARY_OP、CALL 等）與堆疊效應中繼資料。',
+          '自動產出 Python/generated_cases.c.h，大幅降低手寫大型 switch(opcode) 維護錯誤。',
+          '同時支援特化快速路徑（Adaptive Specializing Interpreter）與 JIT 相關指令生成。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'peg_generator',
+        name: 'PEG Parser Generator (pegen)',
+        path: 'Tools/peg_generator/',
+        category: 'codegen',
+        categoryLabel: '程式碼生成與編譯',
+        badge: 'Grammar',
+        summary: '基於 PEG 的語法解析器產生器，讀取 Grammar/python.gram 並自動產出 C 語言解析器 Parser/parser.c。',
+        commands: [
+          'make regen-pegen',
+          'python3 -m pegen c Grammar/python.gram Grammar/Tokens -o Parser/parser.c'
+        ],
+        details: [
+          '每條語法規則會對應生成 C 函式（例如 file_rule()、statement_rule()、function_def_raw_rule()）。',
+          '產出的解析器透過 _PyPegen_parse() 與 Parser/pegen.c 銜接，將原始碼轉為抽象語法樹（AST）。',
+          '修改 Python 語法時必須透過 pegen 重新產生解析器，不可直接手改生成檔。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'jit',
+        name: 'JIT Compiler Tooling',
+        path: 'Tools/jit/',
+        category: 'codegen',
+        categoryLabel: '程式碼生成與編譯',
+        badge: 'JIT',
+        summary: '建置 CPython 內建 JIT 編譯器所需的模板建置與程式碼生成工具。',
+        commands: [
+          './configure --enable-experimental-jit',
+          'make -j'
+        ],
+        details: [
+          '協助在建置階段將位元組碼微指令編譯為各目標架構可用的 JIT 模板。',
+          '與 Tools/cases_generator/ 緊密協作，將 Tier 2 微指令管線銜接至原生機器碼執行。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'freeze',
+        name: 'CPython Freeze',
+        path: 'Tools/freeze/',
+        category: 'build',
+        categoryLabel: '打包與跨平台建置',
+        badge: '原生凍結',
+        summary: 'CPython 原始碼內建的凍結工具，將 Python 程式與標準庫轉為 C 陣列並編譯成獨立可執行檔。',
+        commands: [
+          'python3 Tools/freeze/freeze.py -o dist_c app.py',
+          'cd dist_c && make'
+        ],
+        details: [
+          '透過將 Python 模組位元組碼嵌入 C 原始碼中並靜態連結 CPython 直譯器，產生無須外部 .py 檔的執行檔。',
+          '限制：凍結模組預設沒有實體檔案系統路徑（__file__ 行為與一般模組不同），且非 Python 資源檔（資料檔、DLL）不會自動打包。',
+          '適合高度客製化或內嵌式 CPython 建置；一般桌面軟體通常改用 PyInstaller 或 Nuitka。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'build',
+        name: 'Build, Warnings & SBOM Tools',
+        path: 'Tools/build/',
+        category: 'build',
+        categoryLabel: '打包與跨平台建置',
+        badge: 'CI / SPDX',
+        summary: '包含編譯器警告追蹤（check_warnings.py）與軟體物料清單 SBOM 產生器（generate_sbom.py）等建置輔助腳本。',
+        commands: [
+          'make regen-sbom',
+          'python3 Tools/build/generate_sbom.py',
+          'python3 Tools/build/check_warnings.py'
+        ],
+        details: [
+          'check_warnings.py 搭配 .warningignore_ubuntu 與 .warningignore_macos，在 GitHub CI 中攔截新引入的 C 編譯器警告。',
+          'generate_sbom.py 產生 SPDX 格式的 Misc/sbom.spdx.json，追蹤 vendored 依賴（如 Modules/expat）以利 CVE / OSV 漏洞稽核。'
+        ],
+        docUrl: 'https://devguide.python.org/security/sbom/',
+        docLabel: 'Python Devguide — SBOM & Warnings'
+      },
+      {
+        id: 'wasm',
+        name: 'WebAssembly Tooling',
+        path: 'Tools/wasm/',
+        category: 'build',
+        categoryLabel: '打包與跨平台建置',
+        badge: 'WASI / Emscripten',
+        summary: '將 CPython 跨平台編譯與移植至 WebAssembly（WASI 與 Emscripten）環境的建置腳本。',
+        commands: [
+          'python3 Tools/wasm/wasi.py build'
+        ],
+        details: [
+          '支援將 CPython 編譯為可在瀏覽器（Emscripten）或伺服器端沙箱（WASI）運行的 WASM 模組。',
+          'Devguide 已將 WASI 與 Emscripten 列為正式文件化的建置目標平台。'
+        ],
+        docUrl: 'https://devguide.python.org/getting-started/',
+        docLabel: 'Python Devguide — Getting Started'
+      },
+      {
+        id: 'pixi',
+        name: 'Pixi Packages',
+        path: 'Tools/pixi-packages/',
+        category: 'build',
+        categoryLabel: '打包與跨平台建置',
+        badge: '下游建置',
+        summary: '提供給下游生態系從原始碼建置 CPython 時使用的 Pixi 套件定義檔。',
+        commands: [
+          'ls Tools/pixi-packages/'
+        ],
+        details: [
+          '協助維持可重現的建置相依環境，簡化從原始碼測試與打包 CPython 的流程。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'ftscalingbench',
+        name: 'Free-Threading Scaling Bench',
+        path: 'Tools/ftscalingbench/',
+        category: 'perf',
+        categoryLabel: '效能與並行基準',
+        badge: 'No-GIL / 3.15t',
+        summary: '專為 Free-Threading（無 GIL）建置設計的多執行緒擴展性基準測試集，用於找出並行瓶頸。',
+        commands: [
+          'python3.15t Tools/ftscalingbench/ftscalingbench.py'
+        ],
+        details: [
+          '量測多核心執行緒數增加時的實際加速比，協助發掘引用計數競爭、記憶體配置器或容器鎖的效能瓶頸。',
+          '對於評估 Python Free-Threaded 建置（如 python3.15t）的真實多核擴展性極具參考價值。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'lockbench',
+        name: 'Lock Bench',
+        path: 'Tools/lockbench/',
+        category: 'perf',
+        categoryLabel: '效能與並行基準',
+        badge: 'PyMutex',
+        summary: '針對 CPython 內部 PyMutex 與 Critical Sections 機制的微基準測試工具。',
+        commands: [
+          'python3 Tools/lockbench/lockbench.py'
+        ],
+        details: [
+          '在無 GIL 架構下，細粒度鎖（PyMutex）與臨界區（Critical Sections）取代了全域鎖；lockbench 用於評估高競爭情境下的鎖開銷。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'importbench',
+        name: 'Import Bench',
+        path: 'Tools/importbench/',
+        category: 'perf',
+        categoryLabel: '效能與並行基準',
+        badge: '啟動效能',
+        summary: '一組專注於量測各種模組 import 情境耗時的微基準測試集。',
+        commands: [
+          'python3 -m Tools.importbench'
+        ],
+        details: [
+          '用於量化 sys.meta_path、套件匯入與啟動延遲最佳化前後的差異。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'c_analyzer',
+        name: 'C Analyzer',
+        path: 'Tools/c-analyzer/',
+        category: 'analysis',
+        categoryLabel: '靜態分析與除錯',
+        badge: '全域狀態檢查',
+        summary: '靜態分析 CPython C 原始碼，確保未引入新的靜態或全域變數。',
+        commands: [
+          'python3 Tools/c-analyzer/check-c-globals.py'
+        ],
+        details: [
+          '隔離全域狀態是支援多子直譯器（Per-Interpreter GIL / concurrent.interpreters）與自由執行緒的關鍵前提。',
+          '此工具可在 CI 階段自動檢查 C 符號表並攔截未登記的全域變數。'
+        ],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        docLabel: 'CPython Tools/README'
+      },
+      {
+        id: 'tsan_inspection',
+        name: 'TSan & External Inspection',
+        path: 'Tools/tsan/ & Tools/inspection/',
+        category: 'analysis',
+        categoryLabel: '靜態分析與除錯',
+        badge: '除錯與競態偵測',
+        summary: 'Tools/tsan/ 協助以 ThreadSanitizer 建置 CPython 偵測資料競爭；Tools/inspection/ 支援外部安全除錯器介面。',
+        commands: [
+          './configure --with-thread-sanitizer --disable-gil',
+          'make -j'
+        ],
+        details: [
+          'TSan（ThreadSanitizer）搭配抑制清單可精準捕捉多執行緒存取共享物件時的 Data Race。',
+          'Devguide 亦提供 GDB 整合與各式 Sanitizer（ASan/UBSan/TSan）的完整建置與除錯指南。'
+        ],
+        docUrl: 'https://devguide.python.org/development-tools/',
+        docLabel: 'Python Devguide — Development Tools'
+      }
+    ];
+
+    const PACKAGING_OPTIONS = [
+      {
+        id: 'pyinstaller',
+        name: 'PyInstaller',
+        category: 'freeze',
+        categoryLabel: '凍結打包 (Freezing)',
+        needsPython: '否（內含直譯器）',
+        outputForm: '--onedir 目錄 / --onefile 單檔 / .app',
+        ipProtection: '低（打包 .pyc 位元組碼）',
+        mechanism: '不編譯 Python，而是將 CPython 直譯器、.pyc 位元組碼與動態函式庫打包；--onefile 啟動時自解壓至暫存目錄。',
+        bestFor: '快速打包、科學計算（NumPy / pandas / scipy）、廣泛第三方套件相容。',
+        keyFlags: ['-D / --onedir', '-F / --onefile', '-w / --noconsole', '-n / --name'],
+        docUrl: 'https://pyinstaller.org/en/stable/usage.html',
+        builderKey: 'pyinstaller'
+      },
+      {
+        id: 'nuitka',
+        name: 'Nuitka',
+        category: 'compile',
+        categoryLabel: '原生編譯 (AOT)',
+        needsPython: '否（嵌入 libpython）',
+        outputForm: '原生可執行檔 / 目錄 / .app / .so',
+        ipProtection: '高（轉譯為 C 並編譯機器碼）',
+        mechanism: '將 Python 原始碼轉譯為 C，再以 GCC 或 MSVC 編譯為原生二進位檔，支援 Multidist (--main) 共享模組。',
+        bestFor: 'CLI 或服務的候選封裝方式；啟動時間與可攜性須按同一環境實測。',
+        keyFlags: ['--mode=standalone', '--mode=onefile', '--mode=app', '--include-data-files'],
+        docUrl: 'https://nuitka.net/user-documentation/use-cases.html',
+        builderKey: 'nuitka'
+      },
+      {
+        id: 'cxfreeze',
+        name: 'cx_Freeze',
+        category: 'freeze',
+        categoryLabel: '凍結打包 (Freezing)',
+        needsPython: '否（內含直譯器）',
+        outputForm: '發行目錄（跨平台）',
+        ipProtection: '低（位元組碼）',
+        mechanism: '跨平台凍結腳本與 CPython 直譯器，採明確配置檔驅動，預設產出目錄而非單檔，執行效能與原腳本一致。',
+        bestFor: '已有 cx_Freeze 配置的既有專案，或偏好明確配置檔控制目錄結構的桌面工具。',
+        keyFlags: ['cxfreeze build', 'setup.py build_exe', '--target-dir'],
+        docUrl: 'https://github.com/marcelotduarte/cx_Freeze',
+        builderKey: 'cxfreeze'
+      },
+      {
+        id: 'cpython_freeze',
+        name: 'CPython Tools/freeze',
+        category: 'freeze',
+        categoryLabel: '凍結打包 (Freezing)',
+        needsPython: '否（靜態連結）',
+        outputForm: '原生靜態連結執行檔',
+        ipProtection: '中（位元組碼轉 C 陣列）',
+        mechanism: 'CPython 原始碼內建腳本，將 Python 模組轉為 C 陣列並連結直譯器；非 Python 資源檔需自行處理。',
+        bestFor: '自訂精簡版 CPython 執行期或嵌入式系統客製化建置。',
+        keyFlags: ['Tools/freeze/freeze.py', '-o DIR'],
+        docUrl: 'https://github.com/python/cpython/blob/master/Tools/README',
+        builderKey: 'pyinstaller'
+      },
+      {
+        id: 'pyapp',
+        name: 'PyApp (Rust / Hatch)',
+        category: 'bootstrap',
+        categoryLabel: '執行期自舉 (Bootstrap)',
+        needsPython: '否（自動下載/內嵌）',
+        outputForm: '輕量 Rust 單檔啟動器',
+        ipProtection: '低（安裝標準 wheel）',
+        mechanism: '以 Rust 撰寫的執行期安裝器，首次執行自動引導建置 Python 與相依套件，支援 self update 與 Hatch binary 目標。',
+        bestFor: '需要自動更新機制的跨平台 CLI 工具與開發者應用程式。',
+        keyFlags: ['hatch build -t binary', 'PYAPP_PROJECT_NAME', 'self update'],
+        docUrl: 'https://github.com/ofek/pyapp',
+        builderKey: 'wheel'
+      },
+      {
+        id: 'briefcase',
+        name: 'Briefcase (BeeWare)',
+        category: 'bootstrap',
+        categoryLabel: '原生應用封裝',
+        needsPython: '否（打包原生執行期）',
+        outputForm: 'MSI / DMG / AppImage / iOS / Android',
+        ipProtection: '低至中',
+        mechanism: '將 Python 專案轉換為各作業系統原生應用程式與標準安裝包，支援桌面、行動裝置與 Web 平台。',
+        bestFor: '跨平台原生 GUI 應用程式（Windows、macOS、Linux、iOS、Android）。',
+        keyFlags: ['briefcase create', 'briefcase build', 'briefcase package'],
+        docUrl: 'https://beeware.org/docs/',
+        builderKey: 'wheel'
+      },
+      {
+        id: 'zipapp',
+        name: 'zipapp (標準庫)',
+        category: 'zip',
+        categoryLabel: '可執行壓縮檔',
+        needsPython: '是（需目標機裝 Python）',
+        outputForm: '單一 .pyz 檔案',
+        ipProtection: '低（純 ZIP 歸檔）',
+        mechanism: 'Python 3.5+ 內建 Lib/zipapp.py，將專案打包為含 __main__.py 與 Shebang 的可執行 ZIP 檔。',
+        bestFor: '純 Python 內部工具、免外部打包依賴的輕量 CLI 分發。',
+        keyFlags: ['-m zipapp', '-p "/usr/bin/env python3"', '-c (壓縮)', '-o app.pyz'],
+        docUrl: 'https://docs.python.org/3/library/zipapp.html',
+        builderKey: 'zipapp'
+      },
+      {
+        id: 'pex_shiv',
+        name: 'PEX / Shiv',
+        category: 'zip',
+        categoryLabel: '可執行壓縮檔',
+        needsPython: '是（需對應版本 Python）',
+        outputForm: '單一 .pex / .pyz 封裝檔',
+        ipProtection: '低',
+        mechanism: '基於 zipapp 擴充，將專案與第三方 wheel 相依套件封裝為單一可執行歸檔，執行時隔離環境。',
+        bestFor: 'Linux 伺服器部署、容器內部工具、CI/CD 固定環境腳本。',
+        keyFlags: ['pex -r requirements.txt -o app.pex', 'shiv -c cli -o app.pyz .'],
+        docUrl: 'https://pyoxidizer.readthedocs.io/en/stable/pyoxidizer_comparisons.html',
+        builderKey: 'zipapp'
+      },
+      {
+        id: 'wheel_sdist',
+        name: 'Wheel (.whl) & sdist (Hatch / uv)',
+        category: 'dist',
+        categoryLabel: 'PyPI 套件分發標準',
+        needsPython: '是（pip / uv 安裝）',
+        outputForm: '.whl 預建置包 + .tar.gz 原始碼包',
+        ipProtection: '低（開源/套件分發）',
+        mechanism: '依 pyproject.toml 透過建置後端（Hatchling、Setuptools）產生標準 Wheel 與 sdist，發佈至 PyPI 或私有倉庫。',
+        bestFor: '提供給開發者透過 pip / uv 安裝的 Python 函式庫與工具套件。',
+        keyFlags: ['python3 -m build', 'hatch build', 'uv build'],
+        docUrl: 'https://packaging.python.org/tutorials/packaging-projects/',
+        builderKey: 'wheel'
+      }
+    ];
+
+    const ARCH_FLOWS = {
+      pyinstaller: {
+        nodes: [
+          { title: 'Python 原始碼', sub: '.py + 第三方套件 + 資料檔', color: '#f1f5f9', stroke: '#94a3b8', text: '#0f172a' },
+          { title: 'PyInstaller 分析', sub: '掃描 imports 與 Hooks\n編譯為 .pyc 位元組碼', color: '#eef2ff', stroke: '#6366f1', text: '#312e81' },
+          { title: 'Bootloader 封裝', sub: '嵌入 CPython 直譯器\n--onedir 或 --onefile', color: '#fef3c7', stroke: '#f59e0b', text: '#78350f' },
+          { title: '目標端執行', sub: 'onefile 自解壓至暫存區\n啟動內建直譯器執行', color: '#ecfdf5', stroke: '#10b981', text: '#065f46' }
+        ],
+        caption: 'PyInstaller 屬於「凍結打包」：不將 Python 編譯為機器碼，而是將 CPython 直譯器、DLL 與 .pyc 位元組碼打包在一起。優點是建置快且對 NumPy/pandas 等科學計算套件相容性極佳；缺點是 --onefile 模式啟動時需解壓縮，且 .pyc 較容易被反編譯。'
+      },
+      nuitka: {
+        nodes: [
+          { title: 'Python 原始碼', sub: '.py 模組與相依套件', color: '#f1f5f9', stroke: '#94a3b8', text: '#0f172a' },
+          { title: 'Nuitka C 轉譯', sub: '將 Python AST 轉譯為\n最佳化 C 原始碼', color: '#eef2ff', stroke: '#6366f1', text: '#312e81' },
+          { title: '原生編譯器編譯', sub: 'GCC / MSVC 編譯機器碼\n並連結 libpython', color: '#fef3c7', stroke: '#f59e0b', text: '#78350f' },
+          { title: '原生二進位執行', sub: '編譯主模組；效能依工作負載\n提高分析門檻，但不能防逆向', color: '#ecfdf5', stroke: '#10b981', text: '#065f46' }
+        ],
+        caption: 'Nuitka 屬於「真正 AOT 原生編譯」：將 Python 程式碼轉成 C 再透過 GCC/MSVC 編譯為原生機器碼。建置時間較長（屬於 CI/CD 成本），效能取決於工作負載及封裝模式，不能當成固定提升或防逆向保證；官方建議先以 --mode=standalone 驗證資料檔，再切至 --mode=onefile。'
+      },
+      pyapp: {
+        nodes: [
+          { title: '專案 Wheel / 套件', sub: '標準 pyproject.toml 套件', color: '#f1f5f9', stroke: '#94a3b8', text: '#0f172a' },
+          { title: 'Rust 啟動器建置', sub: 'PyApp / Hatch binary\n編譯輕量原生入口檔', color: '#eef2ff', stroke: '#6366f1', text: '#312e81' },
+          { title: '首次執行自舉', sub: '自動取得獨立 Python\n建立隔離環境並安裝', color: '#fef3c7', stroke: '#f59e0b', text: '#78350f' },
+          { title: '常駐執行與更新', sub: '後續秒速啟動\n支援內建 self update', color: '#ecfdf5', stroke: '#10b981', text: '#065f46' }
+        ],
+        caption: 'PyApp 屬於「執行期自舉 (Runtime Installer)」：透過極輕量的 Rust 二進位檔作為包裝，於終端首次執行時自動佈署獨立 Python（如 python-build-standalone）與專案套件，並提供內建管理指令（例如自我更新），亦已整合為 Hatch 的 binary 建置目標。'
+      },
+      zipapp: {
+        nodes: [
+          { title: '純 Python 專案', sub: '含 __main__.py 入口', color: '#f1f5f9', stroke: '#94a3b8', text: '#0f172a' },
+          { title: 'python3 -m zipapp', sub: '標準庫打包為 ZIP\n寫入 Shebang 標頭', color: '#eef2ff', stroke: '#6366f1', text: '#312e81' },
+          { title: '單一 .pyz 歸檔', sub: '體積極小（KB~MB）\n跨平台純位元組碼/原始碼', color: '#fef3c7', stroke: '#f59e0b', text: '#78350f' },
+          { title: '系統 Python 執行', sub: '透過 zipimport 直接載入\n需目標機預裝 Python', color: '#ecfdf5', stroke: '#10b981', text: '#065f46' }
+        ],
+        caption: 'zipapp 是 Python 3.5+ 標準庫內建模組（Lib/zipapp.py），零外部依賴即可產出單一 .pyz 可執行壓縮檔。適合目標環境已安裝 Python 的內部工具；若需一併封裝含 C 擴充的第三方 wheel，可進一步選用 PEX 或 Shiv。'
+      },
+      wheel: {
+        nodes: [
+          { title: 'pyproject.toml 專案', sub: '原始碼與中繼資料宣告', color: '#f1f5f9', stroke: '#94a3b8', text: '#0f172a' },
+          { title: 'Build Backend', sub: 'Hatchling / Setuptools\n執行建置流程', color: '#eef2ff', stroke: '#6366f1', text: '#312e81' },
+          { title: 'Wheel + sdist', sub: '.whl (免建置直接安裝)\n.tar.gz (原始碼封裝)', color: '#fef3c7', stroke: '#f59e0b', text: '#78350f' },
+          { title: 'PyPI / 私有套件庫', sub: '開發者以 pip / uv 安裝\n標準 Python 生態分發', color: '#ecfdf5', stroke: '#10b981', text: '#065f46' }
+        ],
+        caption: 'Wheel (.whl) 與 Source Distribution (.tar.gz) 是 PyPA 制定的官方標準套件分發格式。Wheel 為預建置格式，安裝時無須在目標端重新編譯；搭配 Hatch、uv 或 build 工具，是發佈函式庫與開發者工具的黃金標準。'
+      }
+    };
+
+    const SO_METHODS = [
+      {
+        id: 'nuitka_module',
+        name: 'Nuitka 編譯 .so 擴充模組',
+        category: 'compile',
+        categoryLabel: '路線 A：編譯 .py 為 .so',
+        badge: '--mode=module',
+        summary: '將純 Python 模組或整個套件轉譯為 C 並編譯為原生 .so 擴充模組，無須改寫 Cython 語法即可兼顧加速與原始碼保護。',
+        commands: [
+          'python3 -m nuitka --mode=module some_module.py',
+          'python3 -m nuitka --mode=module --include-package=my_pkg --nofollow-import-to="*.tests" my_pkg'
+        ],
+        notes: [
+          '檔名不可隨意更名：CPython 透過模組名尋找 PyInit_<name> 進入點，改名會導致 ImportError。',
+          '僅能載入於相同 CPython 次版本，且單一擴充模組不會內含其他 C 擴充模組或資料檔（需改打包成 Wheel）。'
+        ],
+        docUrl: 'https://nuitka.net/user-documentation/use-cases.html',
+        docLabel: 'Nuitka Extension Module 文件',
+        builderKey: 'nuitka_so'
+      },
+      {
+        id: 'cython_ext',
+        name: 'Cython 編譯 .py / .pyx 為 .so',
+        category: 'compile',
+        categoryLabel: '路線 A：編譯 .py 為 .so',
+        badge: 'build_ext / gcc',
+        summary: '透過 setuptools + cythonize() 或 cython 轉 .c 後以 gcc -shared -fPIC 編譯為原生 .so，適合計算密集熱點最佳化與封裝 C/C++ API。',
+        commands: [
+          'python3 setup.py build_ext --inplace',
+          'cython -3 core.pyx -o core.c && gcc -O2 -shared -fPIC core.c $(python3-config --includes --ldflags) -o core.so'
+        ],
+        notes: [
+          '若同一目錄同時存在 foo.py 與編譯後的 foo.cpython-*.so，Python import 會優先載入 .so。',
+          '發佈時搭配 pyproject.toml 與 cibuildwheel 可自動為多版本 Python 建置含 .so 的二進位 Wheel。'
+        ],
+        docUrl: 'https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html',
+        docLabel: 'Cython C 擴充編譯指南',
+        builderKey: 'cython_so'
+      },
+      {
+        id: 'auditwheel_repair',
+        name: 'auditwheel 封裝外部 .so 進 Wheel',
+        category: 'bundle',
+        categoryLabel: '路線 B：打包既有 .so',
+        badge: 'manylinux .whl',
+        summary: '針對依賴系統外部 .so 的 Linux Wheel，自動將外部共享函式庫複製進 Wheel 並改寫 ELF RPATH 與 manylinux 平台標籤。',
+        commands: [
+          'export LD_LIBRARY_PATH=/usr/local/lib && python3 -m build --wheel',
+          'auditwheel repair dist/my_pkg-1.0.0-cp315-cp315-linux_x86_64.whl'
+        ],
+        notes: [
+          'auditwheel 專用於 Linux（macOS 對應工具為 delocate），修復後的 Wheel 會輸出於 wheelhouse/ 目錄。',
+          '為避免綁定過新的 glibc 符號版本，跨發行版發佈應在官方 manylinux 容器環境內編譯與執行 repair。'
+        ],
+        docUrl: 'https://pypi.org/project/auditwheel/',
+        docLabel: 'PyPA auditwheel 官方頁面',
+        builderKey: 'auditwheel_so'
+      },
+      {
+        id: 'pyinstaller_binary',
+        name: 'PyInstaller 封裝 .so 進獨立執行檔',
+        category: 'bundle',
+        categoryLabel: '路線 B：打包既有 .so',
+        badge: '--add-binary',
+        summary: '當程式透過 ctypes 動態載入自訂 .so 而未被自動偵測時，透過 --add-binary 或 .spec 的 binaries= 宣告打包並自動追蹤下層相依庫。',
+        commands: [
+          'pyinstaller --onedir --add-binary "libs/libcustom.so:libs" app.py',
+          '# 或於 .spec 中設定：Analysis(..., binaries=[("libs/libcustom.so", "libs")])'
+        ],
+        notes: [
+          '動態函式庫 (.so / .dll / .dylib) 務必使用 --add-binary 而非 --add-data，PyInstaller 才會遞迴掃描其二進位依賴。',
+          'Linux/macOS 使用冒號 (:) 分隔來源與執行期目標目錄，Windows 則使用分號 (;)。'
+        ],
+        docUrl: 'https://pyinstaller.org/en/stable/spec-files.html',
+        docLabel: 'PyInstaller Adding Binary Files 文件',
+        builderKey: 'pyinstaller'
+      }
+    ];
+
+    const MULTIPLATFORM_MATRIX = [
+      {
+        dim: 'Python 擴充模組產物',
+        linux: 'mod.cpython-315-x86_64-linux-gnu.so',
+        macos: 'mod.cpython-315-darwin.so',
+        windows: 'mod.cp315-win_amd64.pyd（本質為 DLL）'
+      },
+      {
+        dim: '外部 C/C++ 共享庫',
+        linux: 'lib*.so（ELF，支援 RPATH / RUNPATH）',
+        macos: 'lib*.dylib（Mach-O，支援 @rpath / @loader_path）',
+        windows: '*.dll（PE，無 RPATH，須同目錄或 os.add_dll_directory）'
+      },
+      {
+        dim: 'Wheel 依賴修復工具',
+        linux: 'auditwheel repair（寫入 manylinux 標籤與 RPATH）',
+        macos: 'delocate-wheel（打包非系統 .dylib 並重寫載入路徑）',
+        windows: 'delvewheel repair（打包非系統 .dll 並注入載入修補）'
+      },
+      {
+        dim: '排除的系統內建庫',
+        linux: 'manylinux 白名單（如 libm.so.6、libz.so.1、libstdc++.so.6）',
+        macos: '/usr/lib/* 與 /System/Library/* 系統框架',
+        windows: 'Windows 系統 DLL（如 kernel32.dll、user32.dll）'
+      },
+      {
+        dim: 'PyPI Wheel 平台標籤',
+        linux: 'manylinux_2_28_x86_64 / aarch64、musllinux_1_2',
+        macos: 'macosx_15_0_arm64 / x86_64 / universal2',
+        windows: 'win_amd64 / win_arm64'
+      },
+      {
+        dim: '獨立執行檔 / 安裝包',
+        linux: 'ELF 執行檔 / 目錄、AppImage（Briefcase）',
+        macos: 'UNIX 執行檔、.app Bundle（--windowed / --mode=app）、.dmg',
+        windows: '.exe、無主控台 GUI（--noconsole）、NSIS -setup.exe、.msi'
+      },
+      {
+        dim: 'PyInstaller 二進位分隔符',
+        linux: '冒號 (:) — --add-binary "libfoo.so:libs"',
+        macos: '冒號 (:) — --add-binary "libfoo.dylib:libs"',
+        windows: '分號 (;) — --add-binary "foo.dll;libs"'
+      },
+      {
+        dim: '建置與部署關鍵注意',
+        linux: '須防高版本 glibc 符號不相容，建議於 manylinux 容器建置',
+        macos: 'SIP 會清除子程序 DYLD_LIBRARY_PATH；發佈需考量 codesign',
+        windows: 'C++ 擴充建議使用與 CPython 相符的 MSVC 執行期（避免 MinGW 混用）'
+      }
+    ];
+
+        const SO_CHECKLIST = [
+      { id: 'chk_pyinit', title: '保留原始模組檔名（PyInit_ 符號一致）', desc: '編譯後的 .so 不可隨意更名，否則 CPython 找不到 PyInit_<模組名> 進入點。' },
+      { id: 'chk_abi', title: '核對 CPython 版本與 ABI 標籤', desc: '版本專屬 GIL 與 free-threaded 擴充不可混用；3.15 另有 abi3t，須工具鏈支援且核對 wheel metadata。' },
+      { id: 'chk_glibc', title: '驗證 Linux glibc 與 manylinux 相容性', desc: '跨主機分發請於 manylinux 容器建置並用 auditwheel show / repair 檢查外部動態庫符號。' },
+      { id: 'chk_binary_flag', title: '區分二進位庫與靜態資料檔', desc: '打包 .so 請用 PyInstaller --add-binary 或 auditwheel，勿誤放至僅供文字/圖片使用的 datas。' }
+    ];
+
+    // ===================== APP STATE =====================
+    const state = {
+      activeTab: 'tools',
+      toolCategory: 'all',
+      toolSearch: '',
+      selectedToolId: 'clinic',
+      pkgCategory: 'all',
+      selectedArch: 'pyinstaller',
+      soCategory: 'all',
+      soChecks: {},
+      mpHighlightOS: 'all',
+      mpSim: { os: 'linux_x86_64', py: 'cp315', abi: 'versioned' },
+      wizard: {
+        pythonPreinstalled: 'no',
+        appType: 'cli',
+        ipProtection: 'low',
+        targetOS: 'desktop',
+        priority: 'startup'
+      },
+      builder: {
+        tool: 'pyinstaller',
+        entry: 'app.py',
+        name: 'my_tool',
+        pyinstallerMode: '--onedir',
+        windowed: false,
+        addData: false,
+        dataSrc: 'assets',
+        dataDst: 'assets',
+        nuitkaMode: '--mode=standalone',
+        followImports: true,
+        multidist: false,
+        multidistEntry: 'worker.py',
+        zipShebang: '/usr/bin/env python3',
+        zipCompress: true,
+        wheelBackend: 'uv',
+        addBinary: false,
+        binarySrc: 'libs/libcustom.so',
+        binaryDst: 'libs',
+        soIncludePkg: false,
+        cythonMethod: 'setuptools',
+        wheelFile: 'dist/my_pkg-1.0.0-cp315-cp315-linux_x86_64.whl',
+        ldLibPath: '/usr/local/lib'
+      }
+    };
+
+    let wizardChartInstance = null;
+
+    // ===================== UTILITIES =====================
+    function showToast(msg) {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = 'toast-enter pointer-events-auto bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 mb-2';
+      el.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i><span>${escapeHtml(msg)}</span>`;
+      container.appendChild(el);
+      lucide.createIcons({ nodes: [el] });
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.25s ease';
+        setTimeout(() => el.remove(), 260);
+      }, 2400);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function copyText(text, label) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(`已複製${label || '指令'}至剪貼簿`);
+        }).catch(() => fallbackCopy(text, label));
+      } else {
+        fallbackCopy(text, label);
+      }
+    }
+
+    function fallbackCopy(text, label) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(`已複製${label || '指令'}至剪貼簿`);
+      } catch (e) {
+        showToast('無法自動複製，請手動選取指令');
+      }
+      document.body.removeChild(ta);
+    }
+
+    // ===================== TAB SWITCHING =====================
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      ['tools', 'packaging', 'wizard', 'so-guide', 'builder'].forEach((id) => {
+        const panel = document.getElementById(`panel-${id}`);
+        if (panel) panel.classList.toggle('hidden', id !== tabId);
+      });
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+      });
+      if (tabId === 'wizard') {
+        renderWizard();
+      } else if (tabId === 'packaging') {
+        renderArchSvg();
+      }
+    }
+
+    // ===================== TAB 1: CPYTHON TOOLS =====================
+    function renderToolsList() {
+      const grid = document.getElementById('tools-grid');
+      const query = state.toolSearch.trim().toLowerCase();
+      const filtered = CPYTHON_TOOLS.filter((t) => {
+        const matchCat = state.toolCategory === 'all' || t.category === state.toolCategory;
+        const matchQuery = !query ||
+          t.name.toLowerCase().includes(query) ||
+          t.path.toLowerCase().includes(query) ||
+          t.summary.toLowerCase().includes(query) ||
+          t.badge.toLowerCase().includes(query);
+        return matchCat && matchQuery;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">找不到符合「${escapeHtml(state.toolSearch)}」的工具項目，請嘗試其他關鍵字。</div>`;
+        return;
+      }
+
+      if (!filtered.some((t) => t.id === state.selectedToolId)) {
+        state.selectedToolId = filtered[0].id;
+      }
+
+      grid.innerHTML = filtered.map((tool) => {
+        const isSelected = tool.id === state.selectedToolId;
+        return `
+          <button type="button" data-tool-id="${tool.id}" class="tool-card-btn text-left p-4 rounded-2xl border transition card-hover ${
+            isSelected
+              ? 'bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20'
+              : 'bg-white border-slate-200 hover:border-indigo-300'
+          }">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <span class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(tool.name)}</span>
+              <span class="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+              }">${escapeHtml(tool.badge)}</span>
+            </div>
+            <div class="font-mono text-[11px] text-indigo-700 mb-2 truncate">${escapeHtml(tool.path)}</div>
+            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">${escapeHtml(tool.summary)}</p>
+          </button>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('.tool-card-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.selectedToolId = btn.dataset.toolId;
+          renderToolsList();
+          renderToolDetail();
+        });
+      });
+
+      renderToolDetail();
+    }
+
+    function renderToolDetail() {
+      const panel = document.getElementById('tool-detail-panel');
+      const tool = CPYTHON_TOOLS.find((t) => t.id === state.selectedToolId) || CPYTHON_TOOLS[0];
+      panel.innerHTML = `
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <span class="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 mb-1.5">${escapeHtml(tool.categoryLabel)}</span>
+            <h3 class="text-xl font-bold text-slate-900">${escapeHtml(tool.name)}</h3>
+            <div class="font-mono text-xs text-slate-500 mt-0.5">${escapeHtml(tool.path)}</div>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg bg-slate-900 text-amber-300 text-xs font-mono font-semibold">${escapeHtml(tool.badge)}</span>
+        </div>
+
+        <p class="text-sm text-slate-700 leading-relaxed mb-4">${escapeHtml(tool.summary)}</p>
+
+        <div class="mb-4">
+          <div class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">常用執行指令</div>
+          <div class="space-y-2">
+            ${tool.commands.map((cmd, idx) => `
+              <div class="code-surface rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <code class="text-xs text-emerald-300 break-all">${escapeHtml(cmd)}</code>
+                <button type="button" data-copy-idx="${idx}" class="copy-tool-cmd shrink-0 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="複製指令">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <div class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">技術重點與注意事項</div>
+          <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
+            ${tool.details.map((d) => `
+              <li class="flex items-start gap-2">
+                <i data-lucide="chevron-right" class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5"></i>
+                <span>${escapeHtml(d)}</span>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <a href="${tool.docUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            <span>${escapeHtml(tool.docLabel)}</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+      `;
+
+      panel.querySelectorAll('.copy-tool-cmd').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const cmd = tool.commands[Number(btn.dataset.copyIdx)];
+          copyText(cmd, '指令');
+        });
+      });
+
+      lucide.createIcons({ nodes: [panel] });
+    }
+
+    // ===================== TAB 2: PACKAGING OVERVIEW =====================
+    function renderArchSvg() {
+      const svg = document.getElementById('packaging-arch-svg');
+      const caption = document.getElementById('arch-caption');
+      const flow = ARCH_FLOWS[state.selectedArch] || ARCH_FLOWS.pyinstaller;
+
+      const boxW = 195;
+      const boxH = 104;
+      const gap = 36;
+      const startX = 16;
+      const y = 40;
+
+      let markup = `
+        <defs>
+          <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+          </marker>
+        </defs>
+      `;
+
+      flow.nodes.forEach((node, i) => {
+        const x = startX + i * (boxW + gap);
+        const cx = x + boxW / 2;
+        const lines = node.sub.split('\n');
+        markup += `
+          <text x="${cx}" y="24" text-anchor="middle" fill="#64748b" font-size="11.5" font-weight="700">階段 ${i + 1}</text>
+          <rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="12" fill="${node.color}" stroke="${node.stroke}" stroke-width="1.8" />
+          <text x="${cx}" y="${y + 34}" text-anchor="middle" fill="${node.text}" font-size="13" font-weight="700">${escapeHtml(node.title)}</text>
+          ${lines.map((ln, li) => `<text x="${cx}" y="${y + 58 + li * 18}" text-anchor="middle" fill="#475569" font-size="11">${escapeHtml(ln)}</text>`).join('')}
+        `;
+        if (i < flow.nodes.length - 1) {
+          const x1 = x + boxW;
+          const x2 = x + boxW + gap - 4;
+          const my = y + boxH / 2;
+          markup += `<line x1="${x1}" y1="${my}" x2="${x2}" y2="${my}" stroke="#475569" stroke-width="2" marker-end="url(#arch-arrow)" />`;
+        }
+      });
+
+      svg.innerHTML = markup;
+      caption.textContent = flow.caption;
+    }
+
+    function renderPackagingSection() {
+      const cardsGrid = document.getElementById('packaging-cards-grid');
+      const tableBody = document.getElementById('packaging-table-body');
+      const filtered = PACKAGING_OPTIONS.filter(
+        (p) => state.pkgCategory === 'all' || p.category === state.pkgCategory
+      );
+
+      cardsGrid.innerHTML = filtered.map((pkg) => `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between card-hover">
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <h3 class="font-bold text-slate-900 text-base">${escapeHtml(pkg.name)}</h3>
+              <span class="shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">${escapeHtml(pkg.categoryLabel)}</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-3">${escapeHtml(pkg.mechanism)}</p>
+            <div class="space-y-1.5 text-xs text-slate-700 bg-slate-50 rounded-xl p-3 mb-3">
+              <div><span class="font-semibold text-slate-900">需預裝 Python：</span>${escapeHtml(pkg.needsPython)}</div>
+              <div><span class="font-semibold text-slate-900">智財保護：</span>${escapeHtml(pkg.ipProtection)}</div>
+              <div><span class="font-semibold text-slate-900">適用場景：</span>${escapeHtml(pkg.bestFor)}</div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mb-4">
+              ${pkg.keyFlags.map((f) => `<span class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 text-emerald-300">${escapeHtml(f)}</span>`).join('')}
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <a href="${pkg.docUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+              <span>官方文件</span>
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+            <button type="button" data-open-builder="${pkg.builderKey}" class="open-builder-btn text-xs font-semibold text-slate-700 hover:text-indigo-700 inline-flex items-center gap-1">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+              <span>前往指令產生器</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      cardsGrid.querySelectorAll('.open-builder-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.builder.tool = btn.dataset.openBuilder;
+          document.getElementById('bld-tool').value = state.builder.tool;
+          renderBuilderOptions();
+          renderBuilderCommand();
+          switchTab('builder');
+        });
+      });
+
+      tableBody.innerHTML = filtered.map((pkg) => `
+        <tr class="hover:bg-slate-50/80">
+          <td class="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">
+            <a href="${pkg.docUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-700 hover:underline">${escapeHtml(pkg.name)}</a>
+          </td>
+          <td class="py-3 px-4 text-slate-600 max-w-xs">${escapeHtml(pkg.mechanism)}</td>
+          <td class="py-3 px-4 whitespace-nowrap text-slate-700">${escapeHtml(pkg.needsPython)}</td>
+          <td class="py-3 px-4 text-slate-700">${escapeHtml(pkg.outputForm)}</td>
+          <td class="py-3 px-4 whitespace-nowrap text-slate-700">${escapeHtml(pkg.ipProtection)}</td>
+          <td class="py-3 px-4 text-slate-600 max-w-xs">${escapeHtml(pkg.bestFor)}</td>
+        </tr>
+      `).join('');
+
+      lucide.createIcons({ nodes: [cardsGrid] });
+    }
+
+    function exportMatrixCSV() {
+      const headers = ['工具名稱', '分類', '需目標機裝Python', '產出型態', '智財保護', '核心原理', '適用場景', '官方文件URL'];
+      const rows = PACKAGING_OPTIONS.map((p) => [
+        p.name, p.categoryLabel, p.needsPython, p.outputForm, p.ipProtection, p.mechanism, p.bestFor, p.docUrl
+      ]);
+      const csvLines = [headers, ...rows].map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      );
+      const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      triggerDownload(blob, 'cpython_packaging_comparison.csv');
+      showToast('已匯出 CSV 比較矩陣');
+    }
+
+    function exportMatrixJSON() {
+      const payload = {
+        exported_at: new Date().toISOString(),
+        cpython_tools: CPYTHON_TOOLS,
+        packaging_options: PACKAGING_OPTIONS
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      triggerDownload(blob, 'cpython_tools_and_packaging.json');
+      showToast('已匯出 JSON 完整資料');
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // ===================== TAB 3: DECISION WIZARD =====================
+    function computeWizardScores() {
+      const w = state.wizard;
+      const scored = PACKAGING_OPTIONS.map((pkg) => {
+        let score = 45;
+        const reasons = [];
+
+        // 1. Python preinstalled
+        if (w.pythonPreinstalled === 'no') {
+          if (['pyinstaller', 'nuitka', 'cxfreeze', 'pyapp', 'briefcase', 'cpython_freeze'].includes(pkg.id)) {
+            score += 22;
+            reasons.push('無須目標端預裝 Python 即可獨立執行');
+          } else {
+            score -= 32;
+          }
+        } else if (w.pythonPreinstalled === 'yes') {
+          if (['zipapp', 'pex_shiv', 'wheel_sdist'].includes(pkg.id)) {
+            score += 24;
+            reasons.push('善用目標端現有 Python，檔案極度輕量');
+          } else if (['nuitka', 'pyinstaller'].includes(pkg.id)) {
+            score += 6;
+          }
+        } else if (w.pythonPreinstalled === 'pypi') {
+          if (pkg.id === 'wheel_sdist') {
+            score += 45;
+            reasons.push('PyPI 套件與開發者函式庫的官方標準格式');
+          } else {
+            score -= 25;
+          }
+        }
+
+        // 2. App type
+        if (w.appType === 'cli') {
+          if (pkg.id === 'nuitka') { score += 16; reasons.push('原生編譯啟動迅速，極適合高頻呼叫的 CLI'); }
+          if (pkg.id === 'pyapp') { score += 15; reasons.push('Rust 啟動器支援自我更新與 CLI 分發'); }
+          if (pkg.id === 'zipapp' && w.pythonPreinstalled === 'yes') { score += 18; reasons.push('純 Python CLI 零依賴打包為 .pyz'); }
+          if (pkg.id === 'pyinstaller') { score += 8; }
+        } else if (w.appType === 'datascience') {
+          if (pkg.id === 'pyinstaller') { score += 24; reasons.push('擁有最成熟的 NumPy/pandas/scipy Hook 支援'); }
+          if (pkg.id === 'cxfreeze') { score += 10; }
+          if (pkg.id === 'nuitka') { score += 6; }
+          if (pkg.id === 'zipapp') { score -= 20; }
+        } else if (w.appType === 'web') {
+          if (pkg.id === 'nuitka') { score += 20; reasons.push('FastAPI/Uvicorn 與 Flask 單行程服務編譯穩定'); }
+          if (pkg.id === 'pex_shiv') { score += 14; reasons.push('適合伺服器端隔離依賴快速佈署'); }
+          if (pkg.id === 'pyinstaller') { score += 6; }
+        } else if (w.appType === 'gui') {
+          if (pkg.id === 'briefcase') { score += 26; reasons.push('專為跨平台原生 GUI 與系統安裝包設計'); }
+          if (pkg.id === 'pyinstaller') { score += 14; reasons.push('支援 --windowed / --noconsole 隱藏終端視窗'); }
+          if (pkg.id === 'nuitka') { score += 12; reasons.push('支援 --mode=app 建立 macOS 原生 App Bundle'); }
+        } else if (w.appType === 'lib') {
+          if (pkg.id === 'wheel_sdist') { score += 35; reasons.push('標準 .whl / sdist 供其他專案匯入使用'); }
+          else { score -= 18; }
+        }
+
+        // 3. IP Protection
+        if (w.ipProtection === 'high') {
+          if (pkg.id === 'nuitka') { score += 22; reasons.push('轉譯為 C 編譯成原生機器碼，大幅提高逆向難度'); }
+          else if (pkg.id === 'cpython_freeze') { score += 6; }
+          else { score -= 12; }
+        }
+
+        // 4. Target OS
+        if (w.targetOS === 'mobile_native') {
+          if (pkg.id === 'briefcase') { score += 28; reasons.push('少數原生支援 iOS / Android / 桌面多平台的工具'); }
+          else { score -= 10; }
+        } else if (w.targetOS === 'linux_srv') {
+          if (pkg.id === 'pex_shiv') { score += 14; reasons.push('Linux 伺服器環境高度盛行'); }
+          if (pkg.id === 'nuitka') { score += 10; }
+          if (pkg.id === 'zipapp') { score += 8; }
+        }
+
+        // 5. Priority
+        if (w.priority === 'startup') {
+          if (pkg.id === 'nuitka') { score += 14; reasons.push('免去執行期解壓縮，啟動與執行速度優勢明顯'); }
+          if (pkg.id === 'zipapp') { score += 6; }
+        } else if (w.priority === 'fastbuild') {
+          if (pkg.id === 'pyinstaller') { score += 16; reasons.push('無須 C 編譯階段，日常迭代打包速度最快'); }
+          if (pkg.id === 'zipapp') { score += 12; }
+          if (pkg.id === 'nuitka') { score -= 8; }
+        } else if (w.priority === 'selfupdate') {
+          if (pkg.id === 'pyapp') { score += 22; reasons.push('原生內建 self update 等執行期管理指令'); }
+        }
+
+        const clamped = Math.max(5, Math.min(99, score));
+        return {
+          ...pkg,
+          score: clamped,
+          reasons: reasons.length > 0 ? reasons.slice(0, 2) : [pkg.bestFor]
+        };
+      });
+
+      return scored.sort((a, b) => b.score - a.score);
+    }
+
+    function renderWizard() {
+      const results = computeWizardScores();
+      const top3El = document.getElementById('wizard-top3');
+
+      top3El.innerHTML = results.slice(0, 3).map((item, idx) => {
+        const medals = ['bg-amber-100 text-amber-800 border-amber-300', 'bg-slate-100 text-slate-700 border-slate-300', 'bg-orange-50 text-orange-800 border-orange-200'];
+        return `
+          <div class="p-4 rounded-xl border ${idx === 0 ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200 bg-white'} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-md border ${medals[idx]}">#${idx + 1}</span>
+                <span class="font-bold text-slate-900 text-sm sm:text-base">${escapeHtml(item.name)}</span>
+                <span class="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">適配度 ${item.score} / 100</span>
+              </div>
+              <p class="text-xs text-slate-600">${escapeHtml(item.reasons.join('；'))}</p>
+            </div>
+            <button type="button" data-wiz-builder="${item.builderKey}" class="wiz-to-builder shrink-0 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-700 text-white text-xs font-semibold transition">
+              載入指令產生器
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      top3El.querySelectorAll('.wiz-to-builder').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.builder.tool = btn.dataset.wizBuilder;
+          document.getElementById('bld-tool').value = state.builder.tool;
+          renderBuilderOptions();
+          renderBuilderCommand();
+          switchTab('builder');
+        });
+      });
+
+      // Render Chart.js
+      const ctx = document.getElementById('wizard-chart').getContext('2d');
+      const labels = results.map((r) => r.name.replace(' (標準庫)', '').replace(' (Rust / Hatch)', ''));
+      const scores = results.map((r) => r.score);
+      const colors = results.map((_, i) => (i === 0 ? '#4f46e5' : i < 3 ? '#0ea5e9' : '#94a3b8'));
+
+      if (wizardChartInstance) {
+        wizardChartInstance.data.labels = labels;
+        wizardChartInstance.data.datasets[0].data = scores;
+        wizardChartInstance.data.datasets[0].backgroundColor = colors;
+        wizardChartInstance.update();
+      } else {
+        wizardChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: '情境適配度評分',
+              data: scores,
+              backgroundColor: colors,
+              borderRadius: 6,
+              barThickness: 18
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { min: 0, max: 100, grid: { color: '#f1f5f9' } },
+              y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctxItem) => ` 適配度評分：${ctxItem.raw} / 100`
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // ===================== TAB 4: COMMAND BUILDER =====================
+    function renderBuilderOptions() {
+      const container = document.getElementById('bld-dynamic-options');
+      const tool = state.builder.tool;
+
+      if (tool === 'pyinstaller') {
+        container.innerHTML = `
+          <div>
+            <label class="block font-semibold text-slate-800 mb-1.5">封裝型態</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="pi-mode" value="--onedir" ${state.builder.pyinstallerMode === '--onedir' ? 'checked' : ''} />
+                <span class="text-xs font-medium">--onedir (預設目錄)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="pi-mode" value="--onefile" ${state.builder.pyinstallerMode === '--onefile' ? 'checked' : ''} />
+                <span class="text-xs font-medium">--onefile (單一執行檔)</span>
+              </label>
+            </div>
+          </div>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-pi-windowed" type="checkbox" ${state.builder.windowed ? 'checked' : ''} />
+            <span class="text-xs font-medium">啟用 <code class="text-indigo-700">--windowed / --noconsole</code>（GUI 隱藏主控台或建立 macOS .app）</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-pi-data" type="checkbox" ${state.builder.addData ? 'checked' : ''} />
+            <span class="text-xs font-medium">附加外部資料目錄 (<code class="text-indigo-700">--add-data</code>)</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-pi-binary" type="checkbox" ${state.builder.addBinary ? 'checked' : ''} />
+            <span class="text-xs font-medium">附加 .so / 動態函式庫 (<code class="text-indigo-700">--add-binary</code>)</span>
+          </label>
+          ${state.builder.addBinary ? `
+            <div class="grid grid-cols-2 gap-2 pl-2">
+              <input id="opt-bin-src" type="text" value="${escapeHtml(state.builder.binarySrc)}" placeholder="來源 .so 路徑" class="rounded-lg border border-slate-300 px-2.5 py-1.5 font-mono text-xs" />
+              <input id="opt-bin-dst" type="text" value="${escapeHtml(state.builder.binaryDst)}" placeholder="執行期目標資料夾" class="rounded-lg border border-slate-300 px-2.5 py-1.5 font-mono text-xs" />
+            </div>
+          ` : ''}
+          ${state.builder.addData ? `
+            <div class="grid grid-cols-2 gap-2 pl-2">
+              <input id="opt-data-src" type="text" value="${escapeHtml(state.builder.dataSrc)}" placeholder="來源路徑" class="rounded-lg border border-slate-300 px-2.5 py-1.5 font-mono text-xs" />
+              <input id="opt-data-dst" type="text" value="${escapeHtml(state.builder.dataDst)}" placeholder="目標路徑" class="rounded-lg border border-slate-300 px-2.5 py-1.5 font-mono text-xs" />
+            </div>
+          ` : ''}
+        `;
+        container.querySelectorAll('input[name="pi-mode"]').forEach((r) => {
+          r.addEventListener('change', (e) => { state.builder.pyinstallerMode = e.target.value; renderBuilderCommand(); });
+        });
+        document.getElementById('opt-pi-windowed').addEventListener('change', (e) => { state.builder.windowed = e.target.checked; renderBuilderCommand(); });
+        document.getElementById('opt-pi-data').addEventListener('change', (e) => { state.builder.addData = e.target.checked; renderBuilderOptions(); renderBuilderCommand(); });
+        const srcEl = document.getElementById('opt-data-src');
+        const dstEl = document.getElementById('opt-data-dst');
+        if (srcEl) srcEl.addEventListener('input', (e) => { state.builder.dataSrc = e.target.value; renderBuilderCommand(); });
+        if (dstEl) dstEl.addEventListener('input', (e) => { state.builder.dataDst = e.target.value; renderBuilderCommand(); });
+        document.getElementById('opt-pi-binary').addEventListener('change', (e) => { state.builder.addBinary = e.target.checked; renderBuilderOptions(); renderBuilderCommand(); });
+        const bSrcEl = document.getElementById('opt-bin-src');
+        const bDstEl = document.getElementById('opt-bin-dst');
+        if (bSrcEl) bSrcEl.addEventListener('input', (e) => { state.builder.binarySrc = e.target.value; renderBuilderCommand(); });
+        if (bDstEl) bDstEl.addEventListener('input', (e) => { state.builder.binaryDst = e.target.value; renderBuilderCommand(); });
+      } else if (tool === 'nuitka') {
+        container.innerHTML = `
+          <div>
+            <label for="opt-nk-mode" class="block font-semibold text-slate-800 mb-1">Nuitka 編譯模式</label>
+            <select id="opt-nk-mode" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
+              <option value="--mode=standalone" ${state.builder.nuitkaMode === '--mode=standalone' ? 'selected' : ''}>--mode=standalone（獨立目錄，官方建議優先測試）</option>
+              <option value="--mode=onefile" ${state.builder.nuitkaMode === '--mode=onefile' ? 'selected' : ''}>--mode=onefile（單檔自解壓，自動含 standalone）</option>
+              <option value="--mode=app" ${state.builder.nuitkaMode === '--mode=app' ? 'selected' : ''}>--mode=app（macOS 建立 .app bundle）</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-nk-data" type="checkbox" ${state.builder.addData ? 'checked' : ''} />
+            <span class="text-xs font-medium">包含資料檔 (<code class="text-indigo-700">--include-data-files</code>)</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-nk-multi" type="checkbox" ${state.builder.multidist ? 'checked' : ''} />
+            <span class="text-xs font-medium">啟用 Multidist 多入口共享 (<code class="text-indigo-700">--main</code>)</span>
+          </label>
+        `;
+        document.getElementById('opt-nk-mode').addEventListener('change', (e) => { state.builder.nuitkaMode = e.target.value; renderBuilderCommand(); });
+        document.getElementById('opt-nk-data').addEventListener('change', (e) => { state.builder.addData = e.target.checked; renderBuilderCommand(); });
+        document.getElementById('opt-nk-multi').addEventListener('change', (e) => { state.builder.multidist = e.target.checked; renderBuilderCommand(); });
+      } else if (tool === 'zipapp') {
+        container.innerHTML = `
+          <div>
+            <label for="opt-zip-shebang" class="block font-semibold text-slate-800 mb-1">Shebang 直譯器路徑 (-p)</label>
+            <input id="opt-zip-shebang" type="text" value="${escapeHtml(state.builder.zipShebang)}" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs" />
+          </div>
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-zip-compress" type="checkbox" ${state.builder.zipCompress ? 'checked' : ''} />
+            <span class="text-xs font-medium">啟用 deflate 壓縮 (<code class="text-indigo-700">-c</code>) 縮小 .pyz 體積</span>
+          </label>
+        `;
+        document.getElementById('opt-zip-shebang').addEventListener('input', (e) => { state.builder.zipShebang = e.target.value; renderBuilderCommand(); });
+        document.getElementById('opt-zip-compress').addEventListener('change', (e) => { state.builder.zipCompress = e.target.checked; renderBuilderCommand(); });
+      } else if (tool === 'cxfreeze') {
+        container.innerHTML = `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
+            cx_Freeze 預設產出獨立發行目錄，適合搭配 <code class="text-indigo-700">pyproject.toml</code> 或 <code class="text-indigo-700">setup.py</code> 精細管理套件與排除清單。
+          </div>
+        `;
+      } else if (tool === 'wheel') {
+        container.innerHTML = `
+          <div>
+            <label for="opt-whl-backend" class="block font-semibold text-slate-800 mb-1">建置工具前端</label>
+            <select id="opt-whl-backend" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
+              <option value="uv" ${state.builder.wheelBackend === 'uv' ? 'selected' : ''}>uv build（高速建置 .whl 與 .tar.gz）</option>
+              <option value="hatch" ${state.builder.wheelBackend === 'hatch' ? 'selected' : ''}>hatch build（搭配 Hatchling 後端）</option>
+              <option value="pypa" ${state.builder.wheelBackend === 'pypa' ? 'selected' : ''}>python3 -m build（PyPA 官方標準建置器）</option>
+            </select>
+          </div>
+        `;
+        document.getElementById('opt-whl-backend').addEventListener('change', (e) => { state.builder.wheelBackend = e.target.value; renderBuilderCommand(); });
+      } else if (tool === 'nuitka_so') {
+        container.innerHTML = `
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input id="opt-nkso-pkg" type="checkbox" ${state.builder.soIncludePkg ? 'checked' : ''} />
+            <span class="text-xs font-medium">以整個套件目錄編譯 (<code class="text-indigo-700">--include-package</code> 並排除 tests)</span>
+          </label>
+        `;
+        document.getElementById('opt-nkso-pkg').addEventListener('change', (e) => { state.builder.soIncludePkg = e.target.checked; renderBuilderCommand(); });
+      } else if (tool === 'cython_so') {
+        container.innerHTML = `
+          <div>
+            <label for="opt-cy-method" class="block font-semibold text-slate-800 mb-1">Cython 編譯方式</label>
+            <select id="opt-cy-method" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
+              <option value="setuptools" ${state.builder.cythonMethod === 'setuptools' ? 'selected' : ''}>setuptools build_ext --inplace（標準專案）</option>
+              <option value="gcc" ${state.builder.cythonMethod === 'gcc' ? 'selected' : ''}>cython + gcc -O2 -shared -fPIC（單檔快速編譯）</option>
+            </select>
+          </div>
+        `;
+        document.getElementById('opt-cy-method').addEventListener('change', (e) => { state.builder.cythonMethod = e.target.value; renderBuilderCommand(); });
+      } else if (tool === 'auditwheel_so') {
+        container.innerHTML = `
+          <div>
+            <label for="opt-aw-ld" class="block font-semibold text-slate-800 mb-1">外部 .so 所在目錄 (LD_LIBRARY_PATH)</label>
+            <input id="opt-aw-ld" type="text" value="${escapeHtml(state.builder.ldLibPath)}" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs" />
+          </div>
+          <div>
+            <label for="opt-aw-whl" class="block font-semibold text-slate-800 mb-1">待修復 Wheel 路徑</label>
+            <input id="opt-aw-whl" type="text" value="${escapeHtml(state.builder.wheelFile)}" class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs" />
+          </div>
+        `;
+        document.getElementById('opt-aw-ld').addEventListener('input', (e) => { state.builder.ldLibPath = e.target.value; renderBuilderCommand(); });
+        document.getElementById('opt-aw-whl').addEventListener('input', (e) => { state.builder.wheelFile = e.target.value; renderBuilderCommand(); });
+      }
+    }
+
+    function renderBuilderCommand() {
+      const b = state.builder;
+      const entry = (b.entry || 'app.py').trim();
+      const name = (b.name || 'my_tool').trim();
+      const pathLike = (x) => /^[A-Za-z0-9_./][A-Za-z0-9_./-]*$/.test(x.trim());
+      const used = [entry];
+      if (b.tool === 'pyinstaller') {
+        if (b.addData) used.push(b.dataSrc || 'assets', b.dataDst || 'assets');
+        if (b.addBinary) used.push(b.binarySrc || 'libs/libcustom.so', b.binaryDst || 'libs');
+      }
+      if (b.tool === 'nuitka' && b.multidist) used.push(b.multidistEntry);
+      if (b.tool === 'auditwheel_so') {
+        used.push(...(b.ldLibPath || '/usr/local/lib').split(':'));
+        used.push(b.wheelFile || 'dist/my_pkg-1.0.0-cp315-cp315-linux_x86_64.whl');
+      }
+      const unsupportedShebang = b.tool === 'zipapp' && b.zipShebang &&
+        !/^\/[A-Za-z0-9_./-]+(?: [A-Za-z0-9_./-]+)?$/.test(b.zipShebang);
+      const copyButton = document.getElementById('btn-copy-builder-cmd');
+      const unsupported = !/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(name) ||
+        used.some(x => typeof x !== 'string' || x !== x.trim() || !pathLike(x)) || unsupportedShebang;
+      copyButton.disabled = unsupported;
+      if (unsupported) {
+        document.getElementById('bld-cmd-output').textContent = '此精靈只產生 POSIX shell 簡單路徑範例；請使用不含空白或 shell 特殊字元的路徑。Windows 請依實際 shell 與官方文件調整。';
+        for (const id of ['bld-flags-breakdown', 'bld-pitfalls-list', 'bld-doc-link']) document.getElementById(id).textContent = '';
+        return;
+      }
+
+      let cmd = '';
+      let breakdown = [];
+      let pitfalls = [];
+      let docUrl = '';
+      let docLabel = '';
+
+      if (b.tool === 'pyinstaller') {
+        const parts = ['pyinstaller', b.pyinstallerMode, `--name ${name}`];
+        breakdown.push(`<code>${b.pyinstallerMode}</code>：${b.pyinstallerMode === '--onedir' ? '產出含執行檔與依賴的資料夾（預設，啟動較快）' : '封裝為單一自解壓執行檔'}`);
+        breakdown.push(`<code>--name ${escapeHtml(name)}</code>：指定產出應用程式與 .spec 檔案名稱`);
+        if (b.windowed) {
+          parts.push('--windowed');
+          breakdown.push('<code>--windowed</code>：Windows 使用無主控台 bootloader（類 pythonw.exe）；macOS 額外產生 .app bundle');
+        }
+        if (b.addData) {
+          const src = (b.dataSrc || 'assets').trim();
+          const dst = (b.dataDst || 'assets').trim();
+          parts.push(`--add-data "${src}:${dst}"`);
+          breakdown.push(`<code>--add-data "${escapeHtml(src)}:${escapeHtml(dst)}"</code>：附帶靜態資源（實際語法依工具版本及 shell 核對）`);
+        }
+        if (b.addBinary) {
+          const bSrc = (b.binarySrc || 'libs/libcustom.so').trim();
+          const bDst = (b.binaryDst || 'libs').trim();
+          parts.push(`--add-binary "${bSrc}:${bDst}"`);
+          breakdown.push(`<code>--add-binary "${escapeHtml(bSrc)}:${escapeHtml(bDst)}"</code>：打包動態函式庫 .so 並自動掃描其下層二進位依賴`);
+        }
+        parts.push(entry);
+        cmd = parts.join(' ');
+        pitfalls = [
+          '此頁產生 POSIX shell 範例，Windows 需按本機 shell 和 PyInstaller 版本的 --help 核對路徑引號與分隔格式。',
+          'macOS 同時使用 --onefile 與 --windowed 雖然可行，但官方文件提醒可能影響啟動與封裝行為，GUI 應用建議優先使用 --onedir --windowed。',
+          '若程式依賴動態載入模組，建議將生成的 .spec 檔納入版控並設定 hiddenimports。'
+        ];
+        docUrl = 'https://pyinstaller.org/en/stable/usage.html';
+        docLabel = 'PyInstaller 官方使用手冊';
+      } else if (b.tool === 'nuitka') {
+        const parts = ['python3 -m nuitka', b.nuitkaMode, `--output-filename=${name}`];
+        breakdown.push(`<code>${b.nuitkaMode}</code>：設定 Nuitka 目標分發模式（onefile 會自動啟用 standalone）`);
+        if (b.addData) {
+          parts.push("'--include-data-files=config/*.json=config/'");
+          breakdown.push('<code>--include-data-files</code>：使用 shell pattern 將資料檔複製至目標相對路徑（不可用於 DLL 或 .py 檔）');
+        }
+        if (b.multidist) {
+          parts.push(`--main=${entry}`, `--main=${b.multidistEntry}`);
+          breakdown.push('<code>--main</code>：Multidist 模式，將多支入口程式合併於單一執行檔並共享模組，依 sys.argv[0] 切換入口');
+        } else {
+          parts.push(entry);
+        }
+        cmd = parts.join(' ');
+        pitfalls = [
+          '官方強烈建議流程：先用 --mode=standalone 測試並確認所有資料檔無缺漏，再切換至 --mode=onefile。',
+          '在 --mode=onefile 模式下，sys.argv[0] 指向原始執行檔路徑，而 __file__ 指向解壓後的暫存目錄，讀取外部與內嵌檔案時務必區分。',
+          'Nuitka 需要 C 編譯器（Linux/macOS 使用 GCC/Clang，Windows 使用 MSVC 或 MinGW64）。'
+        ];
+        docUrl = 'https://nuitka.net/user-documentation/use-cases.html';
+        docLabel = 'Nuitka 官方 Use Cases 文件';
+      } else if (b.tool === 'zipapp') {
+        const dirName = entry.replace(/\.py$/, '') || 'myapp';
+        const parts = ['python3 -m zipapp', dirName, `-p "${b.zipShebang || '/usr/bin/env python3'}"`, `-o ${name}.pyz`];
+        breakdown.push(`<code>${escapeHtml(dirName)}</code>：包含 __main__.py 的專案原始碼目錄`);
+        breakdown.push(`<code>-p "${escapeHtml(b.zipShebang || '/usr/bin/env python3')}"</code>：寫入檔頭 Shebang 使 Unix 系統可直接 ./${escapeHtml(name)}.pyz 執行`);
+        if (b.zipCompress) {
+          parts.push('-c');
+          breakdown.push('<code>-c</code>：使用 deflate 壓縮歸檔內容');
+        }
+        cmd = parts.join(' ');
+        pitfalls = [
+          '目標目錄內必須包含 __main__.py，或搭配 -m "pkg.mod:main" 明確指定入口函式。',
+          'zipapp 不會打包 CPython 直譯器，且不支援直接從 ZIP 內部載入原生 C 擴充套件（.so / .pyd）。'
+        ];
+        docUrl = 'https://docs.python.org/3/library/zipapp.html';
+        docLabel = 'Python 標準庫 zipapp 官方文件';
+      } else if (b.tool === 'cxfreeze') {
+        cmd = `cxfreeze script ${entry} --target-dir dist/${name}`;
+        breakdown = [
+          `<code>script ${escapeHtml(entry)}</code>：指定要凍結的主程式腳本`,
+          `<code>--target-dir dist/${escapeHtml(name)}</code>：指定發行目錄；產物仍要依目標 OS、架構與介面測試`
+        ];
+        pitfalls = [
+          '中大型專案建議改用 pyproject.toml 的 [tool.cxfreeze] 或 setup.py 設定 packages 與 excludes。',
+          'cx_Freeze 預設不打包為單一執行檔，適合搭配系統安裝包（MSI / DMG）一併發佈。'
+        ];
+        docUrl = 'https://github.com/marcelotduarte/cx_Freeze';
+        docLabel = 'cx_Freeze GitHub 專案頁';
+      } else if (b.tool === 'nuitka_so') {
+        const modName = entry.replace(/\.py$/, '') || 'my_pkg';
+        if (b.soIncludePkg) {
+          cmd = `python3 -m nuitka --mode=module --include-package=${modName} --nofollow-import-to="*.tests" ${modName}`;
+          breakdown = [
+            '<code>--mode=module</code>：產出原生 .so 擴充模組而非獨立執行檔',
+            `<code>--include-package=${escapeHtml(modName)}</code>：明確納入整個套件內的子模組`,
+            '<code>--nofollow-import-to="*.tests"</code>：排除測試程式碼以縮小體積'
+          ];
+        } else {
+          cmd = `python3 -m nuitka --mode=module ${entry}`;
+          breakdown = [
+            '<code>--mode=module</code>：將單一 Python 檔案轉譯為 C 並編譯為可 import 的 .so 檔',
+            `<code>${escapeHtml(entry)}</code>：入口模組檔名須與最終載入的模組名稱一致`
+          ];
+        }
+        pitfalls = [
+          '編譯出的 .so 檔名不可更改，因 CPython 載入時會依據模組名查找 PyInit_<name> 符號。',
+          '產出的 .so 僅相容於編譯時相同的 CPython 版本，且不會內嵌其他 C 擴充模組或資料檔。'
+        ];
+        docUrl = 'https://nuitka.net/user-documentation/use-cases.html';
+        docLabel = 'Nuitka Extension Module 官方文件';
+      } else if (b.tool === 'cython_so') {
+        const modBase = entry.replace(/\.(py|pyx)$/, '') || 'core';
+        if (b.cythonMethod === 'setuptools') {
+          cmd = 'python3 setup.py build_ext --inplace';
+          breakdown = [
+            '<code>build_ext --inplace</code>：呼叫 setup.py 中的 cythonize() 並將產出的 .so 直接輸出在專案原始碼旁'
+          ];
+        } else {
+          cmd = `cython -3 ${entry} -o ${modBase}.c && gcc -O2 -shared -fPIC ${modBase}.c $(python3-config --includes --ldflags) -o ${modBase}.so`;
+          breakdown = [
+            '<code>cython -3</code>：以 Python 3 語法將原始碼轉譯為 C 檔案',
+            '<code>gcc -O2 -shared -fPIC</code>：編譯位置無關的動態共享物件 .so 並連結 Python 標頭檔'
+          ];
+        }
+        pitfalls = [
+          '若同一資料夾同時留有同名 .py 與 .so，Python import 會優先載入 .so；修改 .py 後需重新編譯才會生效。',
+          '在 Windows 上編譯 .pyd 時需使用與 CPython 對應版本的 MSVC C/C++ 工具鏈。'
+        ];
+        docUrl = 'https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html';
+        docLabel = 'Cython 編譯 C 擴充模組參考';
+      } else if (b.tool === 'auditwheel_so') {
+        const ldPath = (b.ldLibPath || '/usr/local/lib').trim();
+        const whlFile = (b.wheelFile || 'dist/my_pkg-1.0.0-cp315-cp315-linux_x86_64.whl').trim();
+        cmd = `export LD_LIBRARY_PATH=${ldPath} && auditwheel repair ${whlFile}`;
+        breakdown = [
+          `<code>LD_LIBRARY_PATH=${escapeHtml(ldPath)}</code>：讓 auditwheel 定位外部 C/C++ .so 函式庫`,
+          `<code>auditwheel repair ${escapeHtml(whlFile)}</code>：將外部 .so 複製進 Wheel、改寫 ELF RPATH 並標記 manylinux 標籤`
+        ];
+        pitfalls = [
+          'auditwheel 僅適用於 Linux；macOS 封裝外部 .dylib 請改用 delocate。',
+          '若系統 glibc 版本過新導致無法修復為目標 manylinux ABI，請在官方 manylinux 容器中重新編譯 Wheel。'
+        ];
+        docUrl = 'https://pypi.org/project/auditwheel/';
+        docLabel = 'PyPA auditwheel 官方頁面';
+      } else {
+        if (b.wheelBackend === 'uv') {
+          cmd = 'uv build';
+          breakdown = ['<code>uv build</code>：讀取 pyproject.toml 並於 dist/ 目錄產出標準 .whl 與 .tar.gz'];
+        } else if (b.wheelBackend === 'hatch') {
+          cmd = 'hatch build';
+          breakdown = ['<code>hatch build</code>：透過 Hatchling 建置後端產出 Wheel 與 sdist（若搭配 PyApp 外掛可用 -t binary 建置獨立執行檔）'];
+        } else {
+          cmd = 'python3 -m build';
+          breakdown = ['<code>python3 -m build</code>：在隔離建置環境中呼叫 pyproject.toml 指定的 build-backend 產出 .whl 與 sdist'];
+        }
+        pitfalls = [
+          'Wheel (.whl) 為預建置格式，目標端安裝無須重新建置；sdist (.tar.gz) 則保留原始碼供不支援的架構從源編譯。',
+          '發佈至 PyPI 前請確認 pyproject.toml 已正確宣告 [build-system]、專案版本與 dependencies。'
+        ];
+        docUrl = 'https://packaging.python.org/tutorials/packaging-projects/';
+        docLabel = 'PyPA 官方 Packaging Python Projects 指南';
+      }
+
+      document.getElementById('bld-cmd-output').textContent = cmd;
+      document.getElementById('bld-flags-breakdown').innerHTML = breakdown.map((bItem) => `<div>• ${bItem}</div>`).join('');
+      document.getElementById('bld-pitfalls-list').innerHTML = pitfalls.map((p) => `
+        <li class="flex items-start gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+          <span>${escapeHtml(p)}</span>
+        </li>
+      `).join('');
+      document.getElementById('bld-doc-link').innerHTML = `
+        <a href="${docUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span>查閱 ${escapeHtml(docLabel)}</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        </a>
+      `;
+      lucide.createIcons({ nodes: [document.getElementById('bld-pitfalls-list'), document.getElementById('bld-doc-link')] });
+    }
+
+    // ===================== TAB 5: .SO SHARED OBJECT GUIDE =====================
+    function renderSoGuide() {
+      const grid = document.getElementById('so-methods-grid');
+      const filtered = SO_METHODS.filter(
+        (m) => state.soCategory === 'all' || m.category === state.soCategory
+      );
+
+      grid.innerHTML = filtered.map((m) => `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between card-hover">
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div>
+                <span class="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                  m.category === 'compile' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'
+                } mb-1.5">${escapeHtml(m.categoryLabel)}</span>
+                <h3 class="font-bold text-slate-900 text-base">${escapeHtml(m.name)}</h3>
+              </div>
+              <span class="shrink-0 font-mono text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-900 text-amber-300">${escapeHtml(m.badge)}</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-3.5">${escapeHtml(m.summary)}</p>
+            <div class="space-y-2 mb-3.5">
+              ${m.commands.map((cmd, idx) => `
+                <div class="code-surface rounded-xl px-3.5 py-2 flex items-center justify-between gap-2">
+                  <code class="text-[11px] sm:text-xs text-emerald-300 break-all">${escapeHtml(cmd)}</code>
+                  <button type="button" data-so-id="${m.id}" data-so-cmd-idx="${idx}" class="copy-so-cmd shrink-0 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="複製指令">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 mb-4">
+              ${m.notes.map((n) => `
+                <li class="flex items-start gap-1.5">
+                  <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5"></i>
+                  <span>${escapeHtml(n)}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <a href="${m.docUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+              <span>${escapeHtml(m.docLabel)}</span>
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+            <button type="button" data-so-builder="${m.builderKey}" class="so-to-builder inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-indigo-700">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+              <span>載入指令產生器</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.copy-so-cmd').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const method = SO_METHODS.find((x) => x.id === btn.dataset.soId);
+          if (method) copyText(method.commands[Number(btn.dataset.soCmdIdx)], '指令');
+        });
+      });
+
+      grid.querySelectorAll('.so-to-builder').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.soBuilder;
+          state.builder.tool = key;
+          if (key === 'pyinstaller') state.builder.addBinary = true;
+          document.getElementById('bld-tool').value = key;
+          renderBuilderOptions();
+          renderBuilderCommand();
+          switchTab('builder');
+        });
+      });
+
+      lucide.createIcons({ nodes: [grid] });
+    }
+
+    function renderSoChecklist() {
+      const container = document.getElementById('so-checklist-items');
+      const total = SO_CHECKLIST.length;
+      const done = SO_CHECKLIST.filter((c) => Boolean(state.soChecks[c.id])).length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('so-check-progress-text').textContent = `${done} / ${total} 已確認`;
+      document.getElementById('so-check-progress-bar').style.width = `${pct}%`;
+
+      container.innerHTML = SO_CHECKLIST.map((item) => {
+        const checked = Boolean(state.soChecks[item.id]);
+        return `
+          <label class="flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+            checked ? 'bg-emerald-50/70 border-emerald-300' : 'bg-slate-50/60 border-slate-200 hover:border-indigo-300'
+          }">
+            <input type="checkbox" data-so-chk="${item.id}" class="so-chk-input mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" ${checked ? 'checked' : ''} />
+            <div>
+              <div class="text-xs sm:text-sm font-semibold ${checked ? 'text-emerald-900 line-through' : 'text-slate-900'}">${escapeHtml(item.title)}</div>
+              <div class="text-xs text-slate-600 mt-0.5 leading-relaxed">${escapeHtml(item.desc)}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.so-chk-input').forEach((inp) => {
+        inp.addEventListener('change', (e) => {
+          state.soChecks[inp.dataset.soChk] = e.target.checked;
+          renderSoChecklist();
+        });
+      });
+    }
+
+    function renderMultiPlatformMatrix() {
+      const tbody = document.getElementById('mp-matrix-body');
+      const hi = state.mpHighlightOS;
+
+      const thStyle = (os) => {
+        if (hi === 'all') return 'py-3 px-4 font-semibold';
+        return hi === os
+          ? 'py-3 px-4 font-bold bg-indigo-50 text-indigo-900'
+          : 'py-3 px-4 font-semibold text-slate-400';
+      };
+      document.getElementById('mp-th-linux').className = thStyle('linux');
+      document.getElementById('mp-th-macos').className = thStyle('macos');
+      document.getElementById('mp-th-windows').className = thStyle('windows');
+
+      const tdStyle = (os) => {
+        if (hi === 'all') return 'py-3 px-4 text-slate-700 align-top';
+        return hi === os
+          ? 'py-3 px-4 text-slate-900 font-medium bg-indigo-50/40 align-top'
+          : 'py-3 px-4 text-slate-400 align-top';
+      };
+
+      tbody.innerHTML = MULTIPLATFORM_MATRIX.map((row) => `
+        <tr class="hover:bg-slate-50/70">
+          <td class="py-3 px-4 font-semibold text-slate-900 bg-slate-50/50 align-top whitespace-nowrap">${escapeHtml(row.dim)}</td>
+          <td class="${tdStyle('linux')}">${escapeHtml(row.linux)}</td>
+          <td class="${tdStyle('macos')}">${escapeHtml(row.macos)}</td>
+          <td class="${tdStyle('windows')}">${escapeHtml(row.windows)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMpSimulator() {
+      const { os, py, abi } = state.mpSim;
+      const isFreeThreaded = py.endsWith('t');
+      const abiTag = (abi === 'abi3' && !isFreeThreaded) ? 'abi3' : py;
+      const abiNote = (abi === 'abi3' && isFreeThreaded)
+        ? '注意：Free-Threaded (t) 建置具獨立 ABI，此處自動維持版本綁定標籤 ' + py + '。'
+        : (abi === 'abi3' ? '使用 Limited API (abi3)，單一 Wheel 可相容後續次版本 CPython。' : '使用版本綁定 ABI，可存取完整 CPython C API 與最佳化結構。');
+
+      const platformMap = {
+        linux_x86_64: {
+          tag: 'manylinux_2_28_x86_64',
+          ext: `core.${py.replace('cp', 'cpython-')}-x86_64-linux-gnu.so`,
+          sharedLib: 'libcustom.so',
+          repairCmd: `auditwheel repair dist/my_pkg-1.0.0-${py}-${abiTag}-linux_x86_64.whl`,
+          execArtifact: 'my_tool (ELF) / AppImage',
+          repairDoc: 'https://pypi.org/project/auditwheel/',
+          repairToolName: 'auditwheel'
+        },
+        linux_musl: {
+          tag: 'musllinux_1_2_x86_64',
+          ext: `core.${py.replace('cp', 'cpython-')}-x86_64-linux-musl.so`,
+          sharedLib: 'libcustom.so (musl libc)',
+          repairCmd: `auditwheel repair --plat musllinux_1_2_x86_64 dist/my_pkg-1.0.0-${py}-${abiTag}-linux_x86_64.whl`,
+          execArtifact: 'my_tool (musl ELF)',
+          repairDoc: 'https://cibuildwheel.pypa.io/en/2.x/options/',
+          repairToolName: 'auditwheel (musllinux)'
+        },
+        macos_arm64: {
+          tag: 'macosx_15_0_arm64',
+          ext: `core.${py.replace('cp', 'cpython-')}-darwin.so`,
+          sharedLib: 'libcustom.dylib',
+          repairCmd: `delocate-wheel -w wheelhouse dist/my_pkg-1.0.0-${py}-${abiTag}-macosx_15_0_arm64.whl`,
+          execArtifact: 'my_tool.app / my_tool.dmg',
+          repairDoc: 'https://github.com/matthew-brett/delocate/blob/master/delocate/delocating.py',
+          repairToolName: 'delocate'
+        },
+        macos_universal2: {
+          tag: 'macosx_15_0_universal2',
+          ext: `core.${py.replace('cp', 'cpython-')}-darwin.so (Fat Binary)`,
+          sharedLib: 'libcustom.dylib (arm64 + x86_64)',
+          repairCmd: `delocate-fuse wheel_arm64.whl wheel_x86_64.whl -w wheelhouse`,
+          execArtifact: 'Universal2 .app / .dmg',
+          repairDoc: 'https://github.com/matthew-brett/delocate/blob/master/delocate/delocating.py',
+          repairToolName: 'delocate'
+        },
+        win_amd64: {
+          tag: 'win_amd64',
+          ext: `core.${py}-win_amd64.pyd`,
+          sharedLib: 'custom.dll',
+          repairCmd: `delvewheel repair --add-path C:\\libs -w wheelhouse dist\\my_pkg-1.0.0-${py}-${abiTag}-win_amd64.whl`,
+          execArtifact: 'my_tool.exe / my_tool-setup.exe / .msi',
+          repairDoc: 'https://github.com/adang1345/delvewheel/blob/master/CHANGELOG.md',
+          repairToolName: 'delvewheel'
+        }
+      };
+
+      const info = platformMap[os] || platformMap.linux_x86_64;
+      const wheelName = `my_pkg-1.0.0-${py}-${abiTag}-${info.tag}.whl`;
+      const out = document.getElementById('mp-sim-output');
+
+      out.innerHTML = `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+          <div class="font-bold text-slate-800 uppercase tracking-wider">產物檔名預覽</div>
+          <div><span class="text-slate-500">Wheel 套件：</span><code class="text-indigo-700 font-semibold break-all">${escapeHtml(wheelName)}</code></div>
+          <div><span class="text-slate-500">擴充模組：</span><code class="text-slate-900 font-semibold break-all">${escapeHtml(info.ext)}</code></div>
+          <div><span class="text-slate-500">外部動態庫：</span><code class="text-slate-900">${escapeHtml(info.sharedLib)}</code></div>
+          <div><span class="text-slate-500">獨立應用產物：</span><span class="text-slate-800 font-medium">${escapeHtml(info.execArtifact)}</span></div>
+          <div class="pt-1.5 border-t border-slate-200 text-slate-600">${escapeHtml(abiNote)}</div>
+        </div>
+        <div class="code-surface rounded-xl p-4 flex flex-col justify-between gap-3">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">建議依賴修復指令 (${escapeHtml(info.repairToolName)})</span>
+              <button type="button" id="btn-copy-mp-repair" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold">
+                <i data-lucide="copy" class="w-3 h-3"></i>
+                <span>複製</span>
+              </button>
+            </div>
+            <pre class="text-xs font-mono text-emerald-300 whitespace-pre-wrap break-all leading-relaxed">${escapeHtml(info.repairCmd)}</pre>
+          </div>
+          <div class="pt-2 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-300">
+            <span>CI 多平台自動化：cibuildwheel</span>
+            <a href="${info.repairDoc}" target="_blank" rel="noopener noreferrer" class="text-sky-300 hover:underline inline-flex items-center gap-1">
+              <span>工具文件</span>
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('btn-copy-mp-repair').addEventListener('click', () => {
+        copyText(info.repairCmd, '修復指令');
+      });
+      lucide.createIcons({ nodes: [out] });
+    }
+
+    function exportMpCSV() {
+      const headers = ['比較項目', 'Linux (ELF)', 'macOS (Mach-O)', 'Windows (PE)'];
+      const rows = MULTIPLATFORM_MATRIX.map((r) => [r.dim, r.linux, r.macos, r.windows]);
+      const csvLines = [headers, ...rows].map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      );
+      const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      triggerDownload(blob, 'python_multiplatform_artifacts.csv');
+      showToast('已匯出多平台產物對照 CSV');
+    }
+
+    // ===================== EVENT WIRING & INIT =====================
+    function init() {
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // Tab 1 Filters & Search
+      document.querySelectorAll('.tool-cat-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.toolCategory = btn.dataset.toolCat;
+          document.querySelectorAll('.tool-cat-btn').forEach((b) => {
+            const active = b.dataset.toolCat === state.toolCategory;
+            b.className = active
+              ? 'tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white'
+              : 'tool-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+          });
+          renderToolsList();
+        });
+      });
+      document.getElementById('tool-search-input').addEventListener('input', (e) => {
+        state.toolSearch = e.target.value;
+        renderToolsList();
+      });
+
+      // Tab 2 Arch Selector & Filters & Exports
+      document.querySelectorAll('.arch-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.selectedArch = btn.dataset.arch;
+          document.querySelectorAll('.arch-btn').forEach((b) => {
+            const active = b.dataset.arch === state.selectedArch;
+            b.className = active
+              ? 'arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white'
+              : 'arch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+          });
+          renderArchSvg();
+        });
+      });
+
+      document.querySelectorAll('.pkg-cat-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.pkgCategory = btn.dataset.pkgCat;
+          document.querySelectorAll('.pkg-cat-btn').forEach((b) => {
+            const active = b.dataset.pkgCat === state.pkgCategory;
+            b.className = active
+              ? 'pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white'
+              : 'pkg-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+          });
+          renderPackagingSection();
+        });
+      });
+
+      document.getElementById('btn-export-csv').addEventListener('click', exportMatrixCSV);
+      document.getElementById('btn-export-json').addEventListener('click', exportMatrixJSON);
+
+      // Tab 3 Wizard
+      const bindWizardSelect = (id, key) => {
+        document.getElementById(id).addEventListener('change', (e) => {
+          state.wizard[key] = e.target.value;
+          renderWizard();
+        });
+      };
+      bindWizardSelect('wiz-python', 'pythonPreinstalled');
+      bindWizardSelect('wiz-apptype', 'appType');
+      bindWizardSelect('wiz-ip', 'ipProtection');
+      bindWizardSelect('wiz-os', 'targetOS');
+      bindWizardSelect('wiz-priority', 'priority');
+
+      document.getElementById('btn-reset-wizard').addEventListener('click', () => {
+        state.wizard = { pythonPreinstalled: 'no', appType: 'cli', ipProtection: 'low', targetOS: 'desktop', priority: 'startup' };
+        document.getElementById('wiz-python').value = 'no';
+        document.getElementById('wiz-apptype').value = 'cli';
+        document.getElementById('wiz-ip').value = 'low';
+        document.getElementById('wiz-os').value = 'desktop';
+        document.getElementById('wiz-priority').value = 'startup';
+        renderWizard();
+        showToast('已重設決策精靈條件');
+      });
+
+      // Tab 4 Builder
+      document.getElementById('bld-tool').addEventListener('change', (e) => {
+        state.builder.tool = e.target.value;
+        renderBuilderOptions();
+        renderBuilderCommand();
+      });
+      document.getElementById('bld-entry').addEventListener('input', (e) => {
+        state.builder.entry = e.target.value;
+        renderBuilderCommand();
+      });
+      document.getElementById('bld-name').addEventListener('input', (e) => {
+        state.builder.name = e.target.value;
+        renderBuilderCommand();
+      });
+      document.getElementById('btn-copy-builder-cmd').addEventListener('click', () => {
+        const text = document.getElementById('bld-cmd-output').textContent;
+        copyText(text, '打包指令');
+      });
+
+      // Tab 5 .so Filters & Checklist Reset
+      document.querySelectorAll('.so-cat-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.soCategory = btn.dataset.soCat;
+          document.querySelectorAll('.so-cat-btn').forEach((b) => {
+            const active = b.dataset.soCat === state.soCategory;
+            b.className = active
+              ? 'so-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white'
+              : 'so-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+          });
+          renderSoGuide();
+        });
+      });
+      document.getElementById('btn-reset-so-checks').addEventListener('click', () => {
+        state.soChecks = {};
+        renderSoChecklist();
+        showToast('已重設 .so 檢核表');
+      });
+
+      // Multi-Platform Highlight, CSV Export & Simulator
+      document.querySelectorAll('.mp-os-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.mpHighlightOS = btn.dataset.mpOs;
+          document.querySelectorAll('.mp-os-btn').forEach((b) => {
+            const active = b.dataset.mpOs === state.mpHighlightOS;
+            b.className = active
+              ? 'mp-os-btn px-2.5 py-1 rounded-lg bg-slate-900 text-white'
+              : 'mp-os-btn px-2.5 py-1 rounded-lg text-slate-700 hover:text-slate-900';
+          });
+          renderMultiPlatformMatrix();
+        });
+      });
+      document.getElementById('btn-export-mp-csv').addEventListener('click', exportMpCSV);
+      document.getElementById('mp-sim-os').addEventListener('change', (e) => { state.mpSim.os = e.target.value; renderMpSimulator(); });
+      document.getElementById('mp-sim-py').addEventListener('change', (e) => { state.mpSim.py = e.target.value; renderMpSimulator(); });
+      document.getElementById('mp-sim-abi').addEventListener('change', (e) => { state.mpSim.abi = e.target.value; renderMpSimulator(); });
+
+      // Initial renders
+      renderToolsList();
+      renderArchSvg();
+      renderPackagingSection();
+      renderSoGuide();
+      renderMultiPlatformMatrix();
+      renderMpSimulator();
+      renderSoChecklist();
+      renderBuilderOptions();
+      renderBuilderCommand();
+      lucide.createIcons();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

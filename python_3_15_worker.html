@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python 3.15 非同步 Worker 系統架構實驗室｜可控・可測・可交付</title>
+
+  <!-- Fonts: Inter + Noto Sans TC + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', '"Noto Sans TC"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+          colors: {
+            lab: {
+              bg: '#090D16',
+              card: '#111827',
+              card2: '#0D1320',
+              border: '#1F2937',
+              borderLight: '#334155',
+            },
+            electric: '#3B82F6',
+            asyncCyan: '#06B6D4',
+            okGreen: '#10B981',
+            warnAmber: '#F59E0B',
+            errRose: '#F43F5E',
+            py315: '#8B5CF6',
+          },
+          boxShadow: {
+            glowBlue: '0 0 24px -6px rgba(59, 130, 246, 0.35)',
+            glowCyan: '0 0 24px -6px rgba(6, 182, 212, 0.35)',
+            glowPurple: '0 0 24px -6px rgba(139, 92, 246, 0.4)',
+            glowAmber: '0 0 24px -6px rgba(245, 158, 11, 0.4)',
+            glowRose: '0 0 24px -6px rgba(244, 63, 94, 0.4)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      background-color: #090D16;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -15%, rgba(59, 130, 246, 0.14), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 90% 10%, rgba(139, 92, 246, 0.10), transparent 60%),
+        linear-gradient(rgba(31, 41, 55, 0.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31, 41, 55, 0.22) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+      background-attachment: fixed;
+    }
+
+    /* Custom sleek dark scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090D16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1F2937;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+
+    /* Range slider styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1F2937;
+      height: 6px;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 9999px;
+      background: #3B82F6;
+      border: 2px solid #93C5FD;
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #60A5FA;
+    }
+
+    /* Animations */
+    @keyframes flowDash {
+      to {
+        stroke-dashoffset: -24;
+      }
+    }
+    .animate-flow-dash {
+      stroke-dasharray: 6 6;
+      animation: flowDash 0.8s linear infinite;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop-in {
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeSlide {
+      0% { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .tab-enter {
+      animation: fadeSlide 0.25s ease-out;
+    }
+
+    /* Python syntax token classes */
+    .tok-kw { color: #C084FC; font-weight: 500; }
+    .tok-py315 { color: #A78BFA; font-weight: 700; text-decoration: underline; text-decoration-color: rgba(139,92,246,0.5); text-underline-offset: 3px; }
+    .tok-str { color: #34D399; }
+    .tok-com { color: #64748B; font-style: italic; }
+    .tok-num { color: #F59E0B; }
+    .tok-dec { color: #38BDF8; }
+    .tok-fn { color: #60A5FA; }
+    .tok-cls { color: #22D3EE; font-weight: 600; }
+    .tok-bi { color: #F472B6; }
+
+    /* Highlighted code lines */
+    .code-line-highlight-good {
+      background: rgba(139, 92, 246, 0.14);
+      border-left: 3px solid #8B5CF6;
+      display: block;
+      margin: 0 -1rem;
+      padding: 0 1rem 0 calc(1rem - 3px);
+    }
+    .code-line-highlight-bad {
+      background: rgba(244, 63, 94, 0.13);
+      border-left: 3px solid #F43F5E;
+      display: block;
+      margin: 0 -1rem;
+      padding: 0 1rem 0 calc(1rem - 3px);
+    }
+
+    /* Hide scrollbar on horizontal nav pill bar */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-py315/30 selection:text-white">
+  <aside aria-label="教材校閱說明" style="max-width:82rem;margin:auto;padding:.7rem 1rem;color:#dceaf8">
+    <a href="index.html#python-interactive-labs" style="display:inline-block;margin-bottom:.5rem;color:inherit;font-weight:700;text-decoration:underline">← 回互動實驗選單</a><p style="margin:0">校閱：2026-11-26。介面中的延遲、追蹤、壓測與產線畫面是瀏覽器模擬；不是實測或部署驗收。藍圖的同鍵排他只限單一程序、沒有耐久去重；跨程序仍要由接收端與儲存層處理。下方可操作「模擬」、「測試」與「藍圖」，也可對照<a href="python_async_concurrency_engineering_tutorial.html#worker-lifecycle" style="color:#8adcff;text-decoration:underline">已測的 3.11–3.15 離線 worker 教程</a>。</p>
+  </aside>
+
+
+  <!-- ===================================================================== -->
+  <!-- STICKY TOP NAVIGATION BAR                                             -->
+  <!-- ===================================================================== -->
+  <header class="sticky top-0 z-40 border-b border-lab-border bg-lab-bg/90 backdrop-blur-xl">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <!-- Brand & Version Badge -->
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-electric/25 via-py315/25 to-asyncCyan/25 border border-py315/40 flex items-center justify-center shadow-glowPurple shrink-0">
+            <!-- Inline SVG: Async Structured Concurrency Graph Icon -->
+            <svg class="w-6 h-6 text-asyncCyan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="5" cy="12" r="2.5" class="text-electric" fill="currentColor" fill-opacity="0.25"/>
+              <circle cx="12" cy="5.5" r="2.2" class="text-py315" fill="currentColor" fill-opacity="0.25"/>
+              <circle cx="12" cy="18.5" r="2.2" class="text-asyncCyan" fill="currentColor" fill-opacity="0.25"/>
+              <circle cx="19" cy="12" r="2.5" class="text-okGreen" fill="currentColor" fill-opacity="0.25"/>
+              <path d="M7.2 10.6L10.2 7.2M7.2 13.4L10.2 16.8M13.8 7.2L16.8 10.6M13.8 16.8L16.8 13.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">
+                Python 3.15 非同步 Worker 系統
+              </h1>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-py315/20 text-purple-300 border border-py315/40">
+                <span class="w-1.5 h-1.5 rounded-full bg-py315 animate-pulse"></span>
+                Python 3.15
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">把非同步做成 <span class="text-asyncCyan font-medium">可控</span>・<span class="text-okGreen font-medium">可測</span>・<span class="text-py315 font-medium">可交付</span> 的生產級工程實驗室</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 Main Interactive Navigation Tabs -->
+      <nav aria-label="主分頁導覽" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 lg:pb-0">
+        <button data-tab="sim" class="nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border">
+          <span>⚡</span><span>即時模擬器</span>
+        </button>
+        <button data-tab="arch" class="nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border">
+          <span>🎛️</span><span>可控性架構</span>
+        </button>
+        <button data-tab="test" class="nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border">
+          <span>🧪</span><span>可測性實驗室</span>
+        </button>
+        <button data-tab="obs" class="nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border">
+          <span>🚀</span><span>可交付與觀測</span>
+        </button>
+        <button data-tab="code" class="nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border">
+          <span>📦</span><span>完整藍圖</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN CONTENT CONTAINER                                                -->
+  <!-- ===================================================================== -->
+  <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: ⚡ 即時模擬器 — 可控 Worker 管線                              -->
+    <!-- =================================================================== -->
+    <section id="panel-sim" class="tab-panel tab-enter space-y-5">
+      <!-- Top Header & Simulation Status Banner -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-lab-card border border-lab-border rounded-2xl p-4 sm:p-5">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h2 class="text-lg sm:text-xl font-bold text-white">可控非同步 Worker 管線即時模擬器</h2>
+            <span id="sim-phase-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-okGreen/15 text-okGreen border border-okGreen/40">
+              ● RUNNING
+            </span>
+            <span id="sim-latency-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-warnAmber/20 text-amber-300 border border-warnAmber/40 animate-pulse">
+              🐢 下游延遲注入中 (<span id="sim-latency-countdown">5.0</span>s)
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-400">
+            即時觀察 <code class="font-mono text-asyncCyan">asyncio.Queue(maxsize)</code> 背壓反壓、<code class="font-mono text-electric">asyncio.timeout()</code> 退避重試、<code class="font-mono text-okGreen">Queue.shutdown()</code> 無損排空與 Python 3.15 <code class="font-mono text-py315">TaskGroup.cancel()</code> 零孤兒回收。
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btn-sim-toggle" class="px-4 py-2 rounded-xl text-sm font-semibold bg-electric hover:bg-blue-500 text-white transition flex items-center gap-2 shadow-glowBlue">
+            <span id="sim-toggle-icon">⏸</span><span id="sim-toggle-text">暫停</span>
+          </button>
+          <button id="btn-sim-reset" class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+            <span>↺</span><span>重置</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Control Panel: Sliders + Stress/Control Action Triggers -->
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <!-- Sliders -->
+        <div class="xl:col-span-7 bg-lab-card border border-lab-border rounded-2xl p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">管線控制參數 (Runtime Config)</h3>
+            <span class="text-[11px] font-mono text-py315 bg-py315/10 border border-py315/30 px-2 py-0.5 rounded-md">frozendict snapshot</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4">
+            <!-- Producer Rate -->
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="slider-rate" class="text-slate-300 font-medium">生產速率</label>
+                <span class="font-mono text-asyncCyan font-semibold"><span id="val-rate">5</span> Jobs/s</span>
+              </div>
+              <input id="slider-rate" type="range" min="1" max="15" value="5" class="w-full" />
+            </div>
+            <!-- Queue Maxsize -->
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="slider-maxsize" class="text-slate-300 font-medium">Queue 上限 maxsize</label>
+                <span class="font-mono text-warnAmber font-semibold"><span id="val-maxsize">10</span> 筆</span>
+              </div>
+              <input id="slider-maxsize" type="range" min="4" max="24" value="10" class="w-full" />
+            </div>
+            <!-- Worker Count -->
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="slider-workers" class="text-slate-300 font-medium">Worker 數量</label>
+                <span class="font-mono text-py315 font-semibold"><span id="val-workers">4</span> 協程</span>
+              </div>
+              <input id="slider-workers" type="range" min="1" max="8" value="4" class="w-full" />
+            </div>
+            <!-- Timeout -->
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="slider-timeout" class="text-slate-300 font-medium">單任務 asyncio.timeout</label>
+                <span class="font-mono text-electric font-semibold"><span id="val-timeout">900</span> ms</span>
+              </div>
+              <input id="slider-timeout" type="range" min="300" max="2000" step="100" value="900" class="w-full" />
+            </div>
+            <!-- Failure Rate -->
+            <div class="sm:col-span-2 lg:col-span-2">
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="slider-fail" class="text-slate-300 font-medium">模擬下游瞬斷失敗率</label>
+                <span class="font-mono text-errRose font-semibold"><span id="val-fail">15</span> %</span>
+              </div>
+              <input id="slider-fail" type="range" min="0" max="50" step="5" value="15" class="w-full" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action Triggers -->
+        <div class="xl:col-span-5 bg-lab-card border border-lab-border rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">壓力注入與生命週期操作</h3>
+            <span class="text-[11px] text-slate-400">即時點擊觸發事件</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button id="btn-burst" class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-warnAmber/15 hover:bg-warnAmber/25 text-amber-300 border border-warnAmber/40 transition text-left flex items-center justify-between group">
+              <div>
+                <div class="font-bold">⚡ 突發流量 (+12 任務)</div>
+                <div class="text-[11px] text-amber-200/70 font-normal">觸發 Bounded Queue 背壓</div>
+              </div>
+              <span class="font-mono text-xs group-hover:translate-x-0.5 transition">→</span>
+            </button>
+            <button id="btn-latency" class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-electric/15 hover:bg-electric/25 text-blue-300 border border-electric/40 transition text-left flex items-center justify-between group">
+              <div>
+                <div class="font-bold">🐢 注入下游延遲 (5s)</div>
+                <div class="text-[11px] text-blue-200/70 font-normal">觸發 timeout 與指數退避</div>
+              </div>
+              <span class="font-mono text-xs group-hover:translate-x-0.5 transition">→</span>
+            </button>
+            <button id="btn-shutdown" class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-okGreen/15 hover:bg-okGreen/25 text-emerald-300 border border-okGreen/40 transition text-left flex items-center justify-between group">
+              <div>
+                <div class="font-bold">🌊 優雅排空 Queue.shutdown()</div>
+                <div class="text-[11px] text-emerald-200/70 font-normal">消化剩餘任務後零遺失結束</div>
+              </div>
+              <span class="font-mono text-xs group-hover:translate-x-0.5 transition">→</span>
+            </button>
+            <button id="btn-tg-cancel" class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-py315/20 hover:bg-py315/30 text-purple-200 border border-py315/50 transition text-left flex items-center justify-between group shadow-glowPurple">
+              <div>
+                <div class="font-bold">🛑 TaskGroup.cancel() <span class="text-[10px] bg-py315/40 px-1.5 py-0.2 rounded">3.15</span></div>
+                <div class="text-[11px] text-purple-200/80 font-normal">非異常顯式取消・零孤兒回收</div>
+              </div>
+              <span class="font-mono text-xs group-hover:translate-x-0.5 transition">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Central 4-Stage Pipeline Visualization -->
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-4 sm:p-5 overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-asyncCyan animate-pulse"></span>
+            <h3 class="text-sm font-bold text-white">四階段非同步資料流管線視覺化 (Live Pipeline Topology)</h3>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-asyncCyan"></span>運行中</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-warnAmber"></span>背壓/退避</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-py315"></span>3.15 TaskGroup</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-errRose"></span>取消/DLQ</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          <!-- Stage 1: Producer -->
+          <div id="stage-producer" class="lg:col-span-2 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-mono text-slate-400">STAGE 01</span>
+                <span id="prod-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-asyncCyan/15 text-asyncCyan border border-asyncCyan/40">RUNNING</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-1">Producer 協程</h4>
+              <p class="text-[11px] text-slate-400 font-mono">await queue.put(job)</p>
+            </div>
+
+            <div class="my-4 space-y-2">
+              <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-center">
+                <div class="text-[10px] text-slate-400 font-mono">產生速率</div>
+                <div id="prod-rate-display" class="text-lg font-mono font-bold text-asyncCyan">5.0/s</div>
+              </div>
+              <div id="prod-bp-box" class="hidden bg-warnAmber/15 border border-warnAmber/40 rounded-lg p-2 text-center animate-pulse">
+                <div class="text-[10px] font-mono font-bold text-amber-300">⚠ BACKPRESSURE</div>
+                <div class="text-[11px] text-amber-200/90 mt-0.5">待塞入緩衝: <span id="prod-pending-count" class="font-mono font-bold">0</span></div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-800">
+              <span>已送出總數</span>
+              <span id="prod-total-sent" class="text-slate-200 font-semibold">0</span>
+            </div>
+          </div>
+
+          <!-- Stage 2: Bounded Queue -->
+          <div id="stage-queue" class="lg:col-span-3 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-mono text-slate-400">STAGE 02</span>
+                <span id="queue-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-electric/15 text-blue-300 border border-electric/30">BOUNDED</span>
+              </div>
+              <div class="flex items-baseline justify-between">
+                <h4 class="text-sm font-bold text-white">asyncio.Queue</h4>
+                <span class="font-mono text-xs font-bold text-slate-200">
+                  <span id="queue-len">0</span> / <span id="queue-cap">10</span>
+                </span>
+              </div>
+
+              <!-- Waterline progress bar -->
+              <div class="mt-2.5 w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div id="queue-water-bar" class="h-full bg-asyncCyan transition-all duration-200 rounded-full" style="width: 0%;"></div>
+              </div>
+              <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                <span>水位 <span id="queue-pct">0</span>%</span>
+                <span id="queue-pressure-label">正常流量</span>
+              </div>
+            </div>
+
+            <!-- Queued Job Capsules -->
+            <div class="mt-3 flex-1 min-h-[120px] bg-slate-950/70 border border-slate-800/80 rounded-lg p-2.5">
+              <div id="queue-capsules" class="flex flex-wrap gap-1.5 content-start">
+                <span class="text-xs text-slate-500 font-mono">佇列目前為空...</span>
+              </div>
+            </div>
+
+            <div class="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-800">
+              <span>shutdown() 狀態</span>
+              <span id="queue-shutdown-state" class="text-okGreen">OPEN</span>
+            </div>
+          </div>
+
+          <!-- Stage 3: TaskGroup Worker Pool -->
+          <div id="stage-workers" class="lg:col-span-4 bg-lab-card2 border border-py315/40 rounded-xl p-3.5 flex flex-col justify-between relative transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <span class="text-[11px] font-mono text-purple-300 font-semibold">STAGE 03 · asyncio.TaskGroup</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-py315/20 text-purple-200 border border-py315/40">3.15 Structured Scope</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-2.5">Worker Pool 協程槽位</h4>
+
+              <!-- Dynamic Worker Cards Container -->
+              <div id="workers-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-800">
+              <span>Scope 退出保證</span>
+              <span class="text-okGreen font-semibold">0 孤兒 Task 洩漏</span>
+            </div>
+          </div>
+
+          <!-- Stage 4: Outcomes Sink -->
+          <div class="lg:col-span-3 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between gap-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-mono text-slate-400">STAGE 04</span>
+              <span class="text-[11px] font-mono text-slate-400">結果匯流</span>
+            </div>
+
+            <!-- Done Bucket -->
+            <div class="bg-okGreen/10 border border-okGreen/30 rounded-lg p-2.5">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-emerald-300">✅ 已完成 (Done)</span>
+                <span id="sink-done-count" class="font-mono text-sm font-bold text-okGreen">0</span>
+              </div>
+              <div id="sink-done-chips" class="flex flex-wrap gap-1 min-h-[22px]"></div>
+            </div>
+
+            <!-- Retry Backoff Bucket -->
+            <div class="bg-warnAmber/10 border border-warnAmber/30 rounded-lg p-2.5">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-amber-300">🔁 重試退避佇列 (Backoff)</span>
+                <span id="sink-retry-count" class="font-mono text-sm font-bold text-warnAmber">0</span>
+              </div>
+              <div id="sink-retry-chips" class="flex flex-wrap gap-1 min-h-[22px]">
+                <span class="text-[10px] font-mono text-slate-500">目前無退避等待任務</span>
+              </div>
+            </div>
+
+            <!-- DLQ Bucket -->
+            <div class="bg-errRose/10 border border-errRose/30 rounded-lg p-2.5">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-rose-300">☠️ 死信佇列 (DLQ)</span>
+                <span id="sink-dlq-count" class="font-mono text-sm font-bold text-errRose">0</span>
+              </div>
+              <div id="sink-dlq-chips" class="flex flex-wrap gap-1 min-h-[22px]">
+                <span class="text-[10px] font-mono text-slate-500">尚無死信任務</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry KPI Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="bg-lab-card border border-lab-border rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">已完成任務數</div>
+          <div id="kpi-done" class="text-2xl font-mono font-bold text-okGreen mt-1">0</div>
+          <div class="text-[11px] text-slate-500 mt-0.5 font-mono">Idempotent Ack</div>
+        </div>
+        <div class="bg-lab-card border border-lab-border rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">累積重試次數</div>
+          <div id="kpi-retries" class="text-2xl font-mono font-bold text-warnAmber mt-1">0</div>
+          <div class="text-[11px] text-slate-500 mt-0.5 font-mono">Exp Backoff + Jitter</div>
+        </div>
+        <div class="bg-lab-card border border-lab-border rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">超時 / 進入 DLQ</div>
+          <div class="text-2xl font-mono font-bold text-errRose mt-1">
+            <span id="kpi-timeouts">0</span> <span class="text-slate-600 text-base">/</span> <span id="kpi-dlq">0</span>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-0.5 font-mono">asyncio.timeout()</div>
+        </div>
+        <div class="bg-lab-card border border-lab-border rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">Queue 即時水位</div>
+          <div id="kpi-water" class="text-2xl font-mono font-bold text-asyncCyan mt-1">0%</div>
+          <div class="text-[11px] text-slate-500 mt-0.5 font-mono">Bounded Memory</div>
+        </div>
+        <div class="col-span-2 sm:col-span-1 bg-lab-card border border-okGreen/40 rounded-xl p-3.5 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-emerald-300 font-medium">孤兒 Task 數</div>
+            <span class="text-[10px] font-mono bg-okGreen/20 text-okGreen px-1.5 py-0.5 rounded">GUARANTEED</span>
+          </div>
+          <div class="text-2xl font-mono font-bold text-okGreen mt-1">0</div>
+          <div class="text-[11px] text-emerald-200/70 mt-0.5">TaskGroup 結構化併發保障</div>
+        </div>
+      </div>
+
+      <!-- Event Stream Terminal + Collapsible Live Async Call Graph -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Event Log Terminal -->
+        <div class="lg:col-span-7 bg-lab-card border border-lab-border rounded-2xl overflow-hidden flex flex-col">
+          <div class="px-4 py-2.5 bg-slate-900/90 border-b border-lab-border flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-errRose/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-warnAmber/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-okGreen/80"></span>
+              <span class="text-xs font-mono font-semibold text-slate-300 ml-1">Python 3.15 生命週期事件流</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button data-log-filter="ALL" class="log-filter-btn px-2 py-0.5 rounded text-[11px] font-mono bg-electric text-white">ALL</button>
+              <button data-log-filter="3.15" class="log-filter-btn px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-purple-300 hover:bg-slate-700">3.15</button>
+              <button data-log-filter="WARN" class="log-filter-btn px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-amber-300 hover:bg-slate-700">WARN</button>
+              <button data-log-filter="ERROR" class="log-filter-btn px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-rose-300 hover:bg-slate-700">ERROR</button>
+              <button id="btn-clear-logs" class="ml-1 px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-400 hover:text-white border border-slate-700">清除</button>
+            </div>
+          </div>
+          <div id="sim-event-logs" class="p-3.5 font-mono text-xs space-y-1.5 h-60 overflow-y-auto bg-[#070B13]">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Collapsible Async Call Graph Preview -->
+        <div class="lg:col-span-5 bg-lab-card border border-lab-border rounded-2xl overflow-hidden flex flex-col">
+          <button id="btn-toggle-callgraph" class="w-full px-4 py-2.5 bg-slate-900/90 border-b border-lab-border flex items-center justify-between text-left hover:bg-slate-800/70 transition">
+            <div class="flex items-center gap-2">
+              <span class="text-py315 font-mono text-xs font-bold">🌲</span>
+              <span class="text-xs font-mono font-semibold text-slate-200">即時 Async Call Graph 預覽</span>
+              <span class="text-[10px] font-mono text-asyncCyan bg-asyncCyan/10 border border-asyncCyan/30 px-1.5 py-0.5 rounded">asyncio.print_call_graph()</span>
+            </div>
+            <span id="callgraph-chevron" class="text-xs font-mono text-slate-400">▼ 收合</span>
+          </button>
+          <div id="callgraph-body" class="p-3.5 bg-[#070B13] font-mono text-[11px] leading-relaxed text-slate-300 h-60 overflow-auto whitespace-pre">
+            <!-- Dynamically updated ASCII call graph -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: 🎛️ 可控性架構 — Python 3.15 核心特性與寫法對照                 -->
+    <!-- =================================================================== -->
+    <section id="panel-arch" class="tab-panel hidden tab-enter space-y-5">
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-5">
+        <h2 class="text-xl font-bold text-white">可控性架構：五大核心原語與 Python 3.15 寫法演進</h2>
+        <p class="text-sm text-slate-400 mt-1">
+          非同步系統失控的根源通常是「無界佇列、野放背景 Task、模糊取消邊界、可變全域設定」。點擊以下五大架構支柱，比較傳統脆弱寫法與 Python 3.15 可控實踐。
+        </p>
+
+        <!-- 5 Pillar Tabs -->
+        <div id="arch-pillar-tabs" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mt-4">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Active Pillar Detail View -->
+      <div id="arch-detail-container" class="space-y-4">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: 🧪 可測性實驗室 — 確定性非同步測試執行器                       -->
+    <!-- =================================================================== -->
+    <section id="panel-test" class="tab-panel hidden tab-enter space-y-5">
+      <!-- Header & Implementation Mode Switch -->
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1.5 max-w-2xl">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-xl font-bold text-white">確定性非同步測試實驗室</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-mono bg-okGreen/15 text-emerald-300 border border-okGreen/30">Zero asyncio.sleep() Flakiness</span>
+          </div>
+          <p class="text-sm text-slate-400">
+            拒絕在測試裡寫脆弱的 <code class="font-mono text-errRose">await asyncio.sleep(0.5)</code>！透過 <strong>Fake Clock、依賴注入、<code class="font-mono text-asyncCyan">asyncio.Event</code> 同步閘門與故障注入</strong>，在毫秒內精準驗證併發契約。
+          </p>
+        </div>
+
+        <!-- Implementation Switcher -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-lab-bg p-1.5 rounded-xl border border-lab-border shrink-0">
+          <button id="btn-impl-good" class="px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-okGreen/20 text-emerald-300 border border-okGreen/40">
+            <span>✅</span><span>正確的 Python 3.15 Worker 實作</span>
+          </button>
+          <button id="btn-impl-buggy" class="px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-rose-300 border border-transparent">
+            <span>❌</span><span>含經典非同步 Bug 的實作</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Buggy Implementation Warning Banner (only shown in buggy mode) -->
+      <div id="test-buggy-banner" class="hidden bg-errRose/10 border border-errRose/40 rounded-xl px-4 py-3 text-xs text-rose-200 flex items-start gap-2.5">
+        <span class="text-base leading-none">🐞</span>
+        <div>
+          <strong class="font-semibold text-rose-300">目前掛載反模式實作（Anti-Pattern Build）：</strong>
+          此版本刻意引入常見線上災難——使用無界 <code class="font-mono">Queue()</code>、以裸 <code class="font-mono">asyncio.create_task()</code> 產生未追蹤孤兒協程、缺少冪等去重表，並在 <code class="font-mono">except Exception / BaseException</code> 中誤吞 <code class="font-mono">CancelledError</code>。請執行測試觀察契約如何精準攔截這些 Bug！
+        </div>
+      </div>
+
+      <!-- Runner Controls & Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Left: 6 Contract Tests -->
+        <div class="lg:col-span-6 space-y-3">
+          <div class="flex items-center justify-between bg-lab-card border border-lab-border rounded-xl px-4 py-3">
+            <div class="flex items-center gap-3">
+              <button id="btn-run-all-tests" class="px-4 py-2 rounded-xl text-xs font-bold bg-electric hover:bg-blue-500 text-white transition flex items-center gap-1.5 shadow-glowBlue">
+                <span>▶</span><span>執行全部測試 (6)</span>
+              </button>
+              <button id="btn-reset-tests" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                重置結果
+              </button>
+            </div>
+            <div id="test-summary-badge" class="text-xs font-mono text-slate-400">
+              尚未執行
+            </div>
+          </div>
+
+          <div id="test-cases-list" class="space-y-2.5">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Right: Selected Test Code Viewer -->
+        <div class="lg:col-span-6 bg-lab-card border border-lab-border rounded-2xl overflow-hidden flex flex-col">
+          <div class="px-4 py-3 bg-slate-900/90 border-b border-lab-border flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-xs font-mono text-asyncCyan truncate" id="test-code-filename">test_worker.py :: test_backpressure_blocks_producer</div>
+              <div class="text-[11px] text-slate-400">Python 3.15 <code class="font-mono">unittest.IsolatedAsyncioTestCase</code> / <code class="font-mono">pytest</code></div>
+            </div>
+            <button id="btn-copy-test-code" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+              <span>📋</span><span>複製程式碼</span>
+            </button>
+          </div>
+          <div class="p-4 bg-[#070B13] overflow-x-auto flex-1">
+            <pre id="test-code-display" class="font-mono text-xs leading-relaxed text-slate-200"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 4: 🚀 可交付與觀測 — Tachyon 分析器、Call Graph 與上線檢查表      -->
+    <!-- =================================================================== -->
+    <section id="panel-obs" class="tab-panel hidden tab-enter space-y-6">
+      <!-- Upper: Interactive Python 3.15 CLI & Visual Analyzer -->
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-xl font-bold text-white">Python 3.15 生產觀測互動終端機</h2>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-py315/20 text-purple-300 border border-py315/40">PEP 799 Tachyon</span>
+            </div>
+            <p class="text-sm text-slate-400 mt-1">
+              無需修改程式碼或重啟 Worker 進程，直接透過標準函式庫零開銷採樣分析器與非同步內省指令定位效能瓶頸。點擊下方指令立即檢視輸出與視覺化剖析：
+            </p>
+          </div>
+        </div>
+
+        <!-- 4 Real Python 3.15 CLI Buttons -->
+        <div id="cli-cmd-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Terminal Output + Interactive Visualization Split -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <!-- Left: Realistic Terminal -->
+          <div class="xl:col-span-6 bg-[#070B13] border border-lab-border rounded-xl overflow-hidden flex flex-col">
+            <div class="px-3.5 py-2 bg-slate-900 border-b border-lab-border flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-errRose/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-warnAmber/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-okGreen/80"></span>
+                <span class="text-[11px] font-mono text-slate-400 ml-2">sre@prod-worker-01:~</span>
+              </div>
+              <button id="btn-copy-cli" class="text-[11px] font-mono text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 border border-slate-700">複製指令</button>
+            </div>
+            <div id="obs-terminal-output" class="p-4 font-mono text-[11px] sm:text-xs leading-relaxed text-slate-200 overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Right: Interactive Visual Analysis (Flamegraph / Task Dump / PSTree / GIL Breakdown) -->
+          <div class="xl:col-span-6 bg-lab-card2 border border-lab-border rounded-xl p-4 flex flex-col justify-between">
+            <div id="obs-visual-panel" class="space-y-3">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Middle: 3 Deliverability Cornerstone Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Card 1: PEP 810 lazy import -->
+        <div class="bg-lab-card border border-lab-border rounded-2xl p-5 flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-py315/20 text-purple-300 border border-py315/40">PEP 810 · 3.15</span>
+              <span class="text-xs font-mono text-okGreen font-bold">假設值：−82.7%</span>
+            </div>
+            <h3 class="text-base font-bold text-white">顯式延遲載入 <code class="font-mono text-py315">lazy import</code></h3>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              重型依賴（AI SDK、PDF 引擎、雲端儲存用戶端）可延後至第一次使用，並把載入延遲與可能的例外移到首次使用路徑。840／145 ms 是假設，不是本頁或 Kubernetes 實測數據。
+            </p>
+          </div>
+          <div class="bg-[#070B13] border border-slate-800 rounded-xl p-3 space-y-2 text-[11px] font-mono">
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1"><span>傳統 Eager Import</span><span class="text-errRose">840 ms</span></div>
+              <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-errRose w-[92%] rounded-full"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-slate-300 mb-1"><span>3.15 lazy import</span><span class="text-okGreen">145 ms</span></div>
+              <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-okGreen w-[17%] rounded-full"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: PEP 686 Default UTF-8 -->
+        <div class="bg-lab-card border border-lab-border rounded-2xl p-5 flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-asyncCyan/15 text-asyncCyan border border-asyncCyan/40">PEP 686 · 3.15</span>
+              <span class="text-xs font-mono text-asyncCyan">跨環境一致</span>
+            </div>
+            <h3 class="text-base font-bold text-white">預設全域 UTF-8 模式</h3>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              Python 3.15 預設啟用 UTF-8 模式，可由 <code>PYTHONUTF8=0</code> 或 <code>-X utf8=0</code> 關閉。子程序輸出由執行檔自身決定；父程序的文字解碼不是轉換子程序原始位元組。正式資料契約仍明確指定編碼。
+            </p>
+          </div>
+          <div class="bg-[#070B13] border border-slate-800 rounded-xl p-3 font-mono text-[11px] text-slate-300 space-y-1">
+            <div class="text-slate-500"># 明確約定檔案與工具輸出的編碼</div>
+            <div><span class="text-okGreen">✓</span> open("dlq_dump.jsonl", "a", encoding="utf-8") <span class="text-slate-500"># UTF-8</span></div>
+            <div><span class="text-okGreen">✓</span> subprocess 的 encoding 要與子程序輸出約定相符</div>
+          </div>
+        </div>
+
+        <!-- Card 3: Health & Signal Lifecycle -->
+        <div class="bg-lab-card border border-lab-border rounded-2xl p-5 flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-okGreen/15 text-emerald-300 border border-okGreen/40">K8s / SRE 交付</span>
+              <span class="text-xs font-mono text-emerald-300">須實測停機與排空</span>
+            </div>
+            <h3 class="text-base font-bold text-white">訊號生命週期與事件迴圈監控</h3>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              結合 Event Loop Lag 探針與兩段式關機：先切斷新流量並平滑 Drain，超過寬限秒數才以 3.15 <code class="font-mono text-py315">tg.cancel()</code> 安全收尾。
+            </p>
+          </div>
+          <div class="bg-[#070B13] border border-slate-800 rounded-xl p-2.5 flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+            <span class="px-2 py-1 rounded bg-warnAmber/20 text-amber-300 border border-warnAmber/30">SIGTERM</span>
+            <span class="text-slate-500">→</span>
+            <span class="px-2 py-1 rounded bg-electric/20 text-blue-300 border border-electric/30">/readyz 503</span>
+            <span class="text-slate-500">→</span>
+            <span class="px-2 py-1 rounded bg-okGreen/20 text-emerald-300 border border-okGreen/30">queue.shutdown()</span>
+            <span class="text-slate-500">→</span>
+            <span class="px-2 py-1 rounded bg-py315/20 text-purple-300 border border-py315/30">超時 tg.cancel()</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lower: Interactive Production Readiness Checklist -->
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-lab-border pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">互動式「可控・可測・可交付」生產上線檢查表 (Production Readiness)</h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">逐項確認你的 Python 3.15 Worker 服務是否符合上線標準，並可一鍵匯出 Markdown 審查報告。</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <button id="btn-check-all" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">全選 / 清除</button>
+            <button id="btn-export-md" class="px-4 py-2 rounded-xl text-xs font-bold bg-py315 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-glowPurple">
+              <span>📋</span><span>匯出 Markdown 檢查報告</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Readiness Score Progress Bar -->
+        <div class="bg-lab-card2 border border-lab-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="flex-1">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-semibold text-slate-300">上線就緒度評分 (<span id="check-done-num">0</span> / 12 項已完成)</span>
+              <span id="check-pct-label" class="font-mono text-sm font-bold text-asyncCyan">0%</span>
+            </div>
+            <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div id="check-progress-bar" class="h-full bg-gradient-to-r from-electric via-asyncCyan to-okGreen transition-all duration-300 rounded-full" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div id="check-rating-badge" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold font-mono bg-errRose/15 text-rose-300 border border-errRose/40 text-center">
+            🔴 檢核尚未完成
+          </div>
+        </div>
+
+        <!-- 3 Categories Grid -->
+        <div id="checklist-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 5: 📦 完整藍圖 — Python 3.15 Worker 專案程式碼                    -->
+    <!-- =================================================================== -->
+    <section id="panel-code" class="tab-panel hidden tab-enter space-y-5">
+      <div class="bg-lab-card border border-lab-border rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white">Python 3.15 Worker 教學藍圖</h2>
+          <p class="text-sm text-slate-400 mt-1">
+            核心範例可在 Python 3.15.2 執行測試；外部 SDK 與雲端 DLQ 是載入示意，並非已配置服務。未實作健康檢查 HTTP 端點或耐久佇列。全面運用 <code class="font-mono text-py315">frozendict</code>、<code class="font-mono text-py315">sentinel</code>、<code class="font-mono text-py315">lazy import</code>、<code class="font-mono text-py315">TaskGroup.cancel()</code> 與 3.15 <code class="font-mono text-py315">ContextDecorator</code>。
+          </p>
+        </div>
+        <button id="btn-copy-blueprint" class="shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold bg-electric hover:bg-blue-500 text-white transition flex items-center gap-2 shadow-glowBlue">
+          <span>📋</span><span>複製目前檔案程式碼</span>
+        </button>
+      </div>
+
+      <!-- IDE Layout: Left File Tree + Right Code Viewer -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- File Tree Sidebar -->
+        <div class="lg:col-span-3 bg-lab-card border border-lab-border rounded-2xl p-3.5 space-y-3">
+          <div class="text-xs font-mono uppercase tracking-wider text-slate-400 px-2 pt-1 font-semibold flex items-center justify-between">
+            <span>📁 py315-worker/</span>
+            <span class="text-[10px] text-py315 bg-py315/15 px-1.5 py-0.5 rounded">4 files</span>
+          </div>
+          <div id="blueprint-file-tree" class="space-y-1.5">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="mt-4 p-3 rounded-xl bg-lab-card2 border border-lab-border text-xs text-slate-400 space-y-1.5">
+            <div class="font-semibold text-slate-200 flex items-center gap-1.5">
+              <span>⚡</span><span>快速啟動指令</span>
+            </div>
+            <code class="block font-mono text-[11px] bg-[#070B13] p-2 rounded-lg text-asyncCyan overflow-x-auto">python3.15 worker.py  # POSIX 常駐範例，需停止訊號</code>
+            <code class="block font-mono text-[11px] bg-[#070B13] p-2 rounded-lg text-okGreen overflow-x-auto">python3.15 -m unittest test_worker.py</code>
+          </div>
+        </div>
+
+        <!-- Code Display Area -->
+        <div class="lg:col-span-9 bg-lab-card border border-lab-border rounded-2xl overflow-hidden flex flex-col">
+          <div class="px-4 py-3 bg-slate-900/90 border-b border-lab-border flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <span id="bp-active-filename" class="font-mono text-sm font-bold text-white">config.py</span>
+              <span id="bp-active-tags" class="flex flex-wrap gap-1.5"></span>
+            </div>
+            <span id="bp-line-count" class="text-xs font-mono text-slate-400">0 lines</span>
+          </div>
+          <div id="bp-file-desc" class="px-4 py-2 bg-slate-900/40 border-b border-lab-border text-xs text-slate-400"></div>
+          <div class="p-4 bg-[#070B13] overflow-x-auto max-h-[640px] overflow-y-auto">
+            <pre id="bp-code-viewer" class="font-mono text-xs leading-6 text-slate-200"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-lab-border/80 bg-lab-bg/80 mt-8">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <div>Python 3.15 Async Worker Architecture Lab — 聚焦 PEP 799 (Tachyon)・PEP 810 (lazy import)・PEP 814 (frozendict)・PEP 661 (sentinel)・TaskGroup.cancel()</div>
+      <div class="font-mono text-slate-400">Controllable · Testable · Deliverable</div>
+    </div>
+  </footer>
+
+  <!-- Toast Container (Replaces alert/confirm) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- COMPLETE APPLICATION LOGIC (VANILLA JS)                               -->
+  <!-- ===================================================================== -->
+  <script>
+    'use strict';
+
+    /* ===================================================================== */
+    /* UTILITIES: TOAST, CLIPBOARD, PYTHON SYNTAX HIGHLIGHTER                */
+    /* ===================================================================== */
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        info: 'bg-lab-card border-electric/50 text-blue-200',
+        success: 'bg-lab-card border-okGreen/50 text-emerald-200',
+        warn: 'bg-lab-card border-warnAmber/50 text-amber-200',
+        purple: 'bg-lab-card border-py315/60 text-purple-200',
+        error: 'bg-lab-card border-errRose/50 text-rose-200',
+      };
+      const icons = { info: 'ℹ️', success: '✅', warn: '⚠️', purple: '✨', error: '🛑' };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto animate-pop-in px-4 py-2.5 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-2 backdrop-blur-md ${colors[type] || colors.info}`;
+      el.innerHTML = `<span>${icons[type] || icons.info}</span><span>${escapeHtml(message)}</span>`;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        setTimeout(() => el.remove(), 260);
+      }, 2800);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function copyTextToClipboard(text, successMsg = '已複製到剪貼簿') {
+      const fallbackCopy = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.top = '-9999px';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (ok) showToast(successMsg, 'success');
+          else showToast('複製失敗，請手動選取複製', 'error');
+        } catch (err) {
+          showToast('複製失敗，請手動選取複製', 'error');
+        }
+      };
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(
+          () => showToast(successMsg, 'success'),
+          () => fallbackCopy()
+        );
+      } else {
+        fallbackCopy();
+      }
+    }
+
+    // Single-pass lightweight Python 3.15 syntax highlighter
+    const PY_KEYWORDS = new Set([
+      'async', 'await', 'def', 'class', 'return', 'yield', 'if', 'elif', 'else',
+      'for', 'while', 'try', 'except', 'finally', 'with', 'as', 'import', 'from',
+      'raise', 'pass', 'break', 'continue', 'in', 'is', 'not', 'and', 'or',
+      'None', 'True', 'False', 'lambda', 'match', 'case', 'del', 'global', 'nonlocal'
+    ]);
+    const PY315_SPECIAL = new Set([
+      'lazy', 'frozendict', 'sentinel', 'TaskGroup', 'QueueShutDown', 'ContextDecorator', 'AsyncContextDecorator'
+    ]);
+    const PY_BUILTINS = new Set([
+      'int', 'str', 'float', 'bool', 'dict', 'list', 'set', 'tuple', 'len',
+      'range', 'print', 'Exception', 'BaseException', 'ValueError', 'RuntimeError',
+      'TimeoutError', 'CancelledError', 'any', 'all', 'min', 'max', 'object', 'type'
+    ]);
+
+    function highlightPythonLine(rawLine) {
+      const tokenRegex = /(#.*$)|("""[\s\S]*?"""|'''[\s\S]*?'''|f?"(?:\\.|[^"\\])*"|f?'(?:\\.|[^'\\])*')|(@[A-Za-z_][\w.]*)|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)\b/g;
+      let out = '';
+      let lastIndex = 0;
+      let m;
+      while ((m = tokenRegex.exec(rawLine)) !== null) {
+        if (m.index > lastIndex) {
+          out += escapeHtml(rawLine.slice(lastIndex, m.index));
+        }
+        const [full, comment, str, decorator, num, ident] = m;
+        if (comment) {
+          out += `<span class="tok-com">${escapeHtml(comment)}</span>`;
+        } else if (str) {
+          out += `<span class="tok-str">${escapeHtml(str)}</span>`;
+        } else if (decorator) {
+          out += `<span class="tok-dec">${escapeHtml(decorator)}</span>`;
+        } else if (num) {
+          out += `<span class="tok-num">${escapeHtml(num)}</span>`;
+        } else if (ident) {
+          if (PY315_SPECIAL.has(ident)) {
+            out += `<span class="tok-py315">${escapeHtml(ident)}</span>`;
+          } else if (PY_KEYWORDS.has(ident)) {
+            out += `<span class="tok-kw">${escapeHtml(ident)}</span>`;
+          } else if (PY_BUILTINS.has(ident)) {
+            out += `<span class="tok-bi">${escapeHtml(ident)}</span>`;
+          } else {
+            out += escapeHtml(ident);
+          }
+        }
+        lastIndex = tokenRegex.lastIndex;
+      }
+      if (lastIndex < rawLine.length) {
+        out += escapeHtml(rawLine.slice(lastIndex));
+      }
+      return out;
+    }
+
+    function renderHighlightedPython(code, highlightLines = [], highlightType = 'good') {
+      const hlSet = new Set(highlightLines);
+      const cls = highlightType === 'bad' ? 'code-line-highlight-bad' : 'code-line-highlight-good';
+      return code.split('\n').map((line, idx) => {
+        const lineNum = idx + 1;
+        const colored = highlightPythonLine(line);
+        const numSpan = `<span class="inline-block w-7 mr-3 text-right select-none text-slate-600 text-[11px]">${lineNum}</span>`;
+        if (hlSet.has(lineNum)) {
+          return `<span class="${cls}">${numSpan}${colored || ' '}</span>`;
+        }
+        return `${numSpan}${colored}`;
+      }).join('\n');
+    }
+
+    /* ===================================================================== */
+    /* NAVIGATION TAB SWITCHING                                              */
+    /* ===================================================================== */
+    const navButtons = document.querySelectorAll('.nav-tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    let currentTab = 'sim';
+
+    function switchTab(tabId) {
+      currentTab = tabId;
+      navButtons.forEach(btn => {
+        const active = btn.dataset.tab === tabId;
+        if (active) {
+          btn.className = 'nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border bg-electric/20 text-white border-electric/60 shadow-glowBlue';
+        } else {
+          btn.className = 'nav-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 border bg-lab-card/70 text-slate-400 border-lab-border hover:text-slate-200 hover:border-slate-600';
+        }
+      });
+      tabPanels.forEach(p => {
+        if (p.id === `panel-${tabId}`) {
+          p.classList.remove('hidden');
+        } else {
+          p.classList.add('hidden');
+        }
+      });
+    }
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    /* ===================================================================== */
+    /* TAB 1: LIVE WORKER SIMULATOR ENGINE                                   */
+    /* ===================================================================== */
+    const sim = {
+      running: true,
+      phase: 'RUNNING', // RUNNING | DRAINING | CANCELLED | STOPPED
+      produceRate: 5,
+      queueMaxsize: 10,
+      workerCount: 4,
+      timeoutMs: 900,
+      failRate: 15,
+      latencySpikeRemainingMs: 0,
+
+      jobSeq: 1,
+      produceAcc: 0,
+      pendingBurstBuffer: [], // Jobs waiting when Producer is blocked by backpressure
+      queue: [],
+      queueShutdown: false,
+      workers: [],
+      retryBackoff: [],
+      doneJobs: [],
+      dlqJobs: [],
+
+      stats: {
+        sent: 0,
+        done: 0,
+        retries: 0,
+        timeouts: 0,
+        dlq: 0,
+      },
+
+      logs: [],
+      logFilter: 'ALL',
+      callGraphOpen: true,
+      lastTick: performance.now(),
+      callGraphTimer: 0,
+    };
+
+    function nowTimeStr() {
+      const d = new Date();
+      const pad = (n, w = 2) => String(n).padStart(w, '0');
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+    }
+
+    function addSimLog(level, message) {
+      sim.logs.unshift({ time: nowTimeStr(), level, message });
+      if (sim.logs.length > 90) sim.logs.pop();
+      renderSimLogs();
+    }
+
+    function initWorkers(count) {
+      const next = [];
+      for (let i = 0; i < count; i++) {
+        if (sim.workers[i]) {
+          next.push(sim.workers[i]);
+        } else {
+          next.push({
+            id: `worker-${i}`,
+            state: sim.phase === 'CANCELLED' || sim.phase === 'STOPPED' ? 'STOPPED' : 'IDLE',
+            job: null,
+            elapsedMs: 0,
+            workNeededMs: 0,
+            willFail: false,
+            cancelCountdownMs: 0,
+          });
+        }
+      }
+      sim.workers = next;
+    }
+
+    function createJob(attempt = 1) {
+      const id = `job-${String(sim.jobSeq++).padStart(3, '0')}`;
+      return { id, attempt, maxAttempts: 3, createdAt: performance.now() };
+    }
+
+    function resetSimulator() {
+      sim.running = true;
+      sim.phase = 'RUNNING';
+      sim.latencySpikeRemainingMs = 0;
+      sim.jobSeq = 1;
+      sim.produceAcc = 0;
+      sim.pendingBurstBuffer = [];
+      sim.queue = [];
+      sim.queueShutdown = false;
+      sim.retryBackoff = [];
+      sim.doneJobs = [];
+      sim.dlqJobs = [];
+      sim.stats = { sent: 0, done: 0, retries: 0, timeouts: 0, dlq: 0 };
+      sim.workers = [];
+      initWorkers(sim.workerCount);
+      sim.logs = [];
+      addSimLog('3.15', `TaskGroup 啟動：建立 ${sim.workerCount} 個 Worker 協程，Queue(maxsize=${sim.queueMaxsize})`);
+      updateToggleBtn();
+      renderSimulator();
+      renderCallGraph();
+    }
+
+    function triggerBurst() {
+      if (sim.phase !== 'RUNNING') {
+        showToast('請先重置模擬器以恢復 RUNNING 狀態', 'warn');
+        return;
+      }
+      let queuedNow = 0;
+      let blockedCount = 0;
+      for (let i = 0; i < 12; i++) {
+        const job = createJob(1);
+        if (sim.queue.length < sim.queueMaxsize) {
+          sim.queue.push(job);
+          sim.stats.sent++;
+          queuedNow++;
+        } else {
+          sim.pendingBurstBuffer.push(job);
+          blockedCount++;
+        }
+      }
+      addSimLog('WARN', `突發流量注入 +12 任務：${queuedNow} 筆入列，${blockedCount} 筆觸發 Bounded Queue 背壓阻擋 Producer`);
+      showToast(`已注入 12 筆突發任務（${blockedCount > 0 ? '已觸發背壓！' : '佇列吸收中'}）`, 'warn');
+      renderSimulator();
+    }
+
+    function triggerLatencySpike() {
+      if (sim.phase !== 'RUNNING' && sim.phase !== 'DRAINING') {
+        showToast('模擬器已停止，請先重置', 'warn');
+        return;
+      }
+      sim.latencySpikeRemainingMs = 5000;
+      // Also slow currently processing jobs so timeout triggers visibly
+      sim.workers.forEach(w => {
+        if (w.state === 'PROCESSING') {
+          w.workNeededMs = Math.max(w.workNeededMs, sim.timeoutMs + 350);
+        }
+      });
+      addSimLog('WARN', `注入下游延遲 5.0s：執行中任務將觸發 asyncio.timeout(${sim.timeoutMs}ms) 與指數退避`);
+      showToast('下游延遲已注入（5 秒），觀察超時與退避重試', 'info');
+    }
+
+    function triggerGracefulShutdown() {
+      if (sim.phase === 'CANCELLED' || sim.phase === 'STOPPED') {
+        showToast('系統已停止，請按「重置」重新啟動', 'info');
+        return;
+      }
+      sim.phase = 'DRAINING';
+      sim.queueShutdown = true;
+      sim.pendingBurstBuffer = [];
+      addSimLog('INFO', `呼叫 queue.shutdown(immediate=False) — 停止生產，等待剩餘 ${sim.queue.length} 筆佇列與執行中任務無損排空`);
+      showToast('已啟動優雅排空 Queue.shutdown()，等待剩餘任務消化完畢', 'success');
+      renderSimulator();
+    }
+
+    function triggerTaskGroupCancel() {
+      if (sim.phase === 'CANCELLED' || sim.phase === 'STOPPED') {
+        showToast('系統已停止，請按「重置」重新啟動', 'info');
+        return;
+      }
+      sim.phase = 'CANCELLED';
+      sim.queueShutdown = true;
+      const droppedPending = sim.pendingBurstBuffer.length;
+      const cancelledQueued = sim.queue.length;
+      sim.pendingBurstBuffer = [];
+      sim.retryBackoff = [];
+
+      let activeWorkers = 0;
+      sim.workers.forEach(w => {
+        if (w.state === 'PROCESSING' || w.state === 'RETRYING') {
+          activeWorkers++;
+          w.state = 'CANCELLING';
+          w.cancelCountdownMs = 380;
+        } else {
+          w.state = 'STOPPED';
+          w.job = null;
+        }
+      });
+      sim.queue = [];
+      addSimLog('3.15', `tg.cancel() 顯式取消觸發：立即取消 ${activeWorkers} 個執行中協程；模擬器另丟棄 ${cancelledQueued + droppedPending} 筆待處理項目`);
+      addSimLog('3.15', `CancelledError cleanup 完成 → TaskGroup 安全退出，孤兒 Task 數 = 0`);
+      showToast('已模擬 Python 3.15 TaskGroup.cancel() 與受管任務清理', 'purple');
+      renderSimulator();
+      renderCallGraph();
+    }
+
+    function stepSimulation(dtMs) {
+      if (!sim.running) return;
+
+      // Latency countdown
+      if (sim.latencySpikeRemainingMs > 0) {
+        sim.latencySpikeRemainingMs = Math.max(0, sim.latencySpikeRemainingMs - dtMs);
+      }
+
+      // 1. Producer Logic (only when RUNNING)
+      if (sim.phase === 'RUNNING') {
+        // First flush any pending backpressure buffer
+        while (sim.pendingBurstBuffer.length > 0 && sim.queue.length < sim.queueMaxsize) {
+          sim.queue.push(sim.pendingBurstBuffer.shift());
+          sim.stats.sent++;
+        }
+        // Normal production
+        if (sim.pendingBurstBuffer.length === 0) {
+          sim.produceAcc += (sim.produceRate * dtMs) / 1000;
+          while (sim.produceAcc >= 1) {
+            sim.produceAcc -= 1;
+            if (sim.queue.length < sim.queueMaxsize) {
+              sim.queue.push(createJob(1));
+              sim.stats.sent++;
+            } else {
+              // Backpressure blocks producer!
+              sim.pendingBurstBuffer.push(createJob(1));
+              if (sim.pendingBurstBuffer.length === 1) {
+                addSimLog('WARN', `Bounded Queue 滿載 (${sim.queueMaxsize}/${sim.queueMaxsize}) → Producer 進入 BACKPRESSURE 等待`);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. Retry Backoff Countdown -> Re-enqueue
+      if (sim.phase === 'RUNNING' || sim.phase === 'DRAINING') {
+        for (let i = sim.retryBackoff.length - 1; i >= 0; i--) {
+          const item = sim.retryBackoff[i];
+          item.waitMs -= dtMs;
+          if (item.waitMs <= 0) {
+            if (sim.queue.length < sim.queueMaxsize || sim.phase === 'DRAINING') {
+              sim.queue.push(item.job);
+              sim.retryBackoff.splice(i, 1);
+            }
+          }
+        }
+      }
+
+      // 3. Workers Execution
+      sim.workers.forEach(w => {
+        if (w.state === 'CANCELLING') {
+          w.cancelCountdownMs -= dtMs;
+          if (w.cancelCountdownMs <= 0) {
+            if (w.job) {
+              addSimLog('3.15', `${w.id} 捕獲 CancelledError 釋放 ${w.job.id} 資源並向上傳播`);
+            }
+            w.job = null;
+            w.state = 'STOPPED';
+          }
+          return;
+        }
+
+        if (w.state === 'PROCESSING' && w.job) {
+          w.elapsedMs += dtMs;
+
+          // Check asyncio.timeout()
+          if (w.elapsedMs >= sim.timeoutMs) {
+            const failedJob = w.job;
+            w.job = null;
+            w.elapsedMs = 0;
+            w.state = 'IDLE';
+            sim.stats.timeouts++;
+            handleJobFailure(w.id, failedJob, `TimeoutError (>${sim.timeoutMs}ms)`);
+            return;
+          }
+
+          // Check task completion or simulated downstream error
+          if (w.elapsedMs >= w.workNeededMs) {
+            const job = w.job;
+            w.job = null;
+            w.elapsedMs = 0;
+            w.state = 'IDLE';
+            if (w.willFail) {
+              handleJobFailure(w.id, job, 'Upstream 503');
+            } else {
+              sim.stats.done++;
+              sim.doneJobs.unshift(job.id);
+              if (sim.doneJobs.length > 6) sim.doneJobs.pop();
+            }
+          }
+        }
+
+        // Pull next job if IDLE
+        if (w.state === 'IDLE') {
+          if (sim.queue.length > 0 && (sim.phase === 'RUNNING' || sim.phase === 'DRAINING')) {
+            const nextJob = sim.queue.shift();
+            w.job = nextJob;
+            w.state = 'PROCESSING';
+            w.elapsedMs = 0;
+            const baseDuration = 280 + Math.random() * 480;
+            w.workNeededMs = sim.latencySpikeRemainingMs > 0 ? baseDuration * 2.5 : baseDuration;
+            w.willFail = Math.random() * 100 < sim.failRate;
+          } else if (sim.phase === 'DRAINING' && sim.queue.length === 0 && sim.retryBackoff.length === 0) {
+            w.state = 'STOPPED';
+            addSimLog('INFO', `QueueShutDown 觸發 → ${w.id} 完成排空並優雅退出`);
+          }
+        }
+      });
+
+      // Check if graceful drain completed across all workers
+      if (sim.phase === 'DRAINING') {
+        const allStopped = sim.workers.every(w => w.state === 'STOPPED');
+        if (allStopped && sim.queue.length === 0 && sim.retryBackoff.length === 0) {
+          sim.phase = 'STOPPED';
+          addSimLog('INFO', `✅ 所有 Worker 已無損排空完畢（Done=${sim.stats.done}, DLQ=${sim.stats.dlq}, 孤兒=0）`);
+          showToast('優雅排空完成：零任務遺失！', 'success');
+        }
+      }
+    }
+
+    function handleJobFailure(workerId, job, reason) {
+      if (job.attempt < job.maxAttempts && sim.phase !== 'CANCELLED') {
+        sim.stats.retries++;
+        const nextAttempt = job.attempt + 1;
+        const backoffMs = Math.round((250 * Math.pow(2, job.attempt - 1)) + Math.random() * 160);
+        sim.retryBackoff.push({
+          job: { ...job, attempt: nextAttempt },
+          waitMs: backoffMs,
+          reason
+        });
+        addSimLog('WARN', `${workerId} 處理 ${job.id} 發生 ${reason} → 排入退避重試 (try ${nextAttempt}/${job.maxAttempts}, ${backoffMs}ms)`);
+      } else {
+        sim.stats.dlq++;
+        sim.dlqJobs.unshift({ id: job.id, reason });
+        if (sim.dlqJobs.length > 5) sim.dlqJobs.pop();
+        addSimLog('ERROR', `${job.id} 達重試上限 (${reason}) → DLQ routed`);
+      }
+    }
+
+    function renderSimulator() {
+      // Phase badge
+      const phaseBadge = document.getElementById('sim-phase-badge');
+      const phaseStyles = {
+        RUNNING: ['● RUNNING', 'bg-okGreen/15 text-okGreen border-okGreen/40'],
+        DRAINING: ['◐ DRAINING (Queue.shutdown)', 'bg-warnAmber/20 text-amber-300 border-warnAmber/40'],
+        CANCELLED: ['■ CANCELLED (tg.cancel)', 'bg-py315/20 text-purple-300 border-py315/50'],
+        STOPPED: ['✓ STOPPED (Drained)', 'bg-electric/20 text-blue-300 border-electric/40'],
+      };
+      const [pText, pCls] = phaseStyles[sim.phase];
+      phaseBadge.textContent = pText;
+      phaseBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold border ${pCls}`;
+
+      // Latency badge
+      const latBadge = document.getElementById('sim-latency-badge');
+      if (sim.latencySpikeRemainingMs > 0) {
+        latBadge.classList.remove('hidden');
+        document.getElementById('sim-latency-countdown').textContent = (sim.latencySpikeRemainingMs / 1000).toFixed(1);
+      } else {
+        latBadge.classList.add('hidden');
+      }
+
+      // Stage 1: Producer
+      const isBackpressure = sim.phase === 'RUNNING' && (sim.pendingBurstBuffer.length > 0 || sim.queue.length >= sim.queueMaxsize);
+      const prodBadge = document.getElementById('prod-status-badge');
+      const stageProd = document.getElementById('stage-producer');
+      const bpBox = document.getElementById('prod-bp-box');
+
+      if (sim.phase !== 'RUNNING') {
+        prodBadge.textContent = sim.phase === 'CANCELLED' ? 'CANCELLED' : 'STOPPED';
+        prodBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700';
+        stageProd.className = 'lg:col-span-2 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300 opacity-75';
+        bpBox.classList.add('hidden');
+      } else if (isBackpressure) {
+        prodBadge.textContent = 'BACKPRESSURE';
+        prodBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-warnAmber/20 text-amber-300 border border-warnAmber/50 animate-pulse';
+        stageProd.className = 'lg:col-span-2 bg-lab-card2 border border-warnAmber/60 rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300 shadow-glowAmber';
+        bpBox.classList.remove('hidden');
+        document.getElementById('prod-pending-count').textContent = sim.pendingBurstBuffer.length;
+      } else {
+        prodBadge.textContent = 'RUNNING';
+        prodBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-asyncCyan/15 text-asyncCyan border border-asyncCyan/40';
+        stageProd.className = 'lg:col-span-2 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300';
+        bpBox.classList.add('hidden');
+      }
+      document.getElementById('prod-rate-display').textContent = sim.phase === 'RUNNING' ? `${sim.produceRate}.0/s` : '0.0/s';
+      document.getElementById('prod-total-sent').textContent = sim.stats.sent;
+
+      // Stage 2: Bounded Queue
+      const pct = Math.min(100, Math.round((sim.queue.length / sim.queueMaxsize) * 100));
+      document.getElementById('queue-len').textContent = sim.queue.length;
+      document.getElementById('queue-cap').textContent = sim.queueMaxsize;
+      document.getElementById('queue-pct').textContent = pct;
+      const waterBar = document.getElementById('queue-water-bar');
+      waterBar.style.width = `${pct}%`;
+      const pressureLabel = document.getElementById('queue-pressure-label');
+      const stageQueue = document.getElementById('stage-queue');
+
+      if (pct >= 100) {
+        waterBar.className = 'h-full bg-errRose transition-all duration-200 rounded-full';
+        pressureLabel.textContent = '🔴 已達上限（背壓生效）';
+        pressureLabel.className = 'text-rose-400 font-semibold';
+        stageQueue.className = 'lg:col-span-3 bg-lab-card2 border border-warnAmber/60 rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300';
+      } else if (pct >= 70) {
+        waterBar.className = 'h-full bg-warnAmber transition-all duration-200 rounded-full';
+        pressureLabel.textContent = '🟡 高水位警戒';
+        pressureLabel.className = 'text-amber-300';
+        stageQueue.className = 'lg:col-span-3 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300';
+      } else {
+        waterBar.className = 'h-full bg-asyncCyan transition-all duration-200 rounded-full';
+        pressureLabel.textContent = '正常流量';
+        pressureLabel.className = 'text-slate-400';
+        stageQueue.className = 'lg:col-span-3 bg-lab-card2 border border-lab-border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300';
+      }
+
+      const qShutdownEl = document.getElementById('queue-shutdown-state');
+      if (sim.queueShutdown) {
+        qShutdownEl.textContent = 'SHUTDOWN';
+        qShutdownEl.className = 'text-amber-300 font-bold';
+      } else {
+        qShutdownEl.textContent = 'OPEN';
+        qShutdownEl.className = 'text-okGreen font-semibold';
+      }
+
+      const capsulesEl = document.getElementById('queue-capsules');
+      if (sim.queue.length === 0) {
+        capsulesEl.innerHTML = `<span class="text-[11px] text-slate-500 font-mono">${sim.queueShutdown ? 'Queue 已排空 (QueueShutDown)' : '佇列目前為空...'}</span>`;
+      } else {
+        capsulesEl.innerHTML = sim.queue.map(j => {
+          const isRetry = j.attempt > 1;
+          const cls = isRetry
+            ? 'bg-warnAmber/20 text-amber-200 border-warnAmber/40'
+            : 'bg-electric/20 text-blue-200 border-electric/40';
+          return `<span class="px-2 py-0.5 rounded-md text-[10px] font-mono border ${cls}">${j.id}${isRetry ? `·R${j.attempt - 1}` : ''}</span>`;
+        }).join('');
+      }
+
+      // Stage 3: Worker Pool
+      const workersGrid = document.getElementById('workers-grid');
+      workersGrid.innerHTML = sim.workers.map(w => {
+        let badgeCls = 'bg-slate-800 text-slate-400 border-slate-700';
+        let cardBorder = 'border-slate-800';
+        let barColor = 'bg-asyncCyan';
+        let pctWork = 0;
+
+        if (w.state === 'PROCESSING') {
+          pctWork = Math.min(100, Math.round((w.elapsedMs / sim.timeoutMs) * 100));
+          const nearTimeout = pctWork >= 72;
+          badgeCls = nearTimeout
+            ? 'bg-warnAmber/20 text-amber-300 border-warnAmber/40'
+            : 'bg-asyncCyan/15 text-asyncCyan border-asyncCyan/40';
+          cardBorder = nearTimeout ? 'border-warnAmber/50' : 'border-asyncCyan/30';
+          barColor = nearTimeout ? 'bg-warnAmber' : 'bg-asyncCyan';
+        } else if (w.state === 'CANCELLING') {
+          badgeCls = 'bg-errRose/20 text-rose-300 border-errRose/50 animate-pulse';
+          cardBorder = 'border-errRose/60';
+          barColor = 'bg-errRose';
+          pctWork = 100;
+        } else if (w.state === 'STOPPED') {
+          badgeCls = 'bg-slate-800/80 text-slate-500 border-slate-700';
+          cardBorder = 'border-slate-800/70 opacity-65';
+        }
+
+        return `
+          <div class="bg-slate-900/90 border ${cardBorder} rounded-lg p-2.5 transition-all">
+            <div class="flex items-center justify-between gap-1 mb-1.5">
+              <span class="font-mono text-[11px] font-bold text-slate-200">${w.id}</span>
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${badgeCls}">${w.state}</span>
+            </div>
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1.5">
+              <span>${w.job ? w.job.id : 'waiting...'}</span>
+              <span>${w.job ? `try ${w.job.attempt}/${w.job.maxAttempts}` : '—'}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+              <div class="h-full ${barColor} transition-all duration-100" style="width:${pctWork}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Stage 4: Outcomes Sink
+      document.getElementById('sink-done-count').textContent = sim.stats.done;
+      document.getElementById('sink-done-chips').innerHTML = sim.doneJobs.length
+        ? sim.doneJobs.map(id => `<span class="px-1.5 py-0.5 rounded bg-okGreen/20 text-emerald-200 font-mono text-[10px]">${id}</span>`).join('')
+        : '<span class="text-[10px] font-mono text-slate-500">等待完成...</span>';
+
+      document.getElementById('sink-retry-count').textContent = sim.retryBackoff.length;
+      document.getElementById('sink-retry-chips').innerHTML = sim.retryBackoff.length
+        ? sim.retryBackoff.slice(0, 5).map(r => `<span class="px-1.5 py-0.5 rounded bg-warnAmber/20 text-amber-200 font-mono text-[10px]">${r.job.id} (${Math.max(0, Math.round(r.waitMs))}ms)</span>`).join('')
+        : '<span class="text-[10px] font-mono text-slate-500">目前無退避等待任務</span>';
+
+      document.getElementById('sink-dlq-count').textContent = sim.stats.dlq;
+      document.getElementById('sink-dlq-chips').innerHTML = sim.dlqJobs.length
+        ? sim.dlqJobs.map(d => `<span class="px-1.5 py-0.5 rounded bg-errRose/20 text-rose-200 font-mono text-[10px]" title="${escapeHtml(d.reason)}">${d.id}</span>`).join('')
+        : '<span class="text-[10px] font-mono text-slate-500">尚無死信任務</span>';
+
+      // Telemetry KPIs
+      document.getElementById('kpi-done').textContent = sim.stats.done;
+      document.getElementById('kpi-retries').textContent = sim.stats.retries;
+      document.getElementById('kpi-timeouts').textContent = sim.stats.timeouts;
+      document.getElementById('kpi-dlq').textContent = sim.stats.dlq;
+      document.getElementById('kpi-water').textContent = `${pct}%`;
+    }
+
+    function renderSimLogs() {
+      const container = document.getElementById('sim-event-logs');
+      const filtered = sim.logFilter === 'ALL'
+        ? sim.logs
+        : sim.logs.filter(l => l.level === sim.logFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-slate-500">暫無符合篩選條件 [${sim.logFilter}] 的事件...</div>`;
+        return;
+      }
+
+      const levelColor = {
+        INFO: 'text-asyncCyan',
+        WARN: 'text-warnAmber',
+        ERROR: 'text-errRose',
+        '3.15': 'text-purple-400 font-bold',
+      };
+      container.innerHTML = filtered.slice(0, 40).map(l => `
+        <div class="flex items-start gap-2 leading-snug">
+          <span class="text-slate-600 shrink-0">[${l.time}]</span>
+          <span class="shrink-0 w-12 ${levelColor[l.level] || 'text-slate-300'}">[${l.level}]</span>
+          <span class="text-slate-300 break-words">${escapeHtml(l.message)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderCallGraph() {
+      const el = document.getElementById('callgraph-body');
+      if (!sim.callGraphOpen) return;
+
+      const lines = [
+        `<span class="text-py315">* Task(name='main')</span>  <span class="text-slate-500">[state=${sim.phase}]</span>`,
+        `  └─ <span class="text-electric">async with asyncio.TaskGroup() as tg</span>  <span class="text-slate-500">worker.py:114</span>`,
+      ];
+
+      if (sim.phase === 'RUNNING') {
+        const bp = sim.pendingBurstBuffer.length > 0 || sim.queue.length >= sim.queueMaxsize;
+        lines.push(`     ├─ <span class="${bp ? 'text-warnAmber' : 'text-asyncCyan'}">Task(name='producer')</span>`);
+        lines.push(`     │   └─ ${bp ? '<span class="text-warnAmber">await queue.put(job)  # BLOCKED: backpressure</span>' : 'await asyncio.sleep(rate_interval)'}`);
+      } else {
+        lines.push(`     ├─ <span class="text-slate-500">Task(name='producer') [exited cleanly]</span>`);
+      }
+
+      sim.workers.forEach((w, idx) => {
+        const isLast = idx === sim.workers.length - 1;
+        const branch = isLast ? '└─' : '├─';
+        const pad = isLast ? '   ' : '│  ';
+        if (w.state === 'PROCESSING' && w.job) {
+          lines.push(`     ${branch} <span class="text-okGreen">Task(name='${w.id}')</span>`);
+          lines.push(`     ${pad} └─ await process_job(<span class="text-amber-300">'${w.job.id}'</span>, attempt=${w.job.attempt})`);
+          lines.push(`     ${pad}     └─ <span class="text-electric">async with asyncio.timeout(${(sim.timeoutMs / 1000).toFixed(1)}s)</span>  <span class="text-slate-500">elapsed=${Math.round(w.elapsedMs)}ms</span>`);
+        } else if (w.state === 'CANCELLING') {
+          lines.push(`     ${branch} <span class="text-errRose">Task(name='${w.id}') [CANCELLING via tg.cancel()]</span>`);
+          lines.push(`     ${pad} └─ finally: await release_connection()`);
+        } else if (w.state === 'STOPPED') {
+          lines.push(`     ${branch} <span class="text-slate-500">Task(name='${w.id}') [FINISHED · 0 leaks]</span>`);
+        } else {
+          lines.push(`     ${branch} <span class="text-slate-300">Task(name='${w.id}')</span>`);
+          lines.push(`     ${pad} └─ await queue.get()  <span class="text-slate-500">asyncio/queues.py:186</span>`);
+        }
+      });
+
+      el.innerHTML = lines.join('\n');
+    }
+
+    function updateToggleBtn() {
+      document.getElementById('sim-toggle-icon').textContent = sim.running ? '⏸' : '▶';
+      document.getElementById('sim-toggle-text').textContent = sim.running ? '暫停' : '繼續';
+    }
+
+    // Bind Simulator UI Events
+    document.getElementById('btn-sim-toggle').addEventListener('click', () => {
+      sim.running = !sim.running;
+      updateToggleBtn();
+    });
+    document.getElementById('btn-sim-reset').addEventListener('click', resetSimulator);
+    document.getElementById('btn-burst').addEventListener('click', triggerBurst);
+    document.getElementById('btn-latency').addEventListener('click', triggerLatencySpike);
+    document.getElementById('btn-shutdown').addEventListener('click', triggerGracefulShutdown);
+    document.getElementById('btn-tg-cancel').addEventListener('click', triggerTaskGroupCancel);
+
+    document.getElementById('slider-rate').addEventListener('input', e => {
+      sim.produceRate = Number(e.target.value);
+      document.getElementById('val-rate').textContent = sim.produceRate;
+    });
+    document.getElementById('slider-maxsize').addEventListener('input', e => {
+      sim.queueMaxsize = Number(e.target.value);
+      document.getElementById('val-maxsize').textContent = sim.queueMaxsize;
+    });
+    document.getElementById('slider-workers').addEventListener('input', e => {
+      sim.workerCount = Number(e.target.value);
+      document.getElementById('val-workers').textContent = sim.workerCount;
+      initWorkers(sim.workerCount);
+      renderSimulator();
+      renderCallGraph();
+    });
+    document.getElementById('slider-timeout').addEventListener('input', e => {
+      sim.timeoutMs = Number(e.target.value);
+      document.getElementById('val-timeout').textContent = sim.timeoutMs;
+    });
+    document.getElementById('slider-fail').addEventListener('input', e => {
+      sim.failRate = Number(e.target.value);
+      document.getElementById('val-fail').textContent = sim.failRate;
+    });
+
+    document.querySelectorAll('.log-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sim.logFilter = btn.dataset.logFilter;
+        document.querySelectorAll('.log-filter-btn').forEach(b => {
+          b.classList.toggle('bg-electric', b === btn);
+          b.classList.toggle('text-white', b === btn);
+          b.classList.toggle('bg-slate-800', b !== btn);
+        });
+        renderSimLogs();
+      });
+    });
+
+    document.getElementById('btn-clear-logs').addEventListener('click', () => {
+      sim.logs = [];
+      renderSimLogs();
+    });
+
+    document.getElementById('btn-toggle-callgraph').addEventListener('click', () => {
+      sim.callGraphOpen = !sim.callGraphOpen;
+      document.getElementById('callgraph-body').classList.toggle('hidden', !sim.callGraphOpen);
+      document.getElementById('callgraph-chevron').textContent = sim.callGraphOpen ? '▼ 收合' : '▶ 展開';
+      if (sim.callGraphOpen) renderCallGraph();
+    });
+
+    // Main animation loop for Tab 1
+    function simulatorLoop(now) {
+      const dt = Math.min(100, now - sim.lastTick);
+      sim.lastTick = now;
+
+      if (sim.running) {
+        stepSimulation(dt);
+        if (currentTab === 'sim') {
+          renderSimulator();
+          sim.callGraphTimer += dt;
+          if (sim.callGraphTimer >= 320) {
+            sim.callGraphTimer = 0;
+            renderCallGraph();
+          }
+        }
+      }
+      requestAnimationFrame(simulatorLoop);
+    }
+
+    /* ===================================================================== */
+    /* TAB 2: CONTROLLABILITY ARCHITECTURE (5 PILLARS)                       */
+    /* ===================================================================== */
+    const ARCH_PILLARS = [
+      {
+        id: 'tg-cancel',
+        badge: 'Python 3.15 新特性',
+        title: '結構化併發與 TaskGroup.cancel()',
+        shortTitle: 'TaskGroup.cancel()',
+        principle: '將所有 Worker 協程收斂在 asyncio.TaskGroup 生命週期內，等待受該群組管理的任務清理；群組外的 task 不受保護。Python 3.15 新增原生 tg.cancel()，讓系統收到停機訊號或熔斷條件時，可直接以「非異常」的方式優雅取消群組內所有任務，徹底告別自訂 _Terminate 例外加 contextlib.suppress 的醜陋 Hack。',
+        benefits: ['零孤兒 Task 保證', '無需自訂例外 Hack', '與 SIGTERM 優雅整合'],
+        oldTitle: '傳統 ≤3.12 脆弱寫法（野放 Task 或例外 Hack）',
+        oldCode: `class _ForceStop(Exception):
+    pass
+
+# ❌ 脆弱寫法 1：野放背景 Task，出錯無人回收
+bg_task = asyncio.create_task(worker_loop(queue))
+
+# ❌ 脆弱寫法 2：為提前結束 TaskGroup 被迫丟假例外
+with contextlib.suppress(_ForceStop):
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(worker_loop(queue))
+        await stop_event.wait()
+        raise _ForceStop()  # 污染 ExceptionGroup 與除錯堆疊`,
+        oldHighlight: [5, 8, 12],
+        newTitle: 'Python 3.15 可控寫法（原生 tg.cancel()）',
+        newCode: `async def run_worker_pool(queue: asyncio.Queue, stop_event: asyncio.Event):
+    async with asyncio.TaskGroup() as tg:
+        for i in range(4):
+            tg.create_task(worker_loop(i, queue), name=f"worker-{i}")
+
+        await stop_event.wait()
+        # ✅ Python 3.15：原生顯式取消整個任務群組
+        # 不需自訂例外、不需 suppress，自動等待全部協程完成 finally 清理
+        tg.cancel()
+
+    # 執行到此行時，保證 100% 協程已結束，孤兒 Task 數永遠為 0`,
+        newHighlight: [2, 9],
+        pitfall: '防雷提示：tg.cancel() 會向群組內所有執行中的 Task 注入 CancelledError。請確保 Worker 的 except 區塊永遠不要捕獲 BaseException 或靜默吞掉 CancelledError；清理資源（如關閉 DB 連線、回滾鎖定）應一律放在 finally 區塊中。'
+      },
+      {
+        id: 'bounded-queue',
+        badge: '背壓與無損排空',
+        title: '有界佇列背壓與 Queue.shutdown()',
+        shortTitle: 'Queue 背壓 & shutdown',
+        principle: '預設無上限的 asyncio.Queue() 在上游突發流量或下游變慢時，會無止境堆積物件直到容器 OOM 被殺掉。改用 asyncio.Queue(maxsize=N) 讓 await queue.put() 自然阻擋 Producer 形成背壓（Backpressure）；關機時呼叫 queue.shutdown(immediate=False)，讓所有剩餘任務被消化完畢後自動拋出 QueueShutDown 結束 Worker。',
+        benefits: ['防止記憶體 OOM', '免手寫 N 個毒丸', '支援零遺失 Drain'],
+        oldTitle: '傳統脆弱寫法（無界佇列 + 手塞 None 毒丸）',
+        oldCode: `# ❌ maxsize=0 代表無限增長，上游尖峰直接 OOM
+queue = asyncio.Queue()
+
+async def shutdown(workers_count: int):
+    # ❌ 容易算錯毒丸數、佇列滿時甚至會死鎖
+    for _ in range(workers_count):
+        await queue.put(None)
+
+async def worker():
+    while True:
+        job = await queue.get()
+        if job is None:  # ❌ 語意模糊，無法區分空資料與停止訊號
+            break`,
+        oldHighlight: [2, 6, 12],
+        newTitle: 'Python 3.15 可控寫法（Bounded Queue + shutdown）',
+        newCode: `# ✅ 明確容量上限，滿載時自動反壓上游 Producer
+queue: asyncio.Queue[Job] = asyncio.Queue(maxsize=64)
+
+async def graceful_drain():
+    # ✅ 停止接收新任務，但允許 Worker 完整消化佇列內剩餘項目
+    queue.shutdown(immediate=False)
+
+async def worker(worker_id: int):
+    while True:
+        try:
+            job = await queue.get()
+        except asyncio.QueueShutDown:
+            return  # 優雅結束，零任務遺失
+        try:
+            await handle_job(job)
+        finally:
+            queue.task_done()`,
+        newHighlight: [2, 6, 12],
+        pitfall: '防雷提示：shutdown(immediate=False) 適用於優雅排空（Graceful Drain）；若遇緊急撤退（如 K8s terminationGracePeriodSeconds 即將到期），可改呼叫 queue.shutdown(immediate=True) 搭配 tg.cancel() 立即中止等待。'
+      },
+      {
+        id: 'frozendict-sentinel',
+        badge: 'PEP 814 & PEP 661 (3.15)',
+        title: '不可變設定 frozendict 與 sentinel',
+        shortTitle: 'frozendict & sentinel',
+        principle: '在多協程共享組態時，一般 dict 容易在某個 handler 中被無意修改（例如設定預設 header 或 mutate retry policy），引發難以重現的競態條件。Python 3.15 內建 frozendict（PEP 814）提供 O(1) 查詢、可雜湊且完全不可變的設定映射；同時內建 sentinel（PEP 661）提供具名、型別安全且可清楚印出的哨兵值，取代語意模糊的 None。',
+        benefits: ['杜絕跨協程狀態污染', '可直接作為快取 Key', '明確區分 UNSET 與 None'],
+        oldTitle: '傳統脆弱寫法（可變 dict + 模糊 None 哨兵）',
+        oldCode: `# ❌ 多個 Worker 共享可變 dict，任一協程誤改即污染全域
+DEFAULT_HEADERS = {"x-service": "worker", "accept": "application/json"}
+
+# ❌ None 同時代表「呼叫者沒傳」與「明確設定為空」
+def create_job(payload: dict, timeout: float | None = None):
+    headers = DEFAULT_HEADERS
+    headers["x-trace"] = "123"  # ❌ 慘案！直接改到全域字典
+    if timeout is None:
+        timeout = 2.0  # 無法表達「刻意不設超時」`,
+        oldHighlight: [2, 5, 7],
+        newTitle: 'Python 3.15 可控寫法（內建 frozendict + sentinel）',
+        newCode: `# ✅ PEP 814：內建不可變字典，跨協程零競爭、可雜湊
+DEFAULT_HEADERS = frozendict({
+    "x-service": "py315-worker",
+    "accept": "application/json",
+})
+
+# ✅ PEP 661：具名、型別安全、repr 友善的內建哨兵
+UNSET = sentinel("UNSET")
+DRAIN_SIGNAL = sentinel("DRAIN_SIGNAL")
+
+def resolve_timeout(timeout: float | None | type(UNSET) = UNSET) -> float | None:
+    if timeout is UNSET:
+        return 2.0  # 使用系統預設超時
+    return timeout  # None 明確代表無超時上限`,
+        newHighlight: [2, 8, 9, 12],
+        pitfall: '防雷提示：frozendict 屬於淺層不可變（Shallow Immutable），若字典的值本身是 list 或巢狀 dict，建議搭配 tuple 與巢狀 frozendict 一起凍結，達成真正深層不可變組態。'
+      },
+      {
+        id: 'timeout-retry-idempotent',
+        badge: '容錯與副作用隔離',
+        title: '超時、重試、冪等與節流',
+        shortTitle: '超時・重試・冪等',
+        principle: '沒有超時的 await 等同於永久卡死的協程。可控 Worker 必須為每個外部 I/O 加上 asyncio.timeout() 邊界、用 asyncio.Semaphore 保護脆弱下游免於雪崩、採用「指數退避 + 隨機抖動 (Jitter)」避免重試風暴，並透過 Idempotency Key 確保重試或重複投遞不會造成重複扣款或重複寄信。',
+        benefits: ['杜絕協程永久掛起', '防止重試雪崩風暴', 'At-least-once 安全冪等'],
+        oldTitle: '傳統脆弱寫法（無超時、固定秒數硬重試、無冪等）',
+        oldCode: `async def process_payment(job):
+    for _ in range(5):
+        try:
+            # ❌ 沒有 timeout，下游 TCP 黑洞會卡死 Worker 一輩子
+            # ❌ 沒有 Semaphore，瞬間打爆下游 DB 連線池
+            return await payment_api.charge(job.user_id, job.amount)
+        except Exception:
+            # ❌ 固定等待 1 秒：所有失敗任務同時重試引發 Thundering Herd
+            # ❌ 若第一次其實成功但回傳超時，第二次直接重複扣款！
+            await asyncio.sleep(1.0)`,
+        oldHighlight: [6, 10],
+        newTitle: 'Python 3.15 可控寫法（Timeout + Semaphore + Jitter + Idempotency）',
+        newCode: `async def execute_with_policy(job: Job, sem: asyncio.Semaphore, idem_store):
+    if await idem_store.already_done(job.idempotency_key):
+        return "SKIPPED_DUPLICATE"  # ✅ 冪等防護
+
+    for attempt in range(1, job.max_attempts + 1):
+        try:
+            async with sem, asyncio.timeout(job.timeout_sec):
+                result = await payment_api.charge(job)
+            await idem_store.mark_done(job.idempotency_key)
+            return result
+        except (TimeoutError, TransientError):
+            if attempt == job.max_attempts:
+                await dlq.publish(job, reason="max_retries_exceeded")
+                return "ROUTED_TO_DLQ"
+            # ✅ 指數退避 + Full Jitter 打散重試波峰
+            delay = random.uniform(0, 0.25 * (2 ** (attempt - 1)))
+            await asyncio.sleep(delay)`,
+        newHighlight: [2, 7, 13, 16],
+        pitfall: '防雷提示：切勿使用 except BaseException 攔截重試！asyncio.CancelledError 繼承自 BaseException，只應該攔截明確可恢復的 (TimeoutError, TransientError)，遇到取消訊號必須立刻撤退。'
+      },
+      {
+        id: 'context-decorator',
+        badge: 'Python 3.15 關鍵修正',
+        title: 'ContextDecorator 非同步生命週期修正',
+        shortTitle: 'ContextDecorator 修正',
+        principle: '過去將 contextlib.ContextDecorator（例如 OpenTelemetry Span 或結構化日誌 ContextVar 綁定器）套用在 async def 或非同步生成器上時，__exit__ 會在協程物件剛建立時就過早觸發，而不是等到 await 執行完畢！Python 3.15 正式修正了 ContextDecorator 與 AsyncContextDecorator 的非同步包裝行為，讓橫切觀測邏輯能精準包覆完整非同步生命週期。',
+        benefits: ['精準量測協程真實耗時', 'ContextVar 追蹤 ID 不錯亂', '同步/非同步裝飾器統一'],
+        oldTitle: '傳統 ≤3.14 踩雷行為（過早退出上下文）',
+        oldCode: `class TraceSpan(contextlib.ContextDecorator):
+    def __enter__(self):
+        self.t0 = time.perf_counter()
+        return self
+    def __exit__(self, *exc):
+        # ❌ 舊版對 async def 裝飾時：只測到「建立 coroutine 物件」的 0.001ms
+        # 實際 await 執行期間 Span 早就關閉了！
+        metrics.observe("job_ms", (time.perf_counter() - self.t0) * 1000)
+
+@TraceSpan()
+async def handle_job(job):
+    await call_downstream(job)  # ❌ 此行執行時已失去追蹤上下文`,
+        oldHighlight: [6, 10],
+        newTitle: 'Python 3.15 修正寫法（完整覆蓋 async def 與 async gen）',
+        newCode: `class TraceJobSpan(contextlib.ContextDecorator):
+    def __init__(self, op: str):
+        self.op = op
+    def _recreate_cm(self):
+        return type(self)(self.op)  # 每次呼叫獨立保存 ContextVar token
+
+    def __enter__(self):
+        self._token = trace_op_var.set(self.op)
+        self._t0 = time.perf_counter()
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        # ✅ Python 3.15：保證在 async def 真正 await 完成/拋錯/取消後才執行
+        elapsed_ms = (time.perf_counter() - self._t0) * 1000
+        metrics.record(self.op, elapsed_ms, ok=exc_type is None)
+        trace_op_var.reset(self._token)
+
+@TraceJobSpan("worker.process_job")
+async def handle_job(job: Job) -> None:
+    await call_downstream(job)  # ✅ 完整保有 trace_op_var 上下文`,
+        newHighlight: [1, 9, 14],
+        pitfall: '防雷提示：若你的專案同時支援多版本 Python，升級至 3.15 後請檢查舊有針對 ContextDecorator 寫的單元測試，原本可能隱藏著只測到「建立協程」而非「await 完成」的假綠測試。'
+      }
+    ];
+
+    let activeArchId = ARCH_PILLARS[0].id;
+
+    function renderArchTabs() {
+      const container = document.getElementById('arch-pillar-tabs');
+      container.innerHTML = ARCH_PILLARS.map((p, i) => {
+        const active = p.id === activeArchId;
+        return `
+          <button data-arch="${p.id}" class="text-left p-3 rounded-xl border transition-all duration-200 ${
+            active
+              ? 'bg-py315/15 border-py315/60 text-white shadow-glowPurple'
+              : 'bg-lab-card2 border-lab-border text-slate-400 hover:border-slate-600 hover:text-slate-200'
+          }">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <span class="font-mono text-[10px] ${active ? 'text-purple-300' : 'text-slate-500'}">0${i + 1}</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded ${active ? 'bg-py315/30 text-purple-200' : 'bg-slate-800 text-slate-400'} truncate">${p.badge}</span>
+            </div>
+            <div class="text-xs font-bold leading-snug">${p.shortTitle}</div>
+          </button>
+        `;
+      }).join('');
+
+      container.querySelectorAll('button[data-arch]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeArchId = btn.dataset.arch;
+          renderArchTabs();
+          renderArchDetail();
+        });
+      });
+    }
+
+    function renderArchDetail() {
+      const p = ARCH_PILLARS.find(x => x.id === activeArchId);
+      const container = document.getElementById('arch-detail-container');
+
+      container.innerHTML = `
+        <!-- Principle Card -->
+        <div class="bg-lab-card border border-lab-border rounded-2xl p-5 space-y-3 tab-enter">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-lg font-bold text-white">${p.title}</h3>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-py315/20 text-purple-300 border border-py315/40">${p.badge}</span>
+          </div>
+          <p class="text-sm text-slate-300 leading-relaxed">${p.principle}</p>
+          <div class="flex flex-wrap gap-2 pt-1">
+            ${p.benefits.map(b => `<span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-asyncCyan/10 text-asyncCyan border border-asyncCyan/30">✓ ${b}</span>`).join('')}
+          </div>
+        </div>
+
+        <!-- Side-by-side Code Comparison -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <!-- Old Code -->
+          <div class="bg-lab-card border border-errRose/35 rounded-2xl overflow-hidden flex flex-col">
+            <div class="px-4 py-2.5 bg-errRose/10 border-b border-errRose/25 flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-rose-300">❌ ${p.oldTitle}</span>
+              <button data-copy-arch="old" class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 transition">複製</button>
+            </div>
+            <div class="p-4 bg-[#070B13] overflow-x-auto flex-1">
+              <pre class="font-mono text-xs leading-6 text-slate-200">${renderHighlightedPython(p.oldCode, p.oldHighlight, 'bad')}</pre>
+            </div>
+          </div>
+
+          <!-- New Python 3.15 Code -->
+          <div class="bg-lab-card border border-py315/50 rounded-2xl overflow-hidden flex flex-col shadow-glowPurple">
+            <div class="px-4 py-2.5 bg-py315/15 border-b border-py315/30 flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-purple-200">✅ ${p.newTitle}</span>
+              <button data-copy-arch="new" class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-py315/30 hover:bg-py315/45 text-white border border-py315/50 transition">複製 3.15 寫法</button>
+            </div>
+            <div class="p-4 bg-[#070B13] overflow-x-auto flex-1">
+              <pre class="font-mono text-xs leading-6 text-slate-200">${renderHighlightedPython(p.newCode, p.newHighlight, 'good')}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pitfall Callout -->
+        <div class="bg-warnAmber/10 border border-warnAmber/35 rounded-2xl p-4 flex items-start gap-3">
+          <span class="text-lg leading-none mt-0.5">🛡️</span>
+          <div class="text-xs sm:text-sm text-amber-100/90 leading-relaxed">
+            <span class="font-bold text-amber-300">實戰防雷提示：</span>${p.pitfall.replace(/^防雷提示：/, '')}
+          </div>
+        </div>
+      `;
+
+      container.querySelector('[data-copy-arch="old"]').addEventListener('click', () => {
+        copyTextToClipboard(p.oldCode, '已複製傳統寫法範例');
+      });
+      container.querySelector('[data-copy-arch="new"]').addEventListener('click', () => {
+        copyTextToClipboard(p.newCode, '已複製 Python 3.15 可控寫法');
+      });
+    }
+
+    /* ===================================================================== */
+    /* TAB 3: TESTABILITY LAB — DETERMINISTIC ASYNC TEST RUNNER              */
+    /* ===================================================================== */
+    const CONTRACT_TESTS = [
+      {
+        id: 'test_backpressure_blocks_producer',
+        title: '驗證佇列滿載時生產者正確受阻',
+        tag: 'Backpressure',
+        durationGood: 1.4,
+        durationBuggy: 2.1,
+        buggyFails: true,
+        passDetails: [
+          '✓ 建立 Queue(maxsize=2) 與凍結消費者閘門 Event()',
+          '✓ 前 2 筆 put() 立即完成，第 3 筆 put() 掛起（producer_task.done() is False）',
+          '✓ 消費 1 筆後，第 3 筆 put() 於下一個 event loop turn 立即解鎖完成'
+        ],
+        failTraceback: `AssertionError: Expected producer Task to block when queue is full, but put_task.done() was True!\n診斷原因：待測實作使用了無界 asyncio.Queue(maxsize=0)，無法形成背壓，高流量下會導致 OOM。`,
+        code: `async def test_backpressure_blocks_producer(self):
+    # 使用 asyncio.Event 閘門取代脆弱的 sleep()
+    queue = asyncio.Queue(maxsize=2)
+    await queue.put(Job("j1"))
+    await queue.put(Job("j2"))
+
+    # 第 3 筆入列必須被背壓阻擋
+    put_task = asyncio.create_task(queue.put(Job("j3")))
+    await asyncio.sleep(0)  # 讓出一個事件迴圈 tick，零實體時間等待
+    self.assertFalse(put_task.done(), "Queue 滿載時 Producer 應被阻擋")
+
+    # 消費者取走 1 筆後，Producer 應確定性解鎖
+    _ = await queue.get()
+    await asyncio.wait_for(put_task, timeout=0.05)
+    self.assertTrue(put_task.done())`
+      },
+      {
+        id: 'test_graceful_drain_zero_loss',
+        title: '驗證 queue.shutdown() 零任務遺失',
+        tag: 'Graceful Drain',
+        durationGood: 1.9,
+        durationBuggy: 3.4,
+        buggyFails: true,
+        passDetails: [
+          '✓ 預先放入 5 筆任務並於執行中途呼叫 queue.shutdown(immediate=False)',
+          '✓ 驗證新增入列立即拋出 asyncio.QueueShutDown',
+          '✓ 釋放 Event 閘門後，5/5 筆任務全數完成，processed == {j1..j5}'
+        ],
+        failTraceback: `AssertionError: Expected 5 processed jobs after shutdown, got 2 (3 jobs lost)!\n診斷原因：Buggy 實作直接對 Worker 呼叫 cancel() 而未先執行 queue.shutdown(immediate=False) 排空佇列。`,
+        code: `async def test_graceful_drain_zero_loss(self):
+    gate = asyncio.Event()
+    processed: list[str] = []
+
+    async def handler(job: Job):
+        await gate.wait()
+        processed.append(job.id)
+
+    pool = WorkerPool(handler=handler, concurrency=2, maxsize=10)
+    for i in range(5):
+        await pool.submit(Job(f"j{i}"))
+
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(pool.run())
+        pool.queue.shutdown(immediate=False)  # 停止收單，開始排空
+        with self.assertRaises(asyncio.QueueShutDown):
+            await pool.submit(Job("rejected"))
+        gate.set()  # 確定性放行所有執行中任務
+
+    self.assertEqual(len(processed), 5)`
+      },
+      {
+        id: 'test_taskgroup_cancel_zero_orphans',
+        title: '驗證 3.15 tg.cancel() 後無任何殘留背景 Task',
+        tag: 'Python 3.15',
+        durationGood: 1.1,
+        durationBuggy: 2.8,
+        buggyFails: true,
+        passDetails: [
+          '✓ 啟動前快照 baseline = asyncio.all_tasks()',
+          '✓ 透過 asyncio.Event 確認 4 個 Worker 皆已進入處理中狀態',
+          '✓ 呼叫 Python 3.15 tg.cancel() 後，asyncio.all_tasks() - baseline == set()（0 孤兒）'
+        ],
+        failTraceback: `AssertionError: Orphan tasks leaked after cancel: {<Task pending name='untracked-bg-worker-1'>, <Task pending name='untracked-bg-worker-2'>}\n診斷原因：Buggy 實作使用裸 asyncio.create_task() 且未納入 TaskGroup 管理，造成協程洩漏。`,
+        code: `async def test_taskgroup_cancel_zero_orphans(self):
+    baseline = asyncio.all_tasks()
+    started = asyncio.Event()
+
+    async def slow_handler(job: Job):
+        started.set()
+        await asyncio.Future()  # 模擬永久阻塞中的 I/O
+
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(run_worker(slow_handler), name="w-1")
+        await started.wait()
+        # Python 3.15 原生取消，無需自訂例外 Hack
+        tg.cancel()
+
+    leaked = asyncio.all_tasks() - baseline
+    self.assertEqual(leaked, set(), f"偵測到孤兒任務洩漏: {leaked}")`
+      },
+      {
+        id: 'test_timeout_retry_and_dlq_routing',
+        title: '驗證超時後重試達上限精準進入 DLQ',
+        tag: 'Fake Clock',
+        durationGood: 0.9,
+        durationBuggy: 1.3,
+        buggyFails: false,
+        passDetails: [
+          '✓ 注入 FakeClock 與 FaultInjector（模擬前 3 次皆超時）',
+          '✓ 驗證嘗試次數 == 3、退避延遲清單符合指數退避 [0.25s, 0.50s]',
+          '✓ 驗證任務精準寫入 dlq_sink，且原因標記為 TimeoutError'
+        ],
+        failTraceback: '',
+        code: `async def test_timeout_retry_and_dlq_routing(self):
+    sleeps: list[float] = []
+    async def fake_sleep(sec: float):
+        sleeps.append(sec)  # 零等待記錄退避時間
+
+    dlq: list[tuple[str, str]] = []
+    attempts = 0
+    async def always_timeout(job: Job):
+        nonlocal attempts
+        attempts += 1
+        raise TimeoutError("downstream hung")
+
+    await execute_job(
+        Job("j-timeout", max_attempts=3),
+        handler=always_timeout,
+        sleep_fn=fake_sleep,
+        dlq_sink=lambda j, r: dlq.append((j.id, r)),
+    )
+    self.assertEqual(attempts, 3)
+    self.assertEqual(len(sleeps), 2)
+    self.assertEqual(dlq, [("j-timeout", "TimeoutError")])`
+      },
+      {
+        id: 'test_idempotent_redelivery',
+        title: '驗證相同 Idempotency Key 重複投遞僅執行一次副作用',
+        tag: 'Idempotency',
+        durationGood: 0.8,
+        durationBuggy: 1.5,
+        buggyFails: true,
+        passDetails: [
+          '✓ 連續投遞 2 筆相同 idempotency_key="order-9981" 的任務',
+          '✓ 驗證外部扣款副作用 counter == 1（第二次直接命中去重快取）'
+        ],
+        failTraceback: `AssertionError: Side-effect executed 2 times for same idempotency_key='order-9981' (expected 1)!\n診斷原因：Buggy 實作未在執行前檢查 IdempotencyStore，訊息佇列 At-least-once 重送時造成重複副作用。`,
+        code: `async def test_idempotent_redelivery(self):
+    side_effect_calls = 0
+    store = InMemoryIdempotencyStore()
+
+    async def charge_gateway(job: Job):
+        nonlocal side_effect_calls
+        side_effect_calls += 1
+
+    job = Job(id="msg-1", idempotency_key="order-9981")
+    dup = Job(id="msg-2", idempotency_key="order-9981")
+
+    await execute_idempotent(job, charge_gateway, store)
+    await execute_idempotent(dup, charge_gateway, store)
+
+    self.assertEqual(side_effect_calls, 1)`
+      },
+      {
+        id: 'test_cancellation_propagates_and_cleans_up',
+        title: '驗證取消時釋放連線資源且不誤吞 CancelledError',
+        tag: 'Cancellation',
+        durationGood: 1.0,
+        durationBuggy: 2.2,
+        buggyFails: true,
+        passDetails: [
+          '✓ 協程取得模擬連線後進入 await 狀態並收到 task.cancel()',
+          '✓ 驗證 finally 區塊成功觸發 conn.closed is True',
+          '✓ 驗證 task.cancelled() is True，CancelledError 未被吞噬'
+        ],
+        failTraceback: `AssertionError: Task swallowed CancelledError and returned normally instead of cancelling!\n診斷原因：Buggy 實作使用 bare except / except BaseException 攔截錯誤並忽略取消，導致優雅關機永久卡死。`,
+        code: `async def test_cancellation_propagates_and_cleans_up(self):
+    acquired = asyncio.Event()
+    conn_closed = False
+
+    async def worker_with_conn():
+        nonlocal conn_closed
+        acquired.set()
+        try:
+            await asyncio.Future()
+        finally:
+            conn_closed = True  # 必須確實釋放資源
+
+    task = asyncio.create_task(worker_with_conn())
+    await acquired.wait()
+    task.cancel()
+
+    with self.assertRaises(asyncio.CancelledError):
+        await task
+    self.assertTrue(conn_closed)`
+      }
+    ];
+
+    let testImplMode = 'good'; // 'good' | 'buggy'
+    let selectedTestId = CONTRACT_TESTS[0].id;
+    const testStatuses = {}; // id -> { status: 'IDLE'|'RUNNING'|'PASS'|'FAIL', ms }
+    CONTRACT_TESTS.forEach(t => { testStatuses[t.id] = { status: 'IDLE', ms: 0 }; });
+
+    function setTestImplMode(mode) {
+      testImplMode = mode;
+      const btnGood = document.getElementById('btn-impl-good');
+      const btnBuggy = document.getElementById('btn-impl-buggy');
+      const banner = document.getElementById('test-buggy-banner');
+
+      if (mode === 'good') {
+        btnGood.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-okGreen/20 text-emerald-300 border border-okGreen/40';
+        btnBuggy.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-rose-300 border border-transparent';
+        banner.classList.add('hidden');
+      } else {
+        btnGood.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-emerald-300 border border-transparent';
+        btnBuggy.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-errRose/20 text-rose-300 border border-errRose/40';
+        banner.classList.remove('hidden');
+      }
+      resetAllTestStatuses();
+    }
+
+    function resetAllTestStatuses() {
+      CONTRACT_TESTS.forEach(t => { testStatuses[t.id] = { status: 'IDLE', ms: 0 }; });
+      renderTestList();
+      updateTestSummary();
+    }
+
+    function runSingleTest(testId) {
+      selectedTestId = testId;
+      renderTestCodeViewer();
+      const t = CONTRACT_TESTS.find(x => x.id === testId);
+      testStatuses[testId] = { status: 'RUNNING', ms: 0 };
+      renderTestList();
+
+      return new Promise(resolve => {
+        setTimeout(() => {
+          const failed = testImplMode === 'buggy' && t.buggyFails;
+          testStatuses[testId] = {
+            status: failed ? 'FAIL' : 'PASS',
+            ms: failed ? t.durationBuggy : t.durationGood,
+          };
+          renderTestList();
+          updateTestSummary();
+          resolve();
+        }, 260);
+      });
+    }
+
+    async function runAllTests() {
+      const btn = document.getElementById('btn-run-all-tests');
+      btn.disabled = true;
+      btn.classList.add('opacity-60');
+      resetAllTestStatuses();
+
+      for (const t of CONTRACT_TESTS) {
+        await runSingleTest(t.id);
+      }
+
+      btn.disabled = false;
+      btn.classList.remove('opacity-60');
+      const failCount = CONTRACT_TESTS.filter(t => testStatuses[t.id].status === 'FAIL').length;
+      if (failCount === 0) {
+        showToast('全部 6 項確定性契約測試皆通過！（耗時 7.1ms）', 'success');
+      } else {
+        showToast(`契約測試攔截到 ${failCount} 項非同步反模式 Bug！`, 'error');
+      }
+    }
+
+    function updateTestSummary() {
+      const el = document.getElementById('test-summary-badge');
+      const vals = Object.values(testStatuses);
+      const passed = vals.filter(v => v.status === 'PASS').length;
+      const failed = vals.filter(v => v.status === 'FAIL').length;
+      const running = vals.filter(v => v.status === 'RUNNING').length;
+      const totalMs = vals.reduce((acc, v) => acc + v.ms, 0).toFixed(1);
+
+      if (running > 0) {
+        el.innerHTML = `<span class="text-asyncCyan animate-pulse">● 執行中...</span>`;
+      } else if (passed === 0 && failed === 0) {
+        el.innerHTML = `<span class="text-slate-400">尚未執行</span>`;
+      } else if (failed === 0) {
+        el.innerHTML = `<span class="text-okGreen font-bold">✓ ${passed} passed</span> <span class="text-slate-500">in ${totalMs}ms</span>`;
+      } else {
+        el.innerHTML = `<span class="text-errRose font-bold">✕ ${failed} failed</span>, <span class="text-okGreen">${passed} passed</span> <span class="text-slate-500">in ${totalMs}ms</span>`;
+      }
+    }
+
+    function renderTestList() {
+      const container = document.getElementById('test-cases-list');
+      container.innerHTML = CONTRACT_TESTS.map(t => {
+        const st = testStatuses[t.id];
+        const isSelected = t.id === selectedTestId;
+        let statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">IDLE</span>`;
+        let borderCls = isSelected ? 'border-electric/60 bg-lab-card' : 'border-lab-border bg-lab-card/80';
+
+        if (st.status === 'RUNNING') {
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-asyncCyan/20 text-asyncCyan animate-pulse">RUNNING...</span>`;
+          borderCls = 'border-asyncCyan/60 bg-lab-card';
+        } else if (st.status === 'PASS') {
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-okGreen/20 text-emerald-300 border border-okGreen/40">PASS · ${st.ms}ms</span>`;
+          borderCls = isSelected ? 'border-okGreen/60 bg-lab-card' : 'border-okGreen/30 bg-lab-card/90';
+        } else if (st.status === 'FAIL') {
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-errRose/20 text-rose-300 border border-errRose/40">FAIL · ${st.ms}ms</span>`;
+          borderCls = isSelected ? 'border-errRose/70 bg-lab-card' : 'border-errRose/40 bg-lab-card/90';
+        }
+
+        let detailsHtml = '';
+        if (st.status === 'PASS') {
+          detailsHtml = `
+            <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 space-y-1 text-[11px] font-mono text-emerald-300/90">
+              ${t.passDetails.map(d => `<div>${escapeHtml(d)}</div>`).join('')}
+            </div>
+          `;
+        } else if (st.status === 'FAIL') {
+          detailsHtml = `
+            <div class="mt-2.5 p-2.5 rounded-lg bg-errRose/10 border border-errRose/30 text-[11px] font-mono text-rose-200 whitespace-pre-wrap leading-relaxed">${escapeHtml(t.failTraceback)}</div>
+          `;
+        }
+
+        return `
+          <div data-select-test="${t.id}" class="cursor-pointer rounded-xl border ${borderCls} p-3.5 transition-all hover:border-slate-500">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-mono text-xs font-bold text-white break-all">${t.id}</span>
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-800 text-slate-400">${t.tag}</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">${t.title}</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                ${statusBadge}
+                <button data-run-test="${t.id}" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-electric text-slate-200 hover:text-white border border-slate-700 transition" title="單獨執行此測試">▶</button>
+              </div>
+            </div>
+            ${detailsHtml}
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-select-test]').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('[data-run-test]')) return;
+          selectedTestId = card.dataset.selectTest;
+          renderTestList();
+          renderTestCodeViewer();
+        });
+      });
+
+      container.querySelectorAll('[data-run-test]').forEach(btn => {
+        btn.addEventListener('click', () => runSingleTest(btn.dataset.runTest));
+      });
+    }
+
+    function renderTestCodeViewer() {
+      const t = CONTRACT_TESTS.find(x => x.id === selectedTestId);
+      document.getElementById('test-code-filename').textContent = `test_worker.py :: ${t.id}`;
+      document.getElementById('test-code-display').innerHTML = renderHighlightedPython(t.code);
+    }
+
+    document.getElementById('btn-impl-good').addEventListener('click', () => setTestImplMode('good'));
+    document.getElementById('btn-impl-buggy').addEventListener('click', () => setTestImplMode('buggy'));
+    document.getElementById('btn-run-all-tests').addEventListener('click', runAllTests);
+    document.getElementById('btn-reset-tests').addEventListener('click', resetAllTestStatuses);
+    document.getElementById('btn-copy-test-code').addEventListener('click', () => {
+      const t = CONTRACT_TESTS.find(x => x.id === selectedTestId);
+      copyTextToClipboard(t.code, `已複製 ${t.id} 測試程式碼`);
+    });
+
+    /* ===================================================================== */
+    /* TAB 4: DELIVERABILITY, TACHYON CLI, INTERACTIVE FLAMEGRAPH & CHECKLIST*/
+    /* ===================================================================== */
+    const CLI_SCENARIOS = [
+      {
+        id: 'tachyon-flame',
+        label: '🔥 Tachyon Async 火焰圖採樣 (PEP 799)',
+        cmd: 'python -m profiling.sampling attach 4821 --async-aware --mode wall --flamegraph',
+        desc: '零開銷附加至運行中進程，區分 Async I/O 等待與事件迴圈阻塞熱點',
+        output: `$ python -m profiling.sampling attach 4821 --async-aware --mode wall --flamegraph
+[Tachyon] Attached to PID 4821 (Python 3.15.0) without stopping target
+[Tachyon] Mode: wall | Async-Aware: ON | Rate: 1000 Hz | Duration: 10.0s
+[Tachyon] Collected 9,942 samples (Sampling efficiency: 99.4%)
+
+Top Async Frames (Wall Time %):
+  61.2%  await httpx.AsyncClient.post()      [I/O Wait · Healthy]
+  24.8%  worker.sync_pdf_extract()           [EVENT LOOP BLOCKED! ⚠]
+   8.4%  asyncio.Queue.get()                 [Idle Wait · Healthy]
+   5.6%  observability.TraceJobSpan.__exit__ [Metrics · Healthy]
+
+✓ Flamegraph generated -> /tmp/tachyon-4821-async.html
+⚠ Advisory: sync_pdf_extract() blocked event loop for 248ms avg — move to asyncio.to_thread()`,
+        visualType: 'flamegraph'
+      },
+      {
+        id: 'tachyon-dump',
+        label: '📸 一鍵抓取所有卡住 Task 堆疊快照',
+        cmd: 'python -m profiling.sampling dump 4821 --async-aware',
+        desc: '服務無回應時立即傾印所有 asyncio 協程堆疊與等待資源',
+        output: `$ python -m profiling.sampling dump 4821 --async-aware
+[Tachyon] Instant Async Task Snapshot (PID 4821 @ 2026-11-26T12:57:18+08:00)
+Total active tasks: 6 | Event Loop Lag: 312.4 ms (HIGH)
+
+Task 'worker-0' [RUNNING - CPU/BLOCKING 310ms]:
+  File "worker.py", line 89, in handle_job
+    text = sync_pdf_extract(job.raw_bytes)  <-- Blocking C extension!
+  File "pdf_lib/parser.py", line 214, in parse_pages
+
+Task 'worker-1' [AWAITING]:
+  File "worker.py", line 74, in worker_loop
+    async with asyncio.timeout(0.9):
+  File "httpx/_client.py", line 1629, in send
+
+Task 'worker-2' [AWAITING]:
+  File "asyncio/queues.py", line 186, in get  # Waiting on bounded queue
+
+Task 'loop-lag-probe' [DELAYED +312ms]:
+  File "observability.py", line 62, in monitor_event_loop_lag`,
+        visualType: 'dump'
+      },
+      {
+        id: 'asyncio-pstree',
+        label: '🌲 檢視運行中進程 TaskGroup 任務樹',
+        cmd: 'python -m asyncio pstree 4821',
+        desc: '內建非同步進程樹與 awaited_by 呼叫圖內省，快速驗證結構化併發邊界',
+        output: `$ python -m asyncio pstree 4821
+└── (T) Task 'main' (worker.py:134)
+    └── await TaskGroup.__aexit__()
+        ├── (T) Task 'producer' (worker.py:42)
+        │   └── await Queue.put()  [maxsize=64, qsize=18]
+        ├── (T) Task 'worker-0' (worker.py:72)
+        │   └── await handle_job('job-8812')
+        │       └── await asyncio.timeout(0.9)
+        ├── (T) Task 'worker-1' (worker.py:72)
+        │   └── await handle_job('job-8813')
+        ├── (T) Task 'worker-2' (worker.py:72)
+        │   └── await Queue.get()
+        └── (T) Task 'loop-lag-probe' (observability.py:58)
+            └── await asyncio.sleep(0.5)
+
+Summary: 1 TaskGroup, 5 managed tasks, 0 orphan tasks detected.`,
+        visualType: 'pstree'
+      },
+      {
+        id: 'tachyon-gil',
+        label: '🔒 揪出佔用 GIL 的同步阻塞熱點',
+        cmd: 'python -m profiling.sampling run --mode gil worker.py',
+        desc: '鎖定在 async def 內誤用同步計算或重度序列化導致佔住 GIL 的元兇',
+        output: `$ python -m profiling.sampling run --mode gil worker.py
+[Tachyon] Running worker.py with GIL contention sampler (1000 Hz)
+[Tachyon] Samples holding GIL: 3,412 / 10,000
+
+GIL Hold Time Attribution:
+  58.4%  worker.py:89   sync_pdf_extract()      [CPU-bound inside async def!]
+  21.9%  codec.py:34    json.loads(large_blob)  [Large 18MB payload decode]
+  11.2%  regex.py:19    re.findall(catastrophic)[Backtracking regex]
+   8.5%  asyncio/*      event loop scheduling   [Normal overhead]
+
+Recommendation:
+  1. Offload sync_pdf_extract() -> await asyncio.to_thread(...) or ProcessPoolExecutor
+  2. Stream-parse large JSON payloads or bound message size <= 2MB`,
+        visualType: 'gil'
+      }
+    ];
+
+    const FLAME_FRAMES = [
+      { id: 'root', level: 0, left: 0, width: 100, label: 'asyncio.run(main) · 100%', kind: 'async', detail: '主事件迴圈入口，管理整個 Worker 服務的結構化併發生命週期。' },
+      { id: 'tg', level: 1, left: 0, width: 92, label: 'TaskGroup.__aexit__ · 92.0%', kind: 'py315', detail: 'Python 3.15 TaskGroup 範疇，統一納管 Producer、Worker 池與監控協程，支援 tg.cancel()。' },
+      { id: 'obs', level: 1, left: 92, width: 8, label: 'LagProbe 8%', kind: 'ok', detail: 'Event Loop Lag 探針，每 500ms 檢測排程延遲，超過 50ms 即發送告警指標。' },
+      { id: 'io', level: 2, left: 0, width: 61, label: 'await httpx.post() [I/O Wait] · 61.2%', kind: 'io', detail: '健康的非同步網路 I/O 等待（epoll/kqueue），不佔用 CPU 與事件迴圈，可高度併發。' },
+      { id: 'block', level: 2, left: 61, width: 25, label: '⚠ sync_pdf_extract() [BLOCKED!] · 24.8%', kind: 'block', detail: '【嚴重瓶頸】在 async def 內直接呼叫同步 CPU 密集函式，卡住整個事件迴圈平均 248ms！修正方式：改用 await asyncio.to_thread() 或 ProcessPoolExecutor。' },
+      { id: 'qget', level: 2, left: 86, width: 6, label: 'Queue.get 6%', kind: 'io', detail: 'Worker 等待 Bounded Queue 新任務的閒置狀態。' },
+      { id: 'ssl', level: 3, left: 0, width: 42, label: 'anyio / ssl_read · 42%', kind: 'io', detail: '非阻塞 TLS Socket 讀取等待，完全交由作業系統事件多工器處理。' },
+      { id: 'span', level: 3, left: 42, width: 19, label: '3.15 ContextDecorator Span · 19%', kind: 'py315', detail: 'Python 3.15 修正後的 ContextDecorator 正確涵蓋整個非同步等待耗時。' },
+      { id: 'cparse', level: 3, left: 61, width: 25, label: 'pdf_lib.parse_pages (Native C) · 24.8%', kind: 'block', detail: '原生 C 擴展未釋放 GIL 且未切出事件迴圈，導致其他 3 個 Worker 與健康檢查全部停擺。' },
+    ];
+
+    let activeCliId = CLI_SCENARIOS[0].id;
+    let selectedFlameId = 'block';
+
+    function renderCliButtons() {
+      const container = document.getElementById('cli-cmd-buttons');
+      container.innerHTML = CLI_SCENARIOS.map(s => {
+        const active = s.id === activeCliId;
+        return `
+          <button data-cli="${s.id}" class="text-left p-3 rounded-xl border transition-all ${
+            active
+              ? 'bg-py315/15 border-py315/60 text-white shadow-glowPurple'
+              : 'bg-lab-card2 border-lab-border text-slate-300 hover:border-slate-600'
+          }">
+            <div class="text-xs font-bold mb-1">${s.label}</div>
+            <div class="font-mono text-[11px] text-asyncCyan truncate">${escapeHtml(s.cmd)}</div>
+          </button>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-cli]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeCliId = btn.dataset.cli;
+          renderCliButtons();
+          renderCliScenario();
+        });
+      });
+    }
+
+    function renderCliScenario() {
+      const s = CLI_SCENARIOS.find(x => x.id === activeCliId);
+      const term = document.getElementById('obs-terminal-output');
+      // Highlight keywords in terminal output
+      let html = escapeHtml(s.output)
+        .replace(/(EVENT LOOP BLOCKED! ⚠|CPU-bound inside async def!|Blocking C extension!|HIGH)/g, '<span class="text-errRose font-bold">$1</span>')
+        .replace(/(\[Tachyon\])/g, '<span class="text-py315 font-bold">$1</span>')
+        .replace(/(✓[^\n]*)/g, '<span class="text-okGreen">$1</span>')
+        .replace(/(⚠[^\n]*)/g, '<span class="text-warnAmber">$1</span>')
+        .replace(/(\(T\) Task '[^']+')/g, '<span class="text-asyncCyan font-semibold">$1</span>');
+      term.innerHTML = html;
+
+      const vis = document.getElementById('obs-visual-panel');
+
+      if (s.visualType === 'flamegraph') {
+        const kindStyle = {
+          async: 'bg-electric/30 border-electric/60 text-blue-100 hover:bg-electric/45',
+          py315: 'bg-py315/30 border-py315/70 text-purple-100 hover:bg-py315/45',
+          io: 'bg-asyncCyan/25 border-asyncCyan/60 text-cyan-100 hover:bg-asyncCyan/40',
+          ok: 'bg-okGreen/25 border-okGreen/60 text-emerald-100 hover:bg-okGreen/40',
+          block: 'bg-errRose/35 border-errRose/80 text-rose-100 hover:bg-errRose/50 animate-pulse',
+        };
+        const selectedFrame = FLAME_FRAMES.find(f => f.id === selectedFlameId) || FLAME_FRAMES[4];
+
+        const levels = [3, 2, 1, 0];
+        const rowsHtml = levels.map(lv => {
+          const frames = FLAME_FRAMES.filter(f => f.level === lv);
+          return `
+            <div class="relative h-8 w-full">
+              ${frames.map(f => `
+                <button data-flame="${f.id}" style="left:${f.left}%; width:${f.width}%;"
+                  class="absolute top-0 bottom-0 px-2 rounded-md border text-[10px] sm:text-[11px] font-mono truncate text-left transition ${kindStyle[f.kind]} ${f.id === selectedFlameId ? 'ring-2 ring-white z-10' : ''}">
+                  ${escapeHtml(f.label)}
+                </button>
+              `).join('')}
+            </div>
+          `;
+        }).join('');
+
+        vis.innerHTML = `
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <h3 class="text-sm font-bold text-white">🔥 互動式 Async 火焰圖 (點擊任一區塊檢視診斷)</h3>
+            <div class="flex items-center gap-2 text-[10px] font-mono">
+              <span class="px-1.5 py-0.5 rounded bg-asyncCyan/25 text-cyan-200">I/O 等待</span>
+              <span class="px-1.5 py-0.5 rounded bg-errRose/35 text-rose-200">迴圈阻塞點</span>
+              <span class="px-1.5 py-0.5 rounded bg-py315/30 text-purple-200">3.15 原語</span>
+            </div>
+          </div>
+          <div class="bg-[#070B13] border border-slate-800 rounded-xl p-3 space-y-1.5">
+            ${rowsHtml}
+          </div>
+          <div class="p-3.5 rounded-xl border ${selectedFrame.kind === 'block' ? 'bg-errRose/10 border-errRose/40' : 'bg-slate-900/90 border-slate-700'}">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="font-mono text-xs font-bold text-white">${escapeHtml(selectedFrame.label)}</span>
+              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">${selectedFrame.kind === 'block' ? 'BLOCKING HOTSPOT' : 'ASYNC FRAME'}</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(selectedFrame.detail)}</p>
+          </div>
+        `;
+
+        vis.querySelectorAll('[data-flame]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            selectedFlameId = btn.dataset.flame;
+            renderCliScenario();
+          });
+        });
+      } else if (s.visualType === 'dump') {
+        vis.innerHTML = `
+          <h3 class="text-sm font-bold text-white">📸 Task 快照健康度剖析 (6 Active Tasks)</h3>
+          <div class="space-y-2.5">
+            <div class="p-3 rounded-xl bg-errRose/10 border border-errRose/45">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="font-bold text-rose-300">worker-0 · RUNNING (BLOCKING 310ms)</span>
+                <span class="px-2 py-0.5 rounded bg-errRose/25 text-rose-200 text-[10px]">阻塞元兇</span>
+              </div>
+              <p class="text-xs text-slate-300 mt-1">停留在同步呼叫 <code class="font-mono text-rose-300">sync_pdf_extract()</code>，導致 Event Loop 無法切換至其他協程。</p>
+            </div>
+            <div class="p-3 rounded-xl bg-okGreen/10 border border-okGreen/30">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="font-bold text-emerald-300">worker-1 / worker-2 · AWAITING</span>
+                <span class="px-2 py-0.5 rounded bg-okGreen/20 text-emerald-200 text-[10px]">正常非阻塞</span>
+              </div>
+              <p class="text-xs text-slate-300 mt-1">正確受控於 <code class="font-mono text-electric">asyncio.timeout(0.9)</code> 與有界佇列等待。</p>
+            </div>
+            <div class="p-3 rounded-xl bg-warnAmber/10 border border-warnAmber/35">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="font-bold text-amber-300">loop-lag-probe · DELAYED +312ms</span>
+                <span class="px-2 py-0.5 rounded bg-warnAmber/20 text-amber-200 text-[10px]">連鎖受害</span>
+              </div>
+              <p class="text-xs text-slate-300 mt-1">因 worker-0 佔住事件迴圈，造成探針喚醒延遲超過 50ms 警戒閾值，成功觸發自動快照採樣。</p>
+            </div>
+          </div>
+        `;
+      } else if (s.visualType === 'pstree') {
+        vis.innerHTML = `
+          <h3 class="text-sm font-bold text-white">🌲 結構化併發任務樹視覺化 (<code class="font-mono text-asyncCyan">awaited_by</code>)</h3>
+          <div class="bg-[#070B13] border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs font-mono">
+            <div class="p-2.5 rounded-lg bg-py315/20 border border-py315/50 text-purple-200 flex justify-between">
+              <span>TaskGroup Root Scope (main)</span>
+              <span class="text-okGreen">0 Orphans</span>
+            </div>
+            <div class="pl-5 border-l-2 border-py315/40 space-y-2">
+              <div class="p-2 rounded-lg bg-slate-900 border border-slate-700 flex justify-between">
+                <span class="text-asyncCyan">producer</span>
+                <span class="text-slate-400">await Queue.put() [18/64]</span>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-900 border border-electric/40 flex justify-between">
+                <span class="text-blue-300">worker-0 · worker-1</span>
+                <span class="text-slate-400">await asyncio.timeout(0.9s)</span>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-900 border border-slate-700 flex justify-between">
+                <span class="text-slate-300">worker-2</span>
+                <span class="text-slate-400">await Queue.get() [IDLE]</span>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-900 border border-okGreen/40 flex justify-between">
+                <span class="text-emerald-300">loop-lag-probe</span>
+                <span class="text-slate-400">await asyncio.sleep(0.5)</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">所有子協程皆清晰掛載於同一個 TaskGroup 之下，SRE 能在 5 秒內判斷是否出現野放的背景任務。</p>
+        `;
+      } else {
+        const bars = [
+          { name: 'sync_pdf_extract()', pct: 58.4, cls: 'bg-errRose', fix: '改用 asyncio.to_thread() 或 ProcessPoolExecutor' },
+          { name: 'json.loads(18MB blob)', pct: 21.9, cls: 'bg-warnAmber', fix: '限制單筆訊息大小或使用串流解析器' },
+          { name: 're.findall() 回溯正則', pct: 11.2, cls: 'bg-amber-500', fix: '改寫非貪婪正則並加上長度上限' },
+          { name: 'asyncio 事件迴圈排程', pct: 8.5, cls: 'bg-okGreen', fix: '健康基線開銷' },
+        ];
+        vis.innerHTML = `
+          <h3 class="text-sm font-bold text-white">🔒 GIL 持有時間歸因剖析 (<code class="font-mono text-py315">--mode gil</code>)</h3>
+          <div class="space-y-3 bg-[#070B13] border border-slate-800 rounded-xl p-4">
+            ${bars.map(b => `
+              <div>
+                <div class="flex justify-between text-xs font-mono mb-1">
+                  <span class="text-slate-200 font-semibold">${b.name}</span>
+                  <span class="text-slate-300 font-bold">${b.pct}%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden mb-1">
+                  <div class="h-full ${b.cls} rounded-full" style="width:${b.pct}%"></div>
+                </div>
+                <div class="text-[11px] text-slate-400">建議：${b.fix}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    document.getElementById('btn-copy-cli').addEventListener('click', () => {
+      const s = CLI_SCENARIOS.find(x => x.id === activeCliId);
+      copyTextToClipboard(s.cmd, '已複製 Python 3.15 觀測指令');
+    });
+
+    /* --- Production Readiness Checklist (12 Items in 3 Categories) --- */
+    const CHECKLIST_DATA = [
+      {
+        cat: '🎛️ 可控性 (Controllability)',
+        color: 'text-asyncCyan',
+        items: [
+          { id: 'c1', text: '所有 Worker 與背景協程均納入 asyncio.TaskGroup，禁止裸 create_task()' },
+          { id: 'c2', text: '佇列明確設定 maxsize 上限，確保上游突發流量觸發背壓不 OOM' },
+          { id: 'c3', text: '所有外部 I/O 皆包覆 asyncio.timeout()、Semaphore 與指數退避 + Jitter' },
+          { id: 'c4', text: '使用 3.15 frozendict 與 sentinel 管理不可變設定與狀態，並實作冪等與 DLQ' },
+        ]
+      },
+      {
+        cat: '🧪 可測性 (Testability)',
+        color: 'text-okGreen',
+        items: [
+          { id: 't1', text: '測試套件完全消除固定秒數 asyncio.sleep()，改採 Fake Clock 與 Event 閘門' },
+          { id: 't2', text: '具備自動化契約測試驗證 Queue 背壓阻擋與 Queue.shutdown() 零遺失排空' },
+          { id: 't3', text: '驗證 3.15 tg.cancel() 後 asyncio.all_tasks() 無任何孤兒協程洩漏' },
+          { id: 't4', text: '透過故障注入驗證重試上限入 DLQ、重複投遞冪等與不誤吞 CancelledError' },
+        ]
+      },
+      {
+        cat: '🚀 可交付性 (Deliverability)',
+        color: 'text-py315',
+        items: [
+          { id: 'd1', text: '重型依賴改用 Python 3.15 PEP 810 lazy import，縮短冷啟動與擴容時間' },
+          { id: 'd2', text: '實作 SIGTERM → /readyz 503 → queue.shutdown() → 超時 tg.cancel() 關機流程' },
+          { id: 'd3', text: '部署 Event Loop Lag 指標與 3.15 ContextDecorator 結構化追蹤 Context' },
+          { id: 'd4', text: '團隊 Runbook 已納入 Tachyon (profiling.sampling) 與 asyncio pstree 線上排障指令' },
+        ]
+      }
+    ];
+
+    const checkedState = new Set(['c1', 'c2', 't1', 'd2']); // Pre-check 4 realistic starter items
+
+    function renderChecklist() {
+      const grid = document.getElementById('checklist-grid');
+      grid.innerHTML = CHECKLIST_DATA.map(group => `
+        <div class="bg-lab-card2 border border-lab-border rounded-xl p-4 space-y-3">
+          <h3 class="text-sm font-bold ${group.color} border-b border-slate-800 pb-2">${group.cat}</h3>
+          <div class="space-y-2.5">
+            ${group.items.map(item => {
+              const checked = checkedState.has(item.id);
+              return `
+                <label class="flex items-start gap-2.5 cursor-pointer group">
+                  <input type="checkbox" data-check-id="${item.id}" ${checked ? 'checked' : ''}
+                    class="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-900 text-electric focus:ring-electric cursor-pointer shrink-0" />
+                  <span class="text-xs leading-relaxed transition ${checked ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-200'}">${item.text}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('input[data-check-id]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) checkedState.add(cb.dataset.checkId);
+          else checkedState.delete(cb.dataset.checkId);
+          updateChecklistScore();
+          renderChecklist();
+        });
+      });
+
+      updateChecklistScore();
+    }
+
+    function updateChecklistScore() {
+      const total = 12;
+      const done = checkedState.size;
+      const pct = Math.round((done / total) * 100);
+      document.getElementById('check-done-num').textContent = done;
+      document.getElementById('check-pct-label').textContent = `${pct}%`;
+      document.getElementById('check-progress-bar').style.width = `${pct}%`;
+
+      const badge = document.getElementById('check-rating-badge');
+      if (pct === 100) {
+        badge.textContent = '🟣 已全數勾選，仍須驗證證據';
+        badge.className = 'shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold font-mono bg-py315/20 text-purple-200 border border-py315/50 text-center shadow-glowPurple';
+      } else if (pct >= 75) {
+        badge.textContent = '🟢 多數已勾選，待驗收';
+        badge.className = 'shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold font-mono bg-okGreen/15 text-emerald-300 border border-okGreen/40 text-center';
+      } else if (pct >= 40) {
+        badge.textContent = '🟡 仍有項目待勾選';
+        badge.className = 'shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold font-mono bg-warnAmber/15 text-amber-300 border border-warnAmber/40 text-center';
+      } else {
+        badge.textContent = '🔴 檢核尚未完成';
+        badge.className = 'shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold font-mono bg-errRose/15 text-rose-300 border border-errRose/40 text-center';
+      }
+    }
+
+    document.getElementById('btn-check-all').addEventListener('click', () => {
+      if (checkedState.size === 12) {
+        checkedState.clear();
+      } else {
+        CHECKLIST_DATA.forEach(g => g.items.forEach(i => checkedState.add(i.id)));
+      }
+      renderChecklist();
+    });
+
+    document.getElementById('btn-export-md').addEventListener('click', () => {
+      const pct = Math.round((checkedState.size / 12) * 100);
+      const lines = [
+        `# Python 3.15 非同步 Worker 生產上線檢查報告`,
+        `- 檢查時間：${new Date().toLocaleString('zh-TW')}`,
+        `- 自填檢核進度（不是核准上線）：**${pct}% (${checkedState.size}/12)**`,
+        ''
+      ];
+      CHECKLIST_DATA.forEach(g => {
+        lines.push(`## ${g.cat}`);
+        g.items.forEach(item => {
+          lines.push(`- [${checkedState.has(item.id) ? 'x' : ' '}] ${item.text}`);
+        });
+        lines.push('');
+      });
+      const uri = URL.createObjectURL(new Blob([lines.join('\n')], {type: 'text/markdown;charset=utf-8'}));
+      const a = document.createElement('a');
+      a.href = uri;
+      a.download = 'python315-worker-checklist.md';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(uri), 1000);
+      showToast('已匯出 Markdown 檢查報告', 'success');
+    });
+
+    /* ===================================================================== */
+    /* TAB 5: COMPLETE PRODUCTION BLUEPRINT CODE VIEWER                      */
+    /* ===================================================================== */
+    const BLUEPRINT_FILES = [
+      {
+        name: 'config.py',
+        icon: '⚙️',
+        tags: ['PEP 814 frozendict', 'PEP 661 sentinel'],
+        desc: '以 Python 3.15 內建 frozendict 與 sentinel 定義跨協程安全共享的不可變組態與任務模型。',
+        code: `"""Python 3.15 Worker 不可變設定與核心型別定義"""
+from dataclasses import dataclass, field
+from typing import Any
+
+# Python 3.15 (PEP 661): 內建具名哨兵，明確區分「未設定」與 None
+UNSET = sentinel("UNSET")
+DRAIN_NOW = sentinel("DRAIN_NOW")
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerConfig:
+    """跨協程完全唯讀的 Worker 組態，杜絕執行期狀態污染"""
+    concurrency: int = 4
+    queue_maxsize: int = 64
+    job_timeout_sec: float = 1.5
+    max_attempts: int = 3
+    base_backoff_sec: float = 0.25
+    drain_grace_sec: float = 15.0
+    downstream_limit: int = 8
+    # Python 3.15 (PEP 814): 內建淺層不可變的 frozendict；值都可雜湊時才可雜湊
+    default_headers: frozendict[str, str] = field(
+        default_factory=lambda: frozendict({
+            "x-worker-runtime": "python-3.15",
+            "content-type": "application/json",
+        })
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class Job:
+    """單一可追蹤、具冪等鍵的非同步任務"""
+    job_id: str
+    idempotency_key: str
+    kind: str
+    payload: frozendict[str, Any]
+    timeout_override: float | None | type(UNSET) = UNSET
+
+    def effective_timeout(self, cfg: WorkerConfig) -> float | None:
+        if self.timeout_override is UNSET:
+            return cfg.job_timeout_sec
+        return self.timeout_override
+`
+      },
+      {
+        name: 'worker.py',
+        icon: '⚡',
+        tags: ['PEP 810 lazy import', '3.15 TaskGroup.cancel()', 'Queue.shutdown()'],
+        desc: '核心可控非同步 Worker 引擎：整合延遲匯入、有界背壓佇列、超時退避、冪等防護、DLQ 與 SIGTERM 優雅關機。',
+        code: `"""Python 3.15 可控非同步 Worker 引擎"""
+import asyncio
+import random
+import signal
+from collections.abc import Awaitable, Callable
+
+# Python 3.15 (PEP 810): 顯式延遲載入重型依賴，大幅縮短容器冷啟動時間
+lazy import heavy_pdf_sdk
+lazy import cloud_dlq_client
+
+from config import Job, WorkerConfig
+from observability import TraceJobSpan, monitor_event_loop_lag
+
+
+class TransientDownstreamError(RuntimeError):
+    """可重試的下游暫時性異常（如 503 / 網路閃斷）"""
+
+
+class InMemoryIdempotencyStore:
+    def __init__(self) -> None:
+        self._done: set[str] = set()
+        # 固定數量的鎖：同一程序內讓相同 key 串行，不提供跨程序或崩潰後保證。
+        self._locks = tuple(asyncio.Lock() for _ in range(32))
+
+    def guard(self, key: str) -> asyncio.Lock:
+        return self._locks[hash(key) % len(self._locks)]
+
+    async def already_done(self, key: str) -> bool:
+        return key in self._done
+
+    async def mark_done(self, key: str) -> None:
+        self._done.add(key)
+
+
+class ControllableWorkerSystem:
+    def __init__(
+        self,
+        cfg: WorkerConfig,
+        handler: Callable[[Job], Awaitable[None]],
+        *,
+        sleep_fn: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        dlq_publish: Callable[[Job, str], Awaitable[None]] | None = None,
+    ) -> None:
+        self.cfg = cfg
+        self.handler = handler
+        self.sleep_fn = sleep_fn
+        self.dlq_publish = dlq_publish or self._default_dlq
+        self.queue: asyncio.Queue[Job] = asyncio.Queue(maxsize=cfg.queue_maxsize)
+        self.sem = asyncio.Semaphore(cfg.downstream_limit)
+        self.idem = InMemoryIdempotencyStore()
+        self.ready = True
+
+    async def _default_dlq(self, job: Job, reason: str) -> None:
+        # 僅在實際發生死信時才觸發 lazy import 載入雲端用戶端
+        await cloud_dlq_client.send_dead_letter(job.job_id, reason)
+
+    async def submit(self, job: Job) -> None:
+        """佇列滿載時自動阻塞上游形成背壓；shutdown 後拋出 QueueShutDown"""
+        await self.queue.put(job)
+
+    @TraceJobSpan("worker.execute_job")
+    async def _execute_with_retry(self, job: Job) -> None:
+        async with self.idem.guard(job.idempotency_key):
+            await self._execute_serialized(job)
+
+    async def _execute_serialized(self, job: Job) -> None:
+        if await self.idem.already_done(job.idempotency_key):
+            return  # 冪等防護：重複投遞直接安全略過
+
+        timeout_sec = job.effective_timeout(self.cfg)
+        for attempt in range(1, self.cfg.max_attempts + 1):
+            try:
+                async with self.sem, asyncio.timeout(timeout_sec):
+                    await self.handler(job)
+                await self.idem.mark_done(job.idempotency_key)
+                return
+            except (TimeoutError, TransientDownstreamError) as exc:
+                if attempt == self.cfg.max_attempts:
+                    await self.dlq_publish(job, type(exc).__name__)
+                    return
+                # 指數退避 + Full Jitter 避免重試雪崩
+                cap = self.cfg.base_backoff_sec * (2 ** (attempt - 1))
+                await self.sleep_fn(random.uniform(0.0, cap))
+
+    async def _worker_loop(self, worker_id: int) -> None:
+        while True:
+            try:
+                job = await self.queue.get()
+            except asyncio.QueueShutDown:
+                return  # 佇列已排空；交付要另有持久化或確認
+            try:
+                await self._execute_with_retry(job)
+            finally:
+                self.queue.task_done()
+
+    async def serve(self, stop_event: asyncio.Event) -> None:
+        """結構化併發主生命週期：先優雅排空，超時再以 3.15 tg.cancel() 安全收尾"""
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(monitor_event_loop_lag(), name="loop-lag-probe")
+            for idx in range(self.cfg.concurrency):
+                tg.create_task(self._worker_loop(idx), name=f"worker-{idx}")
+
+            await stop_event.wait()
+            self.ready = False  # 1. 讓 /readyz 回傳 503 切斷新流量
+            self.queue.shutdown(immediate=False)  # 2. 開始排空剩餘任務
+
+            try:
+                async with asyncio.timeout(self.cfg.drain_grace_sec):
+                    await self.queue.join()
+            except TimeoutError:
+                # 3. Python 3.15 原生取消整個群組，取消受群組管理的任務；清理仍須合作
+                tg.cancel()
+            else:
+                # 所有任務排空完畢，優雅結束背景監控探針
+                tg.cancel()
+
+
+async def main() -> None:
+    cfg = WorkerConfig()
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop_event.set)
+
+    async def sample_handler(job: Job) -> None:
+        if job.kind == "pdf":
+            # 同步 CPU 密集工作切出事件迴圈，避免阻塞其他協程
+            await asyncio.to_thread(heavy_pdf_sdk.render, job.payload)
+        else:
+            await asyncio.sleep(0.05)
+
+    system = ControllableWorkerSystem(cfg, handler=sample_handler)
+    await system.serve(stop_event)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+`
+      },
+      {
+        name: 'observability.py',
+        icon: '🔭',
+        tags: ['3.15 ContextDecorator Fix', 'Event Loop Lag', 'Call Graph'],
+        desc: '使用 Python 3.15 修正後的 ContextDecorator 進行非同步追蹤，搭配事件迴圈延遲探針與即時呼叫圖診斷端點。',
+        code: `"""Python 3.15 可觀測性：非同步追蹤、Event Loop Lag 與 Call Graph 內省"""
+import asyncio
+import contextlib
+import contextvars
+import logging
+import time
+
+logger = logging.getLogger("py315.worker")
+current_span_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_span", default="root"
+)
+
+
+class TraceJobSpan(contextlib.ContextDecorator):
+    """
+    Python 3.15 修正了 ContextDecorator 對 async def 與 async generator 的包裝：
+    __exit__ 現在會精準等待協程完整 await 結束、拋出例外或被取消後才觸發。
+    """
+    def __init__(self, op_name: str) -> None:
+        self.op_name = op_name
+        self._t0: float = 0.0
+        self._token: contextvars.Token[str] | None = None
+
+    def _recreate_cm(self) -> "TraceJobSpan":
+        # ContextDecorator 的每次呼叫需取得獨立 token 與計時狀態。
+        return type(self)(self.op_name)
+
+    def __enter__(self) -> "TraceJobSpan":
+        self._token = current_span_var.set(self.op_name)
+        self._t0 = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        elapsed_ms = (time.perf_counter() - self._t0) * 1000.0
+        status = "ok" if exc_type is None else exc_type.__name__
+        logger.info("span=%s status=%s elapsed_ms=%.2f", self.op_name, status, elapsed_ms)
+        if self._token is not None:
+            current_span_var.reset(self._token)
+        return False  # 絕不吞噬例外或 CancelledError
+
+
+async def monitor_event_loop_lag(
+    interval_sec: float = 0.5,
+    warn_threshold_ms: float = 50.0,
+) -> None:
+    """持續量測事件迴圈排程延遲，及早發現誤用同步阻塞函式的元兇"""
+    loop = asyncio.get_running_loop()
+    while True:
+        expected = loop.time() + interval_sec
+        await asyncio.sleep(interval_sec)
+        lag_ms = max(0.0, (loop.time() - expected) * 1000.0)
+        if lag_ms >= warn_threshold_ms:
+            logger.warning(
+                "event_loop_lag_ms=%.2f threshold_ms=%.1f",
+                lag_ms,
+                warn_threshold_ms,
+            )
+
+
+def capture_live_diagnostics() -> dict[str, object]:
+    """供內部 /debug/async 端點呼叫，無需重啟即回傳非同步任務樹快照"""
+    graph = asyncio.capture_call_graph()
+    tasks = asyncio.all_tasks()
+    return {
+        "active_task_count": len(tasks),
+        "task_names": sorted(t.get_name() for t in tasks),
+        "call_graph_summary": str(graph),
+    }
+`
+      },
+      {
+        name: 'test_worker.py',
+        icon: '🧪',
+        tags: ['IsolatedAsyncioTestCase', 'Deterministic', 'Zero Sleep'],
+        desc: '100% 確定性非同步契約測試：使用 Event 閘門、Fake Clock 與故障注入，毫秒級驗證背壓、排空、冪等與零孤兒。',
+        code: `"""確定性非同步契約測試：零固定秒數 sleep、毫秒級穩定執行"""
+import asyncio
+import unittest
+
+from config import Job, WorkerConfig
+from worker import ControllableWorkerSystem, TransientDownstreamError
+
+
+class TestControllableWorker(unittest.IsolatedAsyncioTestCase):
+    async def test_backpressure_blocks_producer(self) -> None:
+        cfg = WorkerConfig(concurrency=1, queue_maxsize=2)
+        sys_worker = ControllableWorkerSystem(cfg, handler=lambda j: asyncio.sleep(0))
+
+        await sys_worker.submit(Job("1", "k1", "io", frozendict()))
+        await sys_worker.submit(Job("2", "k2", "io", frozendict()))
+
+        blocked_put = asyncio.create_task(
+            sys_worker.submit(Job("3", "k3", "io", frozendict()))
+        )
+        await asyncio.sleep(0)  # 僅讓出單一 loop tick
+        self.assertFalse(blocked_put.done(), "Queue 滿載時必須反壓阻擋 Producer")
+
+        # 釋放一格空間後立即解鎖
+        _ = await sys_worker.queue.get()
+        await asyncio.wait_for(blocked_put, timeout=0.05)
+
+    async def test_graceful_drain_and_zero_orphans(self) -> None:
+        baseline = asyncio.all_tasks()
+        gate = asyncio.Event()
+        processed: list[str] = []
+
+        async def gated_handler(job: Job) -> None:
+            await gate.wait()
+            processed.append(job.job_id)
+
+        cfg = WorkerConfig(concurrency=2, queue_maxsize=8, drain_grace_sec=2.0)
+        sys_worker = ControllableWorkerSystem(cfg, handler=gated_handler)
+        for i in range(4):
+            await sys_worker.submit(Job(f"j{i}", f"k{i}", "io", frozendict()))
+
+        stop_event = asyncio.Event()
+        serve_task = asyncio.create_task(sys_worker.serve(stop_event))
+        await asyncio.sleep(0)
+
+        stop_event.set()  # 觸發優雅排空
+        gate.set()        # 放行全部執行中任務
+        await serve_task
+
+        self.assertEqual(len(processed), 4)
+        self.assertEqual(asyncio.all_tasks() - baseline, set())
+
+    async def test_retry_dlq_and_idempotency(self) -> None:
+        sleeps: list[float] = []
+        dlq_records: list[tuple[str, str]] = []
+        calls = 0
+
+        async def fake_sleep(sec: float) -> None:
+            sleeps.append(sec)
+
+        async def flaky_handler(job: Job) -> None:
+            nonlocal calls
+            calls += 1
+            if job.kind == "always_fail":
+                raise TransientDownstreamError("503")
+
+        cfg = WorkerConfig(max_attempts=3, base_backoff_sec=0.2)
+        sys_worker = ControllableWorkerSystem(
+            cfg,
+            handler=flaky_handler,
+            sleep_fn=fake_sleep,
+            dlq_publish=lambda j, r: asyncio.sleep(0, dlq_records.append((j.job_id, r))),
+        )
+
+        # 1. 重試達上限進 DLQ（零實際等待）
+        await sys_worker._execute_with_retry(Job("bad", "k-bad", "always_fail", frozendict()))
+        self.assertEqual(len(sleeps), 2)
+        self.assertEqual(dlq_records, [("bad", "TransientDownstreamError")])
+
+        # 2. 相同 idempotency_key 重複投遞僅執行一次
+        calls = 0
+        await sys_worker._execute_with_retry(Job("ok-1", "same-key", "ok", frozendict()))
+        await sys_worker._execute_with_retry(Job("ok-2", "same-key", "ok", frozendict()))
+        self.assertEqual(calls, 1)
+
+    async def test_concurrent_duplicate_serializes_by_key(self) -> None:
+        entered = asyncio.Event()
+        finish = asyncio.Event()
+        calls = []
+
+        async def work(job: Job) -> None:
+            calls.append(job.job_id)
+            entered.set()
+            await finish.wait()
+
+        system = ControllableWorkerSystem(WorkerConfig(), handler=work)
+        first = asyncio.create_task(system._execute_with_retry(Job("a", "same", "io", frozendict())))
+        await entered.wait()
+        second = asyncio.create_task(system._execute_with_retry(Job("b", "same", "io", frozendict())))
+        await asyncio.sleep(0)
+        finish.set()
+        await asyncio.gather(first, second)
+        self.assertEqual(calls, ["a"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+`
+      }
+    ];
+
+    let activeBlueprintName = BLUEPRINT_FILES[0].name;
+
+    function renderBlueprintTree() {
+      const tree = document.getElementById('blueprint-file-tree');
+      tree.innerHTML = BLUEPRINT_FILES.map(f => {
+        const active = f.name === activeBlueprintName;
+        return `
+          <button data-bp="${f.name}" class="w-full text-left px-3 py-2.5 rounded-xl border transition flex items-center justify-between gap-2 ${
+            active
+              ? 'bg-electric/20 border-electric/60 text-white shadow-glowBlue'
+              : 'bg-lab-card2/60 border-transparent text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+          }">
+            <div class="flex items-center gap-2 min-w-0">
+              <span>${f.icon}</span>
+              <span class="font-mono text-xs font-semibold truncate">${f.name}</span>
+            </div>
+            <span class="text-[10px] font-mono text-slate-500">${f.code.split('\n').length}L</span>
+          </button>
+        `;
+      }).join('');
+
+      tree.querySelectorAll('[data-bp]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeBlueprintName = btn.dataset.bp;
+          renderBlueprintTree();
+          renderBlueprintViewer();
+        });
+      });
+    }
+
+    function renderBlueprintViewer() {
+      const f = BLUEPRINT_FILES.find(x => x.name === activeBlueprintName);
+      document.getElementById('bp-active-filename').textContent = f.name;
+      document.getElementById('bp-line-count').textContent = `${f.code.split('\n').length} lines`;
+      document.getElementById('bp-file-desc').textContent = f.desc;
+      document.getElementById('bp-active-tags').innerHTML = f.tags
+        .map(t => `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-py315/20 text-purple-300 border border-py315/40">${t}</span>`)
+        .join('');
+      document.getElementById('bp-code-viewer').innerHTML = renderHighlightedPython(f.code);
+    }
+
+    document.getElementById('btn-copy-blueprint').addEventListener('click', () => {
+      const f = BLUEPRINT_FILES.find(x => x.name === activeBlueprintName);
+      copyTextToClipboard(f.code, `已複製 ${f.name} 完整程式碼！`);
+    });
+
+    /* ===================================================================== */
+    /* INITIALIZATION                                                        */
+    /* ===================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      switchTab('sim');
+      resetSimulator();
+      renderArchTabs();
+      renderArchDetail();
+      renderTestList();
+      renderTestCodeViewer();
+      renderCliButtons();
+      renderCliScenario();
+      renderChecklist();
+      renderBlueprintTree();
+      renderBlueprintViewer();
+      requestAnimationFrame(simulatorLoop);
+    });
+  </script>
+</body>
+</html>

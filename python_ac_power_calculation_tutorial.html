@@ -4,9 +4,21 @@
 
 /* Full-width lesson panels; chart and table containment stays local. */
 main{width:100%;max-width:none;padding-inline:clamp(.8rem,2.25vw,3rem)} section>p{max-inline-size:76ch}
+
+.pq-flow,.pq-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin:.8rem 0;padding:0}
+.pq-flow{grid-template-columns:repeat(4,minmax(0,1fr));gap:1.1rem;list-style:none}
+.pq-flow li,.pq-metrics>div{position:relative;min-width:0;padding:.65rem .8rem;background:#edf5ff;border:1px solid #c7daee;border-radius:9px;overflow-wrap:anywhere}
+.pq-flow span,.pq-metrics dd{display:block;color:var(--sub);margin:0;font-size:.95rem}
+.pq-flow li:not(:last-child)::after{content:"→";position:absolute;right:-1.08rem;top:50%;transform:translateY(-50%);color:#235784}
+.pq-metrics dt{font-weight:750;color:#21476e}
+.pq-chart{max-inline-size:42rem;padding:1rem;background:#edf5ff;border-radius:9px}
+.pq-bar{display:grid;grid-template-columns:minmax(4rem,8rem) minmax(2rem,1fr) minmax(3.5rem,4rem);gap:.4rem;align-items:center}
+.pq-bar i{background:linear-gradient(90deg,#246fa4 0 var(--level),#d2e1f0 var(--level) 100%);height:.7rem;border-radius:.5rem}
+@media(max-width:700px){.pq-flow,.pq-metrics{grid-template-columns:minmax(0,1fr)}.pq-flow li:not(:last-child)::after{content:"↓";top:auto;bottom:-1.33rem;right:50%;transform:translateX(50%)}}
+
 </style></head><body><main><a href="index.html">← 回 Python 教材入口</a>
 <header><small>電力資料分析 · AC POWER</small><h1>交流電力與電力角</h1><p>從電壓、電流、相角算有功、無功與視在功率；以一致的方向和時間窗彙整負載，區分功率因數角與發電機功角。</p></header>
-<nav aria-label="章節導覽"><a href="#architecture">資料架構</a><a href="#calculation">計算流程</a><a href="#triangle">三角形與算例</a><a href="#angle">兩種角度</a><a href="#harmonics">諧波與限制</a><a href="#lab">Python</a></nav>
+<nav aria-label="章節導覽"><a href="#architecture">資料架構</a><a href="#calculation">計算流程</a><a href="#triangle">三角形與算例</a><a href="#angle">兩種角度</a><a href="#harmonics">諧波與限制</a><a href="#power-quality">電力品質分析</a><a href="#lab">Python</a></nav>
 <section id="architecture"><h2>01｜量測邊界和資料流</h2><ol class="flow"><li>電力支路<span>合成的電壓、電流 RMS 與相角</span></li><li>統一口徑<span>量測邊界、方向、相數、品質與時間</span></li><li>邊界計算<span>先計 P／Q，再求 S、PF、φ</span></li><li>報表核對<span>比較支路和總表；電費另看電能與需量定義</span></li></ol><p>本課約定吸收有功為正、感性（電流落後）Q 為正、容性（電流超前）Q 為負。不同電表可能以進／出電或不同象限命名；接資料時先讀設備文件，不能從單一 PF 符號猜測超前或落後。本頁只以合成資料說明，不含帶電量測、調整或補償選型。</p></section>
 <section id="calculation"><h2>02｜從 RMS 到 P、Q、S 和 PF</h2><ol class="flow"><li>選相數<span>單相或平衡三相</span></li><li>先求視在功率<span>單相 VI；三相 √3 × 線電壓 × 線電流</span></li><li>分解有功與無功<span>依 φ 的 cos 與 sin 得到 P、Q</span></li><li>彙整同窗負載<span>各自加總 P 與帶正負號的 Q，再重算 S／PF</span></li></ol><div class="scroll" tabindex="0" role="region" aria-label="功率公式"><table><thead><tr><th>量</th><th>理想正弦、吸收有功負載</th><th>單位及解讀</th></tr></thead><tbody>
 <tr><td>S 視在功率</td><td>單相 V<sub>RMS</sub>I<sub>RMS</sub> ÷ 1000；平衡三相 √3 V<sub>LL</sub>I<sub>L</sub> ÷ 1000</td><td>kVA；三相 V<sub>LL</sub> 是線對線電壓，I<sub>L</sub> 為線電流</td></tr>
@@ -24,7 +36,49 @@ main{width:100%;max-width:none;padding-inline:clamp(.8rem,2.25vw,3rem)} section>
 <p>A、B 同一時段，同一邊界，且均以理想平衡正弦模型計算。P 合計保留正值；B 負 Q 抵銷部分 A 正 Q。合計 S 用 hypot(ΣP,ΣQ)，不是 69.282 + 41.569；PF 也不是兩筆簡單平均。這是計算示意，不是實際電容裝置或調整建議。</p></section>
 <section id="angle"><h2>04｜「電力角」可能指不同量</h2><ul><li><strong>功率因數角 φ：</strong>在正弦負載是對應相電壓與相電流的相位差，帶方向的功率三角形用 atan2(Q,P) 表達。</li><li><strong>同步機功角 δ：</strong>描述同步機內電勢與端／參考匯流排電壓的相位差，取決於選用等效模型與參考。它不是電流相角，也不能只靠 kW、kvar、PF 或 φ 推回。匯流排間相角也需說明是哪兩個電壓相量。本頁不拿理想機組模型做發電機操作或穩定度整定。</li></ul></section>
 <section id="harmonics"><h2>05｜諧波、不平衡與電表讀值</h2><p>單相總真實 PF＝同窗平均有功（v(t)×i(t) 的平均）÷（總電壓 RMS × 總電流 RMS）。位移 PF＝基波相差的 cos φ<sub>1</sub>。畸變電流可能讓真實 PF 低於位移 PF；有諧波或不平衡時，不把所有非有功成分都算成同一個 Q，也不直接套 S²=P²+Q²、單一 φ 或平衡三相公式。</p><p class="note">查明電表對三相 S、PF、無功與需量的演算法、方向及時間窗；比對帳單時另查費率與計費口徑。可接續閱讀 <a href="python_taiwan_electricity_billing_tutorial.html">台灣電費計算教材</a>。</p></section>
-<section id="lab"><h2>06｜Python 標準庫實作</h2><p><a href="python_ac_power_calculation_lab.py" download>下載完整 Python</a>。測試正／負 Q、資料加總、單相、零負載、非法輸入及真實 PF 邊界；純離線無硬體。</p><pre><code>python python_ac_power_calculation_lab.py
+<section id="power-quality"><h2>06｜電力品質分析與計算</h2>
+<p>先分辨「配電點長期畸變」、「馬達端三相不平衡」和「設備重啟前的短時間電壓事件」。三者可能同時出現，但分母、量測位置與時間窗不同，不能以一個功率因數或一張十分鐘平均圖判定。以下只使用合成資料或既有匯出檔進行離線分析。</p>
+<h3 id="pq-architecture">資料架構圖</h3>
+<figure aria-labelledby="pq-architecture"><ol class="pq-flow" role="list">
+<li><b>01 選定量測點</b><span>公用電網共同耦合點（PCC）、負載端或配電分盤；記錄相序與額定電壓。</span></li>
+<li><b>02 接收並驗證</b><span>匯出原始波形、諧波檔與事件；保留比例、時間基準、儀表設定及缺值旗標。</span></li>
+<li><b>03 分流計算</b><span>穩態窗算 PF、諧波與相序；事件窗另算暫降、暫升及持續時間。</span></li>
+<li><b>04 保存證據</b><span>報表帶原檔、算式版本、分母、窗長與適用條款；缺資料就標示不可判定。</span></li>
+</ol><figcaption>架構圖與下方流程圖的 <a href="assets/power-quality.drawio" download>可編輯 draw.io 原稿</a>。</figcaption></figure>
+<h3>指標、公式與分母</h3>
+<dl class="pq-metrics">
+<div><dt>真實 PF 與位移 DPF</dt><dd>單相 PF = 平均(v×i) ÷ (V<sub>rms</sub>I<sub>rms</sub>)，時域樣本須同步；DPF = cos(基波電壓相角 − 基波電流相角)。只有電壓為純基波、電流無直流且完整涵蓋基波週期、諧波正交時，才可用 PF = DPF ÷ √(1 + (THD<sub>I</sub>/100)²)。不平衡三相勿拿三個單相 PF 的算術平均代替儀表定義。</dd></div>
+<div><dt>THD 與 TDD</dt><dd>THD<sub>V</sub>、THD<sub>I</sub> = √ΣX<sub>h</sub>² ÷ X<sub>1</sub> × 100%；TDD 用相同指定整數階諧波電流的平方和開根號，但除以 PCC 的基波最大需量負載電流 I<sub>L</sub>。報表應標註階數範圍及群組法；I<sub>L</sub> 依場所資料與標準方法取得，不用瞬時 I<sub>1</sub>、斷路器額定或任意尖峰代替。THD 上升可能只是負載下降、分母變小。</dd></div>
+<div><dt>IEC 型 VUF 與 NEMA 型偏差</dt><dd>ABC 相序、a = e<sup>j120°</sup>；V<sub>1</sub> = (V<sub>a</sub> + aV<sub>b</sub> + a²V<sub>c</sub>) / 3，V<sub>2</sub> = (V<sub>a</sub> + a²V<sub>b</sub> + aV<sub>c</sub>) / 3；VUF = |V<sub>2</sub>| / |V<sub>1</sub>| × 100%。NEMA 型算法用三條線電壓 RMS 對其平均值的最大絕對偏差 / 平均值 × 100%，不是只用三相相電壓大小代替，也不等於序分量。此例沒有電壓諧波，因此基波線電壓即為全 RMS。</dd></div>
+<div><dt>暫降、暫升與中斷</dt><dd>暫降用最小殘餘電壓 ÷ 參考電壓（pu）、暫升用最大電壓 ÷ 參考電壓；兩者的事件時間 = 結束 − 開始。選定固定或滑動參考、起訖門檻、遲滯及多相合併規則；中斷另依採用規範的門檻與時間歸類。瞬態尖峰用波形分析，不以半週更新 RMS 代替。閃爍 P<sub>st</sub>（10 分鐘）、P<sub>lt</sub>（通常 2 小時）由合規閃爍量測取得，不能用 RMS 標準差冒充。</dd></div>
+</dl>
+<h3 id="pq-flow">判讀流程圖</h3>
+<figure aria-labelledby="pq-flow"><ol class="pq-flow" role="list">
+<li><b>01 檢查資料品質</b><span>相序、窗長、時間同步、遺漏、裁切，任一不明先標記。</span></li>
+<li><b>02 選時間窗</b><span>例：60 Hz 的 12 週波為 200 ms。暫降用逐半週更新的一週波 RMS，不能用 200 ms 或十分鐘平均代替。</span></li>
+<li><b>03 計算並比對</b><span>先用相同位置與窗對齊波形及事件。穩態彙整和合規判讀分開。</span></li>
+<li><b>04 驗證因果</b><span>交叉比對上游與下游、變頻器負載及設備事件；同時出現不代表同一原因。</span></li>
+</ol><figcaption>12 週波只是常見基本時間窗示例；頻率追蹤、群組法、事件旗標及彙整依所採規範與儀表版本。</figcaption></figure>
+<h3>逐項複算：合成的變頻器負載</h3>
+<ol>
+<li>230 V 正弦單相電壓，電流基波 40 A 落後 30°，5／7 次電流為 12／9 A RMS，其餘為 0。諧波合成為 √(12²+9²) = 15 A，總電流 √(40²+15²) = 42.720 A；有功 230×40×cos30° = 7.967 kW；PF 0.8109、DPF 0.8660。</li>
+<li>THD<sub>I</sub> = 15/40 = 37.50%；假定 PCC 的 I<sub>L</sub> 為 60 A，TDD = 15/60 = 25.00%；純正弦電壓的 THD<sub>V</sub> = 0%。本例數值不代表合格門檻。</li>
+<li>另取一組同步三相基波相量：230∠0°、218∠−120°、236∠120° V。用相量相減再取大小得到線電壓約 388.03、393.28、403.58 V；VUF ≈ 2.321%，NEMA 型 ≈ 2.182%。</li>
+<li>單相事件窗 RMS = [230, 180, 179, 193, 212] V，每半週更新一次（60 Hz 為 8.333 ms），參考 230 V，教學進入 &lt;0.90 pu、退出 ≥0.92 pu。第 2 筆進入，第 5 筆退出；殘餘 179/230 = 0.7783 pu，下降深度 22.17%，時間 3 × 8.333 ms = 25.0 ms。若第 5 筆缺失就不能宣告事件已結束。</li>
+</ol>
+<figure class="pq-chart" aria-labelledby="pq-chart-caption">
+<div class="pq-bar" style="--level:86.60%"><span>位移 DPF</span><i aria-hidden="true"></i><b>0.8660</b></div>
+<div class="pq-bar" style="--level:81.09%"><span>真實 PF</span><i aria-hidden="true"></i><b>0.8109</b></div>
+<figcaption id="pq-chart-caption">圖：同一單相合成負載，兩條長條都以 0 至 1 為尺度。差距來自本例的諧波電流，不等同於電費節省幅度。</figcaption>
+</figure>
+<h3>驗收及實作</h3>
+<p class="note">工程驗收先確認 PCC 定義、電壓等級、短路電流 I<sub>SC</sub>、I<sub>L</sub>、採用標準版本、統計窗及供電契約。IEEE 519 的穩態諧波限值範圍是使用者 PCC，不把設備端數值直接定性成違規。IEC 61000-4-30 說明量測方法，不是通用法定允收表。應保留缺測、時鐘漂移、CT/PT 比例及事件旗標；此教材未驗證任何實際配電盤或儀表符合性。</p>
+<p><a href="python_power_quality_lab.py" download>下載離線算例與單元測試</a>（標準庫）。程式從既有 RMS、諧波與相量計算，不做儀表等級的 DFT 頻譜量測或事件判定。</p>
+<pre><code>python python_power_quality_lab.py
+python -m unittest -v python_power_quality_lab</code></pre>
+<p>來源：<a href="https://webstore.iec.ch/en/publication/71611">IEC 61000-4-30:2025 量測方法</a> · <a href="https://standards.ieee.org/ieee/519/10677/">IEEE 519-2022 諧波與 PCC</a> · <a href="https://standards.ieee.org/ieee/1159/6124/">IEEE 1159-2019 電力品質監測</a> · <a href="https://www.se.com/us/en/faqs/FA409853/">Schneider Electric：IEC 與 NEMA 不平衡算法</a> · <a href="https://assets.fluke.com/manuals/F430-II_umeng0000.pdf">Fluke：真實與位移功率因數</a>。校閱：2026-11-26（台灣）。</p>
+</section>
+<section id="lab"><h2>07｜Python 標準庫實作</h2><p><a href="python_ac_power_calculation_lab.py" download>下載完整 Python</a>。測試正／負 Q、資料加總、單相、零負載、非法輸入及真實 PF 邊界；純離線無硬體。</p><pre><code>python python_ac_power_calculation_lab.py
 python python_ac_power_calculation_lab.py --test</code></pre><details><summary>展開 Python 原始碼</summary><pre><code>&quot;&quot;&quot;理想正弦、供電側正向合成算例；不接電表、不操作電力設備。&quot;&quot;&quot;
 from dataclasses import dataclass
 import math
