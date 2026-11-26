@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import unittest
 
-from async_concurrency_engineering import AsyncWorkerPipeline, RetryableJobError, WorkItem, run_pipeline
+from async_concurrency_engineering import AsyncWorkerPipeline, PermanentJobError, RetryableJobError, WorkItem, run_pipeline
 
 
 class AsyncWorkerPipelineTests(unittest.IsolatedAsyncioTestCase):
@@ -87,6 +87,82 @@ class AsyncWorkerPipelineTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(pipeline.results), 2)
         self.assertTrue(all(worker.done() for worker in pipeline._workers))
+
+
+    async def test_worker_failure_surfaces_while_admission_is_blocked(self) -> None:
+        hit = asyncio.Event()
+        release = asyncio.Event()
+
+        async def handler(item: WorkItem) -> int:
+            hit.set()
+            await release.wait()
+            raise LookupError("unexpected handler defect")
+
+        p = AsyncWorkerPipeline(handler, worker_count=1, max_queue_size=1)
+        await p.start()
+        try:
+            await p.submit(WorkItem("active", 1, "active"))
+            await hit.wait()
+            await p.submit(WorkItem("queued", 2, "queued"))
+            blocked = asyncio.create_task(p.submit(WorkItem("blocked", 3, "blocked")))
+            await asyncio.sleep(0)
+            self.assertFalse(blocked.done())
+            release.set()
+            with self.assertRaisesRegex(LookupError, "unexpected handler defect"):
+                await asyncio.wait_for(blocked, 1)
+        finally:
+            await p.abort()
+        self.assertTrue(all(worker.done() for worker in p._workers))
+        self.assertEqual(p.metrics.submitted, 2)
+
+    async def test_worker_failure_surfaces_during_drain(self) -> None:
+        async def handler(item: WorkItem) -> int:
+            await asyncio.sleep(0)
+            raise LookupError("broken worker")
+        with self.assertRaisesRegex(LookupError, "broken worker"):
+            await asyncio.wait_for(run_pipeline([WorkItem("x", 1, "x")], handler, worker_count=1), 1)
+
+    async def test_permanent_error_never_retries(self) -> None:
+        async def handler(item: WorkItem) -> int:
+            raise PermanentJobError("invalid input")
+        result, metrics = await run_pipeline([WorkItem("bad", 1, "bad")], handler, max_attempts=3)
+        self.assertEqual((result[0].status, result[0].attempts, metrics.retried), ("failed", 1, 0))
+
+    async def test_drain_timeout_cleans_worker_and_discards_backlog(self) -> None:
+        active = asyncio.Event()
+        cleaned = asyncio.Event()
+        never = asyncio.Event()
+
+        async def handler(item: WorkItem) -> int:
+            active.set()
+            try:
+                await never.wait()
+            finally:
+                cleaned.set()
+            return item.payload
+
+        p = AsyncWorkerPipeline(handler, worker_count=1, max_queue_size=1,
+                                drain_timeout=0.015, per_item_timeout=1)
+        await p.start()
+        await p.submit(WorkItem("active", 1, "active"))
+        await active.wait()
+        await p.submit(WorkItem("queued", 2, "queued"))
+        with self.assertRaises(TimeoutError):
+            await p.close()
+        self.assertTrue(cleaned.is_set())
+        self.assertTrue(p._queue.empty())
+        self.assertEqual(p.metrics.cancelled, 1)
+        await p.close()  # Idempotent after cleanup.
+
+    async def test_total_job_budget_caps_retries(self) -> None:
+        async def handler(item: WorkItem) -> int:
+            raise RetryableJobError("busy")
+        results, metrics = await run_pipeline(
+            [WorkItem("budget", 1, "budget")], handler, max_attempts=9,
+            job_timeout=0.04, retry_delay=1.0,
+        )
+        self.assertEqual((results[0].status, results[0].attempts), ("timed_out", 1))
+        self.assertEqual((metrics.timed_out, metrics.retried), (1, 0))
 
 
 if __name__ == "__main__":

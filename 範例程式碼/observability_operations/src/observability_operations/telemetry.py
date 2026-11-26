@@ -64,26 +64,37 @@ class TelemetryCollector:
         if dependency_timeout:
             self.dependency_timeouts_total += 1
 
+    def _raw_slo_values(self) -> tuple[float | None, float | None]:
+        error_rate = self.errors_total / self.requests_total if self.requests_total else None
+        average_latency = mean(self.request_latencies_ms) if self.request_latencies_ms else None
+        return error_rate, average_latency
+
     def metrics_snapshot(self) -> dict[str, float | int]:
-        average_latency = mean(self.request_latencies_ms) if self.request_latencies_ms else 0.0
-        error_rate = self.errors_total / self.requests_total if self.requests_total else 0.0
+        error_rate, average_latency = self._raw_slo_values()
         return {
             "requests_total": self.requests_total,
             "errors_total": self.errors_total,
             "dependency_timeouts_total": self.dependency_timeouts_total,
-            "average_latency_ms": round(average_latency, 3),
-            "error_rate": round(error_rate, 4),
+            "average_latency_ms": round(average_latency, 3) if average_latency is not None else 0.0,
+            "error_rate": round(error_rate, 4) if error_rate is not None else 0.0,
         }
 
     def evaluate_slo(self, max_error_rate: float = 0.05, max_average_latency_ms: float = 250.0) -> dict[str, Any]:
-        metrics = self.metrics_snapshot()
-        passed = metrics["error_rate"] <= max_error_rate and metrics["average_latency_ms"] <= max_average_latency_ms
+        error_rate, average_latency = self._raw_slo_values()
+        if error_rate is None or average_latency is None:
+            status = "no_data"
+        elif error_rate <= max_error_rate and average_latency <= max_average_latency_ms:
+            status = "pass"
+        else:
+            status = "fail"
         return {
             "slo": "request-quality",
-            "passed": bool(passed),
+            "status": status,
+            "passed": status == "pass",
             "max_error_rate": max_error_rate,
             "max_average_latency_ms": max_average_latency_ms,
-            "metrics": metrics,
+            "evaluated": {"error_rate": error_rate, "average_latency_ms": average_latency},
+            "metrics": self.metrics_snapshot(),
         }
 
     def _redact(self, fields: dict[str, Any]) -> dict[str, Any]:

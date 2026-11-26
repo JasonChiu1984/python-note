@@ -1,6 +1,6 @@
 # Async Concurrency Engineering Sample
 
-這個範例示範 Python 標準庫 `asyncio` 在 production worker pipeline 中的最小可驗收形狀。
+這個範例示範 Python 標準庫 `asyncio` 在 Python 3.11 以上的離線 worker 管線。佇列及結果在記憶體，只用於有限批次；沒有持久化或接收端去重。
 
 ## Architecture
 
@@ -13,10 +13,10 @@ bounded asyncio.Queue
   v
 worker tasks
   |
-  +-- per-item timeout
+  +-- admission deadline, end-to-end budget and per-attempt timeout
   +-- retry for retryable error
   +-- permanent error classification
-  +-- cancellation-safe shutdown
+  +-- supervised drain; abort cancels and awaits worker cleanup
   |
   v
 results + metrics
@@ -41,7 +41,9 @@ python3 scripts/run_async_smoke.py
 - retryable error 會重試後成功
 - timeout 會被分類並記錄
 - bounded queue 會形成 backpressure
-- shutdown 會等待 queue drain 後停止 worker
+- 正常關機先停止 producer 再排空；worker 非預期失敗會回報原始例外並中止。
+- 排空逾時會取消並等待合作清理；期限耗盡後不再啟動下一次嘗試。
+- 10 個測試案例覆蓋正常、重試、期限、滿載與中止。
 
 ## Troubleshooting
 
@@ -55,5 +57,6 @@ python3 scripts/run_async_smoke.py
 
 - 對外部 I/O 一律設定 timeout。
 - queue 要有 `maxsize`，避免 producer 無限制吃掉記憶體。
-- cancellation 要能向上傳遞，不要用寬泛 `except Exception` 吃掉。
-- retry 只處理可重試錯誤，永久錯誤要快速失敗並留下證據。
+- cancellation 要能向上傳遞，不要攔截後壓掉 `CancelledError`；在 finally 清理後向上傳遞。
+- retry 只處理安全可重送的操作；`idempotency_key` 欄位本身不會去重。
+- `close()` 或 `abort()` 前，呼叫端先停止並等待自己啟動的所有 producer。

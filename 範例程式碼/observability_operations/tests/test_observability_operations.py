@@ -52,5 +52,45 @@ class ObservabilityOperationsTests(unittest.TestCase):
         self.assertGreater(slo["metrics"]["error_rate"], 0.1)
 
 
+    def test_slo_with_no_samples_reports_no_data_not_pass(self) -> None:
+        slo = TelemetryCollector().evaluate_slo()
+
+        self.assertEqual(slo["status"], "no_data")
+        self.assertFalse(slo["passed"])
+        self.assertIsNone(slo["evaluated"]["error_rate"])
+        self.assertIsNone(slo["evaluated"]["average_latency_ms"])
+
+    def test_slo_uses_error_rate_before_display_rounding(self) -> None:
+        collector = TelemetryCollector()
+        for i in range(10010):
+            collector.record_request(20.0, ok=i >= 501)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["metrics"]["error_rate"], 0.05)
+        self.assertGreater(slo["evaluated"]["error_rate"], 0.05)
+        self.assertEqual(slo["status"], "fail")
+        self.assertFalse(slo["passed"])
+
+    def test_slo_uses_latency_before_display_rounding(self) -> None:
+        collector = TelemetryCollector()
+        collector.record_request(250.0004, ok=True)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["metrics"]["average_latency_ms"], 250.0)
+        self.assertGreater(slo["evaluated"]["average_latency_ms"], 250.0)
+        self.assertEqual(slo["status"], "fail")
+        self.assertFalse(slo["passed"])
+
+    def test_slo_exact_limits_are_inclusive(self) -> None:
+        collector = TelemetryCollector()
+        for i in range(20):
+            collector.record_request(250.0, ok=i != 0)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["evaluated"], {"error_rate": 0.05, "average_latency_ms": 250.0})
+        self.assertEqual(slo["status"], "pass")
+        self.assertTrue(slo["passed"])
+
+
 if __name__ == "__main__":
     unittest.main()

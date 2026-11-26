@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python 可觀測性與維運工程教學 - Logging、Metrics、Tracing、Health 與 SLO v2.1.0</title>
+  <title>Python 可觀測性與維運工程教學 - Logging、Metrics、Tracing、Health 與 SLO v2.2.0</title>
   <style>
     :root {
       --ink: #172033;
@@ -73,6 +73,48 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
+    .ir-diagram { margin:0 0 1.1rem; }
+  .ir-diagram h3,.ir-diagram h4 { margin:.45rem 0; }
+  .ir-diagram p { margin:.5rem 0; }
+  .ir-path,.ir-branches { display:grid; list-style:none; min-width:0; padding:0; margin:.9rem 0; gap:.6rem; }
+  .ir-path { grid-template-columns:minmax(0,1fr); }
+  .ir-path li,.ir-branches li { position:relative; overflow-wrap:anywhere; min-width:0; border:1px solid #a6c5b8; border-radius:.65rem; background:#f0f8f4; padding:.7rem; }
+  .ir-path li strong,.ir-branches li strong { display:block; color:#183a32; line-height:1.35; margin-bottom:.28rem; }
+  .ir-path li span,.ir-branches li span { color:#314860; font-size:.95rem; line-height:1.45; }
+  .ir-path li:not(:last-child) {margin-bottom:1rem}
+  .ir-path li:not(:last-child)::after {content:"↓"; position:absolute; left:50%; top:100%; line-height:1.5; color:#23674f; font-weight:800}
+  .ir-branches {grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}
+  .ir-branches li {background:#fff7e3;border-color:#c79a51}
+  .ir-diagram-note {border-left:.2rem solid #23674f;padding:.35rem .6rem}
+  .ir-source-link {margin:.4rem 0 1rem;overflow-wrap:anywhere}
+  .ir-table-scroll {overflow:auto;margin:.6rem 0 1rem}
+  .ir-table {width:100%;border-collapse:collapse;min-width:35rem}
+  .ir-table td,.ir-table th {overflow-wrap:anywhere;vertical-align:top;text-align:left;border-bottom:1px solid #cad8e5;padding:.58rem}
+  .ir-table thead th {background:#e7f2fa}
+  .ir-study p {margin:.75rem 0}
+  .ir-study pre {margin:.75rem 0}
+  .ir-study :is(p, li) code {overflow-wrap:anywhere}
+  .ir-list {padding-inline-start:1.3rem}
+  .ir-list li {margin:.55rem 0}
+  @media(min-width:1230px){
+     #ops-architecture .ir-path {grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem}
+     #ops-incident-flow .ir-path {grid-template-columns:repeat(4,minmax(0,1fr));gap:1.2rem}
+     .ir-path li:not(:last-child){margin-bottom:0}
+     .ir-path li:not(:last-child)::after {content:"→";left:calc(100% + .18rem);top:42%}
+  }
+  .ops-study {padding:clamp(.75rem,2vw,1.25rem);min-width:0}
+  .ops-study p {margin:.7rem 0;overflow-wrap:anywhere}
+  .ops-study :is(p,li) code {overflow-wrap:anywhere}
+  .ops-table-wrap{overflow:auto;margin:.65rem 0 1rem}
+  .ops-table{width:100%;border-collapse:collapse;min-width:33rem}
+  .ops-table :is(td,th){overflow-wrap:anywhere;vertical-align:top;text-align:left;border-bottom:1px solid #cad8e5;padding:.58rem}
+  .ops-table thead th{background:#e7f2fa}
+  .ops-list{padding-inline-start:1.3rem}
+  .ops-list li{margin:.58rem 0}
+  .ir-diagram{padding:clamp(.75rem,2vw,1.25rem)}
+  .ops-hero-note{padding:1.15rem}
+  .ops-hero-note h2{margin:0 0 .45rem}
+  .ops-hero-note p{margin:.4rem 0}
   </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -82,6 +124,11 @@
       <a class="brand" href="#top"><span class="logo">OPS</span><span><strong>Observability</strong><br><small>可觀測性、健康檢查與維運證據</small></span></a>
       <nav aria-label="章節導覽">
         <a href="index.html">回教材入口</a>
+        <a href="#operations-maps">架構圖與流程圖</a>
+        <a href="#ops-observation">訊號與診斷</a>
+        <a href="#ops-alerting">告警設計</a>
+        <a href="#ops-recovery">事故與回復</a>
+        <a href="#ops-drill">驗收演練</a>
         <a href="#logging">Logging</a>
         <a href="python_logging_persistence_research_tutorial.html">日誌與持久化深度研究</a>
         <a href="#metrics">Metrics</a>
@@ -99,33 +146,83 @@
           <span class="eyebrow">Python Observability Operations</span>
           <h1>讓上線後的系統可診斷、可告警、可回復</h1>
           <p>這條路線把可觀測性從工具名詞拉回工程閉環：structured logging、metrics、trace id、health/readiness、SLO、incident timeline、runbook 與 rollback evidence。範例專案使用標準庫，讓讀者先理解 telemetry 資料與維運判斷，再接 OpenTelemetry、Prometheus 或雲端監控。</p>
-          <div class="status-strip"><span>v2.1.0</span><span>28 張互動卡</span><span>standard library sample</span><span>logs + metrics + health + SLO</span></div>
-          <div class="hero-actions"><a class="button primary" href="#logging">開始可觀測性</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+          <div class="status-strip"><span>v2.2.0</span><span>28 張互動卡</span><span>standard library sample</span><span>logs + metrics + health + SLO</span></div>
+          <div class="hero-actions"><a class="button primary" href="#operations-maps">先看架構圖與流程圖</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
-        <div class="surface">
-          <svg viewBox="0 0 760 430" role="img" aria-label="Python 可觀測性與維運閉環">
-            <defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.8" refY="4.5" orient="auto"><path d="M1.2 1.2l6.6 3.3-6.6 3.3z" fill="#2f6fbb"></path></marker></defs>
-            <rect x="34" y="42" width="692" height="330" rx="18" fill="#f8fbfe" stroke="#d8e2ec"></rect>
-            <g font-weight="900" text-anchor="middle">
-              <rect x="70" y="96" width="132" height="72" rx="12" fill="#e7f0fb" stroke="#2f6fbb" stroke-width="4"></rect><text x="136" y="139">Logs</text>
-              <path d="M212 132h50" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="278" y="96" width="132" height="72" rx="12" fill="#e6f5ef" stroke="#2d8a69" stroke-width="4"></rect><text x="344" y="139">Metrics</text>
-              <path d="M420 132h50" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="486" y="96" width="132" height="72" rx="12" fill="#fff4cf" stroke="#b7791f" stroke-width="4"></rect><text x="552" y="139">Traces</text>
-              <path d="M552 178v45" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="468" y="240" width="168" height="72" rx="12" fill="#eee9f8" stroke="#7257a8" stroke-width="4"></rect><text x="552" y="283">SLO / Alert</text>
-              <path d="M458 276H302" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
-              <rect x="112" y="240" width="182" height="72" rx="12" fill="#fae8e8" stroke="#c34848" stroke-width="4"></rect><text x="203" y="283">Runbook / Rollback</text>
-              <path d="M203 230V182" stroke="#2f6fbb" stroke-width="4" marker-end="url(#arrow)"></path>
-            </g>
-            <text x="380" y="386" text-anchor="middle" font-size="18" font-weight="900" fill="#5d6b7d">事件發生時，證據必須能串回 request、dependency 與版本</text>
-          </svg>
-        </div>
+        <div class="surface ops-hero-note"><h2>維運不是「容器活著」</h2><p>先量服務結果，再用 Logs、Metrics、Traces 定位。告警要能召喚負責人及指向可執行的 runbook。</p><p>回復由外側探測、資料新鮮度與對帳驗收，不靠重啟次數判斷。</p><p><a href="#ops-incident-flow">直達事故處理流程圖</a></p></div>
       </section>
       <div class="tool-panel">
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：JSON log、trace id、latency、readiness、SLO、runbook、rollback、incident">
         <div class="quick-links"><a href="#logging">Logging</a><a href="#metrics">Metrics</a><a href="#tracing">Tracing</a><a href="#health">Health</a><a href="#slo">SLO</a></div>
       </div>
+<section class="section-block" id="operations-maps"><div class="section-head"><div><span class="eyebrow">OPERATIONS / DESIGN</span><h2>從看到異常，到驗證回復</h2></div></div>
+<figure class="surface api-read ir-diagram" id="ops-architecture" aria-labelledby="ops-architecture-title" aria-describedby="ops-architecture-desc">
+  <figcaption><span class="eyebrow">ARCHITECTURE / 01</span><h3 id="ops-architecture-title">架構圖｜可觀測性與維運責任分層</h3></figcaption>
+  <p id="ops-architecture-desc">從產生訊號到做決策，不代表 Logs 必須先轉成 Metrics 再變成 Trace。三類訊號並行，再透過共同上下文關聯。</p>
+  <ol class="ir-path"><li><strong>01 · 服務與外側探測</strong><span>API／工作者／資料閘道插樁；外側探測驗證真實結果</span></li><li><strong>02 · 遙測採集</strong><span>獨立生產 Logs、Metrics、Traces；限定佇列、匯出重試</span></li><li><strong>03 · 儲存與查詢</strong><span>各訊號進對應後端；用服務、版本、時間和關聯鍵串讀</span></li><li><strong>04 · 判斷與通知</strong><span>用合格及壞事件算 SLI；規則分級、分組、路由與升級</span></li><li><strong>05 · 值班與回復</strong><span>確認影響，依 runbook 止血；分段復原並重驗</span></li></ol>
+  <h4>跨層支援面</h4><ul class="ir-branches"><li><strong>獨立健康護欄</strong><span>檢測採集、規則和通知的失聯；告警失聯不算健康。</span></li><li><strong>跨層契約</strong><span>保留版本、資料來源時間、觀察時間；遮蔽機密與個資。</span></li></ul>
+  <p class="ir-diagram-note">事故處理不是把所有資料送去同一處。審計耐久性、機密遮蔽和監控系統自身的失聯都要有明確責任。</p>
+</figure>
+
+<figure class="surface api-read ir-diagram" id="ops-incident-flow" aria-labelledby="ops-incident-flow-title" aria-describedby="ops-incident-flow-desc">
+  <figcaption><span class="eyebrow">FLOW / 02</span><h3 id="ops-incident-flow-title">流程圖｜發現、止血、復原、驗收</h3></figcaption>
+  <p id="ops-incident-flow-desc">沿箭頭至驗收閘門，再按結果走兩條路之一，不能只看告警變綠。</p>
+  <ol class="ir-path"><li><strong>01 · 發現並回應</strong><span>從使用者症狀或主動探測開事故、確認值班與範圍。</span></li><li><strong>02 · 找出責任區段</strong><span>查 SLI、版本及依賴，以關聯 log／trace 佐證，不靠猜測。</span></li><li><strong>03 · 有限止血與復原</strong><span>選可逆降級、停止推出新版；依批准的 runbook 復原資料與服務。</span></li><li><strong>04 · 驗收閘門</strong><span>用外側探測、SLO、資料新鮮度和對帳驗證，再決定是否擴量。</span></li></ol>
+  <h4>兩條結果分支</h4><ul class="ir-branches"><li><strong>驗收通過</strong><span>分段擴量並保留觀察窗；關閉事故、安排復盤。</span></li><li><strong>驗收未通過</strong><span>停止擴量，回到定位與止血；保留本輪證據。</span></li></ul>
+  <p class="ir-diagram-note">未通過時回第 02 步；值班通知、部署變更及驗收證據都要留在同一份事故時間線。</p>
+</figure>
+<p class="ir-source-link"><a href="assets/observability-operations-maps.drawio" download>下載兩張圖的 draw.io 可編輯原始檔</a></p></section>
+<section class="section-block" id="ops-observation">
+<div class="section-head"><div><span class="eyebrow">01 / OBSERVE</span><h2>先設計要驗證的使用者結果，再選監控點</h2></div></div>
+<article class="surface ops-study">
+<p>以「機房歷史資料 API」為例，使用者真正需要的不是 HTTP 200，而是取得<strong>可用且新鮮的資料</strong>。範例定義合格請求：受支援的查詢流程；良好事件：回應成功、資料通過契約、來源年齡不超過 60 秒。這個秒數是教學假設，不是設備規格。預期的使用者輸入錯誤要依事先約定分類；服務端過載、錯誤降級、逾時不能無聲排除。另設延遲 SLI，不讓平均值掩蓋 p95／p99。</p>
+<div class="ops-table-wrap" role="region" aria-label="診斷訊號與驗收" tabindex="0"><table class="ops-table"><thead><tr><th scope="col">訊號</th><th scope="col">看什麼</th><th scope="col">常見誤判與控制</th></tr></thead><tbody>
+<tr><th scope="row">Metrics</th><td>合格與壞事件數、延遲直方圖、在途量／佇列深度、exporter 失敗。</td><td>維度用服務、路由模板、結果與版本的可控集合；不要將 request ID、原始 URL、點位 ID 放進高基數標籤。合併直方圖以相容桶為前提，不直接平均每台的 p95。</td></tr>
+<tr><th scope="row">結構化 Logs</th><td>事件、時間、level、服務、版本、範圍、結果、<code>trace_id</code> 或關聯鍵。</td><td>區分設備來源時間及採集時間，對時或標示不可信；祕密與個資不進標籤或日誌。限制存取、保留期、輸出大小與記錄頻率。</td></tr>
+<tr><th scope="row">Traces</th><td>沿 API → DB／佇列／閘道找等待與錯誤；在同信任邊界傳遞必要 context。</td><td>抽樣 trace 不做準確錯誤分母；故障常見時評估尾端抽樣的容量與遺失。Span 缺失可能是未插樁、抽樣或傳送中斷，不表示呼叫沒發生。</td></tr>
+<tr><th scope="row">主動探測</th><td>由外側發起合成讀取，驗證身分、契約與資料新鮮度。</td><td>獨立監測採集、規則、轉送及通知的端到端心跳。探測失聯或無資料要標「未知」，不是 0 錯誤；可另走第二條告警通道。</td></tr>
+</tbody></table></div>
+<p><strong>訊號不能拖垮主服務：</strong>SDK 或 Collector 使用有界佇列、匯出重試與逾時；監控丟棄量及最舊未匯出年齡。重要紀錄若有不可遺失要求，另建耐久路徑，不用一般 Best-effort 遙測承諾稽核保存。</p>
+<p><strong>探針分工：</strong>startup 判斷服務何時結束啟動階段；readiness 判斷目前是否可由平台導入流量；liveness 只判斷重啟是有效補救的本身卡死。共用下游故障時，不要以 liveness 使所有服務重啟；readiness 也不能對每個可選依賴一律拒絕，須依服務模式驗證降級能力。OT 場景只觀察 PLC／DDC 的停機與連鎖，不從告警平台越權操作設備。</p>
+</article></section>
+
+<section class="section-block" id="ops-alerting">
+<div class="section-head"><div><span class="eyebrow">02 / ALERT</span><h2>告警門檻要能換算成錯誤預算與行動</h2></div></div>
+<article class="surface ops-study">
+<p><strong>算例：</strong>目標 SLO 為 30 天 99.9%，容許壞事件比例 0.001。若過去 1 小時有 100,000 筆合格請求、1,500 筆壞事件，錯誤率 1.5%，燃燒速率 <code>0.015 ÷ 0.001 = 15×</code>。在流量大致均勻的簡化下，若維持 1 小時，約消耗 <code>15 × 1 ÷ 720 = 2.08%</code> 的 30 天預算；實際期間占比須算壞事件數 ÷ 全期間允許壞事件數，不能假定流量恆定。</p>
+<div class="ops-table-wrap" role="region" aria-label="告警優先級與窗口" tabindex="0"><table class="ops-table"><thead><tr><th scope="col">目的</th><th scope="col">示例條件</th><th scope="col">預期動作</th></tr></thead><tbody>
+<tr><th scope="row">快速呼叫值班</th><td>同時 1 h 和 5 min 超過 14.4×；或已有獨立可確認的服務中斷。</td><td>依既定選路通知責任人，附客戶影響、圖表、變更紀錄、runbook。</td></tr>
+<tr><th scope="row">持續惡化</th><td>同時 6 h 和 30 min 超過 6×；或慢速長窗持續消耗預算。</td><td>依業務時限分流值班或工單，避免所有預警都叫人。</td></tr>
+<tr><th scope="row">未知／低流量</th><td>分母太小、零流量，或沒有新樣本。</td><td>不可除以零或填 0。使用足量門檻、獨立合成探測或適合低流量服務的 SLI。</td></tr>
+</tbody></table></div>
+<p>同一組雙窗口用 <strong>AND</strong>，不同嚴重度分支視規則組合；14.4× 與 6× 是教學範例，並非通用政策。Alertmanager 分組、路由與抑制是<strong>通知層</strong>，不會讓底層錯誤消失。維護靜音要有期限、負責人及稽核；恢復由資料驗證，不由按下靜音判定。</p>
+<p><strong>一則能執行的告警：</strong>「歷史趨勢 API 新鮮度 SLO，1 h／5 min 燃燒速率均超過 14.4×；影響趨勢查詢，不代表現場控制已失效。檢查來源年齡、佇列和最新版本時間；依 runbook 分流，回復前重跑外側合成探測。」</p>
+</article></section>
+
+<section class="section-block" id="ops-recovery">
+<div class="section-head"><div><span class="eyebrow">03 / RECOVER</span><h2>先縮小影響，再做回復；不要把重啟當成驗收</h2></div></div>
+<article class="surface ops-study">
+<ol class="ops-list"><li><strong>建立事故：</strong>確認影響範圍、時間窗口與現場安全，指派事故指揮、執行人、紀錄與通報人；凍結非必要變更，保存版本、可重現現象與原始時間線。</li>
+<li><strong>確認影響位置：</strong>用外側探測和 SLI 找出症狀，再以 log／trace 定位。從資料來源、閘道、持久化、API 依序查最後成功時間及各段延遲；同時比對近期發布、設定、配額或設備變更。相關不等於因果。</li>
+<li><strong>選可逆止血：</strong>先試依規則限流、關閉非必要功能、隔離壞副本、停止推出新版本；已得到授權才能依 runbook 切換。標記 stale 或 unavailable，不用快照冒充新資料。對疑似資安事件先照資安程序保全證據及隔離，不任意清理。</li>
+<li><strong>回復與對帳：</strong>確認前版可讀現有 schema、資料未被不可逆轉換，再切回；不相容就走經演練的向前修補或依組織核准程序還原。復原後驗證寫入、佇列積壓、資料缺口及重放去重；安全與原地保護機制不因 IT 回復而解除。</li>
+<li><strong>分段回流：</strong>用少量流量或合成探測確認質量，觀察至少跨過依賴與告警判定窗口再擴大。檢查 SLI、延遲、資料來源年齡、待處理佇列及對帳誤差。任一未達門檻就停止擴量、回到止血，不能僅看 HTTP 200 或容器起得來就結案。</li></ol>
+<p><strong>如何算恢復：</strong>範例 RTO 30 分鐘、RPO 5 分鐘均是設計目標。若故障 10:00、關鍵服務驗收 10:18，事件到驗收耗 18 分鐘；若最後已驗證可復原狀態為 09:57，復原點距故障 3 分鐘。兩者皆在範例目標內，但仍要核對完整性、重複重放及實際資料缺口；目標不等於承諾。公開「MTTR」前先定義起點與「恢復」判定，並附分布而不只平均。</p>
+<p><strong>復盤輸出：</strong>影響、起訖時間、實際處置、看到的訊號、有效與失效的防線、未證實的假設；改進項要有負責人、期限、驗收測試及回查紀錄。</p>
+</article></section>
+
+<section class="section-block" id="ops-drill">
+<div class="section-head"><div><span class="eyebrow">04 / VERIFY</span><h2>演練矩陣：把可診斷、可告警、可回復寫成驗收條件</h2></div></div>
+<article class="surface ops-study">
+<div class="ops-table-wrap" role="region" aria-label="維運演練驗收矩陣" tabindex="0"><table class="ops-table"><thead><tr><th scope="col">隔離環境演練</th><th scope="col">何時算通過</th><th scope="col">保留證據</th></tr></thead><tbody>
+<tr><th scope="row">資料凍結但 API 仍回 200</th><td>新鮮度 SLI 變壞；消費端明確顯示舊資料；不誤觸發安全設備動作。</td><td>來源／採集／讀取時間、同一查詢及告警時間線。</td></tr>
+<tr><th scope="row">Collector 或通知通道中斷</th><td>失聯可由獨立心跳發現；遙測不得造成主流量堵塞；恢復後可量測丟棄與積壓。</td><td>主服務 p95、遙測掉量、獨立通知送達及回復紀錄。</td></tr>
+<tr><th scope="row">發行後依賴超時或錯誤率上升</th><td>短窗／長窗路由正確；runbook 能查出責任層，止血不擴大影響。</td><td>版本對比、測試注入時間、告警接收回執、停損證據。</td></tr>
+<tr><th scope="row">還原／重放</th><td>在演練目標內回復；補播、重複事件及資料缺口以獨立查詢核對。</td><td>備份識別、實際還原起訖、保留的復原點、對帳筆數與差額。</td></tr>
+</tbody></table></div>
+<p>相關規格：<a href="https://opentelemetry.io/docs/concepts/signals/">OpenTelemetry 訊號</a> · <a href="https://opentelemetry.io/docs/collector/resiliency/">Collector 韌性</a> · <a href="https://kubernetes.io/docs/concepts/workloads/pods/probes/">Kubernetes 探針</a> · <a href="https://sre.google/workbook/alerting-on-slos/">Google SRE：SLO 告警</a> · <a href="https://prometheus.io/docs/alerting/latest/alertmanager/">Prometheus：Alertmanager</a> · <a href="https://sre.google/sre-book/managing-incidents/">Google SRE：事故應對</a> · <a href="https://csrc.nist.gov/pubs/sp/800/61/r3/final">NIST：資安事故回應（另類場景）</a>。</p>
+</article></section>
+
       <section class="section-block" id="logging" data-group="logging"><div class="section-head"><div><span class="eyebrow">Logging</span><h2>先讓每個事件可搜尋、可串聯、可保護敏感資訊</h2><p>好的 log 不是多，而是能回答誰、何時、哪個 request、哪個版本、哪個 dependency 壞掉。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="metrics" data-group="metrics"><div class="section-head"><div><span class="eyebrow">Metrics</span><h2>Metrics 要支援告警與 SLO，不只是 dashboard</h2><p>request count、error rate、latency 與 dependency timeout 是最小可用訊號。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="tracing" data-group="tracing"><div class="section-head"><div><span class="eyebrow">Tracing</span><h2>Trace 把單一 request 的跨邊界行為串起來</h2><p>當 API、DB、cache、queue 都在不同層，trace id 是事件定位的主線。</p></div></div><div class="cards"></div></section>
@@ -137,6 +234,7 @@ PYTHONPATH=src python3 -m observability_operations.demo
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_observability_smoke.py</code></pre><div class="cards"></div>
 <div class="course-example" id="example-observability-operations">
+<p><strong>判定規則：</strong>樣本的原始值才可用來判定 SLO，四捨五入只供介面顯示。空窗口回傳 <code>no_data</code>，不是通過；<code>evaluated</code> 顯示比較值（無資料時為空）。門檻包含等號，貼近門檻的超標不會因顯示進位而通過。範例僅示範錯誤率及平均延遲，不替代上節的正式 SLI／SLO 設計。</p>
 <h3>範例程式碼 · 日誌、追蹤與健康狀態</h3>
 <p>追蹤單次請求產生的日誌與指標，再檢查健康狀態與 SLO 結果。</p>
 <p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/observability_operations
@@ -389,26 +487,37 @@ class TelemetryCollector:
         if dependency_timeout:
             self.dependency_timeouts_total += 1
 
+    def _raw_slo_values(self) -&gt; tuple[float | None, float | None]:
+        error_rate = self.errors_total / self.requests_total if self.requests_total else None
+        average_latency = mean(self.request_latencies_ms) if self.request_latencies_ms else None
+        return error_rate, average_latency
+
     def metrics_snapshot(self) -&gt; dict[str, float | int]:
-        average_latency = mean(self.request_latencies_ms) if self.request_latencies_ms else 0.0
-        error_rate = self.errors_total / self.requests_total if self.requests_total else 0.0
+        error_rate, average_latency = self._raw_slo_values()
         return {
             "requests_total": self.requests_total,
             "errors_total": self.errors_total,
             "dependency_timeouts_total": self.dependency_timeouts_total,
-            "average_latency_ms": round(average_latency, 3),
-            "error_rate": round(error_rate, 4),
+            "average_latency_ms": round(average_latency, 3) if average_latency is not None else 0.0,
+            "error_rate": round(error_rate, 4) if error_rate is not None else 0.0,
         }
 
     def evaluate_slo(self, max_error_rate: float = 0.05, max_average_latency_ms: float = 250.0) -&gt; dict[str, Any]:
-        metrics = self.metrics_snapshot()
-        passed = metrics["error_rate"] &lt;= max_error_rate and metrics["average_latency_ms"] &lt;= max_average_latency_ms
+        error_rate, average_latency = self._raw_slo_values()
+        if error_rate is None or average_latency is None:
+            status = "no_data"
+        elif error_rate &lt;= max_error_rate and average_latency &lt;= max_average_latency_ms:
+            status = "pass"
+        else:
+            status = "fail"
         return {
             "slo": "request-quality",
-            "passed": bool(passed),
+            "status": status,
+            "passed": status == "pass",
             "max_error_rate": max_error_rate,
             "max_average_latency_ms": max_average_latency_ms,
-            "metrics": metrics,
+            "evaluated": {"error_rate": error_rate, "average_latency_ms": average_latency},
+            "metrics": self.metrics_snapshot(),
         }
 
     def _redact(self, fields: dict[str, Any]) -&gt; dict[str, Any]:
@@ -481,6 +590,46 @@ class ObservabilityOperationsTests(unittest.TestCase):
 
         self.assertFalse(slo["passed"])
         self.assertGreater(slo["metrics"]["error_rate"], 0.1)
+
+
+    def test_slo_with_no_samples_reports_no_data_not_pass(self) -&gt; None:
+        slo = TelemetryCollector().evaluate_slo()
+
+        self.assertEqual(slo["status"], "no_data")
+        self.assertFalse(slo["passed"])
+        self.assertIsNone(slo["evaluated"]["error_rate"])
+        self.assertIsNone(slo["evaluated"]["average_latency_ms"])
+
+    def test_slo_uses_error_rate_before_display_rounding(self) -&gt; None:
+        collector = TelemetryCollector()
+        for i in range(10010):
+            collector.record_request(20.0, ok=i &gt;= 501)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["metrics"]["error_rate"], 0.05)
+        self.assertGreater(slo["evaluated"]["error_rate"], 0.05)
+        self.assertEqual(slo["status"], "fail")
+        self.assertFalse(slo["passed"])
+
+    def test_slo_uses_latency_before_display_rounding(self) -&gt; None:
+        collector = TelemetryCollector()
+        collector.record_request(250.0004, ok=True)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["metrics"]["average_latency_ms"], 250.0)
+        self.assertGreater(slo["evaluated"]["average_latency_ms"], 250.0)
+        self.assertEqual(slo["status"], "fail")
+        self.assertFalse(slo["passed"])
+
+    def test_slo_exact_limits_are_inclusive(self) -&gt; None:
+        collector = TelemetryCollector()
+        for i in range(20):
+            collector.record_request(250.0, ok=i != 0)
+
+        slo = collector.evaluate_slo()
+        self.assertEqual(slo["evaluated"], {"error_rate": 0.05, "average_latency_ms": 250.0})
+        self.assertEqual(slo["status"], "pass")
+        self.assertTrue(slo["passed"])
 
 
 if __name__ == "__main__":

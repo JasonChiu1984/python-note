@@ -73,7 +73,19 @@
       .cards, .steps { grid-template-columns: 1fr; }
       h1 { max-width: 14ch; }
     }
-  </style>
+  
+.worker-guide{min-width:0;padding:clamp(.65rem,2vw,1.25rem);border:1px solid var(--line);border-radius:.65rem;background:#fff;overflow-wrap:anywhere}
+.worker-guide p,.worker-guide figure{margin:.65rem 0}.worker-guide h3{margin:1.25rem 0 .45rem;scroll-margin-top:1rem}
+.worker-links{display:flex;flex-wrap:wrap;gap:.45rem}.worker-links a{border:1px solid var(--line);padding:.3rem .45rem}
+.worker-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.05rem;list-style:none;margin:.7rem 0;padding:0}
+.worker-flow li{position:relative;min-width:0;padding:.65rem;border:1px solid #9bbcc9;border-radius:.5rem;background:#edf7fa;overflow-wrap:anywhere}
+.worker-flow li:not(:last-child)::after{content:"→";position:absolute;right:-.99rem;top:40%;color:#275f70;font-weight:850}
+.worker-flow strong,.worker-flow span{display:block}.worker-flow span{font-size:.9rem}
+.worker-shutdown-map ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.6rem;list-style:none;padding:0}.worker-shutdown-map li{padding:.65rem;border:1px solid #9bbcc9;border-radius:.5rem;background:#edf7fa}.worker-shutdown-map li:last-child{background:#fff5df;border-color:#d8b873}.worker-shutdown-map span{display:block}
+.worker-note{padding:.6rem;border-left:4px solid #357989;background:#eaf4f7}
+.worker-table{overflow:auto;max-width:100%}.worker-table table{width:100%;min-width:32rem;border-collapse:collapse}.worker-table th,.worker-table td{padding:.55rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}.worker-table thead{background:#eaf4f7}
+@media(max-width:880px){.worker-flow{grid-template-columns:minmax(0,1fr);gap:1.1rem}.worker-flow li:not(:last-child)::after{content:"↓";right:calc(50% - .25em);top:auto;bottom:-1.05rem}}
+</style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
 <body>
@@ -81,6 +93,7 @@
     <aside>
       <a class="brand" href="#top"><span class="logo">ASY</span><span><strong>Async Concurrency</strong><br><small>asyncio、queue、timeout 與 worker</small></span></a>
       <nav aria-label="章節導覽">
+        <a href="#worker-lifecycle">完整 Worker 工程流程</a>
         <a href="index.html">回教材入口</a>
         <a href="#model">Model</a>
         <a href="python_concurrency_platform_efficiency_research_tutorial.html">執行緒、平台與效率研究</a>
@@ -100,7 +113,7 @@
           <h1>把非同步做成可控、可測、可交付的 worker 系統</h1>
           <p>這條路線把 <code>asyncio</code> 從語法練習拉到 production engineering：event loop、task lifecycle、timeout、cancellation、backpressure、bounded queue、worker drain、failure injection、thread/process 邊界與 release smoke。範例專案只使用標準庫，示範可重跑的 async worker pipeline。</p>
           <div class="status-strip"><span>v2.3.0</span><span>28 張互動卡</span><span>standard library sample</span><span>queue + timeout + retry + metrics</span></div>
-          <div class="hero-actions"><a class="button primary" href="#model">開始非同步工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
+          <div class="hero-actions"><a class="button primary" href="#worker-lifecycle">開始非同步工程</a><a class="button green" href="#sample">看範例專案</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
         <div class="surface">
           <svg viewBox="0 0 760 430" role="img" aria-label="Python 非同步並發工程閉環">
@@ -126,6 +139,39 @@
         <input class="search" id="lessonSearch" type="search" placeholder="搜尋：event loop、TaskGroup、timeout、cancellation、queue、backpressure、worker、retry、testing">
         <div class="quick-links"><a href="#model">Model</a><a href="#tasks">Tasks</a><a href="#flow">Flow</a><a href="#failure">Failure</a><a href="#testing">Testing</a></div>
       </div>
+<section class="section-block" id="worker-lifecycle" aria-labelledby="worker-lifecycle-title">
+<div class="section-head"><div><span class="eyebrow">ENGINEERING GUIDE · 2026-11-26</span><h2 id="worker-lifecycle-title">把任務從接受、執行做到可確認的結束</h2><p>用 Python 3.11–3.15 標準函式庫做一條離線管線。目標不是永不失敗，而是有界、分得出失敗類型，並且不會在子任務早退後卡著等佇列。</p></div></div>
+<div class="worker-guide">
+<nav class="worker-links" aria-label="深度教程目錄"><a href="#worker-architecture">架構與責任</a><a href="#worker-budgets">預算與重試</a><a href="#worker-shutdown">關機流程</a><a href="#worker-evidence">測試與交付</a><a href="#example-async-concurrency-engineering">程式碼</a></nav>
+<h3 id="worker-architecture">架構圖：資料流和監督不是同一條路</h3>
+<figure aria-labelledby="worker-figure"><figcaption id="worker-figure">實線流程為工作項目與結果；監督者同時觀察 worker 及佇列等待。</figcaption>
+<ol class="worker-flow"><li><strong>1｜Producer</strong><span>驗證格式與 job ID，限時等待入列</span></li><li><strong>2｜有界佇列</strong><span>已接受未開始的工作；滿載形成背壓</span></li><li><strong>3｜固定 worker</strong><span>從 Queue 取出，依 deadline 和失敗類型執行</span></li><li><strong>4｜結果與指標</strong><span>記狀態、嘗試次數、時間與成功邊界</span></li></ol>
+<p class="worker-note"><strong>監督路徑：</strong>範例以 <code>asyncio.wait(..., return_when=FIRST_COMPLETED)</code> 同時等待入列／排空和 worker。已知業務錯誤變成單筆結果；未預期的例外保留原形並中止整批。由同一層管理生命週期的服務也可用 <code>asyncio.TaskGroup</code> 管子任務；非取消例外會取消其他子任務並等清理，再以例外群組回報。</p>
+</figure>
+<h3 id="worker-budgets">先算等待預算，再決定佇列、並發與重試</h3>
+<p>「幾個 worker」限制同時進行的操作，並不保證下游只收到指定的每秒速率。若下游要求每秒 20 次，另加速率限制器；若多個 worker 共用一條半雙工 RS-485，則每條實體匯流排同時只執行一個交易。同步阻塞 I/O 可考慮 <code>asyncio.to_thread()</code>，但取消等待不會強制結束已跑起來的執行緒；CPU 密集工作另評估程序或其他平行模型。</p>
+<div class="worker-table" role="region" tabindex="0" aria-label="非同步 worker 預算選擇表"><table><thead><tr><th scope="col">預算</th><th scope="col">範例控制點</th><th scope="col">要驗收什麼</th></tr></thead><tbody>
+<tr><th scope="row">入列等待</th><td><code>admission_timeout</code>：等 <code>Queue.put()</code> 最久多久；若逾時或呼叫者在邊界取消，回應未確認時不能推定一定沒有入列；正式系統依 job ID 查詢接收狀態。</td><td>滿載時上游也要限制同時等待的 producer 數量；有界 Queue 不限制 Queue 外面的待入列任務數。</td></tr>
+<tr><th scope="row">單次 I/O</th><td>現存參數 <code>per_item_timeout</code> 用於每次嘗試；單次期限是它與剩餘總期限中較小者。</td><td>逾時與永久錯誤不是同一類；重試前確認副作用能否安全重送。</td></tr>
+<tr><th scope="row">整筆工作</th><td><code>job_timeout</code> 以事件迴圈單調時鐘計，從提交起含入列、佇列等待、嘗試與退避；已排入但期限耗盡者不再呼叫 handler。</td><td>比較排隊時間與 I/O 時間；量測整筆 P95／P99，分開記每次嘗試逾時與最終工作逾時。</td></tr>
+<tr><th scope="row">關機排空</th><td>停止並等 producer 收尾後，以 <code>drain_timeout</code> 約束排空階段；逾時即轉取消與清理，不宣稱已交付。</td><td>測過期中的工作會清理、佇列不留下假成功；清理合作性不佳時須由程序級監督作後備。</td></tr>
+</tbody></table></div>
+<p><strong>容量算例（非基準測試）：</strong>若下游允許 4 個同時作業、每筆平均 200 ms，無重試且充分利用時，粗估處理能力為 4 ÷ 0.2＝20 筆/s。短暫進到 30 筆/s，等候區 20 格約 20 ÷ (30−20)＝2 秒填滿。平均值無法保證尾端延遲；現場用尖峰、下游變慢與重試的資料重新估算，並同時管控待入列的 producer 數量。</p>
+<h4>重試決策</h4>
+<ul><li>明確允許重送的暫時錯誤才進退避；範例採有上限的指數等待，正式部署可加隨機抖動，避免所有 worker 同一刻重試。</li><li>驗證、權限及不相容的資料錯誤應立即回報。非預期程式錯誤不能塞回同一條佇列無限重跑。</li><li>逾時不是「對方未執行」。重試會產生副作用時，必須有接收端去重、狀態查詢或人工對帳；範例的 <code>idempotency_key</code> 只是欄位，沒有提供去重保證。逾時後若無法安全查證，就不要用這個離線範例直接執行寫入。</li></ul>
+<h3 id="worker-shutdown">關機圖：停止接受 → 排空，或取消並承認未完成</h3>
+<div class="worker-shutdown-map">
+<p class="worker-note"><strong>停止入口 → 等 producer 結束 → 監督排空。</strong>每次取出都在 <code>finally</code> 呼叫 <code>task_done()</code>。</p>
+<ul><li><strong>正常：佇列排空且 worker 健康</strong><span>本例發出每個 worker 一個停止標記，再等待全部退出。</span></li><li><strong>異常：排空逾時或 worker 早退</strong><span>取消剩餘 worker、等待清理並傳回失敗；記憶體中的未完成工作不保留。</span></li></ul>
+</div>
+<p class="worker-note"><code>Queue.join()</code> 只表示未完成帳數歸零，不表示全部成功或已落盤。Python 3.13 起可以改用 <code>asyncio.Queue.shutdown(immediate=False)</code> 與 <code>QueueShutDown</code> 正常排空；<code>immediate=True</code> 會改變 join 的一般完成語意，不能當成交付確認。範例為同時支援 3.11–3.15，不分支使用新 API。不要吞掉 <code>CancelledError</code>；在 <code>finally</code> 釋放資源後讓取消傳回上層。</p>
+<h3 id="worker-evidence">把故障測試與交付證據放在一起</h3>
+<ol><li><strong>正常路徑：</strong>核對接受筆數、完成筆數、輸出與入列上限。固定 worker 數不保證結果按輸入順序，消費端以 job ID 對應。</li><li><strong>壓力與故障：</strong>用 <code>Event</code> 把 handler 卡在可預期位置，驗證滿載背壓、worker 在入列或排空等待時失敗、暫時／永久失敗、整筆期限與撤銷清理。測試本身也有等待上限。</li><li><strong>上線指標：</strong>看佇列深度和最老工作等待時間、接受／拒絕率、處理時間 P95／P99、重試與最終失敗。交付紀錄應包含版本、工作負載、併發、逾時、測試輸出及撤回條件。</li><li><strong>正式服務：</strong>本例的結果列表與佇列都在記憶體，適合有限批次；長時間服務改用有界結果出口，失敗須重播時用耐久工作儲存，並把接收端去重與確認邊界納入設計。</li></ol>
+<pre tabindex="0"><code>cd "範例程式碼/async_concurrency_engineering"
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 scripts/run_async_smoke.py</code></pre>
+<p>參考：<a href="https://docs.python.org/3.11/library/asyncio-task.html">Python 3.11：任務、取消、逾時與 TaskGroup</a> · <a href="https://docs.python.org/3.15/library/asyncio-queue.html">Python 3.15：Queue、task_done、join 與 shutdown</a> · <a href="https://docs.python.org/3.15/library/asyncio-task.html">Python 3.15：asyncio 任務及 to_thread</a>。</p>
+</div></section>
       <section class="section-block" id="model" data-group="model"><div class="section-head"><div><span class="eyebrow">Model</span><h2>先理解 event loop，不要只背 await</h2><p>非同步的核心不是更快，而是在等待 I/O 時把控制權交回 event loop。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="tasks" data-group="tasks"><div class="section-head"><div><span class="eyebrow">Tasks</span><h2>Task lifecycle 要有 owner 與退出條件</h2><p>每個 background task 都應知道誰建立、如何取消、錯誤去哪裡。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="flow" data-group="flow"><div class="section-head"><div><span class="eyebrow">Flow Control</span><h2>用 backpressure 保護記憶體與下游</h2><p>沒有邊界的 queue 會把瞬間流量變成延遲、記憶體與事故。</p></div></div><div class="cards"></div></section>
@@ -223,22 +269,23 @@ if __name__ == "__main__":
 </code></pre></details>
 <details class="example-file"><summary><code>src/async_concurrency_engineering/pipeline.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/src/async_concurrency_engineering/pipeline.py">在 GitHub 查看此檔案</a></p>
-<pre tabindex="0"><code>"""Bounded asyncio worker pipeline used by the tutorial."""
+<pre tabindex="0"><code>"""Bounded, in-memory asyncio worker pipeline for Python 3.11+."""
 
 from __future__ import annotations
 
 import asyncio
-import time
+import math
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
+from typing import TypeVar
 
 
 class RetryableJobError(Exception):
-    """Raised when a job can be retried safely."""
+    """Retry only when the operation's contract permits it."""
 
 
 class PermanentJobError(Exception):
-    """Raised when retrying would not fix the job."""
+    """Repetition would not fix this job."""
 
 
 @dataclass(frozen=True)
@@ -255,7 +302,7 @@ class JobResult:
     attempts: int
     value: int | None = None
     error: str | None = None
-    duration_ms: float = 0.0
+    duration_ms: float = 0.0  # Includes queue wait, not merely handler runtime.
 
 
 @dataclass
@@ -263,15 +310,26 @@ class AsyncPipelineMetrics:
     submitted: int = 0
     succeeded: int = 0
     failed: int = 0
-    timed_out: int = 0
-    retried: int = 0
-    cancelled: int = 0
+    timed_out: int = 0  # Terminal timed-out jobs, a subset of failed.
+    attempt_timeouts: int = 0
+    retried: int = 0   # Additional attempts that actually started.
+    cancelled: int = 0  # Started jobs cancelled during abort.
+
+
+@dataclass(frozen=True)
+class _Envelope:
+    item: WorkItem
+    started: float
+    deadline: float
 
 
 Handler = Callable[[WorkItem], Awaitable[int]]
+T = TypeVar("T")
 
 
 class AsyncWorkerPipeline:
+    """Single-event-loop owner; stop and await producers before close() or abort()."""
+
     def __init__(
         self,
         handler: Handler,
@@ -280,94 +338,155 @@ class AsyncWorkerPipeline:
         max_queue_size: int = 8,
         per_item_timeout: float = 0.25,
         max_attempts: int = 2,
+        admission_timeout: float = 1.0,
+        job_timeout: float = 2.0,
+        retry_delay: float = 0.02,
+        drain_timeout: float = 5.0,
     ) -&gt; None:
-        if worker_count &lt; 1:
-            raise ValueError("worker_count must be &gt;= 1")
-        if max_queue_size &lt; 1:
-            raise ValueError("max_queue_size must be &gt;= 1")
-        if per_item_timeout &lt;= 0:
-            raise ValueError("per_item_timeout must be positive")
-        if max_attempts &lt; 1:
-            raise ValueError("max_attempts must be &gt;= 1")
+        if min(worker_count, max_queue_size, max_attempts) &lt; 1:
+            raise ValueError("worker count, queue size and attempts must be positive")
+        budgets = (per_item_timeout, admission_timeout, job_timeout, drain_timeout)
+        if not all(math.isfinite(x) and x &gt; 0 for x in budgets):
+            raise ValueError("time budgets must be finite and positive")
+        if not math.isfinite(retry_delay) or retry_delay &lt; 0:
+            raise ValueError("retry_delay must be finite and non-negative")
         self._handler = handler
         self._worker_count = worker_count
-        self._queue: asyncio.Queue[WorkItem | None] = asyncio.Queue(maxsize=max_queue_size)
+        self._queue: asyncio.Queue[_Envelope | None] = asyncio.Queue(maxsize=max_queue_size)
         self._per_item_timeout = per_item_timeout
         self._max_attempts = max_attempts
+        self._admission_timeout = admission_timeout
+        self._job_timeout = job_timeout
+        self._retry_delay = retry_delay
+        self._drain_timeout = drain_timeout
         self._workers: list[asyncio.Task[None]] = []
         self._accepting = True
+        self._submitters = 0
+        self._closed = False
+        self._closing_lock = asyncio.Lock()
         self.metrics = AsyncPipelineMetrics()
-        self.results: list[JobResult] = []
+        self.results: list[JobResult] = []  # Finite demo only: use a result sink for long-running services.
 
     async def start(self) -&gt; None:
-        if self._workers:
-            return
-        self._workers = [
-            asyncio.create_task(self._worker_loop(worker_id), name=f"async-worker-{worker_id}")
-            for worker_id in range(self._worker_count)
-        ]
+        if not self._accepting:
+            raise RuntimeError("pipeline is closed")
+        if not self._workers:
+            self._workers = [
+                asyncio.create_task(self._worker_loop(), name=f"async-worker-{index}")
+                for index in range(self._worker_count)
+            ]
+
+    async def _supervise(self, operation: Awaitable[T]) -&gt; T:
+        """Watch worker failure while waiting on admission or drain."""
+        waiting = asyncio.ensure_future(operation)
+        try:
+            await asyncio.wait([waiting, *self._workers], return_when=asyncio.FIRST_COMPLETED)
+            for worker in self._workers:
+                if worker.done():
+                    worker.result()  # Re-raise the real failure.
+                    raise RuntimeError("worker stopped before draining")
+            return waiting.result()
+        finally:
+            if not waiting.done():
+                waiting.cancel()
+            await asyncio.gather(waiting, return_exceptions=True)
 
     async def submit(self, item: WorkItem) -&gt; None:
-        if not self._workers:
-            raise RuntimeError("pipeline must be started before submit")
-        if not self._accepting:
-            raise RuntimeError("pipeline is closed for new submissions")
-        await self._queue.put(item)
-        self.metrics.submitted += 1
+        if not self._workers or not self._accepting:
+            raise RuntimeError("pipeline is not accepting submissions")
+        now = asyncio.get_running_loop().time()
+        envelope = _Envelope(item, now, now + self._job_timeout)
+        self._submitters += 1
+        try:
+            async with asyncio.timeout(min(self._admission_timeout, self._job_timeout)):
+                await self._supervise(self._enqueue(envelope))
+        finally:
+            self._submitters -= 1
+
+    async def _enqueue(self, envelope: _Envelope) -&gt; None:
+        await self._queue.put(envelope)
+        self.metrics.submitted += 1  # Admission is counted at the actual queue boundary.
 
     async def close(self) -&gt; None:
-        self._accepting = False
-        await self._queue.join()
-        for _ in self._workers:
-            await self._queue.put(None)
-        if self._workers:
-            await asyncio.gather(*self._workers)
-
-    async def _worker_loop(self, worker_id: int) -&gt; None:
-        while True:
-            item = await self._queue.get()
+        async with self._closing_lock:
+            if self._closed:
+                return
+            if self._submitters:
+                raise RuntimeError("stop and await producers before closing")
+            self._accepting = False
             try:
-                if item is None:
+                async with asyncio.timeout(self._drain_timeout):
+                    if self._workers:
+                        await self._supervise(self._queue.join())
+                        for _ in self._workers:
+                            await self._queue.put(None)
+                        await asyncio.gather(*self._workers)
+                self._closed = True
+            except BaseException:
+                await self.abort()
+                raise
+
+    async def abort(self) -&gt; None:
+        """Cancel workers, await their cleanup, and discard in-memory backlog."""
+        self._accepting = False
+        for worker in self._workers:
+            if not worker.done():
+                worker.cancel()
+        await asyncio.gather(*self._workers, return_exceptions=True)
+        while not self._queue.empty():
+            self._queue.get_nowait()
+            self._queue.task_done()
+        self._closed = True
+
+    async def _worker_loop(self) -&gt; None:
+        while True:
+            envelope = await self._queue.get()
+            try:
+                if envelope is None:
                     return
-                result = await self._handle_with_retry(item)
-                self.results.append(result)
+                self.results.append(await self._handle_with_retry(envelope))
             finally:
                 self._queue.task_done()
 
-    async def _handle_with_retry(self, item: WorkItem) -&gt; JobResult:
-        started = time.perf_counter()
+    async def _handle_with_retry(self, envelope: _Envelope) -&gt; JobResult:
+        clock = asyncio.get_running_loop().time
+        item = envelope.item
         attempts = 0
-        while attempts &lt; self._max_attempts:
-            attempts += 1
-            try:
-                value = await asyncio.wait_for(self._handler(item), timeout=self._per_item_timeout)
-                self.metrics.succeeded += 1
-                return JobResult(
-                    item_id=item.item_id,
-                    status="succeeded",
-                    attempts=attempts,
-                    value=value,
-                    duration_ms=_elapsed_ms(started),
-                )
-            except asyncio.TimeoutError:
-                self.metrics.timed_out += 1
-                if attempts &gt;= self._max_attempts:
-                    self.metrics.failed += 1
-                    return JobResult(item.item_id, "timed_out", attempts, error="timeout", duration_ms=_elapsed_ms(started))
-                self.metrics.retried += 1
-            except RetryableJobError as exc:
-                if attempts &gt;= self._max_attempts:
-                    self.metrics.failed += 1
-                    return JobResult(item.item_id, "failed", attempts, error=str(exc), duration_ms=_elapsed_ms(started))
-                self.metrics.retried += 1
-            except PermanentJobError as exc:
-                self.metrics.failed += 1
-                return JobResult(item.item_id, "failed", attempts, error=str(exc), duration_ms=_elapsed_ms(started))
-            except asyncio.CancelledError:
-                self.metrics.cancelled += 1
-                raise
+        last_status, last_error = "timed_out", "job deadline expired"
+        try:
+            while attempts &lt; self._max_attempts:
+                remaining = envelope.deadline - clock()
+                if remaining &lt;= 0:
+                    last_status, last_error = "timed_out", "job deadline expired"
+                    break
+                attempts += 1
+                if attempts &gt; 1:
+                    self.metrics.retried += 1
+                try:
+                    async with asyncio.timeout(min(remaining, self._per_item_timeout)):
+                        value = await self._handler(item)
+                    self.metrics.succeeded += 1
+                    return JobResult(item.item_id, "succeeded", attempts, value=value,
+                                     duration_ms=round((clock() - envelope.started) * 1000, 3))
+                except TimeoutError:
+                    self.metrics.attempt_timeouts += 1
+                    last_status, last_error = "timed_out", "timeout"
+                except RetryableJobError as exc:
+                    last_status, last_error = "failed", str(exc)
+                except PermanentJobError as exc:
+                    last_status, last_error = "failed", str(exc)
+                    break
+                if attempts &lt; self._max_attempts:
+                    delay = min(self._retry_delay * 2 ** min(attempts - 1, 10), 1.0)
+                    await asyncio.sleep(min(delay, max(0, envelope.deadline - clock())))
+        except asyncio.CancelledError:
+            self.metrics.cancelled += 1
+            raise
         self.metrics.failed += 1
-        return JobResult(item.item_id, "failed", attempts, error="max attempts reached", duration_ms=_elapsed_ms(started))
+        if last_status == "timed_out":
+            self.metrics.timed_out += 1
+        return JobResult(item.item_id, last_status, attempts, error=last_error,
+                         duration_ms=round((clock() - envelope.started) * 1000, 3))
 
 
 async def run_pipeline(
@@ -378,24 +497,26 @@ async def run_pipeline(
     max_queue_size: int = 8,
     per_item_timeout: float = 0.25,
     max_attempts: int = 2,
+    admission_timeout: float = 1.0,
+    job_timeout: float = 2.0,
+    retry_delay: float = 0.02,
+    drain_timeout: float = 5.0,
 ) -&gt; tuple[list[JobResult], AsyncPipelineMetrics]:
     pipeline = AsyncWorkerPipeline(
-        handler,
-        worker_count=worker_count,
-        max_queue_size=max_queue_size,
-        per_item_timeout=per_item_timeout,
-        max_attempts=max_attempts,
+        handler, worker_count=worker_count, max_queue_size=max_queue_size,
+        per_item_timeout=per_item_timeout, max_attempts=max_attempts,
+        admission_timeout=admission_timeout, job_timeout=job_timeout,
+        retry_delay=retry_delay, drain_timeout=drain_timeout,
     )
     await pipeline.start()
-    for item in items:
-        await pipeline.submit(item)
-    await pipeline.close()
-    return pipeline.results, pipeline.metrics
-
-
-def _elapsed_ms(started: float) -&gt; float:
-    return round((time.perf_counter() - started) * 1000, 3)
-</code></pre></details>
+    try:
+        for item in items:
+            await pipeline.submit(item)
+        await pipeline.close()
+    except BaseException:
+        await pipeline.abort()
+        raise
+    return pipeline.results, pipeline.metrics</code></pre></details>
 <details class="example-file"><summary><code>src/async_concurrency_engineering/__init__.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/async_concurrency_engineering/src/async_concurrency_engineering/__init__.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>"""Async concurrency engineering sample package."""
@@ -427,7 +548,7 @@ __all__ = [
 import asyncio
 import unittest
 
-from async_concurrency_engineering import AsyncWorkerPipeline, RetryableJobError, WorkItem, run_pipeline
+from async_concurrency_engineering import AsyncWorkerPipeline, PermanentJobError, RetryableJobError, WorkItem, run_pipeline
 
 
 class AsyncWorkerPipelineTests(unittest.IsolatedAsyncioTestCase):
@@ -513,9 +634,84 @@ class AsyncWorkerPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(worker.done() for worker in pipeline._workers))
 
 
+    async def test_worker_failure_surfaces_while_admission_is_blocked(self) -&gt; None:
+        hit = asyncio.Event()
+        release = asyncio.Event()
+
+        async def handler(item: WorkItem) -&gt; int:
+            hit.set()
+            await release.wait()
+            raise LookupError("unexpected handler defect")
+
+        p = AsyncWorkerPipeline(handler, worker_count=1, max_queue_size=1)
+        await p.start()
+        try:
+            await p.submit(WorkItem("active", 1, "active"))
+            await hit.wait()
+            await p.submit(WorkItem("queued", 2, "queued"))
+            blocked = asyncio.create_task(p.submit(WorkItem("blocked", 3, "blocked")))
+            await asyncio.sleep(0)
+            self.assertFalse(blocked.done())
+            release.set()
+            with self.assertRaisesRegex(LookupError, "unexpected handler defect"):
+                await asyncio.wait_for(blocked, 1)
+        finally:
+            await p.abort()
+        self.assertTrue(all(worker.done() for worker in p._workers))
+        self.assertEqual(p.metrics.submitted, 2)
+
+    async def test_worker_failure_surfaces_during_drain(self) -&gt; None:
+        async def handler(item: WorkItem) -&gt; int:
+            await asyncio.sleep(0)
+            raise LookupError("broken worker")
+        with self.assertRaisesRegex(LookupError, "broken worker"):
+            await asyncio.wait_for(run_pipeline([WorkItem("x", 1, "x")], handler, worker_count=1), 1)
+
+    async def test_permanent_error_never_retries(self) -&gt; None:
+        async def handler(item: WorkItem) -&gt; int:
+            raise PermanentJobError("invalid input")
+        result, metrics = await run_pipeline([WorkItem("bad", 1, "bad")], handler, max_attempts=3)
+        self.assertEqual((result[0].status, result[0].attempts, metrics.retried), ("failed", 1, 0))
+
+    async def test_drain_timeout_cleans_worker_and_discards_backlog(self) -&gt; None:
+        active = asyncio.Event()
+        cleaned = asyncio.Event()
+        never = asyncio.Event()
+
+        async def handler(item: WorkItem) -&gt; int:
+            active.set()
+            try:
+                await never.wait()
+            finally:
+                cleaned.set()
+            return item.payload
+
+        p = AsyncWorkerPipeline(handler, worker_count=1, max_queue_size=1,
+                                drain_timeout=0.015, per_item_timeout=1)
+        await p.start()
+        await p.submit(WorkItem("active", 1, "active"))
+        await active.wait()
+        await p.submit(WorkItem("queued", 2, "queued"))
+        with self.assertRaises(TimeoutError):
+            await p.close()
+        self.assertTrue(cleaned.is_set())
+        self.assertTrue(p._queue.empty())
+        self.assertEqual(p.metrics.cancelled, 1)
+        await p.close()  # Idempotent after cleanup.
+
+    async def test_total_job_budget_caps_retries(self) -&gt; None:
+        async def handler(item: WorkItem) -&gt; int:
+            raise RetryableJobError("busy")
+        results, metrics = await run_pipeline(
+            [WorkItem("budget", 1, "budget")], handler, max_attempts=9,
+            job_timeout=0.04, retry_delay=1.0,
+        )
+        self.assertEqual((results[0].status, results[0].attempts), ("timed_out", 1))
+        self.assertEqual((metrics.timed_out, metrics.retried), (1, 0))
+
+
 if __name__ == "__main__":
-    unittest.main()
-</code></pre></details>
+    unittest.main()</code></pre></details>
 <!-- /example-source -->
 </div>
 </section>
@@ -562,7 +758,7 @@ if __name__ == "__main__":
       ],
       sample: [
         ["sample-pipeline", "Sample", "範例 pipeline 使用 bounded queue", "AsyncWorkerPipeline 用 queue maxsize 示範 producer backpressure。", "AsyncWorkerPipeline(handler, max_queue_size=8)", "flow control is built in."],
-        ["sample-timeout", "Sample", "範例對每筆 job 設 timeout", "每個 WorkItem 都經過 wait_for，避免單筆工作卡住 worker。", "wait_for(handler(item), timeout=0.25)", "stuck item is classified."],
+        ["sample-timeout", "Sample", "範例對每筆 job 設 timeout", "每次嘗試使用單次與總預算中較小者；handler 仍須配合取消。", "async with asyncio.timeout(min(remaining, per_item_timeout))", "stuck item is classified."],
         ["sample-tests", "Sample", "unittest 覆蓋並發邊界", "範例測試包含 success、retry、timeout、backpressure 與 close drain。", "python3 -m unittest discover -s tests -v", "5 async tests pass."],
         ["sample-smoke", "Sample", "smoke script 串起交付驗收", "run_async_smoke.py 驗證 bounded workers、retry 與 metrics。", "python3 scripts/run_async_smoke.py", "async smoke passed."]
       ]
