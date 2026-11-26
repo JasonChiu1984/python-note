@@ -14,6 +14,17 @@ header :is(p,ul),main section :is(p,ul:not([class]),ol:not([class])),main figure
 /* These list elements are visual diagrams, not paragraph columns. */
 main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 #airflow .flow li span{display:block;overflow-wrap:anywhere} #airflow .flow li strong,#liquid-metrics .flow li strong{overflow-wrap:anywhere} #airflow .bar-row{grid-template-columns:3rem minmax(0,1fr) 5.5rem} #airflow .bar-row strong{text-align:right;font-variant-numeric:tabular-nums}
+
+#liquid-metrics .lc-index{background:#f3f8fb;border:1px solid var(--line);border-radius:.6rem;padding:clamp(.55rem,2vw,1.1rem);margin:1rem 0}
+#liquid-metrics .lc-index h3,#liquid-metrics .lc-index h4{margin:.25rem 0 .45rem}
+#liquid-metrics .lc-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:.7rem}
+#liquid-metrics .lc-index-grid>div{min-width:0;border:1px solid var(--line);border-radius:.45rem;padding:.6rem;background:white}
+#liquid-metrics .lc-index-grid ul{margin:0;padding:0;list-style:none}
+#liquid-metrics .lc-index-grid a{display:block;padding:.3rem .12rem;overflow-wrap:anywhere}
+#liquid-metrics .lc-tag{display:inline-block;padding:.07rem .32rem;margin-inline-end:.18rem;border-radius:.3rem;background:#144b65;color:white;font:bold .78rem/1.4 ui-monospace,monospace;white-space:nowrap;vertical-align:.1em}
+#liquid-metrics [id^="lc-"]{scroll-margin-block-start:1rem}
+#liquid-metrics tr:target > :is(th,td),#liquid-metrics li[id^="lc-"]:target{background:#fff1c9}
+#liquid-metrics :is(h3,li)[id]:target{outline:2px solid #a7681c;outline-offset:2px}
 </style></head><body id="top"><header><div><p class="kicker">DATA CENTER / PYTHON FIELD GUIDE</p><h1>機房能源效率：從電表到可驗證指標</h1><p>同一時窗算 PUE、分開看用水與碳、用冰水 ΔT 與 kW/RT 解釋冷卻廠變化。</p><p><a href="index.html">回 Python 教材首頁</a> · <a href="python_industrial_data_gateway_tutorial.html">工業資料閘道</a></p></div></header>
 <main><nav aria-label="教材章節"><a href="#formula-sheet">公式速查</a><a href="#metrics">指標速查</a><a href="#metering">計量架構</a><a href="#workflow">採集流程</a><a href="#trend">合成圖表</a><a href="#worked-calculations">詳細計算</a><a href="#cooling">冷卻系統</a><a href="#cdu-energy">CDU 能耗</a><a href="#airflow">機房氣流計算</a><a href="#liquid-metrics">液冷能效指標</a><a href="#lab">Python 實驗</a><a href="#commissioning">驗收</a></nav>
 
@@ -210,7 +221,8 @@ python python_datacenter_airflow_lab.py --it-kw 368 --delta-t-k 12 --liquid-frac
 <section id="liquid-metrics">
 <p class="kicker">05C / LIQUID-COOLED DATA CENTER</p>
 <h2>液冷機房能效指標：從機櫃、CDU 到全站逐層計算</h2>
-<p>更新：<time datetime="2026-11-26">2026-11-26</time>。本節以冷板式液冷、逆流液對液 CDU 為主，也說明浸沒式、背門換熱器換邊界時要改哪些測點。所有數字皆為合成教學案例，不是選型保證、環境允收值或 ISO 合規報告。</p>
+<p>更新：<time datetime="2026-11-26">2026-11-26</time>。項目索引更新：<time datetime="2026-11-26">2026-11-26（台灣時間）</time>。本節以冷板式液冷、逆流液對液 CDU 為主，也說明浸沒式、背門換熱器換邊界時要改哪些測點。所有數字皆為合成教學案例，不是選型保證、環境允收值或 ISO 合規報告。</p>
+<div class="lc-index" role="navigation" aria-label="液冷能效項目索引"><h3>液冷能效項目索引</h3><p>LC-01～LC-17 是本教材的索引編號，不是 ISO 條文或設備型號。點選項目可跳到公式與解讀。</p><div class="lc-index-grid"><div><h4>熱量、水力與運轉</h4><ul><li><a href="#lc-01"><span class="lc-tag">LC-01</span> 水側溫差與移熱量</a></li><li><a href="#lc-02"><span class="lc-tag">LC-02</span> 液冷捕熱與殘餘氣冷</a></li><li><a href="#lc-03"><span class="lc-tag">LC-03</span> 逼近溫差、LMTD、UA</a></li><li><a href="#lc-04"><span class="lc-tag">LC-04</span> 熱量對帳與不確定度</a></li><li><a href="#lc-05"><span class="lc-tag">LC-05</span> 泵功率與效率</a></li><li><a href="#lc-06"><span class="lc-tag">LC-06</span> CDU 與泵電耗強度</a></li><li><a href="#lc-07"><span class="lc-tag">LC-07</span> 支路流量與露點餘量</a></li><li><a href="#lc-08"><span class="lc-tag">LC-08</span> 可用率與資料覆蓋率</a></li></ul></div><div><h4>容量與量測交叉檢查</h4><ul><li><a href="#lc-09"><span class="lc-tag">LC-09</span> 需求流量與容量利用率</a></li><li><a href="#lc-10"><span class="lc-tag">LC-10</span> 逆流換熱器效能</a></li><li><a href="#lc-11"><span class="lc-tag">LC-11</span> 流量對帳</a></li></ul></div><div><h4>設施與全站指標</h4><ul><li><a href="#lc-12"><span class="lc-tag">LC-12</span> 排熱量與冷卻電耗</a></li><li><a href="#lc-13"><span class="lc-tag">LC-13</span> 冰機 COP、全廠 kW/RT</a></li><li><a href="#lc-14"><span class="lc-tag">LC-14</span> PUE 與區域 pPUE</a></li><li><a href="#lc-15"><span class="lc-tag">LC-15</span> WUE 與水塔水量帳</a></li><li><a href="#lc-16"><span class="lc-tag">LC-16</span> CUE 與外購電碳強度</a></li><li><a href="#lc-17"><span class="lc-tag">LC-17</span> ERF 能源再利用</a></li></ul></div></div><p><a href="#liquid-example">跳到同窗算例</a> · <a href="#liquid-python">跳到 Python 範例</a></p></div>
 <figure><figcaption>先畫熱流與電力邊界，再選指標的分子分母</figcaption><ol class="flow">
 <li><strong>機櫃</strong><br>IT 電表；支路液體流量與供回液；剩餘空氣散熱。</li>
 <li><strong>TCS</strong><br>冷板、歧管與技術冷卻迴路；看最不利支路流量及壓差。</li>
@@ -223,35 +235,35 @@ python python_datacenter_airflow_lab.py --it-kw 368 --delta-t-k 12 --liquid-frac
 <h3>機櫃與 CDU：熱、水力、電能</h3>
 <div class="scroll" role="region" aria-label="液冷機櫃及 CDU 指標" tabindex="0"><table class="formula-sheet-table">
 <thead><tr><th scope="col">指標</th><th scope="col">計算</th><th scope="col">怎麼解讀與驗收</th></tr></thead><tbody>
-<tr><th scope="row">水側溫差、移熱功率、累積熱量</th><td data-label="計算">ΔT = T<sub>回</sub> − T<sub>供</sub>（K）；Q̇ = ρ × c<sub>p</sub> × V̇ × ΔT（kW）；E<sub>th</sub> = Σ(Q̇<sub>i</sub> × Δt<sub>i</sub>)（kWh<sub>th</sub>）。</td><td data-label="解讀與驗收">質量流率可直接用 kg/s；體積流量用 m³/s，若為 m³/h 先除 3,600。ρ 用 kg/m³；c<sub>p</sub> 用 kJ/(kg·K)。水乙二醇／丙二醇混合液依濃度和溫度取物性。逐筆配對流量與溫差後積分，不能用平均流量 × 平均溫差替代。保持正負號，逆流／逆傳熱先調查。</td></tr>
-<tr><th scope="row">液冷捕熱率、殘餘氣冷熱</th><td data-label="計算">R<sub>liq</sub> = E<sub>IT→液</sub> / E<sub>IT</sub> × 100%；E<sub>IT→air</sub> ≈ E<sub>IT</sub> − E<sub>IT→液</sub>。</td><td data-label="解讀與驗收">同一批 IT、同一時間且熱蓄積可忽略時才可相減。若拿 CDU 的 TCS 熱表做代理，先排除泵熱、其他機櫃、自身散熱等跨邊界熱源，或揭露誤差。比率大於 100% 不截成 100%；差值是待查，不是負的氣冷需求。殘餘風量見 <a href="#airflow">機房氣流計算</a>。</td></tr>
-<tr><th scope="row">兩端逼近溫差、LMTD、UA</th><td data-label="計算">逆流冷端 A<sub>c</sub> = TCS<sub>供</sub> − FWS<sub>供</sub>；熱端 A<sub>h</sub> = TCS<sub>回</sub> − FWS<sub>回</sub>；ΔT<sub>lm</sub> = (A<sub>h</sub> − A<sub>c</sub>) / ln(A<sub>h</sub>/A<sub>c</sub>)；UA ≈ Q̇<sub>HX</sub> / ΔT<sub>lm</sub>（kW/K）。</td><td data-label="解讀與驗收">兩端皆正且近穩態才用此逆流式；相等時 LMTD 等於共同溫差。兩端配對應來自實際換熱器出入口，不拿遠端混水溫度替代。比較換熱能力時鎖定兩側流量、物性及負載；逼近溫差增大不必然是污堵。</td></tr>
-<tr><th scope="row">熱量對帳與不確定度</th><td data-label="計算">ΔE = E<sub>FWS</sub> − E<sub>TCS</sub>；相對差 = ΔE / E<sub>TCS</sub>；控制體積近穩態時 ΔE ≈ 邊界內加入液體之熱 − 對外散熱，瞬態另考慮蓄熱。</td><td data-label="解讀與驗收">正差不是「熱損率」。泵熱、未量測旁路、感測誤差與時間偏移都可能造成差異。若物性與各量測近似獨立，移熱相對標準不確定度可由流量、ρ、c<sub>p</sub>、ΔT 的相對不確定度平方和開根號估算；低 ΔT 時宜報絕對不確定度，並考慮兩支溫度計的共變異。</td></tr>
-<tr><th scope="row">泵功率、電到水效率</th><td data-label="計算">P<sub>hyd</sub> = V̇ (m³/s) × Δp (kPa)（kW）；η<sub>w→w</sub> = P<sub>hyd</sub>/P<sub>elec</sub>；P<sub>elec</sub> ≈ P<sub>hyd</sub>/η<sub>w→w</sub>。</td><td data-label="解讀與驗收">Δp 取泵兩端總壓升；高差與流速有影響須修正。V̇=14 m³/h、Δp=150 kPa、分表 3 kW，液壓功約 0.583 kW、實例效率 19.4%。此數字只示範推算；比對泵曲線、低流量工作點與分表邊界。不要拿最不利機櫃可用壓差代替泵壓升。</td></tr>
-<tr><th scope="row">CDU 電耗強度、泵電耗強度、輔機負載比</th><td data-label="計算">E<sub>CDU</sub> / E<sub>th</sub>（kWh<sub>e</sub>/kWh<sub>th</sub>）；1,000 × E<sub>pump</sub> / E<sub>th</sub>（kWh<sub>e</sub>/MWh<sub>th</sub>）；E<sub>CDU</sub> / E<sub>IT</sub>。</td><td data-label="解讀與驗收">移熱分母固定 TCS 或 FWS 一側，報表註明。泵分表若已包含在 CDU 整機電表，不可再加一遍。比值越低不等於流量裕度足夠；與供液達標、最低支路流量一起看。詳見 <a href="#cdu-energy">CDU 能耗獨立算例</a>。</td></tr>
-<tr><th scope="row">最小支路風險、流量不平衡、露點餘量</th><td data-label="計算">取各支路 V̇<sub>實</sub>/V̇<sub>目標</sub> 的最小值；偏差 = (V̇<sub>實</sub> − V̇<sub>目標</sub>)/V̇<sub>目標</sub>；露點餘量 = 局部最低暴露表面溫度 − 局部最高露點。</td><td data-label="解讀與驗收">支路目標依設備負載與原廠下限，不用等流量平均掩蓋不同需求。例：55/60 L/min = 91.7%；表面 19°C、露點 17°C，餘量 2 K，仍要考慮感測不確定度及失效狀態。不得把示例當全站設定值。</td></tr>
-<tr><th scope="row">時數可用率、配對資料覆蓋率</th><td data-label="計算">達服務條件之觀察時間 / 約定的應服務時間；有效且對齊的量測時數 / 報表應有時數。</td><td data-label="解讀與驗收">例如服務期 720 h，2 h 違反服務條件，可用率 99.72%；另設資料缺失狀態，不能直接當正常或停機。例：60 分鐘只有 45 分鐘配對，覆蓋率 75%；不以零補齊。可用率不是 ISO 能效指標。</td></tr>
+<tr id="lc-01"><th scope="row"><span class="lc-tag">LC-01</span> 水側溫差、移熱功率、累積熱量</th><td data-label="計算">ΔT = T<sub>回</sub> − T<sub>供</sub>（K）；Q̇ = ρ × c<sub>p</sub> × V̇ × ΔT（kW）；E<sub>th</sub> = Σ(Q̇<sub>i</sub> × Δt<sub>i</sub>)（kWh<sub>th</sub>）。</td><td data-label="解讀與驗收">質量流率可直接用 kg/s；體積流量用 m³/s，若為 m³/h 先除 3,600。ρ 用 kg/m³；c<sub>p</sub> 用 kJ/(kg·K)。水乙二醇／丙二醇混合液依濃度和溫度取物性。逐筆配對流量與溫差後積分，不能用平均流量 × 平均溫差替代。保持正負號，逆流／逆傳熱先調查。</td></tr>
+<tr id="lc-02"><th scope="row"><span class="lc-tag">LC-02</span> 液冷捕熱率、殘餘氣冷熱</th><td data-label="計算">R<sub>liq</sub> = E<sub>IT→液</sub> / E<sub>IT</sub> × 100%；E<sub>IT→air</sub> ≈ E<sub>IT</sub> − E<sub>IT→液</sub>。</td><td data-label="解讀與驗收">同一批 IT、同一時間且熱蓄積可忽略時才可相減。若拿 CDU 的 TCS 熱表做代理，先排除泵熱、其他機櫃、自身散熱等跨邊界熱源，或揭露誤差。比率大於 100% 不截成 100%；差值是待查，不是負的氣冷需求。殘餘風量見 <a href="#airflow">機房氣流計算</a>。</td></tr>
+<tr id="lc-03"><th scope="row"><span class="lc-tag">LC-03</span> 兩端逼近溫差、LMTD、UA</th><td data-label="計算">逆流冷端 A<sub>c</sub> = TCS<sub>供</sub> − FWS<sub>供</sub>；熱端 A<sub>h</sub> = TCS<sub>回</sub> − FWS<sub>回</sub>；ΔT<sub>lm</sub> = (A<sub>h</sub> − A<sub>c</sub>) / ln(A<sub>h</sub>/A<sub>c</sub>)；UA ≈ Q̇<sub>HX</sub> / ΔT<sub>lm</sub>（kW/K）。</td><td data-label="解讀與驗收">兩端皆正且近穩態才用此逆流式；相等時 LMTD 等於共同溫差。兩端配對應來自實際換熱器出入口，不拿遠端混水溫度替代。比較換熱能力時鎖定兩側流量、物性及負載；逼近溫差增大不必然是污堵。</td></tr>
+<tr id="lc-04"><th scope="row"><span class="lc-tag">LC-04</span> 熱量對帳與不確定度</th><td data-label="計算">ΔE = E<sub>FWS</sub> − E<sub>TCS</sub>；相對差 = ΔE / E<sub>TCS</sub>；控制體積近穩態時 ΔE ≈ 邊界內加入液體之熱 − 對外散熱，瞬態另考慮蓄熱。</td><td data-label="解讀與驗收">正差不是「熱損率」。泵熱、未量測旁路、感測誤差與時間偏移都可能造成差異。若物性與各量測近似獨立，移熱相對標準不確定度可由流量、ρ、c<sub>p</sub>、ΔT 的相對不確定度平方和開根號估算；低 ΔT 時宜報絕對不確定度，並考慮兩支溫度計的共變異。</td></tr>
+<tr id="lc-05"><th scope="row"><span class="lc-tag">LC-05</span> 泵功率、電到水效率</th><td data-label="計算">P<sub>hyd</sub> = V̇ (m³/s) × Δp (kPa)（kW）；η<sub>w→w</sub> = P<sub>hyd</sub>/P<sub>elec</sub>；P<sub>elec</sub> ≈ P<sub>hyd</sub>/η<sub>w→w</sub>。</td><td data-label="解讀與驗收">Δp 取泵兩端總壓升；高差與流速有影響須修正。V̇=14 m³/h、Δp=150 kPa、分表 3 kW，液壓功約 0.583 kW、實例效率 19.4%。此數字只示範推算；比對泵曲線、低流量工作點與分表邊界。不要拿最不利機櫃可用壓差代替泵壓升。</td></tr>
+<tr id="lc-06"><th scope="row"><span class="lc-tag">LC-06</span> CDU 電耗強度、泵電耗強度、輔機負載比</th><td data-label="計算">E<sub>CDU</sub> / E<sub>th</sub>（kWh<sub>e</sub>/kWh<sub>th</sub>）；1,000 × E<sub>pump</sub> / E<sub>th</sub>（kWh<sub>e</sub>/MWh<sub>th</sub>）；E<sub>CDU</sub> / E<sub>IT</sub>。</td><td data-label="解讀與驗收">移熱分母固定 TCS 或 FWS 一側，報表註明。泵分表若已包含在 CDU 整機電表，不可再加一遍。比值越低不等於流量裕度足夠；與供液達標、最低支路流量一起看。詳見 <a href="#cdu-energy">CDU 能耗獨立算例</a>。</td></tr>
+<tr id="lc-07"><th scope="row"><span class="lc-tag">LC-07</span> 最小支路風險、流量不平衡、露點餘量</th><td data-label="計算">取各支路 V̇<sub>實</sub>/V̇<sub>目標</sub> 的最小值；偏差 = (V̇<sub>實</sub> − V̇<sub>目標</sub>)/V̇<sub>目標</sub>；露點餘量 = 局部最低暴露表面溫度 − 局部最高露點。</td><td data-label="解讀與驗收">支路目標依設備負載與原廠下限，不用等流量平均掩蓋不同需求。例：55/60 L/min = 91.7%；表面 19°C、露點 17°C，餘量 2 K，仍要考慮感測不確定度及失效狀態。不得把示例當全站設定值。</td></tr>
+<tr id="lc-08"><th scope="row"><span class="lc-tag">LC-08</span> 時數可用率、配對資料覆蓋率</th><td data-label="計算">達服務條件之觀察時間 / 約定的應服務時間；有效且對齊的量測時數 / 報表應有時數。</td><td data-label="解讀與驗收">例如服務期 720 h，2 h 違反服務條件，可用率 99.72%；另設資料缺失狀態，不能直接當正常或停機。例：60 分鐘只有 45 分鐘配對，覆蓋率 75%；不以零補齊。可用率不是 ISO 能效指標。</td></tr>
 </tbody></table></div>
 
 <h3>容量、水力與量測的三個交叉檢查</h3>
 <ul>
-<li><strong>需求流量與容量利用率：</strong>V̇<sub>需</sub> = 3,600 × Q̇ / (ρ c<sub>p</sub> ΔT)，結果是 m³/h。以純水、300 kW、ΔT＝8 K 算，約 32.25 m³/h；應再查機櫃與 CDU 的最低流量、允許壓差和額定工況。若同一工況可用冷量為 350 kW，容量利用率為 300/350＝85.7%；不能以名牌容量直接宣告 N+1。</li>
-<li><strong>逆流換熱器效能：</strong>C = ṁ c<sub>p</sub>（kW/K），ε = Q̇<sub>HX</sub> / [min(C<sub>TCS</sub>, C<sub>FWS</sub>) × (TCS<sub>回</sub> − FWS<sub>供</sub>)]。例 A 用 TCS 側估 Q̇，代入 ε≈0.727，UA≈32.09 kW/K。兩側讀值有差時應標示所用側別及不確定度，不能將效能與整機 COP 混用。</li>
-<li><strong>流量對帳：</strong>同一供水歧管，若總表 200 L/min，互不重疊的支路合計 190 L/min，待對帳 10 L/min（總表的 5%）。它不是已確認的漏液量；先查合法旁通、感測器量程、時間同步和未計量支路。</li>
+<li id="lc-09"><span class="lc-tag">LC-09</span> <strong>需求流量與容量利用率：</strong>V̇<sub>需</sub> = 3,600 × Q̇ / (ρ c<sub>p</sub> ΔT)，結果是 m³/h。以純水、300 kW、ΔT＝8 K 算，約 32.25 m³/h；應再查機櫃與 CDU 的最低流量、允許壓差和額定工況。若同一工況可用冷量為 350 kW，容量利用率為 300/350＝85.7%；不能以名牌容量直接宣告 N+1。</li>
+<li id="lc-10"><span class="lc-tag">LC-10</span> <strong>逆流換熱器效能：</strong>C = ṁ c<sub>p</sub>（kW/K），ε = Q̇<sub>HX</sub> / [min(C<sub>TCS</sub>, C<sub>FWS</sub>) × (TCS<sub>回</sub> − FWS<sub>供</sub>)]。例 A 用 TCS 側估 Q̇，代入 ε≈0.727，UA≈32.09 kW/K。兩側讀值有差時應標示所用側別及不確定度，不能將效能與整機 COP 混用。</li>
+<li id="lc-11"><span class="lc-tag">LC-11</span> <strong>流量對帳：</strong>同一供水歧管，若總表 200 L/min，互不重疊的支路合計 190 L/min，待對帳 10 L/min（總表的 5%）。它不是已確認的漏液量；先查合法旁通、感測器量程、時間同步和未計量支路。</li>
 </ul>
 
 <h3>設施及全站：別把熱 kWh 跟電 kWh 混帳</h3>
 <div class="scroll" role="region" aria-label="液冷機房設施及全站指標" tabindex="0"><table class="formula-sheet-table">
 <thead><tr><th scope="col">指標</th><th scope="col">公式與同窗示例</th><th scope="col">邊界規則</th></tr></thead><tbody>
-<tr><th scope="row">排熱量／冷卻系統耗電強度</th><td data-label="公式與同窗示例">只加互不重疊的末端分路熱量；E<sub>cooling</sub> / E<sub>IT</sub>（kWh<sub>e</sub>/kWh<sub>IT</sub>）或 E<sub>cooling</sub> / E<sub>handled</sub>（kWh<sub>e</sub>/kWh<sub>th</sub>）。</td><td data-label="邊界規則">FWS 與 TCS 是同一熱流從兩面觀察；也不能將乾冷器、水塔或外部熱交換器移走的熱再與上游 CDU 熱量相加。分母要寫出哪個物理控制面。熱回用／儲能／環境散熱等互斥去向以一張能量帳對帳。</td></tr>
-<tr><th scope="row">冰機 COP／冷卻廠 kW/RT</th><td data-label="公式與同窗示例">COP<sub>chiller</sub> = Q̇<sub>蒸發器</sub>/P<sub>冰機</sub>；冷卻廠 kW/RT = 3.516853 × E<sub>廠用電</sub>/E<sub>蒸發器熱</sub>。合成 36 kWh<sub>e</sub>／180 kWh<sub>th</sub> → 0.703 kW/RT。</td><td data-label="邊界規則">只在明定分母為冰水產冷且同窗時，把冰機、納入的泵與排熱設備列進廠用電。乾冷／自然冷卻模式可按可比負載分開報；無蒸發器產冷時不可硬套此比值。</td></tr>
-<tr><th scope="row">PUE／區域 pPUE</th><td data-label="公式與同窗示例">全站總能耗 ÷ IT 能耗：300/250 = 1.2000（期間示例）；區域邊界分子含區內 IT 與指定支援能耗：170/150 = 1.1333（pPUE 算例）。</td><td data-label="邊界規則">分子分母同窗且無重複。共享冷卻要揭露分攤方式及公用損失，不因 CDU 插在 IT PDU 就直接歸入 IT。區域指標不可冒稱全站；短期數字不冒稱年度正式 PUE。報告時核對量測類別、能源來源及適用版本。</td></tr>
-<tr><th scope="row">WUE／水塔水量帳</th><td data-label="公式與同窗示例">示例站內消耗：180 L / 250 kWh<sub>IT</sub> = 0.72 L/kWh<sub>IT</sub>；水塔在水位穩定時補水 ≈ 蒸發＋排放＋飛散＋漏水。</td><td data-label="邊界規則">取水、實際消耗、排放或回補各自量測。不要把循環流量算作耗水，也不可用較低 PUE 推論 WUE 一定降低。若揭露含上游發電用水的口徑，另列方法及資料來源。</td></tr>
-<tr><th scope="row">CUE／電力碳強度分項</th><td data-label="公式與同窗示例">用所選方法納入的營運能源排放 ÷ IT 能耗。只算外購電：300 × 0.45 ÷ 250 = 0.54 kgCO₂e/kWh<sub>IT</sub>（合成係數）。</td><td data-label="邊界規則">只算外購電不等於完整 CUE。區分直接燃料與外購能源，揭露地點／市場法、係數來源及所用 CO₂ 或 CO₂e；另行盤查冷媒逸散、建置與設備製造時，不能悄悄混入同一數字。</td></tr>
-<tr><th scope="row">ERF（能源再利用因子）</th><td data-label="公式與同窗示例">合資格的再利用能源 E<sub>reuse</sub> / 全站總能耗；40 kWh<sub>th</sub> 合資格外部交付／300 kWh<sub>e</sub> 全站能耗 = 13.33%（合成）。</td><td data-label="邊界規則">量外部實際交付且有用途的熱，不以冷卻迴路取熱或設計容量代替。揭露熱泵、加壓、管路與共用能源邊界；若交付熱含熱泵新增能量，不能把全部當成機房再利用。熱回用不直接從 PUE 分子相減。</td></tr>
+<tr id="lc-12"><th scope="row"><span class="lc-tag">LC-12</span> 排熱量／冷卻系統耗電強度</th><td data-label="公式與同窗示例">只加互不重疊的末端分路熱量；E<sub>cooling</sub> / E<sub>IT</sub>（kWh<sub>e</sub>/kWh<sub>IT</sub>）或 E<sub>cooling</sub> / E<sub>handled</sub>（kWh<sub>e</sub>/kWh<sub>th</sub>）。</td><td data-label="邊界規則">FWS 與 TCS 是同一熱流從兩面觀察；也不能將乾冷器、水塔或外部熱交換器移走的熱再與上游 CDU 熱量相加。分母要寫出哪個物理控制面。熱回用／儲能／環境散熱等互斥去向以一張能量帳對帳。</td></tr>
+<tr id="lc-13"><th scope="row"><span class="lc-tag">LC-13</span> 冰機 COP／冷卻廠 kW/RT</th><td data-label="公式與同窗示例">COP<sub>chiller</sub> = Q̇<sub>蒸發器</sub>/P<sub>冰機</sub>；冷卻廠 kW/RT = 3.516853 × E<sub>廠用電</sub>/E<sub>蒸發器熱</sub>。合成 36 kWh<sub>e</sub>／180 kWh<sub>th</sub> → 0.703 kW/RT。</td><td data-label="邊界規則">只在明定分母為冰水產冷且同窗時，把冰機、納入的泵與排熱設備列進廠用電。乾冷／自然冷卻模式可按可比負載分開報；無蒸發器產冷時不可硬套此比值。</td></tr>
+<tr id="lc-14"><th scope="row"><span class="lc-tag">LC-14</span> PUE／區域 pPUE</th><td data-label="公式與同窗示例">全站總能耗 ÷ IT 能耗：300/250 = 1.2000（期間示例）；區域邊界分子含區內 IT 與指定支援能耗：170/150 = 1.1333（pPUE 算例）。</td><td data-label="邊界規則">分子分母同窗且無重複。共享冷卻要揭露分攤方式及公用損失，不因 CDU 插在 IT PDU 就直接歸入 IT。區域指標不可冒稱全站；短期數字不冒稱年度正式 PUE。報告時核對量測類別、能源來源及適用版本。</td></tr>
+<tr id="lc-15"><th scope="row"><span class="lc-tag">LC-15</span> WUE／水塔水量帳</th><td data-label="公式與同窗示例">示例站內消耗：180 L / 250 kWh<sub>IT</sub> = 0.72 L/kWh<sub>IT</sub>；水塔在水位穩定時補水 ≈ 蒸發＋排放＋飛散＋漏水。</td><td data-label="邊界規則">取水、實際消耗、排放或回補各自量測。不要把循環流量算作耗水，也不可用較低 PUE 推論 WUE 一定降低。若揭露含上游發電用水的口徑，另列方法及資料來源。</td></tr>
+<tr id="lc-16"><th scope="row"><span class="lc-tag">LC-16</span> CUE／電力碳強度分項</th><td data-label="公式與同窗示例">用所選方法納入的營運能源排放 ÷ IT 能耗。只算外購電：300 × 0.45 ÷ 250 = 0.54 kgCO₂e/kWh<sub>IT</sub>（合成係數）。</td><td data-label="邊界規則">只算外購電不等於完整 CUE。區分直接燃料與外購能源，揭露地點／市場法、係數來源及所用 CO₂ 或 CO₂e；另行盤查冷媒逸散、建置與設備製造時，不能悄悄混入同一數字。</td></tr>
+<tr id="lc-17"><th scope="row"><span class="lc-tag">LC-17</span> ERF（能源再利用因子）</th><td data-label="公式與同窗示例">合資格的再利用能源 E<sub>reuse</sub> / 全站總能耗；40 kWh<sub>th</sub> 合資格外部交付／300 kWh<sub>e</sub> 全站能耗 = 13.33%（合成）。</td><td data-label="邊界規則">量外部實際交付且有用途的熱，不以冷卻迴路取熱或設計容量代替。揭露熱泵、加壓、管路與共用能源邊界；若交付熱含熱泵新增能量，不能把全部當成機房再利用。熱回用不直接從 PUE 分子相減。</td></tr>
 </tbody></table></div>
 
-<h3>算例：先積分，再算比率</h3>
+<h3 id="liquid-example">算例：先積分，再算比率</h3>
 <p>兩個合成視窗以純水 ρ＝1,000 kg/m³、c<sub>p</sub>＝4.186 kJ/(kg·K) 近似。為教學假設 TCS 表可當 IT 捕熱代理（TCS 量測界線內的額外泵熱等影響已排除或可忽略）；實案必須有對帳證據才能使用此假設。</p>
 <div class="scroll" role="region" aria-label="液冷機房兩個採樣窗" tabindex="0"><table class="formula-sheet-table">
 <thead><tr><th scope="col">時窗</th><th scope="col">IT／CDU／泵（kW）</th><th scope="col">TCS 流量；供→回</th><th scope="col">FWS 流量；供→回</th><th scope="col">水側移熱率</th></tr></thead><tbody>
@@ -265,7 +277,7 @@ python python_datacenter_airflow_lab.py --it-kw 368 --delta-t-k 12 --liquid-frac
 </ol>
 <p class="callout"><strong>現場驗收先問：</strong>數據是否對時？流量與雙溫度點是否同側、校驗且安裝方向正確？機櫃最低流量、最遠支路壓差、露點餘量與風冷熱點是否同時達標？驗證分級包含低／高負載、單泵或單 CDU 切換、回復時間、漏液偵測、濾網壓差與備援模式。任何操作依核准程序辦理；耗電低而服務條件不合格，不算改善。</p>
 
-<h3>Python 重跑算例</h3>
+<h3 id="liquid-python">Python 重跑算例</h3>
 <p><a href="python_datacenter_liquid_cooling_lab.py" download>下載離線液冷算例</a>。使用標準庫；輸出同窗配對資料及分層指標。測試涵蓋正向計量、缺窗、反向傳熱、未驗證 TCS 量測邊界、零 IT 分母、超過 100% 不截斷及樣本時間過長。本例以已切好的窗示範；正式 ETL 要用時間戳查重疊、長間隔、品質旗標與時鐘偏移，不能只看總時數。</p>
 <pre><code>python python_datacenter_liquid_cooling_lab.py --test
 python python_datacenter_liquid_cooling_lab.py</code></pre>
