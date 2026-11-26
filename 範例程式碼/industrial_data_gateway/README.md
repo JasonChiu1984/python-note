@@ -1,6 +1,6 @@
 # Industrial Data Gateway 範例
 
-此範例用 Python 標準庫示範工業資料採集 gateway 的核心邏輯，不連線真實 PLC/DDC。它聚焦在可本機驗證的部分：IO mapping、Modbus holding register 讀值、32-bit float conversion、timeout、alarm、fail-safe output，以及對 OPC UA / BACnet / MQTT 的資料契約轉換。
+此範例用 Python 標準庫示範工業資料採集 gateway 的核心邏輯，不連線真實 PLC/DDC。它聚焦在可本機驗證的部分：IO mapping、Modbus holding register 讀值、32-bit float conversion、逾時、告警、模擬的安全狀態欄位，以及對 OPC UA／BACnet／MQTT 的資料格式轉換。它不開網路連線、不寫入設備，也不提供實體安全連鎖或持久佇列。
 
 ## 架構
 
@@ -32,6 +32,6 @@ python3 scripts/run_gateway_smoke.py
 ## 現場注意
 
 - 真實 Modbus TCP 預設 port 常見為 `502`，此範例不開 socket。
-- OPC UA 範例使用 `Security=None`、port `4840`，正式現場應依 SCADA/資安政策改為加密與憑證。
-- BACnet/IP 若跨 subnet，需規劃 BBMD、foreign device 與 routing。
-- timeout 或 stale data 時，output decision 會回到 fail-safe 狀態。
+- OPC UA 範例的 `Security=None` 與 `4840` 只是輸出欄位，沒有 OPC UA 端點在監聽。正式部署以設備實際端點、受信憑證、適用的簽章與加密模式及唯讀授權為準。
+- BACnet/IP 單播、跨 IP 子網廣播及跨 BACnet 網路路由分開評估；有跨子網廣播需求時才規劃 BBMD／Foreign Device。
+- 逾時或資料陳舊時，報告反映程式的模擬決策；沒有輸出動作。正式安全控制由已驗證的 PLC 或安全系統負責。

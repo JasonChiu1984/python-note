@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="1336" viewBox="0 0 360 1336" role="img" aria-labelledby="diagram-title diagram-desc" lang="zh-Hant">
   <title id="diagram-title">工業資料採集 Gateway 架構</title>
-  <desc id="diagram-desc">現場儀表、DDC 與 PLC 將唯讀資料送入 Gateway，經協定轉接、點位與品質映射、持久佇列，跨 OT DMZ 提供 MQTT 或 HTTPS 給 SCADA、歷史庫及 API。現場安全控制獨立。</desc>
+  <desc id="diagram-desc">遙測跨區界 A 進入 Gateway，跨 B 上送至工業 DMZ，IT 從 C 取得資料。實線表示遙測方向，不代表新連線方向。虛線表示本地循環 I/O，安全連鎖不依賴 Gateway。</desc>
   <style>text{font-family:system-ui,"Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif}.main{fill:#152f49}.muted{fill:#324c64}</style>
   <defs>
     <marker id="data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
@@ -23,8 +23,8 @@
   <text x="28" y="832" font-size="12" font-weight="750" fill="#855320" data-box="zone-dmz">03 / OT DMZ</text>
   <rect x="16" y="1005" width="328" height="156" rx="12" fill="#f1edfa" stroke="#d1c4e6" id="zone-apps" />
   <text x="28" y="1024" font-size="12" font-weight="750" fill="#584480" data-box="zone-apps">04 / IT 消費端</text>
-  <polyline points="179,190 179,417 180,417 180,462" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" />
-  <polyline points="257,370 257,417 180,417 180,462" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" />
+  <polyline points="29,180 22,180 22,407 150,407 150,462" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" id="bms-telemetry" />
+  <polyline points="257,370 257,418 210,418 210,462" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" id="plc-telemetry" />
   <polyline points="166,306 184,306" fill="none" stroke="#8b593b" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#local)" aria-hidden="true" stroke-dasharray="4 3" marker-start="url(#local)" />
   <polyline points="180,545 180,560" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" />
   <polyline points="180,643 180,658" fill="none" stroke="#244e73" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#data)" aria-hidden="true" />
@@ -57,12 +57,12 @@
   <rect x="29" y="658" width="302" height="89" rx="9" fill="#fff" stroke="#b5d9d2" id="card-outbox" />
   <text x="40" y="679" font-size="14.5" font-weight="750" fill="#17655f" data-box="card-outbox">持久佇列 Outbox</text>
   <text x="40" y="697" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-outbox">先落盤、批次補送</text>
-  <text x="40" y="714" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-outbox">事件 ID 去重 / 確認後釋放</text>
+  <text x="40" y="714" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-outbox">固定事件 ID / 確認後釋放</text>
   <rect x="29" y="844" width="302" height="103" rx="9" fill="#fff" stroke="#e8ca9b" id="card-dmz" />
   <text x="40" y="865" font-size="14.5" font-weight="750" fill="#855320" data-box="card-dmz">隔離區資料入口</text>
   <text x="40" y="883" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-dmz">MQTT Broker：遙測</text>
   <text x="40" y="900" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-dmz">HTTPS 接收 API：選用</text>
-  <text x="40" y="917" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-dmz">確認只走已建立的連線</text>
+  <text x="40" y="917" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-dmz">在 DMZ 終止上送連線</text>
   <rect x="29" y="1036" width="302" height="103" rx="9" fill="#fff" stroke="#d1c4e6" id="card-apps" />
   <text x="40" y="1057" font-size="14.5" font-weight="750" fill="#584480" data-box="card-apps">監控與資料服務</text>
   <text x="40" y="1075" font-size="12.3" font-weight="400" fill="#324c64" data-box="card-apps">SCADA / Historian</text>
@@ -71,8 +71,14 @@
   <rect x="16" y="1173" width="328" height="58" rx="12" fill="#fff4ed" stroke="#e2b9a5" id="safety" />
   <text x="28" y="1195" font-size="14" font-weight="750" fill="#93401d" data-box="safety">獨立安全路徑：硬接線急停 / 安全 PLC</text>
   <text x="28" y="1217" font-size="12.5" font-weight="400" fill="#6e412d" data-box="safety">安全連鎖不得經由 Gateway 或上層平台。</text>
-  <text x="16" y="1251" font-size="12.2" font-weight="400" fill="#324c64">實線：遙測方向。虛線：現場控制路徑。</text>
+  <text x="16" y="1251" font-size="12.2" font-weight="400" fill="#324c64">實線：遙測；虛線：本地 I/O；A／B／C：區界。</text>
   <text x="16" y="1269" font-size="12.2" font-weight="400" fill="#324c64">不因協定確認而開放反向 OT 存取。</text>
   <text x="16" y="1287" font-size="12.2" font-weight="400" fill="#324c64">Broker PUBACK ≠ 時序資料庫完成入庫；</text>
   <text x="16" y="1305" font-size="12.2" font-weight="400" fill="#324c64">若要求入庫保證，須另有應用層確認。</text>
+  <rect id="boundary-A" x="306" y="403" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-A" x="317" y="417" fill="#6e3f07">A</text>
+  <rect id="boundary-B" x="306" y="784" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-B" x="317" y="798" fill="#6e3f07">B</text>
+  <rect id="boundary-C" x="306" y="978" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-C" x="317" y="992" fill="#6e3f07">C</text>
 </svg>

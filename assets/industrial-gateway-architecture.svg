@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="687" viewBox="0 0 1120 687" role="img" aria-labelledby="diagram-title diagram-desc" lang="zh-Hant">
   <title id="diagram-title">工業資料採集 Gateway 架構</title>
-  <desc id="diagram-desc">現場儀表、DDC 與 PLC 將唯讀資料送入 Gateway，經協定轉接、點位與品質映射、持久佇列，跨 OT DMZ 提供 MQTT 或 HTTPS 給 SCADA、歷史庫及 API。現場安全控制獨立。</desc>
+  <desc id="diagram-desc">遙測跨區界 A 進入 Gateway，跨 B 上送至工業 DMZ，IT 從 C 取得資料。實線表示遙測方向，不代表新連線方向。虛線表示本地循環 I/O，安全連鎖不依賴 Gateway。</desc>
   <style>text{font-family:system-ui,"Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif}.main{fill:#152f49}.muted{fill:#324c64}</style>
   <defs>
     <marker id="data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
@@ -53,12 +53,12 @@
   <rect x="310" y="373" width="238" height="101" rx="9" fill="#fff" stroke="#b5d9d2" id="card-outbox" />
   <text x="321" y="399" font-size="17" font-weight="750" fill="#17655f" data-box="card-outbox">持久佇列 Outbox</text>
   <text x="321" y="422" font-size="14" font-weight="400" fill="#324c64" data-box="card-outbox">先落盤、批次補送</text>
-  <text x="321" y="441" font-size="14" font-weight="400" fill="#324c64" data-box="card-outbox">事件 ID 去重 / 確認後釋放</text>
+  <text x="321" y="441" font-size="14" font-weight="400" fill="#324c64" data-box="card-outbox">固定事件 ID / 確認後釋放</text>
   <rect x="617" y="367" width="196" height="106" rx="9" fill="#fff" stroke="#e8ca9b" id="card-dmz" />
   <text x="628" y="393" font-size="17" font-weight="750" fill="#855320" data-box="card-dmz">隔離區資料入口</text>
   <text x="628" y="416" font-size="14" font-weight="400" fill="#324c64" data-box="card-dmz">MQTT Broker：遙測</text>
   <text x="628" y="435" font-size="14" font-weight="400" fill="#324c64" data-box="card-dmz">HTTPS 接收 API：選用</text>
-  <text x="628" y="454" font-size="14" font-weight="400" fill="#324c64" data-box="card-dmz">確認只走已建立的連線</text>
+  <text x="628" y="454" font-size="14" font-weight="400" fill="#324c64" data-box="card-dmz">在 DMZ 終止上送連線</text>
   <rect x="879" y="367" width="203" height="106" rx="9" fill="#fff" stroke="#d1c4e6" id="card-apps" />
   <text x="890" y="393" font-size="17" font-weight="750" fill="#584480" data-box="card-apps">監控與資料服務</text>
   <text x="890" y="416" font-size="14" font-weight="400" fill="#324c64" data-box="card-apps">SCADA / Historian</text>
@@ -67,7 +67,13 @@
   <rect x="20" y="529" width="1080" height="60" rx="12" fill="#fff4ed" stroke="#e2b9a5" id="safety" />
   <text x="32" y="551" font-size="17" font-weight="750" fill="#93401d" data-box="safety">獨立安全路徑：硬接線急停 / 安全 PLC</text>
   <text x="32" y="573" font-size="14" font-weight="400" fill="#6e412d" data-box="safety">安全連鎖不得經由 Gateway 或上層平台。</text>
-  <text x="20" y="615" font-size="14" font-weight="400" fill="#324c64">實線：遙測方向；虛線：現場控制路徑。</text>
+  <text x="20" y="615" font-size="14" font-weight="400" fill="#324c64">實線：遙測；虛線：本地循環 I/O；A／B／C：防火牆政策區界。</text>
   <text x="20" y="635" font-size="14" font-weight="400" fill="#324c64">箭頭表示遙測資料方向，協定交握或確認不代表開放反向 OT 存取。</text>
   <text x="20" y="655" font-size="14" font-weight="400" fill="#324c64">MQTT Broker 的 PUBACK 不等於時序資料庫已寫入；若要求入庫保證，需另有應用層確認。</text>
+  <rect id="boundary-A" x="263" y="101" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-A" x="274" y="115" fill="#6e3f07">A</text>
+  <rect id="boundary-B" x="573" y="101" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-B" x="584" y="115" fill="#6e3f07">B</text>
+  <rect id="boundary-C" x="835" y="101" width="22" height="20" rx="5" fill="#fff2ce" stroke="#9c620f" />
+  <text font-size="13" font-weight="750" text-anchor="middle" data-box="boundary-C" x="846" y="115" fill="#6e3f07">C</text>
 </svg>

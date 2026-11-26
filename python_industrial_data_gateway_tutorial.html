@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python Industrial Data Gateway 教學 - Modbus、OPC UA、BACnet、MQTT 與 Fail-safe v2.6.0</title>
+  <title>Python Industrial Data Gateway 教學 - Modbus、OPC UA、BACnet、MQTT 與 Fail-safe v2.6.1</title>
   <style>
     :root {
       --ink: #172033;
@@ -124,6 +124,16 @@
     .gw-fw-map li span{font-size:.89rem;line-height:1.45}
     .gw-fw-map p,#firewall .gw-table{margin:.7rem 0}
     @media(max-width:1100px){.gw-fw-map ol{grid-template-columns:minmax(0,1fr)}}
+
+    .gateway-menu{margin-top:.8rem;min-width:0}
+    .gateway-menu>summary{cursor:pointer;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;background:#eef6f3;font-weight:850}
+    .gateway-menu nav{margin-top:.4rem}
+    .gateway-nav-group{display:grid;gap:.1rem;padding:.45rem 0;border-top:1px solid var(--line)}
+    .gateway-nav-group strong{padding-inline:.55rem;font-size:.9rem}
+    .gateway-menu nav a{padding:.32rem .55rem;overflow-wrap:anywhere}
+    .gateway-search{min-width:0}.gateway-search>.search{margin:.35rem 0}
+    .gateway-status{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;margin-top:.35rem}
+    @media(max-width:980px){aside{padding:.75rem 1rem;border-right:0;border-bottom:1px solid var(--line)}.hero{padding-top:1.5rem}}
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -131,36 +141,53 @@
   <div class="layout">
     <aside>
       <a class="brand" href="#top"><span class="logo">GW</span><span><strong>Industrial Gateway</strong><br><small>OT 採集、資料品質與可靠分發</small></span></a>
-      <nav aria-label="章節導覽">
-        <a href="index.html">回教材入口</a>
-        <a href="#architecture">系統架構</a>
-        <a href="#firewall">防火牆、分區與放行規則</a>
-        <a href="#kernel-security">Linux 核心與模組安全</a>
-        <a href="#mapping">點位與資料契約</a>
-        <a href="#modbus">Modbus</a>
-        <a href="#opcua">OPC UA</a>
-        <a href="#bacnet">BACnet</a>
-        <a href="#fieldbus">EtherNet/IP 與工業 I/O</a>
-        <a href="#mqtt">MQTT／HTTPS</a>
-        <a href="#operations">Operations</a>
-        <a href="#sample">範例專案</a>
-      </nav>
-      <div class="progress-box" id="progressSummary">完成 0 / 36</div>
+      <details id="gateway-menu" class="gateway-menu" open>
+        <summary>章節目錄</summary>
+        <nav aria-label="章節導覽">
+          <a href="index.html">回教材入口</a>
+          <div class="gateway-nav-group" role="group" aria-label="架構與責任"><strong>架構與責任</strong>
+            <a href="#overview">協定與資料流總覽</a>
+            <a href="#architecture">Gateway 架構圖</a>
+          </div>
+          <div class="gateway-nav-group" role="group" aria-label="分區與主機安全"><strong>分區與主機安全</strong>
+            <a href="#firewall">防火牆與區界 A／B／C</a>
+            <a href="#kernel-security">Linux 核心與模組安全</a>
+          </div>
+          <div class="gateway-nav-group" role="group" aria-label="點位、採集與分發"><strong>點位、採集與分發</strong>
+            <a href="#mapping">點位與資料契約</a>
+            <a href="#modbus">Modbus RTU／TCP</a>
+            <a href="#opcua">OPC UA 點位與訂閱</a>
+            <a href="#bacnet">BACnet MS/TP、IP、SC</a>
+            <a href="#fieldbus">EtherNet/IP、PROFINET、EtherCAT</a>
+            <a href="#mqtt">MQTT／HTTPS 北向分發</a>
+          </div>
+          <div class="gateway-nav-group" role="group" aria-label="部署與離線實作"><strong>部署與離線實作</strong>
+            <a href="#operations">故障情境、補送與驗收</a>
+            <a href="#sample">Python 離線範例</a>
+            <a href="#example-industrial-data-gateway">查看範例原始碼</a>
+          </div>
+        </nav>
+      </details>
     </aside>
     <main>
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Python Industrial Data Gateway</span>
           <h1>工業資料採集 Gateway 架構</h1>
-          <p>把 PLC、DDC、電表與變頻器的不同資料格式，轉成帶來源、時間和品質的事件。Gateway 採集與分發，PLC／DDC 保留閉迴路控制，安全連鎖不依賴 Python、Broker 或雲端。</p>
-          <div class="status-strip"><span>v2.6.0</span><span>36 張互動卡</span><span>standard library sample</span><span>六類採集／分發介面</span><span>2026-11-26 更新（台灣）</span></div>
+          <p>把 PLC、DDC、電表與變頻器的不同資料格式，轉成帶來源、時間和品質的事件。Gateway 負責遙測採集與分發；PLC／DDC 保留閉迴路控制，經驗證的安全連鎖不依賴 Python、Broker 或雲端。</p>
+          <div class="status-strip"><span>v2.6.1</span><span>36 張互動卡</span><span>standard library sample</span><span>六類採集／分發介面</span><span>2026-11-26 更新（台灣）</span></div>
           <div class="hero-actions"><a class="button primary" href="#overview">開始 Gateway 課程</a><a class="button blue" href="python_industrial_protocol_comparison_tutorial.html">看協定比較專題</a><a class="button" href="index.html">回教材入口</a></div>
         </div>
         <div class="surface gw-hero"><strong>讀取設備，別接管設備</strong><ol><li>南向讀取：PLC／DDC／設備</li><li>邊緣處理：時間、單位、品質、持久佇列</li><li>北向分發：OT DMZ、MQTT／HTTPS、歷史庫</li></ol><a href="#architecture">看完整架構圖</a></div>
       </section>
       <div class="tool-panel">
-        <input class="search" id="lessonSearch" type="search" placeholder="搜尋：Modbus、FC03、FC16、OPC UA、NodeId、BACnet、BBMD、MQTT、alarm、fail-safe">
-        <div class="quick-links"><a href="#overview">Overview</a><a href="#modbus">Modbus</a><a href="#opcua">OPC UA</a><a href="#bacnet">BACnet</a><a href="python_industrial_protocol_comparison_tutorial.html">協定比較專題</a></div>
+        <div class="gateway-search">
+          <label for="lessonSearch"><strong>搜尋互動練習卡</strong></label>
+          <input class="search" id="lessonSearch" type="search" placeholder="例如：FC03、NodeId、BBMD、QoS" aria-describedby="gateway-search-help">
+          <p id="gateway-search-help">只篩選練習卡；各章正文與規則表不會隱藏。</p>
+          <div class="gateway-status"><p id="gateway-search-result" role="status"></p><p class="progress-box" id="progressSummary">練習卡進度</p></div>
+        </div>
+        <div class="quick-links" role="group" aria-label="常用章節"><a href="#architecture">架構圖</a><a href="#firewall">防火牆</a><a href="#operations">部署驗收</a><a href="#sample">離線實作</a></div>
       </div>
       <section class="section-block" id="overview" data-group="overview">
 <div class="section-head"><div><span class="eyebrow">01／選介面</span><h2>先分南向採集、現場即時 I/O 和北向分發</h2><p>不是把 Modbus 串接 OPC UA 再串接 BACnet。多個南向轉接器可並列，採集同一設備時也要選定權威來源，避免重複入庫。</p></div></div>
@@ -176,15 +203,15 @@
 </section>
       <section class="section-block" id="architecture" data-group="architecture"><div class="section-head"><div><span class="eyebrow">Architecture</span><h2>Gateway 先解決資料流與責任邊界</h2><p>不要從 library 開始選型，先確定現場點位、資料品質、告警與維運邊界。</p></div></div><div class="gw-guide">
 <figure class="gw-architecture" aria-labelledby="gw-architecture-caption"><figcaption id="gw-architecture-caption">架構圖｜現場控制、邊緣資料與 OT DMZ 分層</figcaption>
-<picture><source media="(max-width: 950px)" srcset="assets/industrial-gateway-architecture-mobile.svg"><img src="assets/industrial-gateway-architecture.svg" alt="PLC、DDC 與現場設備的唯讀遙測進入南向轉接器；經點表正規化與持久佇列後，從隔離區送到 Broker 及資料平台。現場即時控制及安全連鎖不走這條遙測線。"></picture>
-<p>箭頭表示觀測資料的方向；輪詢協定實際上仍由 Gateway 主動送出讀取請求。控制器的原生循環 I/O 與安全鏈和這條遙測路徑分開。</p>
+<picture><source media="(max-width: 950px)" srcset="assets/industrial-gateway-architecture-mobile.svg"><img src="assets/industrial-gateway-architecture.svg" alt="OT 設備遙測跨區界 A 進入 Gateway，經點表與持久佇列後跨 B 送到 DMZ，IT 應用透過區界 C 存取 DMZ。實線是資料流，不是連線發起方向。現場循環 I/O 獨立，安全連鎖不經 Gateway。"></picture>
+<p>實線是遙測資料流，虛線是現場循環 I/O。Gateway 主動發起輪詢及北向上送；IT Client 則向 DMZ 發起讀取。圖中 A／B／C 對應防火牆規則表，不代表三台實體設備。安全連鎖與這條遙測路徑分開。</p>
 <a href="assets/industrial-gateway-architecture.drawio" download>下載可編輯架構圖（draw.io）</a> · <a href="#firewall">看防火牆分區與放行規則</a>
 </figure>
 <ol class="gw-steps"><li><strong>設備層：</strong>PLC／DDC 維持 PID、設備保護與本地告警；安全功能由經設計驗證的獨立路徑負責。</li><li><strong>資料轉接：</strong>各協定有獨立輪詢／訂閱預算。串列區段共享一條總線，單一慢站不能拖垮其他區段。</li><li><strong>正規化：</strong>依有版本的點表確認型別、單位、品質和時間，無效資料不能悄悄轉成 0。</li><li><strong>持久佇列：</strong>交易內存放資料與穩定事件 ID；只有達到選定的確認邊界才釋放。磁碟滿要告警，不得無聲覆寫。</li><li><strong>OT DMZ／北向：</strong>只開必要來源與目的地；向 Broker 或 HTTPS 匯入服務送資料，不讓 IT 網段直接操作 PLC。</li></ol>
 </div>
 <div class="cards"></div></section>
       <section class="section-block" id="firewall" aria-labelledby="gw-fw-title">
-        <div class="section-head"><div><span class="eyebrow">OT FIREWALL · 2026-11-26</span><h2 id="gw-fw-title">防火牆：把現場控制、資料採集與 IT 存取分開</h2><p>跨區預設拒絕，只放行已定義的端點、服務和連線發起方向。工業閘道採集資料，不用第二張網卡把 OT 與 IT 直接橋接。</p></div></div>
+        <div class="section-head"><div><span class="eyebrow">OT FIREWALL · 2026-11-26</span><h2 id="gw-fw-title">防火牆：把現場控制、資料採集與 IT 存取分開</h2><p>跨區預設拒絕，只放行已定義的端點、服務和連線發起方向；各區對應上方架構圖的 A／B／C。工業閘道採集資料，不用第二張網卡把 OT 與 IT 直接橋接。</p></div></div>
         <div class="gw-guide">
           <figure class="gw-fw-map" aria-labelledby="gw-fw-caption">
             <figcaption id="gw-fw-caption">網路分區示例｜不是實際設備接線或防火牆設定</figcaption>
@@ -255,7 +282,7 @@ mokutil --sb-state</code></pre>
           <p>參考：<a href="https://docs.kernel.org/admin-guide/module-signing.html">Linux：模組簽章</a> · <a href="https://docs.kernel.org/admin-guide/sysctl/kernel.html#modules-disabled">Linux：modules_disabled</a> · <a href="https://documentation.ubuntu.com/security/security-features/platform-protections/secure-boot/">Ubuntu：Secure Boot 實作例</a> · <a href="https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html">systemd：服務執行與隔離</a>。</p>
         </div>
       </section>
-      <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>IO map 必須包含 register、datatype、unit、alarm、fail-safe 與上層資料名稱。</p></div></div><div class="gw-guide">
+      <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>點位表應涵蓋來源定位、資料型別、工程單位、資料品質及告警；只有 Modbus 等以暫存器定址的來源才需要 register。</p></div></div><div class="gw-guide">
 <h3>點位表示和事件格式</h3><p>固定 <code>point_id</code>，把來源定位與工程含義分開。至少記錄裝置、協定定位、原始型別、符號／位元序、倍率、工程單位、有效範圍、更新策略、最大資料年齡與點表版本。改倍率或單位應留版本、遷移方式和測試向量。</p>
 <pre tabindex="0"><code>{
   "schema_version": 1, "point_map_version": "2026-11",
@@ -281,7 +308,7 @@ mokutil --sb-state</code></pre>
 <p>現場使用受信的應用憑證、合適的安全政策及 <code>SignAndEncrypt</code>，再依身分授予唯讀權限；憑證汰換、時間校正與拒絕未知憑證都列入驗收。<a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13">OPC Foundation：監控項目服務</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/7.25">通知狀態與溢位</a></p>
 </div>
 <div class="cards"></div></section>
-      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet 需保留 object 與 routing 語意</h2><p>object type、object instance、BBMD、foreign device 與跨網段 routing 必須寫入設計。</p></div></div><div class="gw-guide">
+      <section class="section-block" id="bacnet" data-group="bacnet"><div class="section-head"><div><span class="eyebrow">BACnet</span><h2>BACnet 需保留 object 與 routing 語意</h2><p>點表記錄 Device、Object Type／Instance 與 Property；網路文件依實際部署記錄路由、BBMD、Foreign Device 或 SC。</p></div></div><div class="gw-guide">
 <h3>同是 BACnet 物件，現場網路不同</h3>
 <ul><li><strong>MS/TP：</strong>RS-485 權杖匯流排。記錄 MAC、鮑率、裝置實例與路由網路號；多個主站與權杖週期影響延遲。它不是 Modbus RTU，不能共用其點位或幀解析。</li><li><strong>BACnet/IP：</strong>常用於 DDC、BMS，基於 UDP/IP。已知地址的單播讀取和跨子網的廣播探索分開設計；需要傳遞廣播時才規劃 BBMD／Foreign Device 與續租，不是每個跨網讀取都需要 BBMD。</li><li><strong>BACnet/SC：</strong>TLS WebSocket、Hub 與信任憑證；跨回傳統 BACnet/IP 或 MS/TP 後，保護依該段能力，不能宣告全路徑端到端加密。</li></ul>
 <p>點位識別例：<code>Device 12001 → analog-input:17 → present-value</code>。同步保留 Units、Status_Flags、Reliability（裝置提供時）；具相容性證據才使用 <code>ReadPropertyMultiple</code>。支援 COV 可減少讀取，但要續訂、重連重訂與低頻健康回讀；不支援／失敗就回到有節流的輪詢。值沒變時沒有新的 COV 通知，不代表設備失聯。</p>
@@ -304,7 +331,7 @@ mokutil --sb-state</code></pre>
 <p><strong>驗收情境：</strong>拔除單站的模擬連線，其餘站照常；模擬北向離線與重新啟動，資料年齡及優先政策可追溯；重送同一 ID 不重複入庫；模擬憑證過期、時鐘飄移與磁碟滿時不悄悄報 GOOD。任何測試應先在隔離環境；正式消防、急停等驗收由現場安全流程管理。</p>
 </div>
 <div class="cards"></div></section>
-      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Industrial Data Gateway 範例專案</h2><p>`範例程式碼/industrial_data_gateway/` 示範 Modbus register 模擬、alarm、fail-safe 與 protocol payload contract。 <a href="範例程式碼/industrial_data_gateway/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/industrial_data_gateway
+      <section class="section-block" id="sample" data-group="sample"><div class="section-head"><div><span class="eyebrow">Sample</span><h2>Industrial Data Gateway 範例專案</h2><p><code>範例程式碼/industrial_data_gateway/</code> 示範 離線模擬 Modbus 暫存器、資料品質、告警與 payload。所謂 fail-safe 欄位是模擬決策，不寫入 PLC、不代表安全控制；本範例不部署防火牆、簽章或持久佇列。 <a href="範例程式碼/industrial_data_gateway/README.md">範例原始碼與執行說明</a>。</p></div></div><pre><code>cd 範例程式碼/industrial_data_gateway
 python3 -m py_compile src/industrial_data_gateway/*.py scripts/run_gateway_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_gateway_smoke.py</code></pre><div class="cards"></div>
@@ -692,7 +719,7 @@ if __name__ == "__main__":
       ],
       architecture: [
         ["arch-boundary", "Architecture", "Gateway 是協定與資料品質邊界", "Gateway 負責 polling、decode、quality、alarm 與上層 payload，不應把 SCADA 業務規則混在驅動層。", "PLC -> Gateway -> SCADA / Historian / MQTT", "signal flow is explicit."],
-        ["arch-timeout", "Architecture", "通訊 timeout 是控制策略的一部分", "timeout 會影響資料品質與告警；現場安全輸出仍由 PLC 或獨立安全鏈負責。", "timeout=2s retry=2 stale=15s", "abnormal condition has behavior."],
+        ["arch-timeout", "Architecture", "採集 timeout 決定資料品質，不控制設備", "timeout 會影響資料品質與告警；現場安全輸出仍由 PLC 或獨立安全鏈負責。", "timeout=2s retry=2 stale=15s", "abnormal condition has behavior."],
         ["arch-buffer", "Architecture", "store-and-forward 需要容量與清除策略", "離線暫存要限制筆數、時間與磁碟使用，避免 gateway 自己造成停機。", "buffer.max_records=10000", "offline data is bounded."],
         ["arch-maintenance", "Architecture", "維護模式要和生產模式分開", "手動測試、register scan、debug log 應避免直接進入 production telemetry。", "mode=maintenance", "operators can diagnose safely."]
       ],
@@ -710,13 +737,13 @@ if __name__ == "__main__":
       ],
       opcua: [
         ["opcua-endpoint", "OPC UA", "Endpoint URL 要成為設定", "範例只組裝端點字串，沒有 OPC UA 網路連線；現場使用憑證、適用加密政策與唯讀身分。", "opc.tcp://plc.example.test:4840", "client can locate server."],
-        ["opcua-nodeid", "OPC UA", "NodeId 要包含 namespace", "NodeId 範例：ns=2;s=Boiler.SupplyTemperature，避免只寫 display name。", "ns=2;s=Boiler.SupplyTemperature", "monitored item is precise."],
+        ["opcua-nodeid", "OPC UA", "NodeId 要包含 namespace", "點表保存 Namespace URI 與識別碼；ns=2 只是伺服器當次索引，不能以 DisplayName 或固定索引替代。", "ns=2;s=Boiler.SupplyTemperature", "monitored item is precise."],
         ["opcua-subscription", "OPC UA", "Subscription／Publish 要設定節奏", "publish interval、sampling interval 與 queue size 影響延遲與資料量。", "publish=1000ms keepalive=10s", "data freshness is controlled."],
         ["opcua-reconnect", "OPC UA", "Reconnect 要有 backoff 與 quality", "斷線時資料應標成 BAD/STALE，重連後須重新取得有效值並確認品質，才恢復 GOOD。", "backoff=[1,5,15]", "client recovers without hiding faults."]
       ],
       bacnet: [
         ["bacnet-object", "BACnet", "BACnet object 要寫 type + instance", "例如 analog-input,1 對應 supply temperature，不要只寫點位名稱。", "object=analog-input instance=1", "BACnet address is explicit."],
-        ["bacnet-bbmd", "BACnet", "跨 subnet 要規劃 BBMD", "BACnet broadcast 不會自然穿越 router，需要 BBMD 或 routing design。", "BBMD=<站點核准地址>", "discovery works across VLANs."],
+        ["bacnet-bbmd", "BACnet", "跨子網：單播、廣播與路由分開", "BACnet/IP 單播不必然需要 BBMD；跨 IP 子網傳遞廣播時才評估 BBMD／FD。跨 BACnet 網路號則由 BACnet Router 路由。", "BBMD=<站點核准地址>", "discovery works across VLANs."],
         ["bacnet-foreign", "BACnet", "Foreign device 需要 TTL", "遠端 gateway 註冊 foreign device 時需設定 TTL 與續約策略。", "foreign_device_ttl=60s", "remote registration is maintained."],
         ["bacnet-sc", "BACnet", "BACnet/SC Gateway 要標出信任邊界", "若現場使用 BACnet SC，需區分 IP side、SC hub、憑證與路由責任。", "BACnet/IP + BACnet/SC Gateway", "secure topology is documented."]
       ],
@@ -727,8 +754,8 @@ if __name__ == "__main__":
         ["mqtt-offline", "MQTT", "離線暫存要避免無限成長", "store-and-forward 應限制筆數，並在 reconnect 後按順序補送。", "max_records=10000 ttl=24h", "offline behavior is bounded."]
       ],
       operations: [
-        ["ops-vlan", "Operations", "VLAN 分區保護控制網", "PLC VLAN、SCADA VLAN、DMZ 與 IT 網段應用 firewall rule 串接。", "PLC VLAN20 -> SCADA VLAN30", "network path is intentional."],
-        ["ops-firewall", "Operations", "Firewall 只開必要 port", "Modbus TCP 502、OPC UA 4840、MQTT 8883/1883 應按實際需求允許。", "allow tcp/4840 to OPC UA server", "attack surface is reduced."],
+        ["ops-vlan", "Operations", "分區後還要限制跨區流量", "VLAN 不等於存取控制；現場、採集、DMZ 與 IT 分區，各區依必要方向放行。", "Gateway → DMZ；IT Client → DMZ；IT 不直連 PLC", "network path is intentional."],
+        ["ops-firewall", "Operations", "防火牆規則以服務和端點為單位", "確認實際端點、發起者及服務埠；只開特定主機、用途與必要協定。北向遙測採受信 TLS 端點。", "如核准：Gateway → 指定 OPC UA Server／實際 TCP 埠", "attack surface is reduced."],
         ["ops-diagnostics", "Operations", "診斷要能回答哪個設備壞了", "log 必須包含 device、register、nodeId、timeout、retry 與 quality。", "device=boiler-plc register=40001 quality=STALE", "maintenance can isolate faults."],
         ["ops-handover", "Operations", "交付文件要包含現場維護事項", "包含 IP、VLAN、register map、NodeId、BBMD、alarm、fail-safe 與備援流程。", "handover: map + config + smoke evidence", "site team can maintain it."]
       ],
@@ -740,15 +767,21 @@ if __name__ == "__main__":
       ]
     };
     const completedKey = "python-industrial-completed";
+    let volatileProgress;
     const allLessons = Object.values(lessonGroups).flat();
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
     }
     function loadCompleted() {
+      if (volatileProgress) return new Set(volatileProgress);
       try { return new Set(JSON.parse(localStorage.getItem(completedKey) || "[]")); } catch { return new Set(); }
     }
-    function saveCompleted(done) { localStorage.setItem(completedKey, JSON.stringify([...done])); }
-    function updateProgress() { document.getElementById("progressSummary").textContent = `完成 ${loadCompleted().size} / ${allLessons.length}`; }
+    function saveCompleted(done) { try { localStorage.setItem(completedKey, JSON.stringify([...done])); } catch { volatileProgress = new Set(done); } }
+    function updateProgress() {
+      const done = loadCompleted();
+      const n = allLessons.filter(lesson => done.has(lesson[0])).length;
+      document.getElementById("progressSummary").textContent = `完成 ${n} / ${allLessons.length}${volatileProgress ? "（僅本次瀏覽）" : ""}`;
+    }
     function renderLesson(lesson, index) {
       const [id, tag, title, summary, code, output] = lesson;
       const done = loadCompleted().has(id);
@@ -774,13 +807,41 @@ if __name__ == "__main__":
       const done = loadCompleted();
       if (done.has(button.dataset.complete)) done.delete(button.dataset.complete); else done.add(button.dataset.complete);
       saveCompleted(done);
-      renderAll();
+      const completed = done.has(button.dataset.complete);
+      button.textContent = completed ? "取消完成" : "標記完成";
+      button.closest(".lesson-item").querySelector(".lesson-top > .tag").textContent = completed ? "已完成" : "待練習";
+      updateProgress();
     });
-    document.getElementById("lessonSearch").addEventListener("input", (event) => {
-      const keyword = event.target.value.trim().toLowerCase();
-      document.querySelectorAll(".lesson-item").forEach((item) => item.classList.toggle("hidden-by-search", keyword && !item.dataset.search.includes(keyword)));
-    });
+    const search = document.getElementById("lessonSearch");
+    function filterLessons() {
+      const q = search.value.trim().toLowerCase();
+      let n = 0;
+      document.querySelectorAll(".lesson-item").forEach(item => {
+        const show = !q || item.dataset.search.includes(q);
+        item.classList.toggle("hidden-by-search", !show);
+        if (show) n++;
+      });
+      document.getElementById("gateway-search-result").textContent = n
+        ? `顯示 ${n} / ${allLessons.length} 張練習卡`
+        : "沒有符合的練習卡，請換個關鍵字。";
+    }
+    search.addEventListener("input", filterLessons);
     renderAll();
+    filterLessons();
+    const menu = document.getElementById("gateway-menu");
+    const compact = matchMedia("(max-width: 980px)");
+    const syncMenu = () => { menu.open = !compact.matches; };
+    syncMenu();
+    compact.addEventListener("change", syncMenu);
+    menu.addEventListener("click", event => {
+      const link = event.target.closest("a[href^='#']");
+      if (!link || !compact.matches || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = document.getElementById(link.hash.slice(1));
+      if (!target) return;
+      menu.open = false;
+      target.tabIndex = -1;
+      target.focus({preventScroll:true});
+    });
   </script>
 </body>
 </html>
