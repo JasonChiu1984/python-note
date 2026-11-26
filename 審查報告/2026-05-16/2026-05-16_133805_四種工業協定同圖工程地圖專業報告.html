@@ -286,6 +286,25 @@
       .workflow-route { grid-template-columns:minmax(0,1fr) minmax(0,1.65fr) repeat(3,minmax(0,1fr)); }
       .workflow-route > li:not(:last-child)::after { top:calc(50% - .275rem); left:calc(100% + .48rem); transform:rotate(-45deg); }
     }
+  
+    .report-menu{margin-top:.8rem}
+    .report-menu>summary{cursor:pointer;padding:.55rem .75rem;border:1px solid #a8becd;border-radius:8px;font-weight:800}
+    .report-nav-group{display:grid;gap:.16rem;padding:.35rem 0;border-bottom:1px solid #b9cbd6}
+    .report-nav-group>strong{font-size:.89rem;padding:.2rem .55rem}
+    .report-menu nav a{overflow-wrap:anywhere;padding-block:.35rem}
+    .report-map{margin:0;min-width:0}
+    .report-map figcaption{margin:0 0 .6rem;font-weight:850}
+    .report-map-lanes{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:.5rem;align-items:center;min-width:0}
+    .report-map-column{display:grid;gap:.42rem;min-width:0}
+    .report-map-column h3{margin:0;overflow-wrap:anywhere;font-size:.94rem}
+    .report-map-arrow{justify-self:center;color:#29654e;font-weight:850}
+    .report-map :is(strong,small){overflow-wrap:anywhere}
+    .table-wrap{max-width:100%}
+    .table-wrap:focus-visible{outline:2px solid #245b99}
+    .hero{grid-template-columns:minmax(0,1fr)}
+    .hero h1{max-width:none;text-wrap:balance}
+    @media(max-width:980px){.report-menu{margin:.5rem 0}.meta{display:none}}
+    @media(max-width:700px){.report-map-lanes{grid-template-columns:minmax(0,1fr)}.report-map-arrow{transform:rotate(90deg)}}
   </style>
 </head>
 <body>
@@ -297,65 +316,90 @@
       </a>
       <div class="meta">
         <div>報告日期：2026-05-16</div>
-        <div>完整時間：2026-05-16 13:38:05 CST</div>
+        <div>原稿：2026-05-16 13:38（臺灣時間）</div>
+        <div>校訂：<time datetime="2026-11-26">2026-11-26</time></div>
         <div>定位：工程決策與整合部署</div>
         <div>形式：網頁版專業報告</div>
       </div>
-      <nav aria-label="章節導覽">
-        <a href="#overview">Overview</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#engineering-map">Engineering Map</a>
-        <a href="#workflow">Workflow</a>
-        <a href="#modbus-fc">Modbus FC</a>
-        <a href="#opcua-role">OPC UA Role</a>
-        <a href="#bacnet-role">BACnet Role</a>
-        <a href="#mqtt-role">MQTT Role</a>
-        <a href="#comparison">Comparison</a>
-        <a href="#speed">Speed Comparison</a>
-        <a href="#troubleshooting">Troubleshooting</a>
-        <a href="#best-practices">Best Practices</a>
-        <a href="#risk-notes">Risk Notes</a>
-        <a href="#summary">Summary</a>
-      </nav>
+      <details class="report-menu" id="report-menu" open>
+        <summary>章節目錄</summary>
+        <nav aria-label="章節導覽">
+          <div class="report-nav-group" role="group" aria-label="先看工程地圖"><strong>先看工程地圖</strong>
+            <a href="#overview">四種協定的角色</a>
+            <a href="#architecture">架構與責任邊界</a>
+            <a href="#engineering-map">專案分工</a>
+            <a href="#workflow">資料流程</a>
+          </div>
+          <div class="report-nav-group" role="group" aria-label="四種協定詳解"><strong>四種協定詳解</strong>
+            <a href="#modbus-fc">Modbus 功能碼</a>
+            <a href="#opcua-role">OPC UA 點位與訂閱</a>
+            <a href="#bacnet-role">BACnet 跨網段與 SC</a>
+            <a href="#mqtt-role">MQTT 傳遞與時效</a>
+          </div>
+          <div class="report-nav-group" role="group" aria-label="選型、量測與驗收"><strong>選型、量測與驗收</strong>
+            <a href="#comparison">工程架構與通訊格式比較</a>
+            <a href="#speed">延遲比較與量測方法</a>
+            <a href="#troubleshooting">常見症狀與排查</a>
+            <a href="#best-practices">交付前驗收清單</a>
+            <a href="#risk-notes">選型與部署風險</a>
+            <a href="#summary">結論</a>
+            <a href="#references">官方規格與實作</a>
+          </div>
+          <a href="../../python_industrial_protocol_comparison_tutorial.html">回十協定比較與 Python 實作</a>
+        </nav>
+      </details>
     </aside>
     <main>
       <section class="hero" id="top">
         <div>
           <span class="eyebrow">Industrial Protocol Engineering Report</span>
           <h1>把四種工業協定放在同一張工程地圖</h1>
-          <p>這份網頁版報告的目的，不是拆成四篇獨立 API 教學，而是把 `Modbus`、`OPC UA`、`BACnet`、`MQTT` 放回同一個工業/樓控專案內，清楚說明各自的網路位置、責任邊界、部署風險、速度感知與 Python 的合理角色。</p>
+          <p>這篇比較的是 Modbus、BACnet、OPC UA、MQTT。以空調箱、變頻器和工業閘道（Gateway）為例，說明哪些資料從現場取得、哪些交給上層分發，以及每一段怎麼驗收。這四種是可搭配的整合介面，不是同一個控制網路的四個替代方案。</p>
           <div class="status-strip">
             <span>4 種協定同圖</span>
             <span>Modbus FC 實作</span>
-            <span>BACnet SC / BBMD / FD / routing</span>
-            <span>3 張比較表</span>
+            <span>BACnet/IP 與 BACnet/SC</span>
+            <span>延遲量測與故障驗收</span>
           </div>
         </div>
-        <div class="surface readable-diagram engineering-readable">
-          <div class="readable-flow" role="group" aria-label="四種工業協定工程地圖總覽"><div class="readable-step "><strong>Modbus</strong><small>Field Device / PLC / RTU<br>FC01–FC16 / register / coil</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-green"><strong>Python Gateway</strong><small>decode / normalize / quality<br>alarm / fail-safe / report</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-branches" role="group" aria-label="兩條整合支線"><div class="readable-flow branch-route" role="group" aria-label="OPC UA 到 SCADA"><div class="readable-step "><strong>OPC UA</strong><small>NodeId / namespace</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-red"><strong>SCADA</strong><small>Historian / MES</small></div></div><div class="readable-flow branch-route" role="group" aria-label="BACnet 到 MQTT"><div class="readable-step tone-amber"><strong>BACnet</strong><small>object / property / routing</small></div><span class="readable-arrow" aria-hidden="true">→</span><div class="readable-step tone-teal"><strong>MQTT</strong><small>Broker / Cloud</small></div></div></div></div>
-          <p class="readable-note"><strong>BACnet 補充：BBMD / Foreign Device / Routing / BACnet/SC</strong><br>樓控整合成敗常由網路拓樸與安全邊界決定，而不只看 object 名稱。</p>
-        </div>
+        <figure class="surface readable-diagram report-map" aria-labelledby="report-map-caption">
+          <figcaption id="report-map-caption">一個 HVAC／機房專案的範例拓樸</figcaption>
+          <div class="report-map-lanes">
+            <div class="report-map-column"><h3>南向｜從哪裡取得資料？</h3>
+              <div class="readable-step"><strong>Modbus TCP／RTU</strong><small>變頻器／電表 → 暫存器、線圈與資料換算</small></div>
+              <div class="readable-step tone-amber"><strong>BACnet</strong><small>DDC／空調箱 → 物件屬性、讀取或 COV</small></div>
+            </div><span class="report-map-arrow" aria-hidden="true">→</span>
+            <div class="report-map-column"><h3>閘道｜如何整理？</h3>
+              <div class="readable-step tone-teal"><strong>工業閘道（Gateway）</strong><small>來源、工程單位、原始時間、收件時間、品質與資料新鮮度</small></div>
+            </div><span class="report-map-arrow" aria-hidden="true">→</span>
+            <div class="report-map-column"><h3>北向｜誰會消費資料？</h3>
+              <div class="readable-step tone-green"><strong>OPC UA</strong><small>由 SCADA 訂閱有型別與品質的點位</small></div>
+              <div class="readable-step"><strong>MQTT</strong><small>經 Broker 將遙測分發給已授權的應用</small></div>
+            </div>
+          </div>
+          <p class="readable-note">箭頭是遙測方向，不是固定串接順序。PLC 若已提供 OPC UA Server，也可把 OPC UA 作為南向來源；只部署所需的出口。泵浦連鎖、變頻器內迴路和保護留在現場控制器，不依賴上層頁面或 Broker。</p>
+        </figure>
       </section>
 
       <section class="section" id="overview">
         <div class="section-head">
-          <h2>Overview</h2>
+          <h2>四種協定的角色</h2>
           <p>這四種協定在真實專案中通常是共存關係，而不是互斥關係。正確做法是先定義誰負責設備採集、誰負責語意建模、誰負責樓控整合、誰負責平台發布，再決定程式實作與通訊治理方式。</p>
         </div>
         <div class="grid-4">
-          <article class="card"><span class="tag">Modbus</span><h3>設備採集層</h3><p>最常落在設備採集邊界，重點是 `FC`、`register/coil`、`datatype`、`word order`。</p></article>
-          <article class="card"><span class="tag">OPC UA</span><h3>語意整合層</h3><p>重點是 `NodeId`、`namespace`、`subscription`，負責穩定的語意節點整合。</p></article>
-          <article class="card"><span class="tag">BACnet</span><h3>樓控網路層</h3><p>重點不只在 `object/property`，也在 `BBMD`、`foreign device`、`routing`、`BACnet SC`。</p></article>
-          <article class="card"><span class="tag">MQTT</span><h3>上行分發層</h3><p>重點在 `topic`、`payload schema`、`QoS` 與 broker 行為，常作為 uplink 與分發通道。</p></article>
+          <article class="card"><span class="tag">Modbus</span><h3>設備採集層</h3><p>最常落在設備採集邊界，重點是 <code>FC</code>、<code>register/coil</code>、<code>datatype</code>、<code>word order</code>。</p></article>
+          <article class="card"><span class="tag">OPC UA</span><h3>語意整合層</h3><p>重點是 <code>NodeId</code>、<code>namespace</code>、<code>subscription</code>，負責穩定的語意節點整合。</p></article>
+          <article class="card"><span class="tag">BACnet</span><h3>樓控網路層</h3><p>重點不只在 <code>object/property</code>，也在 <code>BBMD</code>、<code>foreign device</code>、<code>routing</code>、<code>BACnet SC</code>。</p></article>
+          <article class="card"><span class="tag">MQTT</span><h3>上行分發層</h3><p>重點在 <code>topic</code>、<code>payload schema</code>、<code>QoS</code> 與 broker 行為，常作為 uplink 與分發通道。</p></article>
         </div>
       </section>
 
       <section class="section" id="architecture">
         <div class="section-head">
-          <h2>Architecture</h2>
+          <h2>架構與責任邊界</h2>
           <p>比較四種協定時，先看它解決哪一層問題，再看 library、port 與 API。真正的差異在責任邊界，不在命名表面。</p>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" role="region" tabindex="0" aria-label="工程比較表 1，窄螢幕可左右捲動">
           <table>
             <thead>
               <tr><th>協定</th><th>主要工程位置</th><th>主要責任</th></tr>
@@ -372,13 +416,13 @@
 
       <section class="section" id="engineering-map">
         <div class="section-head">
-          <h2>Engineering Map</h2>
+          <h2>同一專案如何分工</h2>
           <p>同一個專案裡，資料採集、樓控整合、語意整合與平台發布經常同時存在。Python 最有價值的位置通常是邊界層：adapter、normalizer、poller、publisher，而不是盲目替代所有控制器。</p>
         </div>
         <div class="grid-2">
           <div class="panel">
             <h3>同一專案中的責任切分</h3>
-            <div class="table-wrap" style="margin-top:0.8rem;">
+            <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 2，窄螢幕可左右捲動">
               <table>
                 <thead>
                   <tr><th>工程層</th><th>典型系統</th><th>主要協定</th><th>Python 最適合角色</th></tr>
@@ -413,7 +457,7 @@
 
       <section class="section" id="workflow">
         <div class="section-head">
-          <h2>Workflow</h2>
+          <h2>從設備到監控的資料流程</h2>
           <p>現場資料流不應從 library 呼叫開始思考，而應從設備所在網段、資料來源協定、資料表示方式與安全邊界開始判斷。</p>
         </div>
         <figure class="surface readable-diagram workflow-readable">
@@ -430,7 +474,8 @@
             </div></li>
             <li><div class="readable-step tone-teal"><strong>03 正規化</strong><small>解碼、比例換算、統一資料表示</small></div></li>
             <li><div class="readable-step"><strong>04 品質補齊</strong><small>時間戳、品質、來源、工程單位</small></div></li>
-            <li><div class="readable-step workflow-alert"><strong>05 告警與處置</strong><small>檢查陳舊與逾時，依設計採取安全失效處置</small></div></li>
+            <li><div class="readable-step tone-green"><strong>05 選擇對外介面</strong><small>以 OPC UA 提供監控點位，或經 MQTT Broker 發布遙測；按需求擇一或兩者並用</small></div></li>
+            <li><div class="readable-step workflow-alert"><strong>06 驗證故障行為</strong><small>斷線時標示資料陳舊或無效，不把最後值當成新值；恢復後確認收到有效新樣本</small></div></li>
           </ol>
           <p class="readable-note">三個採集分支可在同一專案並存，不是依序轉換；每條分支各自解讀協定，輸出都匯入同一套正規化與品質檢查。本圖描述資料採集，不代表控制寫入許可。</p>
         </figure>
@@ -438,13 +483,13 @@
 
       <section class="section" id="modbus-fc">
         <div class="section-head">
-          <h2>Modbus FC Implementation</h2>
-          <p>`Modbus` 在設備採集層最容易「通訊成功但資料錯」。真正決定正確性的不是 socket 是否連通，而是 `FC`、資料區、位址、資料型別與字序是否全部定義清楚。</p>
+          <h2>Modbus：功能碼、位址與解碼</h2>
+          <p><code>Modbus</code> 在設備採集層最容易「通訊成功但資料錯」。真正決定正確性的不是 socket 是否連通，而是 <code>FC</code>、資料區、位址、資料型別與字序是否全部定義清楚。</p>
         </div>
         <div class="grid-2">
           <div class="panel">
             <h3>FC 類型總表</h3>
-            <div class="table-wrap" style="margin-top:0.8rem;">
+            <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 3，窄螢幕可左右捲動">
               <table>
                 <thead>
                   <tr><th>類型</th><th>FC</th><th>名稱</th><th>常見資料區</th><th>讀/寫</th><th>資料單位</th></tr>
@@ -481,7 +526,7 @@
         <div class="grid-2" style="margin-top:1rem;">
           <div class="panel">
             <h3>FC03、FC04、FC06、FC16 的實務差異</h3>
-            <div class="table-wrap" style="margin-top:0.8rem;">
+            <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 4，窄螢幕可左右捲動">
               <table>
                 <thead>
                   <tr><th>項目</th><th>實務重點</th></tr>
@@ -490,7 +535,7 @@
                   <tr><td><code>FC03</code></td><td>最常用來讀 <code>holding register</code>，常見於可配置或可映射的工程值讀取。</td></tr>
                   <tr><td><code>FC04</code></td><td>讀 <code>input register</code>，不應假設與 <code>FC03</code> 可互換，必須依設備文件定義。</td></tr>
                   <tr><td><code>FC06</code></td><td>單一 register 寫入，適合單點設定，但不適合需要成組一致性的多寄存器更新。</td></tr>
-                  <tr><td><code>FC16</code></td><td>多寄存器成組寫入，較適合需要整體一致性的參數更新與 32-bit / 多欄位寫入。</td></tr>
+                  <tr><td><code>FC16</code></td><td>一筆請求寫多個連續暫存器，可避免 Client 分開送出。協定不保證設備內部同掃描原子套用；查設備手冊並驗證寫入結果。</td></tr>
                 </tbody>
               </table>
             </div>
@@ -511,26 +556,26 @@
 
       <section class="section" id="opcua-role">
         <div class="section-head">
-          <h2>OPC UA Role</h2>
+          <h2>OPC UA：點位語意與訂閱</h2>
           <p><code>OPC UA</code> 回答的不是「某個 bit 在哪裡」，而是「這筆資料在系統內是什麼節點、什麼語意、如何穩定被訂閱」。它更靠近語意資料層，而不是設備寄存器層。</p>
         </div>
         <div class="grid-4">
           <article class="card"><span class="tag">定位</span><h3>語意一致整合</h3><p>適合 SCADA、historian、MES 與跨 vendor 語意整合。</p></article>
-          <article class="card"><span class="tag">欄位</span><h3>NodeId 必須可追蹤</h3><p>必須記錄 endpoint、namespace、NodeId，而不是只記 display name。</p></article>
-          <article class="card"><span class="tag">行為</span><h3>Subscription 優先</h3><p>常用 subscription + publish，不應只用高頻 polling 硬模擬更新。</p></article>
+          <article class="card"><span class="tag">欄位</span><h3>NodeId 必須可追蹤</h3><p>記錄端點、Namespace URI、識別碼型別和值。連線後向伺服器解析當次 namespace index，不把 ns=2 或 DisplayName 當長期點位識別。</p></article>
+          <article class="card"><span class="tag">行為</span><h3>Subscription 優先</h3><p>採樣與發布是不同週期；沒新通知時可收到 keep-alive，它不代表 PLC 產生了新樣本。依 StatusCode、來源時間與重連行為驗收。</p></article>
           <article class="card"><span class="tag">Python</span><h3>Client / Bridge</h3><p>常扮演 client、bridge、integration agent、payload normalizer。</p></article>
         </div>
       </section>
 
       <section class="section" id="bacnet-role">
         <div class="section-head">
-          <h2>BACnet Network and SC Role</h2>
+          <h2>BACnet：樓控模型、跨網段與 SC</h2>
           <p><code>BACnet</code> 在工業/樓控專案中的難點，往往不只在 <code>object/property</code>，而是在跨子網路、broadcast、router、BBMD、foreign device 與 BACnet SC 的整體拓樸。</p>
         </div>
         <div class="grid-2">
           <div class="panel">
             <h3>資料模型與網路部署</h3>
-            <div class="table-wrap" style="margin-top:0.8rem;">
+            <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 5，窄螢幕可左右捲動">
               <table>
                 <thead>
                   <tr><th>項目</th><th>工程重點</th></tr>
@@ -539,20 +584,18 @@
                   <tr><td><code>object type / instance / property</code></td><td>只記點位名稱不足以支撐可維護整合。</td></tr>
                   <tr><td>local subnet discovery</td><td>同網段能看到設備，不代表跨網段也會成功。</td></tr>
                   <tr><td><code>BBMD</code></td><td>用來在跨 subnet 的 BACnet/IP 網路中處理 broadcast distribution。</td></tr>
-                  <tr><td><code>foreign device</code></td><td>非本地 subnet 的 client/gateway 需要透過 FD registration 參與 BACnet/IP 網路。</td></tr>
+                  <tr><td><code>foreign device</code></td><td>跨 IP 子網需要參與 BACnet/IP 廣播時，可向允許註冊的 BBMD 註冊為 Foreign Device（FD）。已知目標且單播可達的讀取不必然需要 FD。跨 BACnet 網路號另由 BACnet Router 路由。</td></tr>
                   <tr><td><code>routing</code></td><td>跨 network number / router 邊界時，必須把 BACnet routing 視為部署一級議題。</td></tr>
-                  <tr><td><code>BACnet SC</code></td><td>屬於安全通道架構的一部分，適合遠端安全整合與受控接入。</td></tr>
+                  <tr><td><code>BACnet SC</code></td><td>BACnet/SC 使用 TLS WebSocket 與憑證，節點通常透過 Hub 交換資料；和傳統 BACnet/IP 互通由路由器處理，舊分段不會因此加密。</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
           <div class="panel">
             <h3>BACnet SC 與 Python 角色</h3>
-            <pre style="margin-top:0.8rem;"><code>BACnet/IP
-  +
-BACnet SC Gateway
-  +
-受控安全通道 / Hub</code></pre>
+            <pre style="margin-top:0.8rem;"><code>傳統 BACnet/IP 分段
+  ↔ 相容的 BACnet Router
+  ↔ BACnet/SC 分段（TLS WebSocket／Hub）</code></pre>
             <div class="note ok" style="margin-top:1rem;">Python 在這一層最適合扮演 gateway、integration adapter、report/export bridge，不應假設自己直接取代全部 DDC / BMS 控制核心。</div>
           </div>
         </div>
@@ -560,12 +603,12 @@ BACnet SC Gateway
 
       <section class="section" id="mqtt-role">
         <div class="section-head">
-          <h2>MQTT Role</h2>
+          <h2>MQTT：上行分發與資料時效</h2>
           <p><code>MQTT</code> 最常作為 uplink 與訊息分發層，不負責原始設備位址模型，也不天然提供 PLC/DDC/BMS 的本體語意。它承載的通常是已正規化後的消息。</p>
         </div>
         <div class="grid-4">
           <article class="card"><span class="tag">識別</span><h3>topic + payload</h3><p>核心不是寄存器或 object，而是 topic 命名與 payload 契約。</p></article>
-          <article class="card"><span class="tag">行為</span><h3>Publish / Subscribe</h3><p>天然適合 broker-based 分發，但 QoS、retain、buffer 都要治理。</p></article>
+          <article class="card"><span class="tag">行為</span><h3>Publish / Subscribe</h3><p>QoS 1 可能重複；QoS 2 也不等於跨橋接或資料庫全鏈路只寫一次。Retain 回傳最後保留訊息，不保證它是新資料；用時間與品質判斷。</p></article>
           <article class="card"><span class="tag">Python</span><h3>Publisher / Buffer</h3><p>常扮演 publisher、subscriber、buffer manager。</p></article>
           <article class="card"><span class="tag">誤判</span><h3>快不代表源頭快</h3><p>Broker 很靈活，不代表原始設備採集速度也同樣高。</p></article>
         </div>
@@ -573,12 +616,12 @@ BACnet SC Gateway
 
       <section class="section" id="comparison">
         <div class="section-head">
-          <h2>Communication Comparison</h2>
+          <h2>工程架構與通訊格式比較</h2>
           <p>比較協定時，先用工程架構表做選型，再用通訊格式表做實作契約，最後再看速度與即時性特徵，避免把不同層級的問題混為一談。</p>
         </div>
         <div class="panel">
           <h3>工程架構比較表</h3>
-          <div class="table-wrap" style="margin-top:0.8rem;">
+          <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 6，窄螢幕可左右捲動">
             <table>
               <thead>
                 <tr><th>協定</th><th>典型網路位置</th><th>主要對接系統</th><th>資料模型</th><th>互動方式</th><th>部署關鍵</th><th>最常見誤判</th><th>Python 最常扮演角色</th></tr>
@@ -594,7 +637,7 @@ BACnet SC Gateway
         </div>
         <div class="panel" style="margin-top:1rem;">
           <h3>通訊格式與實作比較表</h3>
-          <div class="table-wrap" style="margin-top:0.8rem;">
+          <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 7，窄螢幕可左右捲動">
             <table>
               <thead>
                 <tr><th>協定</th><th>識別方式</th><th>核心互動單位</th><th>典型操作</th><th>實作時必記欄位</th><th>推送/輪詢特性</th><th>常見錯誤</th></tr>
@@ -612,34 +655,37 @@ BACnet SC Gateway
 
       <section class="section" id="speed">
         <div class="section-head">
-          <h2>Protocol Speed Comparison</h2>
+          <h2>延遲比較與量測方法</h2>
           <p>這裡比較的是工程感知速度與即時性特徵，不是脫離場景的實驗室跑分。速度評估必須綁定點數規模、輪詢週期、server/broker/device 負載與網路拓樸。</p>
         </div>
         <div class="panel">
           <h3>通訊速度與即時性比較表</h3>
-          <div class="table-wrap" style="margin-top:0.8rem;">
+          <p><strong>示例（不是實測）：</strong>每 200 ms 採集一次，設備及交易回應 30 ms，閘道處理 20 ms，送達監控端 50 ms。假設變化剛錯過採集且各階段不重疊，簡化預算為 200 + 30 + 20 + 50 = 300 ms。這未包含重試、逾時、排隊或 SCADA 畫面刷新。量測時用同步時鐘或同一採集端，記錄來源更新、閘道收件及上層收到的時間，分別比較正常、尖峰及中斷恢復時的 P95、P99 和最大值。</p>
+          <p><strong>多套系統讀同一 PLC：</strong>盤點每台 Client 的更新頻率、點數及並行數；測 PLC 掃描、通訊負載和逾時。若 PLC 通訊容量吃緊，可由一條受控採集路徑提供快取與分發，但必須標示新鮮度，並另外測閘道故障與復原。</p>
+
+          <div class="table-wrap" style="margin-top:0.8rem;" role="region" tabindex="0" aria-label="工程比較表 8，窄螢幕可左右捲動">
             <table>
               <thead>
                 <tr><th>協定</th><th>典型更新模式</th><th>工程感知速度</th><th>延遲主要來源</th><th>高頻更新適配性</th><th>吞吐擴展特性</th><th>速度比較注意事項</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>Modbus</code></td><td>polling</td><td>低到中，取決於 polling interval、device response、segment loading</td><td>輪詢週期、serial/TCP timeout、逐站掃描</td><td>有限，點數增多時惡化明顯</td><td>受單站回應與輪詢模型限制</td><td>不能只看單點速度，要看整段輪詢週期</td></tr>
-                <tr><td><code>OPC UA</code></td><td>subscription + publish</td><td>中到高，適合事件化與連續更新</td><td>sampling interval、publish interval、queue、server load</td><td>通常優於純 polling</td><td>取決於 server、subscription 設計與 session 管理</td><td>不是所有 OPC UA server 都能高頻穩定運行</td></tr>
-                <tr><td><code>BACnet</code></td><td>request/response 為主，部分場景可 COV</td><td>低到中，依 object access、network topology、router/BBMD 狀態而變</td><td>broadcast/discovery、routing、device processing、network design</td><td>樓控監控可用，但不應假設等同高速 stream bus</td><td>受樓控拓樸與設備能力影響較大</td><td>若含跨 subnet、<code>BBMD</code>、<code>FD</code>、<code>SC</code>，速度評估必須放回拓樸中看</td></tr>
-                <tr><td><code>MQTT</code></td><td>publish/subscribe</td><td>中到高，適合 uplink 分發與事件傳播</td><td>broker load、QoS、network path、payload size</td><td>通常適合，但取決於 broker 與 schema 設計</td><td>通常優於輪詢式協定</td><td><code>MQTT</code> 快不代表資料源快，它常只是上行承載層</td></tr>
+                <tr><td><code>Modbus</code></td><td>polling</td><td>依輪詢週期、設備回應及總負載量測</td><td>輪詢週期、serial/TCP timeout、逐站掃描</td><td>有限，點數增多時惡化明顯</td><td>受單站回應與輪詢模型限制</td><td>不能只看單點速度，要看整段輪詢週期</td></tr>
+                <tr><td><code>OPC UA</code></td><td>subscription + publish</td><td>依伺服器實際接受的採樣與發布間隔量測</td><td>sampling interval、publish interval、queue、server load</td><td>適合變動通知；不可由模式推論延遲優於輪詢</td><td>取決於 server、subscription 設計與 session 管理</td><td>不是所有 OPC UA server 都能高頻穩定運行</td></tr>
+                <tr><td><code>BACnet</code></td><td>request/response 為主，部分場景可 COV</td><td>批次讀取與 COV 分開量測，並核對網段與裝置負載</td><td>broadcast/discovery、routing、device processing、network design</td><td>樓控監控可用，但不應假設等同高速 stream bus</td><td>受樓控拓樸與設備能力影響較大</td><td>若含跨 subnet、<code>BBMD</code>、<code>FD</code>、<code>SC</code>，速度評估必須放回拓樸中看</td></tr>
+                <tr><td><code>MQTT</code></td><td>publish/subscribe</td><td>從來源時間戳到消費端量測，另外記錄 Broker 傳遞時間</td><td>broker load、QoS、network path、payload size</td><td>通常適合，但取決於 broker 與 schema 設計</td><td>通常優於輪詢式協定</td><td><code>MQTT</code> 快不代表資料源快，它常只是上行承載層</td></tr>
               </tbody>
             </table>
           </div>
-          <div class="note warning" style="margin-top:1rem;">不做實驗室基準跑分，不宣稱四協定有單一絕對快慢排名。少量點位下 `Modbus` 可很直接，但大規模輪詢會快速累積延遲；`BACnet` 速度也不能脫離 `routing / BBMD / FD / BACnet SC` 拓樸來看。</div>
+          <div class="note warning" style="margin-top:1rem;">不做實驗室基準跑分，不宣稱四協定有單一絕對快慢排名。少量點位下 <code>Modbus</code> 可很直接，但大規模輪詢會快速累積延遲；<code>BACnet</code> 速度也不能脫離 <code>routing / BBMD / FD / BACnet SC</code> 拓樸來看。</div>
         </div>
       </section>
 
       <section class="section" id="troubleshooting">
         <div class="section-head">
-          <h2>Troubleshooting</h2>
+          <h2>常見症狀與排查</h2>
           <p>很多整合失敗不是 library 問題，而是拿錯協定心智模型，或忽略資料表示與網路邊界。</p>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" role="region" tabindex="0" aria-label="工程比較表 9，窄螢幕可左右捲動">
           <table>
             <thead>
               <tr><th>問題</th><th>先查什麼</th><th>不要先做什麼</th></tr>
@@ -658,7 +704,7 @@ BACnet SC Gateway
 
       <section class="section" id="best-practices">
         <div class="section-head">
-          <h2>Best Practices</h2>
+          <h2>交付前驗收清單</h2>
           <p>先定義工程角色，再定義協定；先定義契約與治理，再寫程式；先區分控制與觀測，再談效能與速度。</p>
         </div>
         <div class="grid-2">
@@ -666,8 +712,8 @@ BACnet SC Gateway
             <h3>交付前最低要求</h3>
             <ul style="margin-top:0.8rem;">
               <li>沒有 <code>FC + register type + address + datatype + word order</code>，不要宣稱 Modbus 點位已交付。</li>
-              <li>沒有 <code>NodeId</code>，不要宣稱 OPC UA 契約可維護。</li>
-              <li>沒有 <code>object type / object instance / property + BBMD / FD / routing / SC</code>，不要宣稱 BACnet 整合已可跨網段部署。</li>
+              <li>OPC UA 點表應包含 Namespace URI、識別碼型別和值、資料型別、工程單位與資料品質；驗證重連後能重新找到點位。</li>
+              <li>BACnet 點表記錄 Device Instance、Object Type／Instance、Property；拓樸文件記錄實際使用的廣播分配、FD、路由或 SC，不要求每種機制同時出現。</li>
               <li>沒有 <code>topic + payload schema + quality + timestamp</code>，不要宣稱 MQTT 整合已可維運。</li>
             </ul>
           </div>
@@ -675,7 +721,7 @@ BACnet SC Gateway
             <h3>工程原則</h3>
             <ul style="margin-top:0.8rem;">
               <li>command path 與 telemetry path 必須分離。</li>
-              <li>`速度` 不能脫離 `alarm`、`fail-safe`、資料品質與安全策略單獨討論。</li>
+              <li><code>速度</code> 不能脫離 <code>alarm</code>、<code>fail-safe</code>、資料品質與安全策略單獨討論。</li>
               <li>比較協定時，先看責任邊界與拓樸，再看 library。</li>
               <li>Python 最有價值的位置通常是 adapter、normalizer、poller、publisher。</li>
             </ul>
@@ -685,7 +731,7 @@ BACnet SC Gateway
 
       <section class="section" id="risk-notes">
         <div class="section-head">
-          <h2>Risk Notes</h2>
+          <h2>選型與部署風險</h2>
           <p>錯把協定當成單純不同 port，會直接導致錯誤選型、錯誤測試方法與錯誤交付結論。</p>
         </div>
         <div class="grid-4">
@@ -698,7 +744,7 @@ BACnet SC Gateway
 
       <section class="section" id="summary">
         <div class="section-head">
-          <h2>Summary</h2>
+          <h2>結論與參考規格</h2>
           <p>四種工業協定放在同一張工程地圖時，重要的不是背名詞，而是看清它們各自解的是哪一層問題，以及資料、控制、安全與維運應如何被分層治理。</p>
         </div>
         <div class="panel">
@@ -711,8 +757,36 @@ BACnet SC Gateway
           </ol>
         </div>
       </section>
+      <section class="section" id="references" aria-labelledby="refs-title">
+        <div class="section-head"><h2 id="refs-title">官方規格與可重現的實作</h2></div>
+        <div class="panel"><ul>
+          <li><a href="https://www.modbus.org/modbus-specifications">Modbus Organization：應用協定及 Modbus Security</a></li>
+          <li><a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.2">OPC Foundation：採樣間隔</a>、<a href="https://reference.opcfoundation.org/specs/OPC-10000-4/5.14">訂閱服務</a></li>
+          <li><a href="https://bacnetinternational.org/bacnetsc/">BACnet International：BACnet/SC</a></li>
+          <li><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS：MQTT 5.0 規格</a></li>
+        </ul>
+        <p>想從同一筆 22.0 °C 範例檢查資料值和品質，可到 <a href="../../python_industrial_protocol_comparison_tutorial.html#example-industrial-protocol-lab">Python 離線實作與下載</a>。若要比較 OPC UA、PROFINET IO、EtherCAT、Modbus TCP 的設備控制選型，另看 <a href="../../python_industrial_protocol_comparison_tutorial.html#industrial-four">四協定選型矩陣</a>，兩篇比較的協定組合不同。</p></div>
+      </section>
       <div class="footer-space"></div>
     </main>
   </div>
+<script>
+(() => {
+ const menu = document.getElementById("report-menu");
+ const compact = matchMedia("(max-width: 980px)");
+ const sync = () => { menu.open = !compact.matches; };
+ sync();
+ compact.addEventListener("change", sync);
+ menu.addEventListener("click", event => {
+   const link = event.target.closest("a[href^='#']");
+   if (!link || !compact.matches || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+   const target = document.getElementById(link.hash.slice(1));
+   if (!target) return;
+   menu.open = false;
+   target.tabIndex = -1;
+   target.focus({preventScroll:true});
+ });
+})();
+</script>
 </body>
 </html>
