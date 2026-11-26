@@ -1,9 +1,14 @@
 <!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OPC UA 深度研究｜Python 工業通訊教材</title>
 <style>
 :root{font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;color:#142d43;background:#eef5f7}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{color:#edf9fd;background:#102c3e;padding:clamp(1rem,4vw,3rem)}header a{color:#9de9ee}header div,main,footer{max-width:72rem;margin:auto}main,footer{padding:clamp(.75rem,3vw,2rem)}h1{font-size:clamp(2rem,6vw,4rem);line-height:1.1;margin:.5rem 0 1rem}a{color:#005d6f;text-underline-offset:.2em}nav{display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1rem}nav a,.download{border:1px solid #aacbd2;background:#e3f5f5;border-radius:.5rem;padding:.3rem .6rem;display:inline-block}section{background:#fff;border:1px solid #bbd0d9;border-radius:.8rem;margin:0 0 1rem;padding:clamp(.75rem,2.5vw,1.7rem)}h2{margin:.15rem 0 .5rem}h3{margin-bottom:.3rem}.kicker,figcaption{color:#005d6f;font-weight:800}header .kicker{color:#9de9ee}.flow{list-style:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.2rem;padding:0;counter-reset:step}.flow li{counter-increment:step;position:relative;padding:.65rem;border:1px solid #8bb6c0;border-radius:.5rem;background:white;overflow-wrap:anywhere}.flow li strong::before{content:counter(step) " · ";color:#005d6f}.flow li:not(:last-child)::after{content:"→";position:absolute;left:calc(100% + .16rem);top:38%;color:#005d6f;font-weight:800}figure{margin:1rem 0;padding:.8rem;border:1px solid #bed2dc;border-radius:.6rem;background:#f2f8fa}.scroll{max-width:100%;overflow:auto;border:1px solid #bed2dc;border-radius:.5rem}table{min-width:37rem;width:100%;border-collapse:collapse;text-align:left}th,td{padding:.6rem;vertical-align:top;border-bottom:1px solid #cbdce3}thead th{background:#e3f5f5}tbody tr:nth-child(even){background:#f2f8fa}pre{overflow:auto;padding:.8rem;color:#e9f9fe;background:#132b3d;border-radius:.6rem}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}details{border:1px solid #bbd0d9;padding:.65rem;border-radius:.55rem}summary{cursor:pointer;font-weight:700}:focus-visible{outline:2px solid #007d94;outline-offset:3px}.callout{background:#fff3dc;border-left:.3rem solid #ab6e13;padding:.6rem .8rem}@media(max-width:760px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:"↓";top:100%;left:50%}}
+#tag-naming .tag-tree{margin:.65rem 0;padding:.7rem .65rem .7rem 1.65rem;border:1px solid #bed2dc;border-radius:.6rem;background:#f2f8fa}
+#tag-naming .tag-tree ul{padding-inline-start:clamp(.65rem,2vw,1.4rem);margin:.18rem 0;border-inline-start:1px solid #8bb6c0;list-style:none}
+#tag-naming .tag-tree li{margin:.27rem 0;overflow-wrap:anywhere}
+#tag-naming .tag-tree span{color:#375573;font-size:.9rem}
+#tag-naming :is(th,td,p,li){overflow-wrap:anywhere}
 </style>
 <body id="top"><header><div><p class="kicker">PYTHON 工業通訊教材 / 深度研究</p><h1>OPC UA：從點位語意到可驗收的可靠性</h1><p>以機房冰水系統為例，從 PLC/DDC 到監控、趨勢與告警：知道資料代表什麼、何時可能漏掉，以及怎麼恢復。</p><p><a href="index.html">回教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html#opcua">回工業協定比較</a></p></div></header>
-<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#model">資訊模型</a><a href="#security">安全</a><a href="#subscription">訂閱</a><a href="#loss">三層漏失</a><a href="#reconnect">重連</a><a href="#lab">實驗</a><a href="#acceptance">驗收</a></nav>
+<main><nav aria-label="章節"><a href="#architecture">架構</a><a href="#model">資訊模型</a><a href="#tag-naming">Tag／資料夾命名</a><a href="#security">安全</a><a href="#subscription">訂閱</a><a href="#loss">三層漏失</a><a href="#reconnect">重連</a><a href="#lab">實驗</a><a href="#acceptance">驗收</a></nav>
 <section id="architecture"><div class="kicker">01 / ARCHITECTURE</div><h2>控制留在現場；上位機負責觀測</h2>
 <figure><figcaption>圖一｜機房冰水資料通路：Python 不在控制迴路</figcaption><ol class="flow">
 <li><strong>現場點位</strong><br>出回水溫、流量、泵浦運轉回授。</li><li><strong>PLC / DDC</strong><br>保留 PID、連鎖與故障安全；上位機失聯仍按原設計運轉。</li><li><strong>OPC UA Server</strong><br>由 PLC 內建或閘道提供；定義型別、品質與時間。</li><li><strong>Python Client</strong><br>唯讀訂閱、核對應用與使用者身分、拆開接收與儲存。</li><li><strong>歷史與告警</strong><br>依品質與新鮮度判斷；標記缺測，不用前一個好值冒充新資料。</li></ol></figure>
@@ -18,6 +23,35 @@
 <p>位址空間由 Object、Variable、Method 等節點和具類型的 Reference 組成。BrowseName 是瀏覽用名稱，DisplayName 可本地化，皆不能當持久主鍵。記錄「伺服器身分＋命名空間 URI＋識別字類型和值」；每次新 Session 讀取 NamespaceArray 解析數字索引，不硬編碼 ns=2。教材用 URI <code>urn:python-note:hvac:lab</code> 與字串識別字 <code>Plant01.CHW01.LeavingTemperature</code>。</p>
 <p>DataValue 包含 Value、StatusCode、可選 SourceTimestamp 與 ServerTimestamp；另記客戶端接收時間。Bad 不當正常值，Uncertain 另標註；來源時間戳不是每次發布都更新，伺服器時間不是來源採集時間。跨設備量測延遲前先同步時鐘。</p>
 <p><a href="https://reference.opcfoundation.org/specs/OPC-10000-3/8.2">Part 3 NodeId</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/7.11">Part 4 DataValue</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-8/full">Part 8 Data Access</a></p></section>
+
+<section id="tag-naming"><div class="kicker">02A / TAG &amp; FOLDER NAMING</div><h2>OPC UA Tag、資料夾命名與點位定義</h2>
+<p><time datetime="2026-11-26">2026-11-26（台灣）</time>。OPC UA 裡的「Tag」通常對應一個 <strong>Variable 節點</strong>；廠牌的 Tag 清單或資料夾名稱不一定會原封不動出現在 UA。先把人要瀏覽的名稱、程式要識別的 ID，以及工程點位定義分開。</p>
+<h3>四種名稱各做一件事</h3>
+<div class="scroll" role="region" tabindex="0" aria-label="OPC UA 節點名稱與識別"><table><thead><tr><th scope="col">欄位</th><th scope="col">AHU 範例</th><th scope="col">怎麼定義</th></tr></thead><tbody>
+<tr><th scope="row">BrowseName</th><td><code>SupplyAirTemperature</code></td><td>非在地化工程名稱，實際是「命名空間＋字串」的 QualifiedName。不同設備可以有同名點位；同一父層的自訂子節點建議避免難以辨識的同名項目。</td></tr>
+<tr><th scope="row">DisplayName</th><td>送風溫度</td><td>供 HMI／UAExpert 顯示，可用繁中、多語系，也可在不改節點識別碼的情況下調整。</td></tr>
+<tr><th scope="row">NodeId</th><td><code>ns=2;s=AHU-0001.M001</code></td><td>是節點識別，不是資料夾路徑。此例是字串 ID；也可能是數字、GUID 或不透明位元組。<code>2</code> 只代表當前伺服器的 NamespaceArray 索引，不能假設另一台也一樣。</td></tr>
+<tr><th scope="row">北向 Point ID</th><td><code>ahu-0001.supply_air_temperature</code></td><td>Gateway／歷史庫自己的識別鍵，不是 OPC UA 必備屬性。和來源伺服器、Namespace URI、識別型別及識別值一起存點表。</td></tr>
+</tbody></table></div>
+<p><strong>站內命名慣例：</strong>自訂 BrowseName 用 PascalCase，例如 <code>ReturnWaterTemperature</code>；設備 BrowseName 用 <code>AHU01</code>、<code>CHWP01</code>，顯示名再寫「1 號空調箱」「1 號冰水泵」。採 <code>位置或介質 + 量測量</code>，例如 <code>SupplyAirTemperature</code>；分清 <code>RunningFeedback</code>、<code>FaultActive</code>、<code>SpeedSetpoint</code>。不要用 <code>AI_01</code>、<code>Temp1</code> 或把 °C 寫進名稱；把原始地址填到來源欄，單位另填。這是工程慣例，不是 UA 語法強制規定；採標準設備模型時，以其指定 BrowseName 與型別為準。</p>
+<h3>資料夾方便找點，設備物件表達組成</h3>
+<ul class="tag-tree" aria-label="機房 OPC UA 瀏覽樹">
+<li><strong>Objects</strong><ul><li><strong>TW01</strong> <span>FolderType｜站點</span><ul><li><strong>HVAC</strong> <span>FolderType｜系統分類</span><ul>
+<li><strong>AHU01</strong> <span>Object｜設備，不必當成 FolderType</span><ul><li><code>SupplyAirTemperature</code> <span>Variable｜送風溫度</span></li><li><code>SupplyFanRunningFeedback</code> <span>Variable｜送風機運轉回授</span></li></ul></li>
+<li><strong>ChilledWaterPlant</strong> <span>Object｜冰水系統</span><ul><li><code>SupplyWaterTemperature</code> <span>Variable｜冰水供水溫度</span></li><li><code>CHWP01</code> <span>Object｜冰水泵</span><ul><li><code>RunningFeedback</code> <span>Variable｜運轉回授</span></li><li><code>SpeedSetpoint</code> <span>Variable｜轉速設定，示範唯讀</span></li></ul></li></ul></li>
+</ul></li></ul></li></ul></li></ul>
+<p><code>FolderType</code> 本身是 ObjectType，資料夾實例仍是 Object；用 <code>Organizes</code> 把項目放入瀏覽分類。設備 Object 以 <code>HasComponent</code> 表達點位或部件，<code>HasProperty</code> 則描述節點特性（例如工程單位）。同一節點可在不同分類下被引用，沒有必要複製一份 Variable。瀏覽路徑改名可能讓使用該路徑的客戶端失效；若只移動分類，保留 NodeId，另回歸測試依路徑取點的客戶端。</p>
+<h3>點表至少要定義的欄位</h3>
+<div class="scroll" role="region" tabindex="0" aria-label="AHU 與冰水機房 OPC UA 點位範例"><table><thead><tr><th scope="col">點位</th><th scope="col">型別與單位</th><th scope="col">值的定義</th><th scope="col">權限與時間</th></tr></thead><tbody>
+<tr><th scope="row">AHU01 送風溫度</th><td>Double、°C、AnalogUnitRangeType</td><td>校正後工程值。EURange 0～60 °C 為教學正常工程範圍，不是告警或寫入驗證。</td><td>唯讀；設備有可信時間才填 SourceTimestamp。</td></tr>
+<tr><th scope="row">冰水供水溫度</th><td>Double、°C、AnalogUnitRangeType</td><td>供水總管指定測點；採自哪台控制器、何處溫度須在 Description／點表說明。</td><td>唯讀；保留 StatusCode 及時間戳，不把失敗填為 0。</td></tr>
+<tr><th scope="row">冰水泵運轉回授</th><td>Boolean，無工程單位</td><td><code>true</code>＝現場運轉回授成立，不等同啟動命令已送出。</td><td>唯讀；驗證正常切換、失聯、品質不良。</td></tr>
+<tr><th scope="row">冰水泵轉速設定</th><td>Double、%</td><td>假設 0～100% 為工程範圍；不是安全連鎖或設備允許範圍。本教材只讀取設定狀態。</td><td>Gateway 唯讀。若另有核准的寫入用途，另按使用者角色、設備限制與現場控制規則驗收。</td></tr>
+</tbody></table></div>
+<p>類比點的 <code>EngineeringUnits</code> 是 <code>EUInformation</code>，不是把「°C」塞進 Value；<code>AnalogUnitRangeType</code> 要同時定義 <code>EngineeringUnits</code> 與 <code>EURange</code>。<code>AccessLevel</code> 描述節點的存取能力，<code>UserAccessLevel</code> 反映目前使用者；驗收時還是用實際唯讀身分確認。另列採樣期、死區、點位更新方式與來源：死區影響通知，不是量測精度；時間戳欄位不能取代連線健康。</p>
+<h3>換伺服器或重整目錄時怎麼驗證</h3>
+<ol><li>保存「目標伺服器＋Namespace URI＋識別型別＋識別值」，如 URI <code>urn:example:tw01:hvac</code>、類型 <code>String</code>、值 <code>AHU-0001.M001</code>。設定裡不要把 <code>ns=2</code> 當永久鍵。</li><li>連線後讀 NamespaceArray 找目前索引，再組出節點 ID。若同一 URI 由索引 2 變成 4，仍找同一識別值，寫成當前表示 <code>ns=4;s=AHU-0001.M001</code>。URI 找不到就報錯，不試讀同號 Namespace。</li><li>在 UAExpert 或廠牌工具先核對 NodeClass、型別、EURange、EngineeringUnits 和讀取權限，再做訂閱、斷線及重啟測試。檢查「名稱變了、位置變了、設備更換」是否要維持相同點義；點義改變時，不要把舊 NodeId 指到新的物理量。</li></ol>
+<p><a href="python_opcua_tag_dictionary_example.csv" download>下載 AHU／冰水點位命名表 CSV</a>（UTF-8，可用 Excel 開啟；不是特定廠牌的匯入檔）。規格：<a href="https://reference.opcfoundation.org/specs/OPC-10000-3/5.2">Address Space：基本節點屬性</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-3/5">FolderType 與節點類別</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-8/5.3.2.5">AnalogUnitRangeType</a> · <a href="https://reference.opcfoundation.org/specs/OPC-11030/full">UA 建模實務</a>。</p></section>
 
 <section id="security"><div class="kicker">03 / SECURITY</div><h2>端點、應用憑證、使用者、授權分開驗證</h2><ol>
 <li><strong>端點。</strong>核對 URL、TransportProfile、SecurityPolicy、MessageSecurityMode、UserTokenPolicy。正式環境使用雙端核可的 SignAndEncrypt；不因連線錯誤默默退為 None。Sign 提供訊息完整性，不等於加密；實際可用政策需對照設備及組織基準。</li>
