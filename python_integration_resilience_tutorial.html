@@ -289,7 +289,7 @@ if attempt_budget &lt;= 0:
 python3 -m py_compile src/integration_resilience/*.py scripts/run_integration_resilience_smoke.py
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_integration_resilience_smoke.py</code></pre><article class="surface api-read"><h3>可重現實驗：不連網的 API 配接器</h3>
-<p><a href="integration_resilience_lab.py" download>下載 integration_resilience_lab.py</a>，使用 Python 3.10 以上執行。先看 <code>request()</code> 的預算與狀態判斷，再看 <code>poll_pages()</code> 的游標及資料驗證。範例不發送真正請求，也未實作分散式限流或持久化冪等。</p>
+<p><a href="integration_resilience_lab.py" download>下載 integration_resilience_lab.py</a>，使用 Python 3.10 以上執行。先看 <code>request()</code> 的預算與狀態判斷，再看 <code>poll_pages()</code> 的游標及資料驗證。範例不發送真正請求，也未實作分散式限流或持久化冪等。 429 與 503 的 <code>Retry-After</code> 在本例只接受整數秒。等待取本機退避和伺服器建議的較大值；若等到期限當下也不重試。需要 HTTP-date 時，請在正式配接層先解析。</p>
 <pre><code>python3 integration_resilience_lab.py</code></pre>
 <details><summary>展開完整程式與測試</summary><pre><code>&quot;&quot;&quot;整合韌性教材：確定性模擬，沒有網路 I/O。&quot;&quot;&quot;
 from dataclasses import dataclass
@@ -382,6 +382,8 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
             reason = f&quot;http_{status}&quot;
             if status in (502, 503, 504):
                 breaker.failure(transport.now)
+                if status == 503:
+                    retry_after = reply.retry_after
             elif status == 429:
                 if breaker.state == &quot;half_open&quot;:
                     breaker.failure(transport.now)
@@ -398,6 +400,8 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
             raise ApiFailure(reason)
         if breaker.state == &quot;open&quot;:
             raise ApiFailure(&quot;circuit_open&quot;)
+        # 確定性測試固定退避；正式版加入 jitter。服務端等待是下限而非取代退避。
+        delay = min(200, 25 * 2 ** min(attempt, 4))
         if retry_after is not None:
             # 只接受最多 9 位 ASCII 數字；日期格式保守交回上層。
             if not (
@@ -406,10 +410,7 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
                 and retry_after.isdecimal()
             ):
                 raise ApiFailure(&quot;retry_after_unsupported&quot;)
-            delay = int(retry_after) * 1000
-        else:
-            # 確定性測試固定退避；正式版加入 jitter。
-            delay = min(200, 25 * 2 ** min(attempt, 4))
+            delay = max(delay, int(retry_after) * 1000)
         if delay &gt;= deadline - transport.now:
             raise ApiFailure(&quot;deadline&quot;)
         transport.sleep_ms(delay)
@@ -463,6 +464,26 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(ApiFailure, &quot;deadline&quot;):
             request(t, Breaker(), &quot;GET&quot;, &quot;/items&quot;)
         self.assertEqual((len(t.calls), t.now), (1, 20))
+
+    def test_unavailable_retry_after_budget(self):
+        for budget in (240, 1020):
+            with self.subTest(budget=budget):
+                t = FakeTransport([Reply(503, 20, retry_after=&quot;1&quot;), Reply(200, 10, {})])
+                with self.assertRaisesRegex(ApiFailure, &quot;deadline&quot;):
+                    request(t, Breaker(), &quot;GET&quot;, &quot;/items&quot;, total_ms=budget)
+                self.assertEqual((len(t.calls), t.now), (1, 20))
+
+        t = FakeTransport([Reply(503, 20, retry_after=&quot;1&quot;), Reply(200, 10, {&quot;ok&quot;: True})])
+        self.assertTrue(request(t, Breaker(), &quot;GET&quot;, &quot;/items&quot;, total_ms=1035)[&quot;ok&quot;])
+        # 首次回應在 20 ms；等待 1000 ms 才重試，所以第二次 timeout 只剩 15 ms。
+        self.assertEqual(([call[2] for call in t.calls], t.now), ([80, 15], 1030))
+
+    def test_server_zero_wait_keeps_local_backoff(self):
+        for status in (429, 503):
+            with self.subTest(status=status):
+                t = FakeTransport([Reply(status, 20, retry_after=&quot;0&quot;), Reply(200, 10, {})])
+                self.assertEqual(request(t, Breaker(), &quot;GET&quot;, &quot;/items&quot;), {})
+                self.assertEqual((len(t.calls), t.now), (2, 55))
 
     def test_budget_includes_attempts_and_backoff(self):
         t = FakeTransport([Reply(200, 100), Reply(200, 100)])

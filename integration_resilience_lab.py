@@ -89,6 +89,8 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
             reason = f"http_{status}"
             if status in (502, 503, 504):
                 breaker.failure(transport.now)
+                if status == 503:
+                    retry_after = reply.retry_after
             elif status == 429:
                 if breaker.state == "half_open":
                     breaker.failure(transport.now)
@@ -105,6 +107,8 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
             raise ApiFailure(reason)
         if breaker.state == "open":
             raise ApiFailure("circuit_open")
+        # 確定性測試固定退避；正式版加入 jitter。服務端等待是下限而非取代退避。
+        delay = min(200, 25 * 2 ** min(attempt, 4))
         if retry_after is not None:
             # 只接受最多 9 位 ASCII 數字；日期格式保守交回上層。
             if not (
@@ -113,10 +117,7 @@ def request(transport, breaker, method, path, total_ms=240, attempts=3):
                 and retry_after.isdecimal()
             ):
                 raise ApiFailure("retry_after_unsupported")
-            delay = int(retry_after) * 1000
-        else:
-            # 確定性測試固定退避；正式版加入 jitter。
-            delay = min(200, 25 * 2 ** min(attempt, 4))
+            delay = max(delay, int(retry_after) * 1000)
         if delay >= deadline - transport.now:
             raise ApiFailure("deadline")
         transport.sleep_ms(delay)
@@ -170,6 +171,26 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(ApiFailure, "deadline"):
             request(t, Breaker(), "GET", "/items")
         self.assertEqual((len(t.calls), t.now), (1, 20))
+
+    def test_unavailable_retry_after_budget(self):
+        for budget in (240, 1020):
+            with self.subTest(budget=budget):
+                t = FakeTransport([Reply(503, 20, retry_after="1"), Reply(200, 10, {})])
+                with self.assertRaisesRegex(ApiFailure, "deadline"):
+                    request(t, Breaker(), "GET", "/items", total_ms=budget)
+                self.assertEqual((len(t.calls), t.now), (1, 20))
+
+        t = FakeTransport([Reply(503, 20, retry_after="1"), Reply(200, 10, {"ok": True})])
+        self.assertTrue(request(t, Breaker(), "GET", "/items", total_ms=1035)["ok"])
+        # 首次回應在 20 ms；等待 1000 ms 才重試，所以第二次 timeout 只剩 15 ms。
+        self.assertEqual(([call[2] for call in t.calls], t.now), ([80, 15], 1030))
+
+    def test_server_zero_wait_keeps_local_backoff(self):
+        for status in (429, 503):
+            with self.subTest(status=status):
+                t = FakeTransport([Reply(status, 20, retry_after="0"), Reply(200, 10, {})])
+                self.assertEqual(request(t, Breaker(), "GET", "/items"), {})
+                self.assertEqual((len(t.calls), t.now), (2, 55))
 
     def test_budget_includes_attempts_and_backoff(self):
         t = FakeTransport([Reply(200, 100), Reply(200, 100)])
