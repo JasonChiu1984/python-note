@@ -103,4 +103,73 @@ if __name__ == &quot;__main__&quot;:
 <section id="operations"><h2>06｜上線驗收清單</h2>
 <ol><li>盤點要保護的資料與攻擊者位置；用原始碼祕密掃描與最小權限，避免配置與憑證進入任何發布品。</li><li>分離部署金鑰、更新簽署金鑰及授權簽署用途；規劃離線信任根、簽署審核、版本下限與紀錄保存。</li><li>以乾淨目的平台試裝，對未信任金鑰、破損檔、過期資料、舊版、錯平台做拒絕測試。</li><li>在預備環境演練撤銷、輪替、更新中斷與安全回退；以實際部署結果驗收，而非只看封裝成功。</li></ol>
 <p class="quiet">原始參考：<a href="https://docs.python.org/3/library/dis.html">Python bytecode／dis</a>、<a href="https://pyinstaller.org/en/stable/operating-mode.html">PyInstaller 運作方式</a>、<a href="https://nuitka.net/user-documentation/user-manual.html">Nuitka 使用手冊</a>、<a href="https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html">Cython 建置流程</a>、<a href="https://docs.openssl.org/3.0/man1/openssl-pkeyutl/">OpenSSL pkeyutl</a>、<a href="https://cryptography.io/en/latest/hazmat/primitives/aead/">cryptography AEAD 文件</a>、<a href="https://theupdateframework.io/">The Update Framework</a>。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>程式碼保護最實際的一步，往往不是混淆，而是確認現場安裝的就是你發行的版本。本節示範發行清單：逐檔 SHA-256、簽署清單、安裝前驗證，並偵測被修改、被刪除與多出來的檔案。</p><h3>可實跑範例：發行清單簽署與逐檔驗證</h3><p>build_manifest() 產生每個檔案的 SHA-256 並簽署整份清單；verify() 先驗清單簽章，再逐檔比對，最後找出清單外的檔案。為了只用標準函式庫，範例用 HMAC；正式發行應改用非對稱簽章，讓現場只持有公開金鑰。</p><p><a class="button" download href="extensions/python_code_protection_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;發行檔完整性清單：產生 SHA-256 清單、用 HMAC 簽署清單，安裝前逐檔驗證（標準函式庫）。
+
+真實發行應使用非對稱簽章（例如 Ed25519 或 Sigstore），讓驗證端只持有公開金鑰；
+本例為了只用標準函式庫改用 HMAC，示範的是「清單＋逐檔雜湊」的流程。
+&quot;&quot;&quot;
+import hashlib
+import hmac
+import json
+import tempfile
+from pathlib import Path
+
+SIGNING_KEY = b&quot;\x42&quot; * 32
+
+
+def sha256(path: Path) -&gt; str:
+    h = hashlib.sha256()
+    with path.open(&quot;rb&quot;) as f:
+        for chunk in iter(lambda: f.read(65536), b&quot;&quot;):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def build_manifest(root: Path) -&gt; dict:
+    files = {p.relative_to(root).as_posix(): sha256(p) for p in sorted(root.rglob(&quot;*&quot;)) if p.is_file()}
+    body = json.dumps(files, sort_keys=True).encode()
+    return {&quot;files&quot;: files, &quot;sig&quot;: hmac.new(SIGNING_KEY, body, hashlib.sha256).hexdigest()}
+
+
+def verify(root: Path, manifest: dict) -&gt; list[str]:
+    body = json.dumps(manifest[&quot;files&quot;], sort_keys=True).encode()
+    if not hmac.compare_digest(hmac.new(SIGNING_KEY, body, hashlib.sha256).hexdigest(), manifest[&quot;sig&quot;]):
+        return [&quot;清單簽章錯誤：清單本身被修改&quot;]
+    problems = []
+    actual = {p.relative_to(root).as_posix() for p in root.rglob(&quot;*&quot;) if p.is_file()}
+    for name, digest in manifest[&quot;files&quot;].items():
+        if name not in actual:
+            problems.append(f&quot;缺少檔案：{name}&quot;)
+        elif sha256(root / name) != digest:
+            problems.append(f&quot;內容不符：{name}&quot;)
+    problems += [f&quot;多出未列管檔案：{n}&quot; for n in sorted(actual - manifest[&quot;files&quot;].keys())]
+    return problems
+
+
+if __name__ == &quot;__main__&quot;:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / &quot;gateway-2.4.1&quot;
+        (root / &quot;app&quot;).mkdir(parents=True)
+        (root / &quot;app&quot; / &quot;main.py&quot;).write_text(&quot;print(&#x27;gateway&#x27;)\n&quot;)
+        (root / &quot;app&quot; / &quot;points.json&quot;).write_text(&#x27;{&quot;SAT&quot;: {&quot;addr&quot;: 0, &quot;scale&quot;: 0.1}}\n&#x27;)
+        (root / &quot;README.txt&quot;).write_text(&quot;v2.4.1\n&quot;)
+        manifest = build_manifest(root)
+        for name, digest in manifest[&quot;files&quot;].items():
+            print(f&quot;{digest[:16]}…  {name}&quot;)
+        print(&quot;原始發行檔：&quot;, verify(root, manifest) or &quot;全部通過&quot;)
+        (root / &quot;app&quot; / &quot;points.json&quot;).write_text(&#x27;{&quot;SAT&quot;: {&quot;addr&quot;: 0, &quot;scale&quot;: 1.0}}\n&#x27;)
+        (root / &quot;app&quot; / &quot;debug_shell.py&quot;).write_text(&quot;import os\n&quot;)
+        print(&quot;被修改後：&quot;)
+        for p in verify(root, manifest):
+            print(&quot;  -&quot;, p)
+        manifest[&quot;files&quot;][&quot;app/points.json&quot;] = sha256(root / &quot;app&quot; / &quot;points.json&quot;)
+        print(&quot;攻擊者同步改清單：&quot;, verify(root, manifest))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；檔案建立在暫存目錄</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>36ff4f9bc8a525d9…  README.txt
+8ba1ac46ec99f8df…  app/main.py
+3ef8d9cc19ceef1d…  app/points.json
+原始發行檔： 全部通過
+被修改後：
+  - 內容不符：app/points.json
+  - 多出未列管檔案：app/debug_shell.py
+攻擊者同步改清單： [&#x27;清單簽章錯誤：清單本身被修改&#x27;]</code></pre><h3>工程現場案例：現場閘道器多了一個除錯腳本</h3><p>某閘道器軟體以 zip 交付，現場人員為了除錯自行加了 debug_shell.py，並把點位倍率改成 1.0。半年後系統異常，沒有人記得改過什麼。若安裝與每次開機都執行清單驗證，這兩個變更會立即被列出：points.json 內容不符、多出未列管檔案。</p><p>攻擊者若連清單一起改，因為沒有簽署金鑰，清單簽章就會失敗。這也說明了金鑰的分工：簽署金鑰只在建置主機，現場只需要驗證能力；用 HMAC 時兩者是同一把，因此正式環境應改用 Ed25519 等非對稱演算法。</p><ol><li>在 CI 建置時產生清單並簽署，清單與發行檔一起交付。</li><li>安裝程式與服務啟動時都執行驗證，失敗就拒絕啟動並告警。</li><li>設定檔若需要現場修改，與程式檔分開管理並另外簽署或納入變更管理。</li><li>保存每個版本的清單，事故調查時可比對現場與發行版本。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 套件生態的發行簽署正轉向 Sigstore 與 PEP 740 數位證明（attestations）：PyPI 支援以 Trusted Publishing 上傳並附帶證明，使用者可驗證套件確實由指定的 CI 流程建置。內部發行可參考同樣的模式。另依 NIST IR 8547 定稿，RSA、ECDSA、EdDSA 簽章將於 2030 年後 deprecated，長期維護的簽章流程要預留換成 ML-DSA 等後量子演算法的彈性。 <a href="https://peps.python.org/pep-0740/">來源：PEP 740</a> <a href="https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ir8547-pqc-transition-20261030-csa-st/">來源：CSA：NIST IR 8547 定稿摘要</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>verify() 為什麼要先驗清單簽章，再逐檔比對？</p><details><summary>看解答</summary><p>若清單本身不可信，逐檔比對沒有意義：攻擊者可以把清單裡的雜湊改成被竄改後檔案的雜湊。範例最後一行就是這個情境，簽章檢查讓它失敗。</p></details></li><li><p>sha256() 為什麼分塊讀取，而不是 path.read_bytes()？</p><details><summary>看解答</summary><p>大型檔案（例如韌體映像或模型檔）一次讀進記憶體可能耗盡資源。分塊更新雜湊的結果與一次計算完全相同，記憶體用量固定。</p></details></li><li><p>若要允許現場修改 points.json，但其他檔案仍必須與發行版一致，要怎麼設計？</p><details><summary>看解答</summary><p>把可修改的設定檔從程式清單中移出，另建設定清單並由現場的設定發布流程簽署（參考加密深度研究頁的 HMAC 設定檔簽章範例）。程式清單驗證失敗拒絕啟動；設定驗證失敗則保留上一版有效設定。</p></details></li><li><p>Python 原始碼經 PyInstaller 打包或編譯成 .pyc，就不需要完整性驗證了嗎？</p><details><summary>看解答</summary><p>仍需要。打包或編譯只增加閱讀難度，不能防止替換或修改；檔案被換掉時程式照樣執行。完整性驗證回答的是「這是不是我發行的檔案」，和保密是兩個不同目標。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

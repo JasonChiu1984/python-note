@@ -44,13 +44,26 @@ STYLE = (
 )
 
 
+def missing_requirements(meta: dict) -> list[str]:
+    import importlib.util
+    return [m for m in meta.get("requires", []) if importlib.util.find_spec(m) is None]
+
+
 def run_example(path: Path) -> str:
-    with tempfile.TemporaryDirectory() as tmp:
-        proc = subprocess.run([sys.executable, "-X", "utf8", str(path)], cwd=tmp, capture_output=True,
-                              text=True, encoding="utf-8", timeout=120)
-    if proc.returncode != 0:
-        raise SystemExit(f"{path} failed:\n{proc.stderr}")
-    return proc.stdout.rstrip("\n")
+    """Run twice with different hash seeds; the published output must not depend on either."""
+    import os
+    outputs = []
+    for seed in ("0", "1"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = subprocess.run([sys.executable, "-X", "utf8", str(path)], cwd=tmp, capture_output=True,
+                                  text=True, encoding="utf-8", timeout=120, env=env)
+        if proc.returncode != 0:
+            raise SystemExit(f"{path} failed:\n{proc.stderr}")
+        outputs.append(proc.stdout.rstrip("\n"))
+    if outputs[0] != outputs[1]:
+        raise SystemExit(f"{path} output is not deterministic")
+    return outputs[0]
 
 
 def render(stem: str, page: Path) -> str:
@@ -127,6 +140,10 @@ def main() -> int:
         page = known.get(folder.name)
         if page is None:
             raise SystemExit(f"no page for extensions/{folder.name}")
+        missing = missing_requirements(json.loads((folder / "meta.json").read_text(encoding="utf-8")))
+        if missing:
+            print(f"skip {folder.name}: missing {', '.join(missing)}")
+            continue
         new = apply(page, render(folder.name, page))
         if new != page.read_text(encoding="utf-8"):
             stale.append(page.relative_to(ROOT).as_posix())

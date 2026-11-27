@@ -734,5 +734,51 @@ fig.tight_layout()`,
     loadSampleCsv();
     render();
   </script>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節把前面的讀檔契約延伸到 BAS 趨勢資料最常做的三件事：只用品質良好的資料、重取樣成 15 分鐘平均，以及轉成一個點位一欄的寬表，並同時保留每個區間的有效筆數。</p><h3>可實跑範例：BAS 趨勢資料：dtype、品質篩選與 15 分鐘寬表</h3><p>範例需要 pandas 3.x（本頁輸出以 pandas 3.1.1 產生）。point_id 明確指定為 string 並關閉預設缺值，保住 001 與 NA 兩個點位代碼；只有 value 欄的空白視為缺值。重取樣同時輸出 mean 與 count，讓讀報表的人知道每格平均是幾筆資料算出來的。</p><p><a class="button" download href="extensions/python_3_15_pandas_getting_started/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;用 pandas 整理 BAS 趨勢資料：明確 dtype、缺值規則、15 分鐘重取樣、寬表轉換（需 pandas 3.x）。&quot;&quot;&quot;
+from io import StringIO
+
+import pandas as pd
+
+RAW = &quot;&quot;&quot;ts,point_id,value,quality
+2026-11-20 08:00:05,001,22.4,good
+2026-11-20 08:04:58,001,22.6,good
+2026-11-20 08:09:40,001,,comm_fail
+2026-11-20 08:15:02,001,23.1,good
+2026-11-20 08:00:10,NA,12.8,good
+2026-11-20 08:05:12,NA,12.9,good
+2026-11-20 08:15:30,NA,13.4,good
+2026-11-20 08:20:00,NA,13.3,good
+&quot;&quot;&quot;
+
+if __name__ == &quot;__main__&quot;:
+    print(&quot;pandas&quot;, pd.__version__.split(&quot;.&quot;)[0] + &quot;.x&quot;)
+    df = pd.read_csv(StringIO(RAW), dtype={&quot;point_id&quot;: &quot;string&quot;, &quot;value&quot;: &quot;Float64&quot;, &quot;quality&quot;: &quot;category&quot;},
+                     keep_default_na=False, na_values={&quot;value&quot;: [&quot;&quot;]}, parse_dates=[&quot;ts&quot;])
+    print(df.dtypes.to_string())
+    print(f&quot;點位代碼：{df[&#x27;point_id&#x27;].unique().tolist()}（001 保留前導零，NA 是代碼不是缺值）&quot;)
+
+    names = {&quot;001&quot;: &quot;AHU1_SAT&quot;, &quot;NA&quot;: &quot;CHW_SUPPLY&quot;}
+    df[&quot;point&quot;] = df[&quot;point_id&quot;].map(names)
+    good = df[df[&quot;quality&quot;] == &quot;good&quot;]
+    wide = (good.set_index(&quot;ts&quot;).groupby(&quot;point&quot;)[&quot;value&quot;]
+            .resample(&quot;15min&quot;).agg([&quot;mean&quot;, &quot;count&quot;]).unstack(level=0))
+    wide.columns = [f&quot;{p}_{stat}&quot; for stat, p in wide.columns]
+    print(wide.round(2).to_string())
+
+    coverage = good.groupby(&quot;point&quot;).size() / df.groupby(&quot;point&quot;).size()
+    print(&quot;有效資料比例：&quot;, coverage.round(2).to_dict())
+    print(&quot;comm_fail 筆數：&quot;, int((df[&quot;quality&quot;] == &quot;comm_fail&quot;).sum()))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需先 pip install pandas</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>pandas 3.x
+ts          datetime64[us]
+point_id            string
+value              Float64
+quality           category
+點位代碼：[&#x27;001&#x27;, &#x27;NA&#x27;]（001 保留前導零，NA 是代碼不是缺值）
+                     AHU1_SAT_mean  CHW_SUPPLY_mean  AHU1_SAT_count  CHW_SUPPLY_count
+ts                                                                                   
+2026-11-20 08:00:00           22.5            12.85               2                 2
+2026-11-20 08:15:00           23.1            13.35               1                 2
+有效資料比例： {&#x27;AHU1_SAT&#x27;: 0.75, &#x27;CHW_SUPPLY&#x27;: 1.0}
+comm_fail 筆數： 1</code></pre><h3>工程現場案例：點位代碼 NA 被讀成缺值，冰水溫度整欄消失</h3><p>某專案的點位代碼採三碼縮寫，其中冰水供水溫度的代碼剛好是 NA。用 pd.read_csv() 預設參數讀檔時，pandas 把 NA 當成缺值，這個點位的所有資料都變成空值，groupby 時直接被排除，報表少了一個關鍵點位卻沒有任何錯誤訊息。</p><p>另一個點位 001 被推斷成整數 1，與另一棟大樓的點位 1 混在一起。範例以 dtype 與 keep_default_na=False 明確定義欄位契約，並把 comm_fail 的資料排除在平均之外，同時輸出有效資料比例，讓資料品質問題浮上檯面。</p><ol><li>為每個匯出檔建立欄位契約：哪些欄位是代碼（string）、哪些是量測值（Float64）、缺值字串是什麼。</li><li>讀檔後立即檢查 dtypes 與代碼清單，與點位表比對。</li><li>依 quality 欄篩選後再計算，並保留 count 或有效比例。</li><li>把契約寫成函式與測試，換新版本 pandas 時先跑一次歷史樣本。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pandas 最新版為 3.1.1。pandas 3 起字串欄預設推斷為專用的字串型別，且全面採用 Copy-on-Write；以往依賴「修改切片會改到原表」或 object 字串欄的程式要重新測試。範例輸出也可看到時間欄解析為 datetime64[us]。 <a href="https://pypi.org/project/pandas/">來源：PyPI：pandas</a> <a href="https://pandas.pydata.org/docs/">來源：pandas 官方文件</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 read_csv() 的 keep_default_na=False 拿掉，point_id 欄會發生什麼事？</p><details><summary>看解答</summary><p>NA 會被當成缺值，CHW_SUPPLY 的 4 筆資料 point_id 變成 &lt;NA&gt;，map() 後 point 也是缺值，groupby 會排除它們，寬表只剩 AHU1_SAT。</p></details></li><li><p>08:00 區間的 AHU1_SAT 平均為什麼是 22.5，而不是把 3 筆都算進去？</p><details><summary>看解答</summary><p>08:09:40 那筆 quality 為 comm_fail 且 value 為空，已在 good 篩選時排除，所以只有 22.4 與 22.6 兩筆，平均 22.5，count 為 2。</p></details></li><li><p>如果要把 15 分鐘平均改成「區間內有效筆數少於 2 筆就顯示缺值」，要怎麼改？</p><details><summary>看解答</summary><p>先算出 mean 與 count，再用 wide[mean_col] = wide[mean_col].where(wide[count_col] &gt;= 2)。範例中 08:15 的 AHU1_SAT 只有 1 筆，會變成缺值。</p></details></li><li><p>為什麼 value 用 Float64（大寫 F）而不是 float64？</p><details><summary>看解答</summary><p>Float64 是 pandas 的可空擴充型別，缺值以 &lt;NA&gt; 表示，和整數、布林的可空型別行為一致；float64 只能用 NaN。在需要區分「缺值」與運算結果 NaN 的報表中，可空型別比較清楚。</p></details></li></ol></section><!-- extension:end -->
 </body>
 </html>
