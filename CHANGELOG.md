@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-28 — MCP 教材改用 2026-07-28 規格、首頁進度修正
+
+- MCP Server 教材改寫為 MCP 2026-07-28 無狀態規格：以 server/discover 與每請求 `_meta` 取代 initialize 握手，新增 2025-11-25 → 2026-07-28 遷移表，更新傳輸、排查與官方來源。
+- `mcp-server-learning-kit` 升級到 MCP Python SDK 2.3.0（`MCPServer`、`Client(mode="auto")`），stdio 與 loopback HTTP 皆實跑通過並取得 2026-07-28。
+- 首頁 MCP 卡片改為描述現行教材內容，移除該頁不存在的進度計數。
+- 修正首頁 6 個與教材實際勾選數不符的進度總數，以及初級、中級在未執行 JavaScript 時顯示的「0 / 0」。
+- 碳排教材補充 114 年度產業電力排碳係數 0.466 與民生住宅係數 0.471。
+
 ## 2026-11-24 — Python 3.13、3.14 教材與版本校閱
 
 - 新增各版完整 HTML／Markdown、16 個核心單元、版本特性、並行示範、HVAC 模擬與下載包。

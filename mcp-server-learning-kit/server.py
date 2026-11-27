@@ -1,16 +1,23 @@
-"""唯讀 MCP 示範：固定合成資料，不讀檔、不連外、不寫入。"""
+"""唯讀 MCP 示範（規格 2026-07-28，MCP Python SDK 2.x）：固定合成資料，不讀檔、不連外、不寫入。
+
+2026-07-28 規格是無狀態的：沒有 initialize 握手，也沒有 Mcp-Session-Id。
+每個請求都在 _meta 帶協定版本與 client 能力；server 以 server/discover 公告自己。
+"""
 import argparse
+import sys
 from typing import Annotated
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-mcp = FastMCP("Synthetic engineering notes", host="127.0.0.1", json_response=True)
+mcp = MCPServer("Synthetic engineering notes", version="2.0.0")
 NOTES = (
     {"id": "pump", "title": "Pump", "summary": "模擬泵浦壓差"},
     {"id": "temperature", "title": "Temperature", "summary": "模擬送風溫度"},
 )
+
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 def search_notes(
@@ -20,7 +27,9 @@ def search_notes(
     """依固定的假資料查詢；空白查詢不接受。"""
     needle = query.strip().casefold()
     if not needle:
-        raise ValueError("查詢不能只有空白")
+        raise ToolError("查詢不能只有空白")
+    # 舊規格的 Logging 功能已列為 Deprecated；stdio 伺服器的診斷訊息寫到 stderr。
+    print(f"search_notes query={needle!r}", file=sys.stderr)
     return [
         dict(note) for note in NOTES
         if needle in (note["title"] + " " + note["summary"]).casefold()
@@ -42,4 +51,9 @@ def summarize_notes(topic: str) -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--transport", choices=("stdio", "streamable-http"), default="stdio")
-    mcp.run(transport=parser.parse_args().transport)
+    args = parser.parse_args()
+    if args.transport == "streamable-http":
+        # 只綁本機；對外部署要再加 TLS、身分驗證與反向代理。
+        mcp.run(transport="streamable-http", host="127.0.0.1", port=8000)
+    else:
+        mcp.run(transport="stdio")
