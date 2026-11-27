@@ -275,13 +275,14 @@ python3 python_ahu_energy_metrics_lab.py --test</code></pre>
 <p>參考：<a href="https://handbook.ashrae.org/Handbooks/F25/SI/F25_Ch01/F25_Ch01_si.aspx">ASHRAE Handbook：濕空氣性質與焓</a> · <a href="https://www.energy.gov/sites/default/files/2014/05/f16/fan_sourcebook.pdf">美國能源部：風機系統性能</a>。對照<a href="python_chiller_efficiency_tutorial.html">冰機能效計算</a>，確認盤管、冰機及整廠的計量邊界。</p>
 </section>
 <section id="apis"><h2>4｜Python API 與實作：CSV、JSON、批次檢算</h2>
-<p>只需 Python 3.10+ 標準函式庫，不連 PLC、MES 或其他網路。可下載 <a href="python_factory_energy_metrics_lab.py" download>完整程式及 6 項自測</a>、<a href="python_factory_energy_metrics_sample.csv" download>四區間合成 CSV</a>。</p>
+<p>只需 Python 3.10+ 標準函式庫，不連 PLC、MES 或其他網路。可下載 <a href="python_factory_energy_metrics_lab.py" download>完整程式及 9 項自測</a>、<a href="python_factory_energy_metrics_sample.csv" download>四區間合成 CSV</a>。</p>
 <pre><code>python python_factory_energy_metrics_lab.py
 python python_factory_energy_metrics_lab.py --test
 python python_factory_energy_metrics_lab.py --csv python_factory_energy_metrics_sample.csv \
   --start 2026-11-25T08:00:00+08:00 --periods 4</code></pre>
+<p id="factory-csv-validation">CSV 的四個必填欄位為 <code>start</code>、<code>energy_kwh</code>、<code>good_a</code>、<code>good_b</code>。可以加有唯一欄名的中繼資料欄位，不會計入 KPI，但每筆資料的欄位數必須和表頭一致。輸入不合規時命令回傳非零結束碼，不輸出 KPI；JSON 物件列仍可直接交給 <code>from_records()</code>。</p>
 <div class="tablebox" role="region" tabindex="0" aria-label="常見 API 與回傳值"><table><thead><tr><th scope="col">API</th><th scope="col">輸入 → 結果</th><th scope="col">為何這樣用</th></tr></thead><tbody>
-<tr><th scope="row"><code>csv.DictReader(handle)</code></th><td>表頭與資料列 → 具名稱欄位</td><td>不要靠欄位順序；UTF-8 讀取，以 <code>newline=""</code> 交給 CSV 模組處理換行。</td></tr>
+<tr><th scope="row"><code>csv_records(handle)</code>（內部使用 <code>csv.reader</code>）</th><td>CSV 表頭與資料列 → 具名稱欄位</td><td>欄位可重新排列；以 <code>utf-8-sig</code> 支援 BOM，並用 <code>newline=""</code> 交給 CSV 模組處理換行。拒絕重複、空白或缺少必填欄名，以及短列、長列、格式不合法的引號。</td></tr>
 <tr><th scope="row"><code>datetime.fromisoformat()</code></th><td>帶時區的 ISO 8601 → 時間物件</td><td>比較前轉 UTC，報表可再以台灣時區顯示；拒絕沒時區的值。</td></tr>
 <tr><th scope="row"><code>difference_kwh(prev, now)</code></th><td>同一表相鄰累積讀值 → 區間電量</td><td>負差先隔離；自己的輸入是區間表時別再相減。</td></tr>
 <tr><th scope="row"><code>from_records(items)</code>／<code>summarize(rows, start, periods)</code></th><td>CSV 或 JSON 物件列 → 內部區間 → KPI 字典</td><td>預期筆數由報表需求提供；禁止拿收到的筆數冒充完整。</td></tr>

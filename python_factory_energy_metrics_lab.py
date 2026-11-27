@@ -26,7 +26,7 @@ class Window:
 
 
 def from_records(items: Iterable[dict]) -> list[Window]:
-    """CSV DictReader 或 JSON 物件列 → 同一內部型別；不猜單位或時區。"""
+    """已驗證的 CSV 欄位或 JSON 物件列 → 同一內部型別；不猜單位或時區。"""
     rows = []
     for item in items:
         ts = datetime.fromisoformat(str(item["start"]))
@@ -41,6 +41,26 @@ def from_records(items: Iterable[dict]) -> list[Window]:
             counts.append(int(raw))
         rows.append(Window(ts, energy, *counts))
     return rows
+
+
+def csv_records(lines: Iterable[str]) -> Iterable[dict[str, str]]:
+    """先驗證表頭及每筆欄位數，再依欄名轉成記錄；欄位順序可調整。"""
+    reader = csv.reader(lines, strict=True)
+    header = next(reader, [])
+    if not header or any(not name.strip() for name in header):
+        raise ValueError("CSV 表頭不能為空，欄名也不能是空白")
+    if len(header) != len(set(header)):
+        raise ValueError("CSV 表頭有重複欄名")
+    missing = [name for name in FIELDS if name not in header]
+    if missing:
+        raise ValueError(f"CSV 表頭缺少必填欄位：{', '.join(missing)}")
+    for values in reader:
+        if not values:  # 和 DictReader 一樣略過完全空白的列。
+            continue
+        if len(values) != len(header):
+            raise ValueError(f"CSV 第 {reader.line_num} 行結束的記錄欄位數為 "
+                             f"{len(values)}，表頭為 {len(header)}")
+        yield dict(zip(header, values, strict=True))
 
 
 def difference_kwh(previous: float, current: float) -> float:
@@ -115,10 +135,33 @@ class LabTests(unittest.TestCase):
 
     def test_csv_and_bad_input(self):
         start, _ = demo()
-        rows = from_records(csv.DictReader([",".join(FIELDS), f"{start.isoformat()},12.5,01,0"]))
+        rows = from_records(csv_records([",".join(FIELDS), f"{start.isoformat()},12.5,01,0"]))
         self.assertEqual(rows, [Window(start, 12.5, 1, 0)])
         with self.assertRaises(ValueError):
             from_records([{"start": "2026-11-25T08:00:00", "energy_kwh": 12, "good_a": 2, "good_b": 2}])
+
+    def test_csv_rejects_invalid_header(self):
+        for header in ("", "start,energy_kwh,energy_kwh,good_a,good_b",
+                       "start,energy_kwh,good_a,note", "start,energy_kwh,good_a,good_b, "):
+            with self.subTest(header=header), self.assertRaises(ValueError):
+                list(csv_records([header]))
+
+    def test_csv_rejects_wrong_width_and_broken_quotes(self):
+        start, _ = demo()
+        header = ",".join(FIELDS)
+        for row in (f"{start.isoformat()},51,60", f"{start.isoformat()},1,51,60,20"):
+            with self.subTest(row=row), self.assertRaisesRegex(ValueError, "第 2 行"):
+                list(csv_records([header, row]))
+        with self.assertRaises(csv.Error):
+            list(csv_records([header, '"unterminated']))
+
+    def test_reordered_csv_with_named_metadata_matches_json(self):
+        start, _ = demo()
+        data = csv_records(["good_b,note,start,good_a,energy_kwh",
+                            f'20,"meter,a",{start.isoformat()},60,51'])
+        payload = json.dumps([{"start": start.isoformat(), "energy_kwh": 51,
+                               "good_a": 60, "good_b": 20}])
+        self.assertEqual(from_records(data), from_records(json.loads(payload)))
 
     def test_cumulative_reset(self):
         self.assertEqual(difference_kwh(1000, 1051), 51)
@@ -144,9 +187,12 @@ def main():
     if args.csv:
         if not args.start or args.periods is None:
             p.error("--csv 需要 --start 與 --periods")
-        with args.csv.open(encoding="utf-8-sig", newline="") as handle:
-            rows = from_records(csv.DictReader(handle))
-        result = summarize(rows, datetime.fromisoformat(args.start.replace("Z", "+00:00")), args.periods)
+        try:
+            with args.csv.open(encoding="utf-8-sig", newline="") as handle:
+                rows = from_records(csv_records(handle))
+            result = summarize(rows, datetime.fromisoformat(args.start.replace("Z", "+00:00")), args.periods)
+        except (OSError, ValueError, csv.Error) as exc:
+            p.error(str(exc))
     else:
         if args.start or args.periods is not None:
             p.error("--start 與 --periods 僅與 --csv 共用")
