@@ -83,4 +83,69 @@
 <tr><th scope="row"><time datetime="2027-12-11">2027-12-11</time></th><td>CRA 主要義務適用（法定未來日期）</td><td><a href="https://eur-lex.europa.eu/eli/reg/2024/2847/oj">CRA Arts.69、71</a>；過渡產品仍需查重大修改與既有通報責任。</td></tr>
 </tbody></table></div>
 <p>之後覆核時請另記「官方來源更新日期、查核日期、已通過或草案、實際適用日、影響對象」；同一制度的產品義務、國別轉置和平台流程可能有不同更新節點。</p>
-</section></main><footer><a href="#top">回頂端</a> · <a href="index.html">教材首頁</a> · <a href="python_information_security_tutorial.html">資訊安全篇章</a></footer></body></html>
+</section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>同一事件在歐盟可能同時啟動 NIS2、CRA 與 GDPR 三條時鐘。本節把本頁整理的期限寫成計算工具，並示範「1 個月」遇到月底時怎麼算。</p><h3>可實跑範例：NIS2、CRA、GDPR 通報期限</h3><p>以 Europe/Berlin 時區顯示期限（成員國主管機關多以當地時間處理），同時列出 UTC。小時制期限先轉成 UTC 再加總（避免夏令時間切換造成一小時誤差），再轉回當地時間；依歐盟期間計算規則（Regulation 1182/71），事件發生的那一小時不計入，法定期限會稍晚，因此程式的算法屬保守估計。</p><p><a class="button" download href="extensions/python_eu_cybersecurity_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;歐盟多軌通報時鐘：NIS2（24h／72h／1 個月）、CRA Article 14（24h／72h／14 天或 1 個月）、
+GDPR（72h）。只計算期限，不判斷事件是否「重大」或產品是否落入範圍。
+&quot;&quot;&quot;
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+UTC = ZoneInfo(&quot;UTC&quot;)
+CET = ZoneInfo(&quot;Europe/Berlin&quot;)
+
+
+def add_month(dt):
+    &quot;&quot;&quot;「1 個月」以曆月計算；月底日期不存在時取該月最後一天。&quot;&quot;&quot;
+    y, m = (dt.year + 1, 1) if dt.month == 12 else (dt.year, dt.month + 1)
+    for day in (dt.day, 30, 29, 28):
+        try:
+            return dt.replace(year=y, month=m, day=day)
+        except ValueError:
+            continue
+
+
+def after(dt, **delta):
+    &quot;&quot;&quot;在 UTC 上加時間再轉回當地時間。
+
+    Python 對同一時區的 aware datetime 做加法時採「牆上時間」運算，跨越夏令時間切換會差一小時；
+    先轉 UTC 才是經過的真實時間。
+    &quot;&quot;&quot;
+    return (dt.astimezone(UTC) + timedelta(**delta)).astimezone(dt.tzinfo)
+
+
+def show(label, dt):
+    print(f&quot;  {label:&lt;46} {dt.astimezone(CET):%Y-%m-%d %H:%M %Z}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    aware = datetime(2026, 1, 30, 22, 30, tzinfo=CET)      # 營運者知悉重大事件
+    print(f&quot;知悉時間：{aware:%Y-%m-%d %H:%M %Z}（= {aware.astimezone(UTC):%H:%M UTC}）&quot;)
+    print(&quot;NIS2 Article 23（重大事件）&quot;)
+    show(&quot;早期預警（24 小時內）&quot;, after(aware, hours=24))
+    show(&quot;事件通報（72 小時內）&quot;, after(aware, hours=72))
+    final = add_month(after(aware, hours=72))
+    show(&quot;最終報告（事件通報後 1 個月內）&quot;, final)
+    print(&quot;CRA Article 14（製造商：遭積極利用的漏洞）&quot;)
+    show(&quot;早期預警（24 小時內）&quot;, after(aware, hours=24))
+    show(&quot;漏洞通報（72 小時內）&quot;, after(aware, hours=72))
+    fix_available = datetime(2026, 2, 6, 10, 0, tzinfo=CET)
+    show(&quot;最終報告（修正措施可用後 14 天內）&quot;, after(fix_available, days=14))
+    print(&quot;GDPR Article 33（個資侵害，控制者）&quot;)
+    show(&quot;通報監管機關（72 小時內）&quot;, after(aware, hours=72))
+    print(&quot;注意：1 月 30 日加 1 個月不是 2 月 30 日，&quot;, add_month(datetime(2026, 1, 30, tzinfo=CET)).date())
+    dst = datetime(2026, 3, 29, 1, 30, tzinfo=CET)          # 當天 02:00 切換為夏令時間
+    print(f&quot;夏令時間切換：{dst:%m-%d %H:%M %Z} 直接加 24h = {dst + timedelta(hours=24):%m-%d %H:%M %Z}（只過了 23 小時）；&quot;
+          f&quot;經 UTC 計算 = {after(dst, hours=24):%m-%d %H:%M %Z}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上；Windows 若缺時區資料，先 pip install tzdata</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>知悉時間：2026-01-30 22:30 CET（= 21:30 UTC）
+NIS2 Article 23（重大事件）
+  早期預警（24 小時內）                                   2026-01-31 22:30 CET
+  事件通報（72 小時內）                                   2026-02-02 22:30 CET
+  最終報告（事件通報後 1 個月內）                              2026-03-02 22:30 CET
+CRA Article 14（製造商：遭積極利用的漏洞）
+  早期預警（24 小時內）                                   2026-01-31 22:30 CET
+  漏洞通報（72 小時內）                                   2026-02-02 22:30 CET
+  最終報告（修正措施可用後 14 天內）                            2026-02-20 10:00 CET
+GDPR Article 33（個資侵害，控制者）
+  通報監管機關（72 小時內）                                 2026-02-02 22:30 CET
+注意：1 月 30 日加 1 個月不是 2 月 30 日， 2026-02-28
+夏令時間切換：03-29 01:30 CET 直接加 24h = 03-30 01:30 CEST（只過了 23 小時）；經 UTC 計算 = 03-30 02:30 CEST</code></pre><h3>工程現場案例：智慧冰水機控制器的漏洞遭利用，製造商與營運者各有時鐘</h3><p>某冰水機製造商的網路控制器韌體有漏洞，遭攻擊者用來關閉歐盟多處資料中心的冷卻。製造商依 CRA Article 14 要在知悉後 24 小時內向 ENISA 單一通報平台提出早期預警、72 小時內漏洞通報，修正版韌體可用後 14 天內提出最終報告；受影響的資料中心營運者若屬 NIS2 涵蓋實體，另有自己的 24／72 小時與 1 個月時鐘。</p><p>兩方的起算點不同（製造商知悉漏洞被利用、營運者知悉重大事件），通報對象也不同，不能互相代替。工程團隊要準備的是同一份時間軸與證據，各自依自己的義務送出。</p><ol><li>產品端：建立漏洞接收管道、受影響版本清單與修補時程，CRA 通報義務自 2026-09-11 起已適用。</li><li>營運端：確認自己是否為 NIS2 涵蓋實體，以及所在成員國轉置法的通報窗口。</li><li>共用時間軸以 UTC 記錄，報告時轉成受件機關的當地時間。</li><li>涉及個資時，GDPR 的 72 小時由控制者負責，處理者要無不當延遲地通知控制者。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>CRA Article 14 的通報義務已於 2026-09-11 開始適用，包含 2027-12-11 前已上市的涵蓋產品；主要義務自 2027-12-11 適用。本頁 11-25 已整理此時程，核對時未見變更。 <a href="https://eur-lex.europa.eu/eli/reg/2024/2847/oj">來源：EUR-Lex：Regulation (EU) 2024/2847</a></li><li>歐盟期間計算規則 Regulation (EEC, Euratom) No 1182/71：以小時計的期間，事件發生的那一小時不計入；以月計的期間，若最後一個月沒有對應日期，期間在該月最後一天結束。 <a href="https://eur-lex.europa.eu/eli/reg/1971/1182/oj">來源：EUR-Lex：Regulation 1182/71</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>知悉時間是 2026-03-29 01:30（CET），歐洲當天 02:00 切換夏令時間。直接寫 aware + timedelta(hours=24) 會得到什麼？為什麼範例要經過 after()？</p><details><summary>看解答</summary><p>Python 對同一時區的 aware datetime 做加法，是在「牆上時間」上加，結果是 03-30 01:30 CEST，實際只過了 23 小時，期限被算早了一小時。after() 先轉 UTC 加 24 小時再轉回，得到 03-30 02:30 CEST，才是經過 24 小時。範例最後一行印出兩種結果對照。這個陷阱在台灣與中國大陸（無夏令時間）不會出現，但美國與歐洲的事件時鐘一定要處理。</p></details></li><li><p>為什麼 add_month() 不直接用 timedelta(days=30)？</p><details><summary>看解答</summary><p>「1 個月」是曆月，不是 30 天。1 月 31 日加 1 個月應是 2 月 28 日（或閏年 29 日），3 月 15 日加 1 個月是 4 月 15 日；用 30 天會在大部分月份算錯。</p></details></li><li><p>CRA 最終報告的 14 天是從什麼時候起算？和 NIS2 的 1 個月有什麼不同？</p><details><summary>看解答</summary><p>CRA 遭積極利用漏洞的最終報告，是在修正或緩解措施可用後 14 天內；NIS2 的最終報告則是在事件通報後 1 個月內。前者綁定修補進度，後者綁定通報時間。</p></details></li><li><p>範例說小時制的算法「保守」，具體差多少？</p><details><summary>看解答</summary><p>依 1182/71，22:30 發生的事件從 23:00 起算，24 小時期限在隔天 23:00 屆滿；程式算出 22:30，早了 30 分鐘。提早送出不違規，但不應反過來把期限算得更晚。</p></details></li></ol></section><!-- extension:end -->
+</main><footer><a href="#top">回頂端</a> · <a href="index.html">教材首頁</a> · <a href="python_information_security_tutorial.html">資訊安全篇章</a></footer></body></html>
