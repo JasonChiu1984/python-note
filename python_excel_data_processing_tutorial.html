@@ -286,4 +286,63 @@ sheet[&quot;D3&quot;] = sum(sheet[f&quot;B{r}&quot;].value for r in (1, 2))  # P
 <p>範例重開新工作簿後，<code>B3</code> 公式存在而快取為 <code>None</code>；<code>D3</code> 有可核對的 20。另用無害的示例字串 <code>=1+1</code> 確認外部欄位序列化為文字，避免把外部資料當公式。這是 XLSX 型別的策略，轉成 CSV 就沒有儲存格型別保證，需另外定義匯出政策。重算後還要驗證第三方工具對圖表、功能及版式的相容性，不能宣稱 openpyxl 自動重算。</p>
 <p>原始參考：<a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl 官方工作簿讀寫與 data_only</a> · <a href="https://openpyxl.readthedocs.io/en/stable/simple_formulae.html">openpyxl 公式使用限制</a>。</p>
 </section>
-<section id="references"><h2>官方資料</h2><ul><li><a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl：建立、儲存、載入工作簿</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html">openpyxl：工作表表格</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/styles.html">openpyxl：儲存格樣式</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/datetime.html">openpyxl：日期及時間</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/charts/bar.html">openpyxl：長條圖、資料範圍與類別</a></li></ul></section></main></div></body></html>
+<section id="references"><h2>官方資料</h2><ul><li><a href="https://openpyxl.readthedocs.io/en/stable/tutorial.html">openpyxl：建立、儲存、載入工作簿</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html">openpyxl：工作表表格</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/styles.html">openpyxl：儲存格樣式</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/datetime.html">openpyxl：日期及時間</a></li><li><a href="https://openpyxl.readthedocs.io/en/stable/charts/bar.html">openpyxl：長條圖、資料範圍與類別</a></li></ul></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁用 openpyxl 處理點位表。本節打開 xlsx 的外殼看看裡面：它其實是 zip 包著 XML。理解結構後，就能明白為什麼前導零會不見、為什麼公式儲存格用 data_only=True 會讀到 None。</p><h3>可實跑範例：拆解 xlsx：字串、數值與公式</h3><p>範例產生一個只含工作表 XML 的最小 xlsx（不是完整合法的 Excel 檔，Excel 可能無法開啟，但足以示範結構），再用 zipfile 與 ElementTree 讀回。D2 的公式有快取值，D3 從未在 Excel 中計算過，所以沒有快取值。</p><p><a class="button" download href="extensions/python_excel_data_processing_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;不需 openpyxl 也能讀 .xlsx：xlsx 是 zip 包著 XML。產生一個最小活頁簿再讀回，並區分數值、字串與公式（標準函式庫）。
+
+正式處理請用 openpyxl（本範例只是讓你理解檔案結構，以及「公式儲存格沒有快取值」的意義）。
+&quot;&quot;&quot;
+import io
+import zipfile
+import xml.etree.ElementTree as ET
+
+NS = {&quot;m&quot;: &quot;http://schemas.openxmlformats.org/spreadsheetml/2006/main&quot;}
+
+SHEET = &quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;worksheet xmlns=&quot;http://schemas.openxmlformats.org/spreadsheetml/2006/main&quot;&gt;&lt;sheetData&gt;
+&lt;row r=&quot;1&quot;&gt;&lt;c r=&quot;A1&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;點位&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;B1&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;位址&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;C1&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;讀值&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;D1&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;超溫&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;/row&gt;
+&lt;row r=&quot;2&quot;&gt;&lt;c r=&quot;A2&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;AHU1_SAT&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;B2&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;001&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;C2&quot;&gt;&lt;v&gt;22.5&lt;/v&gt;&lt;/c&gt;&lt;c r=&quot;D2&quot;&gt;&lt;f&gt;C2&amp;gt;24&lt;/f&gt;&lt;v&gt;0&lt;/v&gt;&lt;/c&gt;&lt;/row&gt;
+&lt;row r=&quot;3&quot;&gt;&lt;c r=&quot;A3&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;AHU2_SAT&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;B3&quot; t=&quot;inlineStr&quot;&gt;&lt;is&gt;&lt;t&gt;002&lt;/t&gt;&lt;/is&gt;&lt;/c&gt;&lt;c r=&quot;C3&quot;&gt;&lt;v&gt;25.2&lt;/v&gt;&lt;/c&gt;&lt;c r=&quot;D3&quot;&gt;&lt;f&gt;C3&amp;gt;24&lt;/f&gt;&lt;/c&gt;&lt;/row&gt;
+&lt;/sheetData&gt;&lt;/worksheet&gt;&quot;&quot;&quot;
+
+
+def make_xlsx():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, &quot;w&quot;) as z:
+        z.writestr(&quot;xl/worksheets/sheet1.xml&quot;, SHEET)
+    return buf.getvalue()
+
+
+def read_cells(data):
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        root = ET.fromstring(z.read(&quot;xl/worksheets/sheet1.xml&quot;))
+    for c in root.iterfind(&quot;.//m:c&quot;, NS):
+        ref, typ = c.get(&quot;r&quot;), c.get(&quot;t&quot;)
+        f, v = c.find(&quot;m:f&quot;, NS), c.find(&quot;m:v&quot;, NS)
+        if typ == &quot;inlineStr&quot;:
+            yield ref, &quot;字串&quot;, c.find(&quot;.//m:t&quot;, NS).text
+        elif f is not None:
+            yield ref, &quot;公式&quot;, f&quot;={f.text}，快取值 {v.text if v is not None else &#x27;無（從未在 Excel 中計算）&#x27;}&quot;
+        else:
+            yield ref, &quot;數值&quot;, float(v.text)
+
+
+if __name__ == &quot;__main__&quot;:
+    data = make_xlsx()
+    print(f&quot;xlsx 大小 {len(data)} bytes，內含：&quot;, zipfile.ZipFile(io.BytesIO(data)).namelist())
+    for ref, kind, value in read_cells(data):
+        print(f&quot;{ref:&lt;3} {kind}：{value}&quot;)
+    print(&quot;注意 B2 是字串 &#x27;001&#x27;，不是數字 1；D3 是公式但沒有快取值，openpyxl 的 data_only=True 會讀到 None。&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>xlsx 大小 866 bytes，內含： [&#x27;xl/worksheets/sheet1.xml&#x27;]
+A1  字串：點位
+B1  字串：位址
+C1  字串：讀值
+D1  字串：超溫
+A2  字串：AHU1_SAT
+B2  字串：001
+C2  數值：22.5
+D2  公式：=C2&gt;24，快取值 0
+A3  字串：AHU2_SAT
+B3  字串：002
+C3  數值：25.2
+D3  公式：=C3&gt;24，快取值 無（從未在 Excel 中計算）
+注意 B2 是字串 &#x27;001&#x27;，不是數字 1；D3 是公式但沒有快取值，openpyxl 的 data_only=True 會讀到 None。</code></pre><h3>工程現場案例：程式產生的報表，公式欄位讀回來全是空的</h3><p>某報表流程先用 openpyxl 寫入資料與公式，再由另一支程式用 load_workbook(data_only=True) 讀回公式結果做彙總，結果全是 None。原因是 openpyxl 只寫入公式，不會計算；公式結果是 Excel 開啟並存檔時才寫入的快取值。</p><p>解法有兩種：在 Python 裡直接計算結果並寫入數值（公式只作為給人看的輔助），或在讀回前用 LibreOffice 無頭模式重新計算並存檔。點位位址欄則要寫成文字格式，否則 001 會變成 1。</p><ol><li>點位代碼、位址這類代碼欄位一律以文字寫入，並設定儲存格格式為文字。</li><li>需要被程式讀回的計算結果直接寫入數值，不要依賴公式快取。</li><li>讀取外部提供的 xlsx 時，同時讀公式與快取值，快取值為空時告警。</li><li>大型檔案用 openpyxl 的 read_only 與 write_only 模式。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 openpyxl 最新版為 3.1.5；pandas 讀寫 xlsx 也依賴 openpyxl。 <a href="https://pypi.org/project/openpyxl/">來源：PyPI：openpyxl</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>xlsx 中的字串為什麼常常不是像範例這樣直接寫在儲存格裡？</p><details><summary>看解答</summary><p>Excel 預設把字串放在 xl/sharedStrings.xml，儲存格只存索引（t="s"），以節省重複字串的空間。範例使用 inlineStr 是為了簡化。完整的讀取程式要處理共用字串表。</p></details></li><li><p>若 B2 的位址以數值 001 寫入，XML 中會是什麼？</p><details><summary>看解答</summary><p>會是 &lt;v&gt;1&lt;/v&gt;，前導零在寫入時就已消失，沒有任何方法從檔案中還原。代碼欄位必須以字串寫入。</p></details></li><li><p>D2 的快取值是 0，代表什麼？</p><details><summary>看解答</summary><p>Excel 中 FALSE 以 0 儲存（布林型儲存格 t="b" 時為 0／1）。22.5 &gt; 24 為假，所以是 0。讀取時要依儲存格型別轉換。</p></details></li><li><p>用 openpyxl 讀取時，要同時取得公式與快取值該怎麼做？</p><details><summary>看解答</summary><p>分別以 data_only=False 與 data_only=True 各載入一次：前者取得公式字串，後者取得快取值。兩者對照可以找出從未被 Excel 計算過的公式。</p></details></li></ol></section><!-- extension:end -->
+</main></div></body></html>

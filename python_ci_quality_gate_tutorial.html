@@ -520,6 +520,57 @@ if entry.get(&quot;revision&quot;) != expected_revision:
     failures.append(name + &quot;:revision&quot;)</code></pre>
 <p>官方資料：<a href="https://docs.github.com/en/actions/concepts/security/artifact-attestations">GitHub：artifact attestations 的定位</a>、<a href="https://docs.python.org/3/library/hashlib.html">Python：hashlib</a>。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明以風險決定閘門。本節把決策寫成程式：依變更的檔案判斷風險等級，對應不同的必過項目，並用成品雜湊確認測試過的就是要部署的那一份。</p><h3>可實跑範例：依風險等級判定品質閘門</h3><p>risk_of() 依檔案路徑分出文件、一般程式與會寫入設備的控制程式三級；decide() 檢查必過項目是否全部通過，並比對建置成品與測試成品的 SHA-256。風險分類規則請依專案目錄調整。</p><p><a class="button" download href="extensions/python_ci_quality_gate_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;品質閘門判定：依變更風險決定必過項目，並以成品雜湊確認測試的是同一份成品（標準函式庫）。&quot;&quot;&quot;
+import hashlib
+
+GATES = {   # 風險等級: 必過項目
+    &quot;docs&quot;: [&quot;lint&quot;],
+    &quot;normal&quot;: [&quot;lint&quot;, &quot;typecheck&quot;, &quot;unit&quot;],
+    &quot;control&quot;: [&quot;lint&quot;, &quot;typecheck&quot;, &quot;unit&quot;, &quot;integration&quot;, &quot;manual_review&quot;],
+}
+
+
+def risk_of(changed_files):
+    if any(f.startswith((&quot;src/bms/control/&quot;, &quot;src/bms/write/&quot;)) for f in changed_files):
+        return &quot;control&quot;                    # 會寫入設備的程式碼
+    if all(f.endswith((&quot;.md&quot;, &quot;.txt&quot;)) for f in changed_files):
+        return &quot;docs&quot;
+    return &quot;normal&quot;
+
+
+def decide(changed, results, built_hash, tested_hash):
+    risk = risk_of(changed)
+    missing = [g for g in GATES[risk] if results.get(g) is None]
+    failed = [g for g in GATES[risk] if results.get(g) is False]
+    if built_hash != tested_hash:
+        return risk, &quot;阻擋：測試的成品與要部署的成品雜湊不同&quot;
+    if failed:
+        return risk, f&quot;阻擋：{failed} 未通過&quot;
+    if missing:
+        return risk, f&quot;阻擋：{missing} 尚未執行&quot;
+    return risk, &quot;通過，可以部署&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    wheel = b&quot;bmsgateway-2.4.1-py3-none-any.whl contents&quot;
+    h = hashlib.sha256(wheel).hexdigest()
+    tampered = hashlib.sha256(wheel + b&quot; patched&quot;).hexdigest()
+    cases = [
+        (&quot;只改文件&quot;, [&quot;README.md&quot;], {&quot;lint&quot;: True}, h),
+        (&quot;一般程式&quot;, [&quot;src/bms/report.py&quot;], {&quot;lint&quot;: True, &quot;typecheck&quot;: True, &quot;unit&quot;: True}, h),
+        (&quot;控制程式缺審查&quot;, [&quot;src/bms/control/setpoint.py&quot;],
+         {&quot;lint&quot;: True, &quot;typecheck&quot;: True, &quot;unit&quot;: True, &quot;integration&quot;: True}, h),
+        (&quot;單元測試失敗&quot;, [&quot;src/bms/report.py&quot;], {&quot;lint&quot;: True, &quot;typecheck&quot;: True, &quot;unit&quot;: False}, h),
+        (&quot;成品被替換&quot;, [&quot;src/bms/report.py&quot;], {&quot;lint&quot;: True, &quot;typecheck&quot;: True, &quot;unit&quot;: True}, tampered),
+    ]
+    for name, changed, results, tested in cases:
+        risk, verdict = decide(changed, results, h, tested)
+        print(f&quot;{name:&lt;10} 風險 {risk:&lt;7} → {verdict}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>只改文件       風險 docs    → 通過，可以部署
+一般程式       風險 normal  → 通過，可以部署
+控制程式缺審查    風險 control → 阻擋：[&#x27;manual_review&#x27;] 尚未執行
+單元測試失敗     風險 normal  → 阻擋：[&#x27;unit&#x27;] 未通過
+成品被替換      風險 normal  → 阻擋：測試的成品與要部署的成品雜湊不同</code></pre><h3>工程現場案例：修改冰機寫入邏輯的 PR，只跑了單元測試就部署</h3><p>某專案所有 PR 都使用同一套檢查。一個修改冰機設定點寫入邏輯的 PR 通過單元測試後直接部署，但單元測試用的是 mock，沒有發現寫入的暫存器位址錯誤。若依風險分級，控制程式必須再通過整合測試（接模擬器或測試設備）與人工審查。</p><p>另一個常見漏洞是「測的和部署的不是同一份」：CI 測試完後，部署腳本又重新建置一次，或成品在傳遞過程被替換。比對成品雜湊可以確保部署的就是通過測試的那一份。</p><ol><li>依目錄或標籤定義風險等級，對應必過項目，寫成可審查的設定。</li><li>建置一次、產生成品雜湊，後續所有測試與部署都使用同一份成品。</li><li>控制類變更加上整合測試與指定審查者。</li><li>閘門結果與成品雜湊一起記錄，作為部署稽核的依據。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時常用工具版本：pytest 9.2.0、ruff 0.17.6、mypy 2.4.1。GitHub Actions 等平台提供成品證明（artifact attestations），可用來證明成品由指定工作流程建置。 <a href="https://pypi.org/project/pytest/">來源：PyPI：pytest</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>一個 PR 同時修改 README.md 與 src/bms/control/setpoint.py，風險等級是什麼？</p><details><summary>看解答</summary><p>control。risk_of() 先檢查是否有控制程式，有就直接判為最高等級；混合變更以最高風險為準。</p></details></li><li><p>為什麼「尚未執行」也要阻擋，而不是視為通過？</p><details><summary>看解答</summary><p>缺少結果可能是工作流程設定錯誤或檢查被跳過。把未執行當成通過，會讓設定錯誤悄悄放行；明確要求每一項都有結果才安全。</p></details></li><li><p>若想讓文件變更也跑拼字檢查，要怎麼改？</p><details><summary>看解答</summary><p>在 GATES['docs'] 加入 'spellcheck'，並讓 CI 產生對應的結果。所有等級的必過項目集中在一個字典，修改與審查都容易。</p></details></li><li><p>成品雜湊不一致時，應該重新跑測試還是直接阻擋？</p><details><summary>看解答</summary><p>直接阻擋並調查原因。雜湊不一致代表部署流程中有東西改了成品，可能是重新建置的不確定性，也可能是被竄改；重跑測試只會掩蓋問題。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁用 SDK 2.x 示範伺服器與驗收客戶端。本節回到協定本身：不靠 SDK，直接組出 2026-07-28 規格的 JSON-RPC 請求與 HTTP 標頭，練習檢查標頭與本文是否一致、回應是否帶 resultType，以及版本不符時的錯誤格式。",
+ "example_title": "手動組出 2026-07-28 請求並檢查一致性",
+ "example_desc": "每個請求的 params._meta 都帶協定版本、client 能力與 client 資訊；HTTP 標頭的 MCP-Protocol-Version、Mcp-Method、Mcp-Name 必須與本文一致。範例只做格式練習，不會連線。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "閘道器或代理只看標頭做存取控制",
+  "paragraphs": [
+   "2026-07-28 規格要求 HTTP 請求帶 Mcp-Method 與 Mcp-Name，讓負載平衡器、API 閘道器不用解析 JSON 本文就能路由、限流或記錄。但這也代表一個新風險：若有人送出標頭寫 search_notes、本文卻呼叫 delete_notes 的請求，只看標頭放行的閘道器就會被繞過。",
+   "規格因此要求伺服器比對標頭與本文，不一致時回 HeaderMismatch（-32020）。範例的 check_headers() 就是這個比對；在閘道器層做存取控制時，同樣要確認伺服器端有做這項檢查，或由閘道器自己解析本文。"
+  ],
+  "steps": [
+   "用 SDK 2.x 的 Client(mode=\"auto\") 連線，讓它處理 server/discover 與舊版退回。",
+   "閘道器若依 Mcp-Name 做工具層級的存取控制，確認伺服器會拒絕標頭與本文不一致的請求。",
+   "自行實作伺服器時，所有結果都帶 resultType，並對 server/discover、tools/list 等回應提供 ttlMs 與 cacheScope。",
+   "保留對 2025-11-25 舊客戶端的相容（dual-era）到所有客戶端升級為止，並記錄各客戶端使用的版本。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "MCP 2026-07-28 規格移除了 initialize 握手、Mcp-Session-Id、ping 與 logging/setLevel，並把 Roots、Sampling、Logging 列為 Deprecated；錯誤碼重新編號，UnsupportedProtocolVersion 為 -32022、HeaderMismatch 為 -32020。MCP Python SDK 本頁核對時最新為 2.3.0。",
+   "sources": [
+    {
+     "title": "MCP 2026-07-28 變更清單",
+     "url": "https://modelcontextprotocol.io/specification/2026-07-28/changelog"
+    },
+    {
+     "title": "PyPI：mcp",
+     "url": "https://pypi.org/project/mcp/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "2026-07-28 的伺服器收到舊客戶端的 initialize 請求，應該怎麼處理？",
+   "a": "<p>若伺服器是 dual-era，依舊版語意回應 initialize 並在該工作階段使用舊規格（MCP Python SDK 2.x 的伺服器就是如此）。若只支援新版，應回錯誤並在訊息中列出支援的版本，因為舊客戶端沒有升級機制，這可能是唯一的診斷資訊。</p>"
+  },
+  {
+   "q": "為什麼每個請求都要帶 clientCapabilities，而不是連線時宣告一次？",
+   "a": "<p>新規格是無狀態的，任何請求都可能送到不同的伺服器實例，伺服器無法依賴先前的握手記住客戶端能力。每個請求自帶完整資訊，就能放在一般的 round-robin 負載平衡器後面。</p>"
+  },
+  {
+   "q": "收到 -32022 錯誤後，客戶端應該怎麼做？",
+   "a": "<p>讀取 error.data.supported，從中選一個雙方都支援的版本重送請求；若沒有交集，向使用者回報無法相容。不要直接退回 initialize，因為回 -32022 代表對方是新版伺服器。</p>"
+  },
+  {
+   "q": "check_result() 只檢查 resultType。實務上還應該檢查哪些欄位？",
+   "a": "<p>依方法而定：tools/list、resources/list 等可快取的結果要有 ttlMs 與 cacheScope；tools/call 要檢查 isError 與 content／structuredContent；結果 _meta 中的 serverInfo 可用來記錄對方版本。resultType 為 input_required 時要依 inputRequests 補資料後重送原請求。</p>"
+  }
+ ]
+}

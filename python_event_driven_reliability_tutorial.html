@@ -531,7 +531,71 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>故障要能被定位，不要讓 queue 默默卡死</h2><p>queue lag、DLQ 堆積、重複事件與順序錯亂都需要清楚的診斷步驟與保守處理。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>可靠性結論必須來自證據，不是口頭保證</h2><p>事件驅動設計應產生可追溯的交付證據，能被 release note、營運 runbook 與事故檢討直接引用。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明 at-least-once 與冪等消費。本節把兩端串起來：寫入端用 Outbox 模式保證事件不會漏送，消費端用事件 ID 去重保證重送不會重複處理，並模擬派送器在最危險的時間點崩潰。</p><h3>可實跑範例：Outbox 模式與冪等消費</h3><p>change_setpoint() 把設定點更新與待送事件放在同一個交易；dispatch() 送出後才標記 sent，崩潰時事件會被重送；消費端以 consumed 表的主鍵去重，與業務寫入同一交易。全部使用記憶體中的 SQLite。</p><p><a class="button" download href="extensions/python_event_driven_reliability_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Outbox 模式：業務資料與待送事件同一交易寫入，派送器至少送一次，消費端以事件 ID 去重（標準函式庫 sqlite3）。&quot;&quot;&quot;
+import json
+import sqlite3
+
+
+def setup():
+    db = sqlite3.connect(&quot;:memory:&quot;, isolation_level=None)
+    db.executescript(&quot;&quot;&quot;
+        CREATE TABLE setpoint(device TEXT PRIMARY KEY, value REAL);
+        CREATE TABLE outbox(id INTEGER PRIMARY KEY, payload TEXT, sent INTEGER DEFAULT 0);
+        CREATE TABLE consumed(event_id INTEGER PRIMARY KEY);
+        CREATE TABLE audit(event_id INTEGER, device TEXT, value REAL);
+    &quot;&quot;&quot;)
+    return db
+
+
+def change_setpoint(db, device, value):
+    db.execute(&quot;BEGIN&quot;)
+    db.execute(&quot;INSERT INTO setpoint VALUES (?, ?) ON CONFLICT(device) DO UPDATE SET value=excluded.value&quot;, (device, value))
+    db.execute(&quot;INSERT INTO outbox(payload) VALUES (?)&quot;, (json.dumps({&quot;device&quot;: device, &quot;value&quot;: value}),))
+    db.execute(&quot;COMMIT&quot;)
+
+
+def dispatch(db, deliver, crash_before_mark=False):
+    for eid, payload in db.execute(&quot;SELECT id, payload FROM outbox WHERE sent=0 ORDER BY id&quot;).fetchall():
+        deliver(eid, json.loads(payload))
+        if crash_before_mark:
+            raise RuntimeError(f&quot;送出事件 {eid} 後、標記 sent 前崩潰&quot;)
+        db.execute(&quot;UPDATE outbox SET sent=1 WHERE id=?&quot;, (eid,))
+
+
+def make_consumer(db):
+    def deliver(eid, event):
+        try:
+            db.execute(&quot;BEGIN&quot;)
+            db.execute(&quot;INSERT INTO consumed VALUES (?)&quot;, (eid,))      # 主鍵衝突 = 已處理過
+            db.execute(&quot;INSERT INTO audit VALUES (?, ?, ?)&quot;, (eid, event[&quot;device&quot;], event[&quot;value&quot;]))
+            db.execute(&quot;COMMIT&quot;)
+            print(f&quot;  消費事件 {eid}：{event}&quot;)
+        except sqlite3.IntegrityError:
+            db.execute(&quot;ROLLBACK&quot;)
+            print(f&quot;  事件 {eid} 重送，已處理過，略過&quot;)
+    return deliver
+
+
+if __name__ == &quot;__main__&quot;:
+    db = setup()
+    deliver = make_consumer(db)
+    change_setpoint(db, &quot;CH-01&quot;, 7.5)
+    change_setpoint(db, &quot;CH-02&quot;, 7.0)
+    try:
+        dispatch(db, deliver, crash_before_mark=True)
+    except RuntimeError as e:
+        print(&quot;派送器：&quot;, e)
+    print(&quot;重啟派送器：&quot;)
+    dispatch(db, deliver)
+    print(&quot;outbox 未送：&quot;, db.execute(&quot;SELECT COUNT(*) FROM outbox WHERE sent=0&quot;).fetchone()[0],
+          &quot;；audit 筆數：&quot;, db.execute(&quot;SELECT COUNT(*) FROM audit&quot;).fetchone()[0])
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上（SQLite 3.24 以上支援 ON CONFLICT DO UPDATE），無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>  消費事件 1：{&#x27;device&#x27;: &#x27;CH-01&#x27;, &#x27;value&#x27;: 7.5}
+派送器： 送出事件 1 後、標記 sent 前崩潰
+重啟派送器：
+  事件 1 重送，已處理過，略過
+  消費事件 2：{&#x27;device&#x27;: &#x27;CH-02&#x27;, &#x27;value&#x27;: 7.0}
+outbox 未送： 0 ；audit 筆數： 2</code></pre><h3>工程現場案例：設定點改了，稽核系統卻沒收到事件</h3><p>某系統先更新資料庫的設定點，再呼叫訊息佇列發送「設定點已變更」事件。兩步之間程序被重啟，資料庫已改但事件沒送出，稽核系統完全沒有這次變更的紀錄。反過來先送事件再寫資料庫，失敗時又會出現沒有實際發生的變更紀錄。</p><p>Outbox 模式把事件當成業務資料的一部分，在同一個交易寫入 outbox 表，由獨立的派送器負責送出。範例中派送器在送出事件 1 後、標記前崩潰，重啟後重送事件 1，消費端以事件 ID 辨識並略過，最終稽核筆數正確為 2。</p><ol><li>找出所有「寫資料庫＋發事件」的地方，改成同交易寫入 outbox。</li><li>派送器依 ID 順序送出，成功後才標記；失敗重試要有上限與死信處理。</li><li>消費端以事件 ID 建立唯一鍵，去重與業務處理在同一交易。</li><li>監控 outbox 中未送出的事件數量與最舊事件的年齡。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>SQLite 自 3.24 起支援 UPSERT（ON CONFLICT … DO UPDATE），Python 內建的 sqlite3 在目前支援的版本中皆已滿足。訊息系統若改用 Kafka、RabbitMQ 等，Outbox 與冪等消費的原則不變。 <a href="https://www.sqlite.org/lang_upsert.html">來源：SQLite：UPSERT</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若消費端先寫 audit、再寫 consumed，而且兩者不在同一交易，重送事件 1 會發生什麼？</p><details><summary>看解答</summary><p>若在寫完 audit、寫 consumed 前崩潰，重送時 consumed 沒有紀錄，audit 會被寫入第二次。去重標記與業務寫入必須在同一個交易裡。</p></details></li><li><p>為什麼派送器要依 id 排序送出？</p><details><summary>看解答</summary><p>同一台設備的多次變更若亂序送達，消費端可能把舊值當成最新值。依 id 排序能保持同一來源的順序；若有多個派送器並行，需要依設備分區以保持各分區內的順序。</p></details></li><li><p>outbox 表會一直變大。要怎麼處理？</p><details><summary>看解答</summary><p>已送出（sent=1）的事件可定期刪除或搬到歷史表，保留期限依稽核需求而定。也可改成送出後直接刪除，但要確保刪除與標記是同一操作。</p></details></li><li><p>消費端 consumed 表的 event_id 為什麼可以當成去重依據？</p><details><summary>看解答</summary><p>outbox 的 id 由資料庫產生且唯一，同一事件重送時 id 相同。若事件來自多個來源系統，要用「來源＋事件 ID」作為複合鍵，避免不同來源的 id 相撞。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

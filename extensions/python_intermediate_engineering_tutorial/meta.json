@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "中級課程的各個主題（dataclass、生成器、上下文管理器、自訂例外、logging）單獨看都不難，難在組合使用。本節用一個「讀點位表 → 驗證 → 摘要」的小任務把它們串起來。",
+ "example_title": "綜合練習：點位表驗證",
+ "example_desc": "rows() 是生成器，逐列讀取；parse() 把格式錯誤轉成自訂的 PointError 並保留原始例外（raise … from）；timed() 是上下文管理器；警告以 logging 輸出到標準輸出。耗時不印出，讓輸出可重現。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "一列錯誤讓整份點位表匯入失敗",
+  "paragraphs": [
+   "某匯入程式遇到第一個格式錯誤就整個中止，現場工程師每次只能修一列。範例的做法是把「可以略過的資料錯誤」定義成 PointError，記錄警告後繼續處理下一列，最後報告有效點位；程式本身的錯誤（例如 KeyError 表示欄位名稱不對）則不攔截，讓它直接中止。",
+   "區分例外類型是中級程式設計的關鍵：攔截太廣（except Exception）會把程式錯誤也當成資料問題略過，攔截太窄又會讓單一壞資料中斷整批處理。"
+  ],
+  "steps": [
+   "為「預期會發生、可以處理」的錯誤定義專用例外類別。",
+   "只攔截專用例外，其他例外讓它往外拋。",
+   "用 raise … from 保留原始例外，日誌與除錯時才看得到根本原因。",
+   "處理大量資料時用生成器逐筆處理，避免一次讀入記憶體。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "範例使用的語法與模組在 Python 3.10–3.15 皆可執行。Python 3.10 已結束支援，練習建議使用 3.13 或 3.14。",
+   "sources": [
+    {
+     "title": "Python 版本狀態",
+     "url": "https://devguide.python.org/versions/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "CSV 中有兩列 CH1_KW，為什麼輸出沒有出現「名稱重複」的警告？",
+   "a": "<p>第 4 列的 CH1_KW 因 scale 為 abc 而解析失敗，沒有加入 seen；第 5 列是第一個有效的 CH1_KW。若把第 4 列的 scale 改成合法數字，第 5 列就會觸發重複警告。</p>"
+  },
+  {
+   "q": "把 parse() 的 except ValueError 改成 except Exception，會有什麼風險？",
+   "a": "<p>若 CSV 欄位名稱打錯（例如 adress），row[\"addr\"] 會丟 KeyError，也會被包裝成 PointError 並略過，結果每一列都被略過，程式卻正常結束、報告 0 個點位。程式錯誤應該讓程式失敗。</p>"
+  },
+  {
+   "q": "raise PointError(...) from e 的 from e 有什麼作用？",
+   "a": "<p>把原始例外存到 __cause__，traceback 會顯示「The above exception was the direct cause of…」，除錯時可以看到最初是哪個轉換失敗。</p>"
+  },
+  {
+   "q": "timed() 的 finally 有什麼用？若驗證過程丟出例外會怎樣？",
+   "a": "<p>finally 確保即使區塊中發生例外，也會記錄完成訊息（以及耗時），然後例外繼續往外拋。這是上下文管理器做資源清理與計時的標準寫法。</p>"
+  }
+ ]
+}

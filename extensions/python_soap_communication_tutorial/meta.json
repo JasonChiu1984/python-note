@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。",
+ "example_title": "SOAP 1.1／1.2 請求、版本辨識與 Fault 解析",
+ "example_desc": "SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不會連線",
+ "case": {
+  "title": "舊型能源管理系統只接受 SOAP 1.1",
+  "paragraphs": [
+   "某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。",
+   "解析回應時也要依版本處理 Fault。範例的 parse_response() 從根元素的命名空間自動判斷，統一回傳（狀態, 代碼, 訊息），上層程式不需要關心版本差異。"
+  ],
+  "steps": [
+   "從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。",
+   "用 curl 或 Postman 先送一個最小請求，確認 Content-Type 與 SOAPAction 正確。",
+   "解析回應時先檢查 Fault，再取業務資料；Fault 的代碼與訊息寫進日誌。",
+   "處理外部 XML 時注意 XML 外部實體（XXE）風險，不信任的輸入可用 defusedxml 剖析。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 的 xml.etree.ElementTree 文件提醒：處理不受信任的 XML 時要留意各種 XML 攻擊。常用的 SOAP 用戶端套件 zeep 本頁核對時最新版為 4.3.3。",
+   "sources": [
+    {
+     "title": "Python 文件：XML 弱點",
+     "url": "https://docs.python.org/3/library/xml.html#xml-vulnerabilities"
+    },
+    {
+     "title": "PyPI：zeep",
+     "url": "https://pypi.org/project/zeep/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "SOAP 1.1 的 SOAPAction 標頭值為什麼要加雙引號？",
+   "a": "<p>SOAP 1.1 規格把 SOAPAction 定義為帶引號的 URI 字串；部分伺服器會嚴格檢查。值為空字串時也要寫成 \"\"。</p>"
+  },
+  {
+   "q": "detect() 收到一個根元素為 Envelope 但命名空間不同的 XML，會怎麼判斷？",
+   "a": "<p>回傳「不是 SOAP Envelope」。ElementTree 的標籤包含命名空間，只比對本地名稱 Envelope 是不夠的，命名空間才是版本的依據。</p>"
+  },
+  {
+   "q": "SOAP 1.1 的 faultcode 為什麼用 findtext('faultcode') 而不是加命名空間？",
+   "a": "<p>SOAP 1.1 規定 Fault 的子元素 faultcode、faultstring 不帶命名空間（unqualified），1.2 的 Code、Reason 則在 SOAP 命名空間內。這是兩個版本最容易寫錯的地方。</p>"
+  },
+  {
+   "q": "範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？",
+   "a": "<p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p>"
+  }
+ ]
+}
