@@ -951,7 +951,51 @@ END CATCH;</code></pre>
         <p><strong>官方文件：</strong> <a href="https://docs.python.org/3/library/sqlite3.html">Python sqlite3</a> · <a href="https://www.sqlite.org/lang_transaction.html">SQLite 交易</a> · <a href="https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html">MySQL 隱含提交</a> · <a href="https://dev.mysql.com/doc/connector-python/en/connector-python-example-cursor-transaction.html">MySQL 驅動交易</a> · <a href="https://learn.microsoft.com/en-us/sql/t-sql/functions/xact-state-transact-sql">SQL Server 交易狀態</a> · <a href="https://learn.microsoft.com/en-us/sql/connect/python/mssql-python/migrate-from-pyodbc">Microsoft 驅動參數對照</a> · <a href="https://www.postgresql.org/docs/18/sql-createindex.html">PostgreSQL 線上索引</a> · <a href="https://www.psycopg.org/psycopg3/docs/basic/transactions.html">Psycopg 交易</a> · <a href="https://www.psycopg.org/psycopg3/docs/basic/params.html">Psycopg 綁定</a> · <a href="https://github.com/timescale/Tiger-Data-Docs/blob/main/src/content/docs/reference/timescaledb/hypertables/create_hypertable.mdx">TimescaleDB hypertable</a> · <a href="https://github.com/timescale/docs/blob/latest/api/data-retention/add_retention_policy.md">TimescaleDB 保留政策</a>。</p>
       </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明資料庫工程。本節以 BAS 最常見的時序資料表為例：複合主鍵防止重複寫入、UPSERT 處理重送、CHECK 限制品質值，並用 EXPLAIN QUERY PLAN 確認查詢真的用到索引。</p><h3>可實跑範例：時序表設計與查詢計畫</h3><p>主鍵（point_id, ts）讓同一點位同一時間只能有一筆；WITHOUT ROWID 讓資料依主鍵排序存放。查詢計畫顯示：依點位加時間範圍的查詢走主鍵，只依時間的查詢則全表掃描，直到建立時間索引。</p><p><a class="button" download href="extensions/python_database_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;時序資料表設計：複合主鍵防重複、索引讓查詢走索引、用 EXPLAIN QUERY PLAN 驗證（標準函式庫 sqlite3）。&quot;&quot;&quot;
+import sqlite3
+
+db = sqlite3.connect(&quot;:memory:&quot;)
+db.executescript(&quot;&quot;&quot;
+CREATE TABLE reading(
+    point_id TEXT NOT NULL,
+    ts       INTEGER NOT NULL,          -- UTC epoch 秒
+    value    REAL,
+    quality  TEXT NOT NULL CHECK (quality IN (&#x27;good&#x27;,&#x27;uncertain&#x27;,&#x27;bad&#x27;)),
+    PRIMARY KEY (point_id, ts)
+) WITHOUT ROWID;
+&quot;&quot;&quot;)
+
+rows = [(f&quot;P{p:03d}&quot;, 1_795_800_000 + i * 60, 20 + (i % 10) * 0.1, &quot;good&quot;) for p in range(50) for i in range(200)]
+db.executemany(&quot;INSERT INTO reading VALUES (?,?,?,?)&quot;, rows)
+print(f&quot;寫入 {len(rows):,} 筆&quot;)
+
+try:
+    db.execute(&quot;INSERT INTO reading VALUES (&#x27;P001&#x27;, 1795800000, 25.0, &#x27;good&#x27;)&quot;)
+except sqlite3.IntegrityError as e:
+    print(&quot;重複寫入被拒絕：&quot;, e)
+db.execute(&quot;INSERT INTO reading VALUES (&#x27;P001&#x27;, 1795800000, 25.0, &#x27;good&#x27;) &quot;
+           &quot;ON CONFLICT(point_id, ts) DO UPDATE SET value=excluded.value&quot;)
+print(&quot;改用 UPSERT 後的值：&quot;, db.execute(&quot;SELECT value FROM reading WHERE point_id=&#x27;P001&#x27; AND ts=1795800000&quot;).fetchone()[0])
+
+q1 = &quot;SELECT avg(value) FROM reading WHERE point_id=&#x27;P010&#x27; AND ts BETWEEN 1795800000 AND 1795803600&quot;
+q2 = &quot;SELECT avg(value) FROM reading WHERE ts BETWEEN 1795800000 AND 1795803600&quot;
+for name, q in ((&quot;依點位＋時間&quot;, q1), (&quot;只依時間&quot;, q2)):
+    plan = &quot; | &quot;.join(r[3] for r in db.execute(&quot;EXPLAIN QUERY PLAN &quot; + q))
+    print(f&quot;{name}：{plan}&quot;)
+db.execute(&quot;CREATE INDEX idx_reading_ts ON reading(ts)&quot;)
+print(&quot;加上時間索引後：&quot;, &quot; | &quot;.join(r[3] for r in db.execute(&quot;EXPLAIN QUERY PLAN &quot; + q2)))
+try:
+    db.execute(&quot;INSERT INTO reading VALUES (&#x27;P999&#x27;, 1, 1.0, &#x27;ok&#x27;)&quot;)
+except sqlite3.IntegrityError as e:
+    print(&quot;品質值不合法：&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>寫入 10,000 筆
+重複寫入被拒絕： UNIQUE constraint failed: reading.point_id, reading.ts
+改用 UPSERT 後的值： 25.0
+依點位＋時間：SEARCH reading USING PRIMARY KEY (point_id=? AND ts&gt;? AND ts&lt;?)
+只依時間：SCAN reading
+加上時間索引後： SEARCH reading USING INDEX idx_reading_ts (ts&gt;? AND ts&lt;?)
+品質值不合法： CHECK constraint failed: quality IN (&#x27;good&#x27;,&#x27;uncertain&#x27;,&#x27;bad&#x27;)</code></pre><h3>工程現場案例：一年後，「昨天所有點位的平均值」要跑 3 分鐘</h3><p>某系統的讀值表只有自動遞增的 id 主鍵。資料量小時一切正常，一年後累積上億筆，按時間範圍查詢要掃描整張表。另一個問題是閘道器重送時同樣的資料被寫入兩次，平均值與加總都偏了。</p><p>以（點位, 時間）為主鍵同時解決重複與「單一點位查詢」的效能；若常需要跨點位依時間查詢，再加上時間索引。每次新增查詢都用 EXPLAIN QUERY PLAN（其他資料庫用 EXPLAIN）確認，而不是等資料變多才發現。</p><ol><li>時序表以業務鍵（點位、時間）作為主鍵或唯一索引。</li><li>寫入使用 UPSERT，讓重送具有冪等性。</li><li>用 CHECK 或外鍵限制欄位的合法值。</li><li>為常用查詢檢查查詢計畫，並用接近真實規模的資料測試。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>SQLite 的 WITHOUT ROWID 自 3.8.2 起提供，UPSERT 自 3.24 起提供，Python 內建 sqlite3 在目前支援的版本中皆已滿足。大量時序資料可考慮 TimescaleDB 或 InfluxDB，本頁核對時 SQLAlchemy 最新版為 2.1.9。 <a href="https://www.sqlite.org/withoutrowid.html">來源：SQLite：WITHOUT ROWID</a> <a href="https://www.sqlite.org/eqp.html">來源：SQLite：EXPLAIN QUERY PLAN</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼主鍵是 (point_id, ts) 而不是 (ts, point_id)？</p><details><summary>看解答</summary><p>最常見的查詢是「某個點位在某段時間的資料」，主鍵第一欄為 point_id 時可以先定位點位，再在該點位內依時間範圍搜尋。若第一欄是 ts，單一點位的查詢就要掃過該時間範圍內所有點位的資料。</p></details></li><li><p>ON CONFLICT … DO UPDATE 與 INSERT OR IGNORE 該怎麼選？</p><details><summary>看解答</summary><p>重送的資料與原資料相同時兩者結果一樣。若重送可能帶有更正後的值（例如補值），用 DO UPDATE；若第一次寫入的值才是權威，用 IGNORE。這是業務規則，要明確決定。</p></details></li><li><p>ts 用整數 epoch 秒而不是文字日期，有什麼好處？</p><details><summary>看解答</summary><p>比較與範圍查詢快、不受時區格式影響、占用空間小。顯示時再轉成當地時間。重要的是全系統統一使用 UTC。</p></details></li><li><p>加上時間索引後，寫入會變慢嗎？</p><details><summary>看解答</summary><p>會，每次寫入都要多更新一個索引。是否值得要看查詢頻率與寫入量；大量寫入的系統通常只建立必要的索引，或改用依時間分區的資料表。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

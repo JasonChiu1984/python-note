@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁介紹大量進階技巧。本節挑三個在設備驅動程式中特別實用的，組合成一個小範例：描述器做欄位範圍驗證、__init_subclass__ 讓子類別自動註冊，以及 contextvars 在不傳參數的情況下把請求 ID 帶進錯誤訊息。",
+ "example_title": "描述器、自動註冊與 contextvars",
+ "example_desc": "Bounded 描述器在設定屬性時檢查範圍；Driver 的子類別只要宣告 protocol 就會自動加入 DRIVERS；request_id 是 ContextVar，在同一個請求的呼叫鏈中都能取得，且在 asyncio 任務之間互相隔離。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "新增 BACnet 驅動，卻忘了在工廠函式加一行",
+  "paragraphs": [
+   "某專案用一個大型 if/elif 依協定名稱建立驅動物件。新增 BACnet 驅動後，開發者忘了在工廠函式加上分支，部署後所有 BACnet 設備都報「不支援的協定」。用 __init_subclass__ 自動註冊後，只要定義子類別並匯入模組，就會出現在 DRIVERS 中。",
+   "錯誤訊息也是除錯重點：多個請求同時寫入設定點時，日誌只寫「超出範圍」無法知道是哪個請求。contextvars 讓請求 ID 自動出現在描述器的錯誤訊息裡，而不必把 ID 當參數傳遍每一層函式。"
+  ],
+  "steps": [
+   "重複出現的欄位驗證邏輯寫成描述器，在類別定義中宣告。",
+   "外掛式的元件（驅動、匯出器）用 __init_subclass__ 註冊，並確保相關模組有被匯入。",
+   "請求範圍的資訊（請求 ID、使用者）放在 ContextVar，在請求開始時設定、結束時 reset。",
+   "進階技巧要配合清楚的文件與測試，避免讓團隊其他人難以理解。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "contextvars 自 Python 3.7 起提供，asyncio 會為每個任務複製目前的 context；Python 3.14 起執行緒也可以透過 threading.Thread 的 context 參數繼承呼叫端的 context。",
+   "sources": [
+    {
+     "title": "Python 文件：contextvars",
+     "url": "https://docs.python.org/3/library/contextvars.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "描述器的 __set_name__ 有什麼作用？",
+   "a": "<p>類別建立時，Python 會對每個描述器呼叫 __set_name__(owner, name)，讓描述器知道自己被指派給哪個屬性名稱。範例用它決定實際存值的屬性名稱（_setpoint）與錯誤訊息中的欄位名。</p>"
+  },
+  {
+   "q": "為什麼 Driver 本身沒有被註冊到 DRIVERS？",
+   "a": "<p>__init_subclass__ 只在定義子類別時被呼叫，不會對 Driver 自己呼叫；而且 Driver 的 protocol 是 None，程式也會略過。</p>"
+  },
+  {
+   "q": "request_id.reset(token) 為什麼要放在 finally？",
+   "a": "<p>確保即使發生例外，請求 ID 也會恢復成請求開始前的值，不會殘留到下一個請求。範例最後一行顯示 reset 之後回到預設值 \"-\"。</p>"
+  },
+  {
+   "q": "若 ModbusDriver 定義在另一個模組中，且那個模組從未被匯入，DRIVERS 裡會有它嗎？",
+   "a": "<p>不會。子類別在模組被匯入、類別定義被執行時才註冊。外掛式設計要確保在啟動時匯入所有外掛模組，例如用 importlib.import_module 依設定載入，或使用 entry points。</p>"
+  }
+ ]
+}
