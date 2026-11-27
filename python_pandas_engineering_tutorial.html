@@ -511,6 +511,27 @@
 .rd-data pre code{color:inherit;white-space:pre}
 @media(max-width:720px){.rd-data .rd-grid{grid-template-columns:1fr}.rd-data .rd-grid li:not(:last-child)::after{content:"↓";left:calc(50% - .3em);top:calc(100% + .02rem)}}
 @media(max-width:380px){.rd-data .rd-row{grid-template-columns:minmax(5rem,32%) minmax(0,1fr) minmax(2.5rem,max-content)}}
+
+    .lesson-top > *, .lesson-card { min-width:0 }
+    .course-example .example-file summary code { overflow-wrap:anywhere; }
+    @media (max-width:640px) { .lesson-top { grid-template-columns:minmax(0,1fr); } }
+    .grad-pandas { min-width: 0; }
+    .grad-pandas p,.grad-pandas li { overflow-wrap: anywhere; }
+    .grad-pandas .grad-nav { display:flex;flex-wrap:wrap;gap:.35rem .8rem;margin:.5rem 0 1rem; }
+    .grad-pandas a { color:#135481;text-decoration:underline;text-underline-offset:.18em; }
+    .grad-pandas .grad-grid,.grad-pandas .grad-flow { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:.75rem; }
+    .grad-pandas .grad-grid article,.grad-pandas .grad-flow li { background:#eef5fa;border:1px solid #c7d6e1;border-radius:.7rem;padding:.7rem .85rem;min-width:0; }
+    .grad-pandas .grad-flow { list-style:none;counter-reset:phase;padding:0; }
+    .grad-pandas .grad-flow li { counter-increment:phase; }
+    .grad-pandas .grad-flow li::before { content:counter(phase) " → ";color:#135481;font-weight:800; }
+    .grad-pandas .grad-flow span { display:block; }
+    .grad-pandas h3 { margin:1.55rem 0 .55rem;scroll-margin-top:1rem; }
+    .grad-pandas h4 { margin:0 0 .4rem; }
+    .grad-pandas pre { max-width:100%;overflow:auto; }
+
+
+
+
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
 </head>
@@ -525,7 +546,7 @@
     <a href="#packaging">打包</a>
     <a href="#cases">案例</a>
     <a href="#checklist">檢查表</a>
-  <a href="#roadmap-data-research">工程驗證補充</a></nav>
+  <a href="#pandas-graduate">研究專題與實驗</a><a href="#roadmap-data-research">工程驗證補充</a></nav>
 
   <div class="layout">
     <aside class="sidebar" aria-label="側邊導覽">
@@ -553,7 +574,7 @@
         <a href="#cases">專案案例</a>
         <a href="#checklist">上線檢查表</a>
         <a href="index.html">回教材入口</a>
-      <a href="#roadmap-data-research">工程驗證補充</a></nav>
+      <a href="#pandas-graduate">研究專題與實驗</a><a href="#roadmap-data-research">工程驗證補充</a></nav>
       <div class="progress-box" id="progressSummary">完成 0 / 35</div>
     </aside>
 
@@ -564,7 +585,7 @@
           <h1>Pandas 指令、DataFrame、應用與打包實戰</h1>
           <p>用專案工程角度學 Pandas：不是只會 <code>read_csv</code>，而是能定義 schema、處理 missing、join、groupby、時間序列、Parquet、chunking、測試與交付。</p>
           <div class="status-strip" aria-label="教材狀態">
-            <span>v0.9.0</span>
+            <span>v1.0.0 · 研究專題版</span>
             <span>35 個互動教學卡</span>
             <span>心智圖 / 指令 / DataFrame / 應用 / 打包 / 範例專案</span>
           </div>
@@ -973,6 +994,86 @@ merged = source.merge(dimension, on=&quot;id&quot;, how=&quot;left&quot;,
 <p>範例輸入 5 筆、有效鍵連接後 4 筆；另 1 筆空鍵的 99 kWh 保存可查。加入重複的主檔 A 會得到 <code>MergeError</code>，而不是默默把 A 的用電翻倍。別用 <code>drop_duplicates</code> 任選一列來修復衝突；由負責人確認有效日期、代碼格式及主檔來源。若明細使用欠量表示沖銷，還要交叉對帳絕對值或正負分項，避免相反誤差抵銷。</p>
 <p>原始參考：<a href="https://pandas.pydata.org/docs/reference/api/pandas.merge.html">pandas.merge：validate、indicator 與空鍵</a>。</p>
 </section>
+<section class="section-block grad-pandas" id="pandas-graduate" aria-labelledby="pandas-graduate-title">
+  <div class="section-head"><div><span class="eyebrow">GRADUATE LAB · 資料契約與可重現實驗</span>
+  <h2 id="pandas-graduate-title">研究專題：DataFrame 算出的數字代表什麼？</h2>
+  <p>以合成機房電力遙測為例，從欄位、鍵與時間的語意出發，驗證每步的前提和不變量。這個實驗只讀本機字串資料，不接現場設備。</p></div></div>
+  <div class="grad-nav"><a href="#pandas-contract">契約</a><a href="#pandas-relational">關聯</a><a href="#pandas-time">時間</a><a href="#pandas-measurement">實驗</a><a href="#pandas-release">交付</a><a href="#pandas-evidence">來源</a></div>
+  <p><strong>研究問題：</strong>Q1：型別推斷會不會改變識別碼與缺值的意思？Q2：同一批列經合併後，總量為何可能膨脹？Q3：聚合與時間對齊，是否使用了當時尚未取得的資料？Q4：優化後是否仍等價，而且能從乾淨環境重現？</p>
+  <ol class="grad-flow" aria-label="資料契約流程圖">
+    <li><strong>輸入契約</strong><span>CSV 欄位、單位、唯一事件鍵</span></li>
+    <li><strong>資料關聯</strong><span>驗證基數、隔離未登錄設備</span></li>
+    <li><strong>時間彙整</strong><span>觀測窗口、覆蓋率、可得時間</span></li>
+    <li><strong>驗收與發行</strong><span>反例、基準、wheel 乾淨安裝</span></li>
+  </ol>
+
+  <h3 id="pandas-contract">一、輸入型別、缺值與拷貝語意</h3>
+  <div class="grad-grid">
+    <article><h4>解析是一份契約</h4><p>範例以 <code>dtype=</code> 將設備 ID 讀為 <code>string</code>，不讓 <code>001</code> 變成整數 1；<code>Float64</code> 則保留電力缺值。以 <code>keep_default_na=False</code> 及欄位專用 <code>na_values</code> 定義空白規則，不讓其他欄位中可能合法的字串 <code>NA</code> 自動成為缺值。<code>convert_dtypes()</code> 可協助探索，不替代業務契約與欄位驗證。</p></article>
+    <article><h4>缺值不是零</h4><p><code>isna()</code> 判斷缺值，不用 <code>== pd.NA</code>。值為 0 代表設備在該段時間的平均功率為零，缺值是未知；若兩者都填 0，數值總和雖可能不變，覆蓋率和推論卻會改變。規則先檢查讀值和品質旗標一致，再拒絕負值與無限大。</p></article>
+    <article><h4>標籤會自動對齊</h4><p>兩個 Series 相加通常先對齊 index，不是依實體位置配對。位置是資料契約時要先檢查順序和長度；標籤是契約時要檢查 index 唯一性。不要為了消除缺值就先 <code>reset_index(drop=True)</code>。</p></article>
+    <article><h4>更新要明確</h4><p>用 <code>df.loc[mask, "kw"] = 0</code> 表達對哪一個 DataFrame 寫入。Pandas 3.0 起 Copy-on-Write 是唯一模式，鏈式指派不會回寫原表。即使在舊版本觀察到鏈式指派可動，也不應依賴。不能僅由有沒有呼叫 <code>copy()</code> 推論峰值記憶體。</p></article>
+  </div>
+  <pre><code>assert df["device_id"].dtype.name == "string"
+assert not df.duplicated(["device_id", "event_at"]).any()
+assert df["kw"].notna().eq(df["status"].eq("GOOD")).all()</code></pre>
+  <p>上面是可放入單元測試的不變量，不是正式驗證器；正式入口應主動拋出例外，不依賴 Python 的 <code>assert</code>。</p>
+
+  <p><strong>反例：國別代碼 <code>NA</code> 不是缺值。</strong>同一欄可以同時有納米比亞代碼 <code>NA</code> 與真正空白。僅固定字串型別不會改掉 CSV 的預設缺值標記。若欄位契約只承認空白是缺值，須明確指定：</p>
+<pre><code>import io
+import pandas as pd
+
+csv = "country,amount\nNA,20\n,5\nTW,\n"
+df = pd.read_csv(io.StringIO(csv), dtype={"country": "string", "amount": "Float64"},
+                 keep_default_na=False, na_values={"country": [""], "amount": [""]})
+assert df["country"].eq("NA").fillna(False).sum() == 1
+assert df["country"].isna().sum() == 1
+assert df["amount"].sum() == 25  # 只比對總額會漏掉國別錯配</code></pre>
+<p>這是明確欄位政策的獨立示例；舊 ETL 命令的解析規則應另行驗證。依來源規格決定其他代碼與空白字串如何處理。<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html">pandas read_csv</a>、<a href="https://ungegn.un.org/dashboard/countries/details?id=516">聯合國國別資料</a>。</p>
+<h3 id="pandas-relational">二、關聯運算：基數決定列數</h3>
+  <p>遙測是事實表，資產資料是每設備一列的維度表。對單一鍵 <em>k</em>，若兩側各有 <em>Lₖ</em>、<em>Rₖ</em> 列，內連接會產生 <em>Lₖ × Rₖ</em> 列：3 筆事件撞到 2 列同設備資料會得到 6 列，不是新增了 3 筆觀測。若不先驗基數，事後 <code>groupby().sum()</code> 可能把同一筆 kWh 算兩次。</p>
+  <pre><code>out = events.merge(assets, on="device_id", how="left",
+                   validate="many_to_one", indicator=True)</code></pre>
+  <p><code>validate=</code> 驗證維度端唯一性，<code>indicator=</code> 才能辨認哪個事件找不到對應。Pandas 的 <code>merge</code> 允許兩側空鍵互相匹配，不等同一般 SQL NULL 等值連接；這裡直接拒絕空鍵，不用 <code>drop_duplicates()</code> 隱藏衝突。若維度會變更，改用有效期間或可得時間，不以最新快照回填歷史。</p>
+
+  <h3 id="pandas-time">三、事件時間、可得時間與窗口</h3>
+  <div class="grad-grid">
+    <article><h4>計算窗口與失敗邊界</h4><p>每列代表固定 15 分鐘區間的平均 kW，<code>kWh = kW × 0.25 h</code>。如果是不定期瞬間取樣，必須另訂積分規則、最大間隔及缺值政策；不能直接套本式。此例用 UTC 與 <code>[start, end)</code> 左閉右開；先驗對齊與唯一鍵。若由本地時間匯入，無偏移量資料必須有明確時區，遇 DST 的重複／不存在時段要拒絕或依規則處理；不要把無時區當作 UTC。</p></article>
+    <article><h4>分組的列數、有效值與時段分母</h4><p><code>size()</code> 算收到幾列，<code>count()</code> 算幾列有值，<code>sum(min_count=1)</code> 避免全缺值輸出零。每小時預期 4 槽，不以收到的筆數當覆蓋率分母。整小時完全沒列時，實驗輸出不產生該群組；正式系統要先建立「設備 × 應有時段」格網，才能報告沒有任何觀測的時間。</p></article>
+    <article><h4>未來資料洩漏</h4><p>校正值實際可用時間是 <code>available_at</code>，不一定是校正作業時間。<code>merge_asof</code> 先依時間排序，再依設備、向後、有限容許間隔對齊；這裡禁止等時匹配，避免無法判斷同時寫入的先後。離線模型需使用時間切分，任何補值、標準化或選特徵的參數都只在訓練期估計。若有晚到資料，回測應以當時可得的快照重跑。</p></article>
+    <article><h4>滾動窗不是固定列數</h4><p><code>rolling(4)</code> 是四列，對缺測不等於一小時。用 <code>rolling("1h", closed="left", min_periods=...)</code> 時須指定窗口規則、事件時鐘和設備內排序，並在預測時刻只用之前窗口。即使窗口排除了目前列，仍需驗證每列輸入當時可取得。</p></article>
+  </div>
+  <p><strong>確定性核對：</strong>設備 001 收到 3 列，有效 2 列，其中 0 kW 是有效值；已知電量為 <code>(0 + 4) × 0.25 = 1.0 kWh</code>，覆蓋率 <code>2 / 4 = 50%</code>，完整小時電量仍未知。00:15 的事件只能用 23:55 已可得的校正值 0.2，不會使用 00:16 才出現的 3.0。</p>
+
+  <h3 id="pandas-measurement">四、可重跑實驗：先驗語意，再量效能</h3>
+  <p><a href="pandas_graduate_lab.py" download>下載完整實驗程式與測試</a>。使用獨立環境（Python 3.11 以上及可用的 pandas 2.2 以上版本；是否有 wheel 以實際版本／平台為準）。</p>
+  <pre><code>python -m pip install "pandas&gt;=2.2"
+python pandas_graduate_lab.py demo
+python pandas_graduate_lab.py test
+python pandas_graduate_lab.py bench</code></pre>
+  <p>比較同一個整數輸入上，向量算式與 Python callback 的中位毫秒數。固定規模、重複次數，先暖機並用 <code>assert_series_equal</code> 驗證列標籤、dtype 與值等價；交錯執行順序並保留每輪資料。<code>memory_usage(deep=True)</code> 是輸入 DataFrame 的欄位估算，不是程序 RSS 或暫存陣列峰值。若研究的是峰值，分別在獨立程序記錄 RSS，控制檔案快取、資料分布、dtype、執行緒與版本。單機合成結果不提供生產效能保證。</p>
+  <p><strong>擴充評估：</strong>先用 <code>usecols</code> 濾掉不用的欄；低基數字串可比較 category，但高基數不保證節省空間。Chunking 只適合能維持正確跨塊狀態的運算，例如 sum 與 count 可分塊合併、mean 須用總 sum／總 count，不能平均每塊平均。跨塊事件去重及時間窗不能在局部結束時提前丟掉必要狀態。Parquet round trip 要驗引擎版本、index、UTC 與 nullable dtype，不能只比檔案大小。</p>
+
+  <h3 id="pandas-release">五、打包、相依與可重現交付</h3>
+  <ol>
+    <li><strong>定義發行邊界：</strong>輸入 schema、單位、時區、缺值處理與回傳碼寫入 README；把合成 fixture、欄位與精確輸出條件放入測試。入口只收參數，轉換函式不依賴環境路徑。</li>
+    <li><strong>區分相容範圍與鎖定：</strong><code>pyproject.toml</code> 描述支援範圍；同一版本約束可在不同平台解析出不同 wheel。要重現需留 Python 版本、平台、wheel 標籤、相依鎖檔與雜湊，將 pandas／NumPy／Parquet 引擎納入測試矩陣。</li>
+    <li><strong>不要用 editable install 代替發布驗證：</strong>在乾淨環境用 <code>python -m build</code> 做成 wheel；另一個沒有原始碼的環境安裝實際 wheel 並跑 <code>python -m pip check</code>。從非 repo 路徑執行 CLI，核對輸出 JSON 符合契約。若宣稱支援指定 ABI／OS／CPU，實際在該矩陣跑安裝；不要用單台電腦的成功外推。</li>
+    <li><strong>引擎與程式包分開：</strong>原始訂單範例的 wheel 可為純 Python，但 pandas、NumPy、pyarrow 仍可能有二進位平台相依。若部署真的需要 Parquet，請安裝並測對應的選用相依，而不是看到 wheel 檔名含 <code>any</code> 就推斷整套到處能跑。</li>
+  </ol>
+  <p>此研究實驗採合成 CSV，不驗資料庫連線、Parquet 引擎和現場設備。原有訂單 ETL 專案與互動卡仍保留，可用來對照 CLI、分層測試及 wheel smoke。</p>
+
+  <h3 id="pandas-evidence">六、官方參考資料</h3>
+  <ul>
+    <li><a href="https://pandas.pydata.org/docs/user_guide/missing_data.html">Pandas：缺值語意</a>、<a href="https://pandas.pydata.org/docs/user_guide/copy_on_write.html">Copy-on-Write</a>。</li>
+    <li><a href="https://pandas.pydata.org/docs/reference/api/pandas.merge.html">Pandas：merge 的基數與空鍵</a>、<a href="https://pandas.pydata.org/docs/reference/api/pandas.merge_asof.html">merge_asof 的排序與方向</a>、<a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.resample.html">resample 的 label／closed</a>。</li>
+    <li><a href="https://pandas.pydata.org/docs/user_guide/scale.html">Pandas：擴充記憶體內分析</a>、<a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_parquet.html">Parquet 輸出與引擎</a>。</li>
+    <li><a href="https://packaging.python.org/en/latest/tutorials/packaging-projects/">Python Packaging：建置專案</a>、<a href="https://packaging.python.org/en/latest/specifications/binary-distribution-format/">wheel 格式</a>、<a href="https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/">平台相容標籤</a>。</li>
+  </ul>
+</section>
+
+
+
 </main>
   </div>
 

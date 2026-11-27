@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:tns="urn:teaching:gateway:v1" targetNamespace="urn:teaching:gateway:v1">
+  <wsdl:types>
+    <xs:schema>
+      <xs:import namespace="urn:teaching:gateway:v1" schemaLocation="soap_gateway_demo.xsd"/>
+    </xs:schema>
+  </wsdl:types>
+  <wsdl:message name="ReadPointInput"><wsdl:part name="parameters" element="tns:ReadPoint"/></wsdl:message>
+  <wsdl:message name="ReadPointOutput"><wsdl:part name="parameters" element="tns:ReadPointResponse"/></wsdl:message>
+  <wsdl:portType name="TelemetryPortType">
+    <wsdl:operation name="ReadPoint">
+      <wsdl:input message="tns:ReadPointInput"/>
+      <wsdl:output message="tns:ReadPointOutput"/>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="TelemetrySoap11" type="tns:TelemetryPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="ReadPoint">
+      <soap:operation soapAction="urn:teaching:gateway:v1/ReadPoint"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="TelemetryTeachingService">
+    <wsdl:port name="TelemetrySoap11Port" binding="tns:TelemetrySoap11">
+      <soap:address location="https://gateway.example.invalid/telemetry"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
