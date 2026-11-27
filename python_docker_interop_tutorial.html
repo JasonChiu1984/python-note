@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 與 Python 互動操作：控制面、資料面與生命週期</title>
+<style>
+:root{color-scheme:light;--ink:#17283c;--muted:#42576e;--line:#cbd7e2;--tint:#edf5fb;--accent:#125f72;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:#f5f8fc;line-height:1.75}main{width:min(100% - 2rem,72rem);margin:1.25rem auto 3rem}header,section{background:#fff;border:1px solid var(--line);border-radius:1rem;padding:clamp(.8rem,3vw,2rem);margin-block:1rem;min-width:0}header{background:linear-gradient(133deg,#133456,#12626e);color:white}header a{color:#fff}h1{font-size:clamp(1.65rem,4vw,2.9rem);line-height:1.18;margin:.45rem 0}h2,h3{line-height:1.3}a{color:#0d5474;text-underline-offset:.18em}nav{display:flex;flex-wrap:wrap;gap:.5rem .85rem;margin:1rem 0}nav a{padding:.28rem .55rem;border:1px solid var(--line);border-radius:.45rem;background:white}a:focus-visible,summary:focus-visible{outline:3px solid #d99632;outline-offset:.15rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem}.panel,.lane{background:var(--tint);border:1px solid var(--line);border-radius:.7rem;padding:.7rem .9rem;overflow-wrap:anywhere}.lane{display:grid;gap:.4rem;min-width:0}.node{padding:.3rem .5rem;background:white;border:1px solid #9fbbca;border-radius:.35rem;text-align:center}.arrow{text-align:center;color:var(--accent);font-weight:800}.note{border-left:.24rem solid #cf8821;padding:.25rem .75rem;background:#fff8e9}pre{margin:.55rem 0;padding:.8rem;background:#142336;color:#f2f6ff;border-radius:.5rem;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;tab-size:4;font-size:.87rem}code{overflow-wrap:anywhere}details{margin-block:.5rem;border:1px solid var(--line);border-radius:.5rem;padding:.45rem .7rem}summary{cursor:pointer;font-weight:700}dl{margin:.45rem 0}dt{font-weight:750}dd{margin:0 0 .65rem;color:var(--muted)}li+li{margin-top:.25rem}.small{font-size:.91rem;color:var(--muted)}[id]{scroll-margin-top:.75rem}
+</style>
+<main>
+<header><a href="python_deployment_runtime_tutorial.html">回 Python 部署教材</a> · <a href="index.html">教材入口</a>
+<h1>Docker 與 Python 互動操作</h1>
+<p>先分控制面和資料面，再決定用 CLI、SDK、HTTP 或掛載。以唯讀、合成冰水溫度為例；不連 PLC、DDC 或生產網路。</p></header>
+<nav aria-label="章節導覽"><a href="#architecture">架構</a><a href="#choose">選型</a><a href="#lab">實作</a><a href="#sdk">Engine SDK</a><a href="#data">網路與資料</a><a href="#verification">排錯與驗收</a><a href="#sources">官方參考</a></nav>
+<section id="architecture"><h2>三條路徑，不要混在一起</h2>
+<div class="grid" aria-label="Docker 與 Python 互動架構">
+<div class="lane"><strong>控制面：管理工作負載</strong><div class="node">主機 Python 程式</div><div class="arrow" aria-hidden="true">↓</div><div class="node">Docker CLI／Python SDK</div><div class="arrow" aria-hidden="true">↓</div><div class="node">Docker Engine：容器狀態、日誌、生命週期</div></div>
+<div class="lane"><strong>資料面：交換業務資料</strong><div class="node">主機 Python／同網路服務</div><div class="arrow" aria-hidden="true">↓</div><div class="node">HTTP：連接埠或 Compose 服務名稱</div><div class="arrow" aria-hidden="true">↓</div><div class="node">容器內 Python：JSON、應用錯誤</div></div>
+<div class="lane"><strong>程序面：輸入一次、輸出一次</strong><div class="node">docker compose run</div><div class="arrow" aria-hidden="true">↓</div><div class="node">容器內 Python：以參數啟動</div><div class="arrow" aria-hidden="true">↓</div><div class="node">stdout／stderr 與結束碼</div></div></div>
+<p>映像是建置出的執行環境；容器是映像啟動後的執行實例。Python 的 HTTP 請求不需要 Engine 權限。容器服務已在執行，也不代表應用健康、就緒或點位正確。</p></section>
+<section id="choose"><h2>選哪一種互動</h2>
+<div class="grid">
+<div class="panel"><strong>CLI + subprocess</strong><p>已有 Compose、要整合 CI 或操作手冊時先選它。傳入參數陣列、明確指定 context，讀結構化輸出，區分 CLI 失敗與空結果。不要拼接 shell 字串。</p></div>
+<div class="panel"><strong>Docker Python SDK</strong><p>管理多個已授權工作負載、要查映像或容器、需要 API 物件及事件時使用。不會替代 Compose 的設定模型；需要額外依賴與 Engine 權限。</p></div>
+<div class="panel"><strong>HTTP／JSON</strong><p>查遙測、接工作指令或跨系統整合時優先。客戶端要有連線／讀取逾時、欄位驗證；重試前區分資料查詢與可能重複觸發的動作。</p></div>
+<div class="panel"><strong>單次程序／檔案交換</strong><p>批次轉檔可用容器 stdout 傳 JSON、stderr 診斷，搭配結束碼。大檔或持久資料才用掛載，明確設定資料擁有者與備份。</p></div></div>
+<p class="note"><strong>最小權限：</strong>原廠 Engine socket 的存取可具主機等級權限，不是唯讀 API。即使以唯讀方式掛載 socket 檔，也不會阻止透過 socket 發出修改請求。本範例不掛 Engine socket、不要求特權容器、不暴露 daemon。</p></section>
+<section id="lab"><h2>可重跑實驗：同一份遙測，三種操作方式</h2>
+<ol><li>下載以下專案檔，保留同一資料夾。先跑本機測試，再選明確已確認為本機的 Docker context。遠端 daemon 的「主機」不是操作端這台電腦。</li>
+<li>在本機 Engine 建置映像、啟動服務並等健康檢查。容器內驗的是 8080，主機連的是 18080。</li>
+<li>分別讀 Compose 狀態、呼叫 HTTP、另開一次性容器執行 Python。三個結果代表不同層級。完成後只關掉本實驗專案。</li></ol>
+<pre><code>python3 -m unittest -v
+docker context ls
+ctx="$(docker context show)"  # 執行下列步驟前先確認此 context 指向本機 Engine
+docker --context "$ctx" compose -p python-interop-lab config
+docker --context "$ctx" compose -p python-interop-lab up --build -d --wait --wait-timeout 45
+python3 host.py status --context "$ctx"
+python3 host.py sample
+docker --context "$ctx" compose -p python-interop-lab logs --tail 20 telemetry
+docker --context "$ctx" compose -p python-interop-lab exec -T telemetry python --version
+docker --context "$ctx" compose -p python-interop-lab run --rm -T --no-deps telemetry python /app/app.py sample
+docker --context "$ctx" compose -p python-interop-lab down</code></pre>
+<p><code>exec</code> 進入已執行容器；<code>run</code> 建立一次性容器，覆蓋服務命令，預設不發布服務連接埠。<code>-T</code> 不建立虛擬終端機，便於解析輸出；一次性程序的結束碼才代表該工作是否成功。逾時殺掉主機端 Docker CLI 不等同已停止 daemon 上的工作，重試有副作用的工作前先對帳。</p>
+<pre><code>{"schema": 1, "point": "supply_temp", "value": 7.2, "unit": "degC", "quality": "synthetic"}</code></pre>
+<p class="note">這個小實驗的 HTTP 程式只示範通訊，沒有實作已接請求的優雅收尾。正式生命週期請看<a href="python_deployment_runtime_tutorial.html#operations">部署教材的 SIGTERM／收尾案例</a>，分開驗應用程式預算與 Compose <code>stop_grace_period</code>。正式映像應鎖已驗證 digest，並規劃重建與修補；範例 tag 為本機重跑方便，不是供應鏈鎖定。</p>
+<details><summary>Dockerfile</summary><p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/Dockerfile">取得 Dockerfile</a></p><pre><code>FROM python:3.14-slim
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+COPY app.py .
+USER 10001:10001
+EXPOSE 8080
+CMD ["python", "/app/app.py"]
+</code></pre></details>
+<details><summary>compose.yaml</summary><p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/compose.yaml">取得 compose.yaml</a></p><pre><code>services:
+  telemetry:
+    build: .
+    image: python-interop-lab:local
+    ports:
+      - "127.0.0.1:18080:8080"
+    read_only: true
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/healthz', timeout=2).close()"]
+      interval: 3s
+      timeout: 3s
+      retries: 8
+      start_period: 3s
+</code></pre></details>
+<details><summary>.dockerignore</summary><p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/.dockerignore">取得 .dockerignore</a></p><pre><code>*
+!app.py
+!Dockerfile
+</code></pre></details>
+<details><summary>app.py</summary><p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/app.py">取得 app.py</a></p><pre><code>"""唯讀合成遙測；不與現場設備通訊。"""
+import json
+import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+SAMPLE = {"schema": 1, "point": "supply_temp", "value": 7.2, "unit": "degC", "quality": "synthetic"}
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        code, payload = {
+            "/healthz": (200, {"status": "ok"}),
+            "/sample": (200, SAMPLE),
+        }.get(self.path, (404, {"error": "not_found"}))
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def main():
+    if sys.argv[1:] == ["sample"]:
+        print(json.dumps(SAMPLE))
+        return
+    if sys.argv[1:]:
+        raise SystemExit("usage: python app.py [sample]")
+    # 此實驗只示範資料交換；正式訊號與收尾見原部署教材。
+    with ThreadingHTTPServer(("0.0.0.0", 8080), Handler) as server:
+        server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details><summary>host.py</summary><p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/host.py">取得 host.py</a></p><pre><code>"""從主機讀 Docker 控制面或 HTTP 資料面，不在腳本內改動容器。"""
+import argparse
+import json
+import subprocess
+from pathlib import Path
+from urllib.request import urlopen
+
+HERE = Path(__file__).resolve().parent
+URL = "http://127.0.0.1:18080/sample"
+
+
+def compose_status(context):
+    result = subprocess.run(
+        ["docker", "--context", context, "compose", "-p", "python-interop-lab",
+         "-f", str(HERE / "compose.yaml"), "ps", "--all", "--format", "json", "telemetry"],
+        check=True, capture_output=True, text=True, timeout=8,
+    )
+    raw = result.stdout.strip()
+    if not raw:
+        return []
+    value = json.loads(raw) if raw.startswith("[") else [json.loads(line) for line in raw.splitlines()]
+    if not isinstance(value, list) or not all(isinstance(row, dict) for row in value):
+        raise ValueError("unexpected Compose ps JSON")
+    return value
+
+
+def sample(url=URL):
+    with urlopen(url, timeout=3) as response:
+        if response.headers.get_content_type() != "application/json":
+            raise ValueError("expected application/json")
+        raw = response.read(65537)
+        if len(raw) &gt; 65536:
+            raise ValueError("response exceeds 64 KiB")
+        data = json.loads(raw)
+    if not isinstance(data, dict) or data.get("schema") != 1 or data.get("quality") != "synthetic":
+        raise ValueError("unexpected synthetic sample contract")
+    return data
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("action", choices=["status", "sample"])
+    p.add_argument("--context", help="status 必須明確指定已確認的 Docker context")
+    args = p.parse_args()
+    if args.action == "status" and not args.context:
+        p.error("status requires --context")
+    try:
+        result = compose_status(args.context) if args.action == "status" else sample()
+    except subprocess.CalledProcessError as exc:
+        p.exit(1, f"Docker CLI exit {exc.returncode}: {(exc.stderr or '').strip()[:500]}\n")
+    except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
+        p.exit(1, f"{type(exc).__name__}: {exc}\n")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></details>
+<details><summary>test_lab.py</summary><p><a href="%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/docker_python_interop_lab/test_lab.py">取得 test_lab.py</a></p><pre><code>import io
+import json
+import subprocess
+import threading
+import unittest
+from http.server import ThreadingHTTPServer
+from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import urlopen
+
+import app
+import host
+
+
+class InteropTests(unittest.TestCase):
+    def test_process_output(self):
+        with patch("sys.argv", ["app.py", "sample"]), patch("sys.stdout", new_callable=io.StringIO) as out:
+            app.main()
+        self.assertEqual(json.loads(out.getvalue()), app.SAMPLE)
+
+    def test_status_parses_array_lines_and_empty(self):
+        outputs = [('[{"State":"running"}]', 1), ('{"State":"running"}\n{"State":"exited"}', 2), ('', 0)]
+        for raw, size in outputs:
+            with self.subTest(raw=raw), patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0, raw, "")) as run:
+                self.assertEqual(len(host.compose_status("reviewed-local")), size)
+                args = run.call_args.args[0]
+                self.assertEqual(args[:4], ["docker", "--context", "reviewed-local", "compose"])
+                self.assertTrue(run.call_args.kwargs["check"])
+                self.assertEqual(run.call_args.kwargs["timeout"], 8)
+
+    def test_status_propagates_cli_failure(self):
+        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(126, ["docker"])):
+            with self.assertRaises(subprocess.CalledProcessError):
+                host.compose_status("reviewed-local")
+
+    def test_http_data_plane(self):
+        with ThreadingHTTPServer(("127.0.0.1", 0), app.Handler) as server:
+            worker = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02})
+            worker.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                with urlopen(f"{base}/healthz", timeout=2) as response:
+                    self.assertEqual(json.load(response), {"status": "ok"})
+                self.assertEqual(host.sample(f"{base}/sample"), app.SAMPLE)
+                with self.assertRaises(ValueError):
+                    host.sample(f"{base}/healthz")
+                with self.assertRaises(HTTPError) as error:
+                    host.sample(f"{base}/wrong")
+                self.assertEqual(error.exception.code, 404)
+            finally:
+                server.shutdown()  # 與 serve_forever 不在同一執行緒。
+                worker.join(timeout=2)
+                self.assertFalse(worker.is_alive())
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></details>
+</section>
+<section id="sdk"><h2>Python SDK：限定查詢已知容器</h2>
+<p>在獨立虛擬環境安裝 <code>docker</code>。這段是公開 API 的唯讀操作範例；<code>from_env</code> 讀 Engine 環境設定，不等於 Docker CLI 的 <code>--context</code>。先核對 <code>DOCKER_HOST</code>、TLS 與實際 endpoint，以下程式才會查到預期 Engine。</p>
+<pre><code>import docker
+from docker.errors import APIError, DockerException, NotFound
+
+def container_state(known_id: str) -> dict:
+    client = docker.from_env(timeout=5, version="auto")
+    try:
+        container = client.containers.get(known_id)
+        state = container.attrs["State"]
+        return {"status": state["Status"],
+                "health": state.get("Health", {}).get("Status"),
+                "exit_code": state["ExitCode"] if not state["Running"] else None}
+    finally:
+        client.close()
+
+# 在邊界分流：NotFound 是容器不存在，APIError 是 Engine 回報失敗，
+# 其他 DockerException 可代表無法連到 Engine；不要把三者當成 unhealthy。</code></pre>
+<p>SDK 的 <code>containers.run(..., detach=True)</code> 回容器物件，不代表作業已成功；單次作業用 <code>wait()</code> 的 <code>StatusCode</code> 加上日誌判定。<code>exec_run</code> 要另看該命令的結束碼。不要讓一般 Web API 使用任意使用者輸入去組合 Engine 命令或容器參數。</p></section>
+<section id="data"><h2>連線、掛載、健康檢查的邊界</h2>
+<dl>
+<dt>主機與容器的 localhost 各自獨立</dt><dd>主機連 <code>127.0.0.1:18080</code>，容器內健康檢查連自己的 8080。同一 Compose 網路的其他容器應連 <code>http://telemetry:8080/sample</code>，不靠主機映射的 18080 或容器固定 IP。服務程序在容器內監聽 <code>0.0.0.0</code>，主機端只發布到 loopback。</dd>
+<dt>健康檢查不等於就緒或自動復原</dt><dd>此 <code>/healthz</code> 只驗程序可回應。現場應定義 <code>/readyz</code> 是否有依賴、快取／點表是否載入。Compose 的 <code>service_healthy</code> 是啟動依賴條件，並不替依賴中斷後的程式復原。一般 Engine restart policy 不會只因 health 變 unhealthy 就重啟。</dd>
+<dt>檔案交換：bind mount 與 named volume</dt><dd>唯讀組態或已脫敏輸入可用 bind mount（掛載路徑是 Engine 所在主機的路徑）。持久資料選 named volume，明確規劃 UID/GID、權限、備份及還原。掛載會遮住容器原路徑的內容；不要把主機 venv 掛入容器。避免把憑證寫入映像或列入日誌。</dd>
+<dt>macOS、Linux 與邊緣裝置</dt><dd>Docker Desktop 的 Linux 容器跑在 VM。工控網路的 L2 廣播探索（例如 BACnet/IP）不能僅憑 <code>ports:</code> 宣告判定可用。實際在目標 Linux 或設備端驗證路由、廣播、VLAN 及防火牆；本實驗不測現場網路。</dd>
+</dl></section>
+<section id="verification"><h2>用證據分層排錯</h2>
+<dl>
+<dt>無法連 Engine</dt><dd>先核對 context、權限和 daemon 狀態，不以提高權限或掛 socket 當成通用解法。</dd>
+<dt>容器啟動但 HTTP 失敗</dt><dd>從 <code>ps</code> 和 <code>logs</code> 看程序是否早退，再分別確認容器內健康端點與主機端連接埠；最後才看資料契約。</dd>
+<dt>HTTP 200 但數值不對</dt><dd>驗欄位與單位、點位 ID、資料品質、來源時間及跨協定對應。HTTP 200 和容器健康都不保證現場數值可用。</dd>
+<dt>停止後請求遺失</dt><dd>先驗上游停止派送，再驗進行中請求及 SIGTERM 的結束碼與日誌。主程序退出不代表確實收尾。</dd></dl>
+<p class="small">已在本機測試 Python 程序輸出、HTTP 與 Docker CLI 輸出解析。Engine 的容器建置、啟停、SDK 對 daemon 的呼叫須在有 Docker 的環境執行上方實驗，未被本機測試替代。</p></section>
+<section id="sources"><h2>官方參考</h2><ul>
+<li><a href="https://docs.docker.com/compose/how-tos/networking/">Docker：Compose 網路</a> · <a href="https://docs.docker.com/compose/how-tos/startup-order/">Compose 依賴與健康檢查</a> · <a href="https://docs.docker.com/reference/cli/docker/compose/up/">Compose up</a> · <a href="https://docs.docker.com/reference/cli/docker/compose/run/">Compose run</a></li>
+<li><a href="https://docs.docker.com/engine/storage/bind-mounts/">Docker：Bind mounts</a> · <a href="https://docs.docker.com/engine/install/linux-postinstall/">Docker daemon 權限</a> · <a href="https://docs.docker.com/reference/compose-file/services/#stop_grace_period">stop_grace_period</a></li>
+<li><a href="https://docker-py.readthedocs.io/en/stable/client.html">Docker SDK：Client</a> · <a href="https://docker-py.readthedocs.io/en/stable/containers.html">Docker SDK：Containers</a> · <a href="https://docs.python.org/3/library/subprocess.html">Python：subprocess</a></li></ul></section>
+</main>
