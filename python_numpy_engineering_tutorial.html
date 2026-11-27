@@ -499,6 +499,19 @@
 @media(max-width:420px){#sample-project .mini{min-width:0;overflow-wrap:anywhere}}
 </style>
 <link rel="stylesheet" href="assets/course-examples.css">
+<style>
+.research-section { min-width:0 }
+.research-section .table-wrap { overflow-x:auto; margin-block:1rem }
+.research-section .table-wrap table { min-width:620px }
+.research-section pre { overflow-x:auto; max-width:100%; }
+.research-section .research-note { margin-block:.85rem; padding:.65rem .85rem; border-left:4px solid #0f8794; background:#effafa; color:#172033 }
+.research-list { padding-inline-start:1.4em; line-height:1.72 }
+.research-list li { margin-block:.38em }
+.research-insight { margin:0 0 1rem; padding:.85rem; min-width:0; border:1px solid #d8e2ec; border-radius:.8rem; background:#f8fbfe }
+.research-insight h3 { margin:0 0 .55em }
+.research-insight p { margin:.5em 0; overflow-wrap:anywhere }
+.research-insight pre { overflow-x:auto; max-width:100% }
+</style>
 </head>
 <body>
   <nav class="mobile-nav" aria-label="行動版章節導覽">
@@ -530,6 +543,7 @@
         </span>
       </a>
       <nav class="nav" aria-label="主要章節">
+        <a href="#research-method">研究問題</a>
         <a href="#map">互動式心智圖</a>
         <a href="#intro">NumPy 簡介</a>
         <a href="#commands">指令與參數</a>
@@ -537,6 +551,8 @@
         <a href="#applications">詳細應用</a>
         <a href="#packaging">打包交付</a>
         <a href="#cases">專案案例</a>
+        <a href="#graduate-lab">離線研究實驗</a>
+        <a href="#research-sources">官方技術文件</a>
         <a href="#checklist">上線檢查表</a>
         <a href="index.html">回教材入口</a>
       <a href="#roadmap-data-research">工程驗證補充</a></nav>
@@ -548,14 +564,15 @@
         <div>
           <span class="eyebrow">獨立篇幅 · NumPy</span>
           <h1>NumPy 指令、ndarray、應用與打包實戰</h1>
-          <p>用專案工程角度學 NumPy：看懂 <code>shape</code>、<code>dtype</code>、<code>axis</code>、broadcasting、view/copy、I/O 與效能邊界，最後能把依賴 NumPy 的工具打包、測試、部署。</p>
+          <p>把 ndarray 當成可檢驗的資料契約：從位址計算與索引語意出發，依序處理有限精度、遮罩、線性代數與工控採樣，再用可重複的量測及 wheel 安裝證明交付。</p>
           <div class="status-strip" aria-label="教材狀態">
-            <span>v0.9.0</span>
+            <span>研究增訂 · 2026-11-27</span>
             <span>32 個互動教學卡</span>
             <span>心智圖 / 指令 / 語法 / 應用 / 打包 / 範例專案</span>
           </div>
           <div class="hero-actions">
-            <a class="button primary" href="#map">看心智圖</a>
+            <a class="button primary" href="#research-method">研究問題與方法</a>
+            <a class="button" href="#graduate-lab">執行六項實驗</a>
             <a class="button green" href="#commands">看指令參數</a>
             <a class="button" href="#sample-project">看範例專案</a>
             <a class="button" href="index.html">回教材入口</a>
@@ -590,10 +607,22 @@
         <span class="progress-box" id="progressSummaryMobile">完成 0 / 32</span>
       </div>
 
+      <section class="section-block research-section" id="research-method">
+  <div class="section-head"><div><span class="eyebrow">研究設計 · 2026-11-27</span><h2>研究主張：先定義數值與記憶體契約，再比較速度</h2>
+  <p>同一段 NumPy 程式有三種不同的「正確」：結果對應到正確的軸與物理量；數值在已聲明的精度內；不同機器拿到相同語意的產物。快不代表對，本章的量測只對指定問題與環境有效。</p></div></div>
+  <div class="matrix">
+    <div class="mini"><strong>RQ1 · 記憶體</strong><span>相同 shape 的兩個陣列，為何一個切片會修改原值，另一個不會？用 stride、別名與重複試驗驗證。</span></div>
+    <div class="mini"><strong>RQ2 · 數值</strong><span>固定軸、dtype、缺值政策與尺度。與獨立算例或高精度參考比對，量化誤差並保留反例。</span></div>
+    <div class="mini"><strong>RQ3 · 效能</strong><span>只改 layout、固定資料與運算，檢驗每組效能分布。若輸出不等，不比較速度。</span></div>
+    <div class="mini"><strong>RQ4 · 交付</strong><span>區分純 Python wheel、native dependency 與凍結執行檔，在安裝後檢查同一份資料契約。</span></div>
+  </div>
+  <p class="research-note"><strong>證據層級：</strong>官方文件界定 API 行為；本頁合成算例驗證程式契約；對硬體效能、現場感測誤差及跨平台部署，不從單次本機成功推論。</p>
+</section>
+
       <section class="section-block" id="sample-project">
         <div class="section-head">
           <div>
-            <span class="eyebrow">v0.9.0 範例專案</span>
+            <span class="eyebrow">範例專案 · NumPy Feature Pipeline</span>
             <h2>從 ndarray 教材走到可驗收程式碼</h2>
             <p>對照 <code>範例程式碼/numpy_feature_pipeline/</code>：固定 CSV schema，轉成 <code>float32</code> 特徵矩陣，輸出 <code>.npy</code> cache 與 JSON 統計，並以測試保護 shape、dtype、NaN policy 與 CLI 邊界。</p>
           </div>
@@ -813,6 +842,11 @@ def test_write_feature_outputs(tmp_path):
             <p>NumPy 的核心不是「很多函式」，而是 homogeneous N-dimensional array：固定 dtype、固定 shape、連續或有 stride 的資料區塊，再用 C-level loop 做向量化運算。</p>
           </div>
         </div>
+        <div class="research-insight">
+<h3>陣列描述元與位址公式</h3>
+<p>對固定長度元素來說，索引 <code>i</code> 的位址是起始位址加上 <code>Σ i[k] × strides[k]</code>；stride 以<strong>位元組</strong>表示，可為負或為零。<code>shape</code> 說明每軸長度，<code>dtype</code> 說明元素語意、位元數及 byte order。C-order 最末軸通常最快變動，F-order 則是第一軸；對 slice/transpose 不要猜連續性，檢查 <code>flags.c_contiguous</code> 和 <code>flags.f_contiguous</code>。</p>
+<p><code>dtype=object</code> 儲存 Python 物件參照，不是元素直接以數值型別平鋪的快速路徑。對異質、持續變動的欄位，先選有 schema 的表格或分欄資料，別一律轉 object array。</p>
+</div>
         <div class="cards"></div>
       </section>
 
@@ -829,7 +863,7 @@ def test_write_feature_outputs(tmp_path):
             <thead><tr><th>指令 / 參數</th><th>用途</th><th>適用時機</th><th>常見錯誤</th></tr></thead>
             <tbody>
               <tr><td><code>python -m pip install numpy</code></td><td>安裝 NumPy 到目前 Python 環境</td><td>一般 venv / CI</td><td>用了錯的 Python 或裝到 base 環境</td></tr>
-              <tr><td><code>conda install numpy</code></td><td>由 conda 管理 Python 與 native library</td><td>科學運算、需要 MKL/OpenBLAS/CUDA 相關依賴</td><td>混用 pip/conda 造成 ABI 或依賴混亂</td></tr>
+              <tr><td><code>conda install numpy</code></td><td>由 conda 管理 Python 與 native library</td><td>科學運算、需要由同一環境管理 MKL/OpenBLAS 等 native libraries</td><td>混用 pip/conda 造成 ABI 或依賴混亂</td></tr>
               <tr><td><code>python -c "import numpy as np; print(np.__version__)"</code></td><td>驗證 import 與版本</td><td>安裝後 smoke test</td><td>只看 pip success 沒真的 import</td></tr>
               <tr><td><code>np.show_config()</code></td><td>檢查 BLAS/LAPACK 與 build 設定</td><td>效能或部署差異排查</td><td>不同平台線性代數效能差異未記錄</td></tr>
               <tr><td><code>python -m build</code></td><td>打包依賴 NumPy 的專案</td><td>wheel / sdist release</td><td>漏寫 dependencies 或 build-system</td></tr>
@@ -837,6 +871,15 @@ def test_write_feature_outputs(tmp_path):
             </tbody>
           </table>
         </div>
+        <div class="research-insight">
+<h3>部署先驗明白：解譯器、wheel 與數學後端是三層</h3>
+<pre tabindex="0"><code>python -VV
+python -m pip --version
+python -m pip debug --verbose
+python -m pip check
+python -c "import numpy as np; print(np.__version__, np.__file__); np.show_config(); np.show_runtime()"</code></pre>
+<p><code>pip --version</code> 核對環境，<code>pip debug</code> 查相容 tag（診斷輸出，不當機器介面），<code>show_config()</code> 查組建設定，<code>show_runtime()</code> 查執行期資源資訊。<code>pip check</code> 只核對相依資訊，不能取代 native import 與運算 smoke test。</p>
+</div>
         <div class="cards"></div>
       </section>
 
@@ -848,6 +891,16 @@ def test_write_feature_outputs(tmp_path):
             <p>這章把初學常混淆的 shape、axis、broadcasting、view/copy、ufunc 與 I/O 拆開。資深專案最常見的 bug，往往不是公式錯，而是資料形狀或 copy 誤判。</p>
           </div>
         </div>
+        <div class="research-insight">
+<h3>先證明別名，再核對軸與 dtype</h3>
+<ol class="research-list">
+<li>基本切片通常是 view；以整數索引陣列或布林遮罩<strong>取出</strong>結果會建立副本，直接對原陣列做進階索引賦值則修改原陣列。<code>reshape</code> 依布局可能複製，<code>ravel</code> 在可能時回傳 view，<code>flatten</code> 回副本。用 <code>np.shares_memory</code> 檢查小型算例；複雜 stride 下精確判斷成本可能很高。</li>
+<li>對 <code>X[時間, 通道]</code>，<code>axis=0</code> 沿時間縮減、留下每通道；<code>axis=1</code> 則在每時刻彙整通道。broadcasting 從尾軸比對大小，維度相同或其中為 1 才相容。形狀可算並非物理量可混；等長的兩軸尤其容易對錯。</li>
+<li>NumPy 2.x 依 dtype 與運算規則做 promotion，混合 Python scalar 不可當作自動擴大精度。明確指定陣列及 ufunc/reduction 累加 dtype；定寬整數先擴寬再算。<code>where=</code> 未覆蓋的位置必須有已初始化的 <code>out</code>，否則不能依賴其中的值。</li>
+<li>為測量單位訂 <code>atol</code>，為尺度訂 <code>rtol</code>。<code>np.allclose(a,b)</code> 的參考尺度是 <code>b</code>，比較可不對稱；先驗 shape/dtype，不讓相容 broadcasting 掩蓋不同輸出維度。缺值是否可等價必須明定。</li>
+<li>重複索引累加要小心：<code>a[idx] += values</code> 是 buffered 進階索引，不保證重複位置逐筆累加；需該語意時比較 <code>np.add.at</code>、<code>bincount</code> 或分組歸約，先驗等價再分析性能。</li>
+</ol>
+</div>
         <div class="cards"></div>
       </section>
 
@@ -859,6 +912,12 @@ def test_write_feature_outputs(tmp_path):
             <p>NumPy 適合 CPU 上大量 homogeneous 資料。若資料很小、規則很複雜、I/O 才是瓶頸，就不該盲目向量化。</p>
           </div>
         </div>
+        <div class="research-insight">
+<h3>從範例連到研究設計</h3>
+<p><strong>工控：</strong>保留點位 ID、品質及時間窗，無效資料不當零。冰水能量按實際區間長度積分，候選輸出同時報覆蓋與缺口。<strong>影像：</strong>固定 <code>(H,W,C)</code> 與值域，先擴大到更寬 dtype 或 float 再相減；明定 RGB/BGR、alpha 與裁切，不用無聲溢位當顏色變換。<strong>時序建模：</strong>用時間切分 fit/transform，標準化只在訓練窗估參數；標籤與特徵依時間戳對齊，不偷看未來。</p>
+<p><strong>線性代數：</strong>可識別性先看秩和 singular values；殘差小不代表係數穩定，近共線須報條件數，必要時重尺度或改設計。用 <code>lstsq</code> 解過度決定問題，不把 <code>(A.T @ A)</code> 反矩陣當通用捷徑；全秩矩陣下 normal equations 會使 2-範數條件數平方。</p>
+<p><strong>大檔與多執行緒：</strong>對可信來源的數值 <code>.npy</code> 可用 <code>np.load(path, mmap_mode="r", allow_pickle=False)</code> 搭配 chunk，避免全載但不保證不分配暫存。多數低階數值操作可讓出 GIL，但共享 array 的讀寫不能假定原子性；分配獨立視圖區段或明確同步，另管控 BLAS 與外部 worker 的超額訂閱。</p>
+</div>
         <div class="cards"></div>
       </section>
 
@@ -881,6 +940,19 @@ def test_write_feature_outputs(tmp_path):
             </tbody>
           </table>
         </div>
+        <div class="research-insight">
+<h3>驗真正安裝的產物，而非原始碼剛好可直接 import</h3>
+<p>本範例的專案 wheel 為純 Python，照 metadata 裝入相容的 NumPy native wheel；<code>py3-none-any</code> 只描述<strong>本專案</strong>，不表示所有相依都跨平台。wheel 檔名含 Python/ABI/平台 tags，核對架構、作業系統與 Python 版本；若自己有 NumPy C-API 擴充，須另驗編譯環境和 ABI，不由純 Python 範例推論。</p>
+<pre tabindex="0"><code># 在範例專案目錄，且 dist 是本次新建的輸出目錄
+python -m pip install build
+python -m build
+python -m venv .venv-smoke
+.venv-smoke/bin/python -m pip install dist/numpy_feature_pipeline-0.1.0-py3-none-any.whl
+.venv-smoke/bin/python -m pip check
+.venv-smoke/bin/numpy-feature-pipeline samples/features.csv --out-dir smoke/output
+.venv-smoke/bin/python -c 'import numpy as np; a = np.load("smoke/output/features.npy", allow_pickle=False); assert a.shape == (4, 3) and a.dtype == np.float32 and np.isfinite(a).all()'</code></pre>
+<p>上述路徑採 macOS/Linux；PowerShell 的虛擬環境啟動檔在 <code>.venv-smoke/Scripts/</code>。CLI 使用外部 sample，因此不用假設 CSV 已包含在 wheel。跨平台 CI 至少驗最低/最高支援版、<code>pip check</code>、import 路徑、CLI 結束碼及 shape/dtype/數值。PyInstaller 是目標平臺凍結，不等於 wheel、也不是跨平台編譯；要在不靠開發 venv 的目標機驗 shared libraries 和輸出。</p>
+</div>
         <div class="cards"></div>
       </section>
 
@@ -894,6 +966,189 @@ def test_write_feature_outputs(tmp_path):
         </div>
         <div class="cards"></div>
       </section>
+
+      <section class="section-block research-section" id="graduate-lab">
+  <div class="section-head"><div><span class="eyebrow">可重跑研究實驗</span><h2>五個應用算例與一個受控效能實驗</h2>
+  <p>全部使用合成資料，不讀寫設備，不靠網路。下載 <a href="numpy_graduate_lab.py" download><code>numpy_graduate_lab.py</code></a>，在自己的虛擬環境執行。先跑測試再跑 benchmark。</p></div></div>
+  <pre tabindex="0"><code>python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install "numpy&gt;=2"
+python numpy_graduate_lab.py --test
+python numpy_graduate_lab.py
+python numpy_graduate_lab.py --benchmark &gt; timing.json</code></pre>
+  <div class="table-wrap" tabindex="0" role="region" aria-label="六個研究實驗、預期與不推論事項">
+    <table><thead><tr><th>實驗</th><th>問什麼、如何控制</th><th>預期證據</th><th>不能據此下結論</th></tr></thead><tbody>
+      <tr><td>記憶體別名</td><td><code>int32</code> 的 <code>(3, 4)</code>，比較反向基本切片和進階索引，修改同一輸入位置。</td><td>基本切片的 byte stride 是 <code>(16, −8)</code>、共享資料；進階索引結果未同時改變。</td><td>所有 reshape 都零拷貝。</td></tr>
+      <tr><td>感測器正規化</td><td>定義資料軸 <code>(時間, 通道)</code>；校正向量只接受 <code>(通道,)</code>。</td><td>除數為零或非有限值時保留 NaN，逐欄計數；拒絕 <code>(通道, 1)</code> 混入。</td><td>能靠 shape 檢查通道順序或設備 ID；仍須 schema。</td></tr>
+      <tr><td>整數與相消</td><td>運算前擴寬，對照過窄的加法；浮點另與標準庫 <code>math.fsum</code> 比對。</td><td><code>-25536</code> 與 <code>40000</code>，以及不同加總法的相消差異。</td><td><code>float64</code> 可以消掉所有精度風險。</td></tr>
+      <tr><td>校正最小平方法</td><td>合成參考溫度與輸出，模型 <code>y = g x + b</code>；以 <code>lstsq</code> 解，檢查秩、殘差與奇異值。</td><td><code>g ≈ 1.05</code>、<code>b ≈ 2.0 °C</code>、秩 2。浮點殘差採容差而非精確比較。</td><td>現場線性模型一定適用；須另用驗證期間與獨立標準器。</td></tr>
+      <tr><td>冰水量積分</td><td>對不等長區間積分 <code>4.186 × q × ΔT × Δt / 3600</code>；假設水密度約 1 kg/L，<code>q</code> 是 L/s、<code>ΔT</code> 是 K、<code>Δt</code> 是 s。</td><td>算例覆蓋 <code>30/90 s</code>，有效資料積分約 <code>0.03488 kWh(th)</code>，不可標成整段值。</td><td>這個水物性近似可直接用於乙二醇混合液、異常方向或計費驗收。</td></tr>
+      <tr><td>C/F layout</td><td>同一 <code>(512, 1024)</code> float64 合成矩陣，等值驗證、預建兩個陣列，交替量測 <code>sum(axis=1)</code>。</td><td>每布局原始 ns 樣本與中位數。建置/拷貝不計入；比較端到端成本時要再獨立納入。</td><td>結果可直接外推其他 axis、CPU 或真實 I/O。</td></tr>
+    </tbody></table>
+  </div>
+  <details class="example-file"><summary>查看完整離線實驗、獨立參考及 unittest</summary><pre tabindex="0"><code>&quot;&quot;&quot;Offline NumPy experiments. Synthetic inputs only; no device or network I/O.&quot;&quot;&quot;
+import argparse
+import json
+import math
+from statistics import median
+from time import perf_counter_ns
+import unittest
+
+import numpy as np
+
+
+def memory_contract():
+    a = np.arange(12, dtype=np.int32).reshape(3, 4)
+    view = a[:, ::-2]
+    copied = a[:, [3, 1]]
+    view[0, 0] = 99
+    assert copied[0, 0] == 3 and a[0, 3] == 99
+    return {&quot;shape&quot;: list(view.shape), &quot;strides_bytes&quot;: list(view.strides),
+            &quot;view_aliases&quot;: bool(np.shares_memory(a, view)),
+            &quot;advanced_index_aliases&quot;: bool(np.shares_memory(a, copied))}
+
+
+def telemetry_contract(raw, reference):
+    # Axes: physical channel identity needs upstream schema validation too.
+    x, ref = np.asarray(raw, dtype=np.float64), np.asarray(reference, dtype=np.float64)
+    if x.ndim != 2 or ref.shape != (x.shape[1],) or x.shape[1] == 0:
+        raise ValueError(&quot;expected x=(time, channel), ref=(channel,)&quot;)
+    valid = np.isfinite(x) &amp; np.isfinite(ref) &amp; (ref &gt; 0)
+    out = np.full(x.shape, np.nan)
+    np.divide(x, ref, out=out, where=valid)
+    return out, np.count_nonzero(valid, axis=0)
+
+
+def accumulator_contract():
+    raw = np.array([30_000], dtype=np.int16)
+    offset = np.array([10_000], dtype=np.int16)
+    bad = int((raw + offset)[0])
+    safe = int(np.add(raw, offset, dtype=np.int32)[0])
+    cancellation = [1e16, 1.0, -1e16]
+    return {&quot;narrow&quot;: bad, &quot;wide&quot;: safe, &quot;ordinary_sum&quot;: float(np.sum(cancellation)),
+            &quot;fsum_reference&quot;: math.fsum(cancellation)}
+
+
+def calibration_contract():
+    # Model: synthetic temperature output = gain * reference + offset.
+    ref = np.array([0., 10., 20., 30.])
+    y = 1.05 * ref + 2.0
+    design = np.column_stack((ref, np.ones_like(ref)))
+    coeff, _, rank, spectrum = np.linalg.lstsq(design, y, rcond=None)
+    if rank != design.shape[1]:
+        raise ValueError(&quot;gain and offset not identifiable&quot;)
+    error = np.linalg.norm(design @ coeff - y)
+    return {&quot;gain&quot;: float(coeff[0]), &quot;offset&quot;: float(coeff[1]), &quot;rank&quot;: int(rank),
+            &quot;residual_l2_degC&quot;: float(error),
+            &quot;condition_2&quot;: float(spectrum[0] / spectrum[-1])}
+
+
+def energy_contract(flow_l_s, delta_k, second_edges, valid):
+    q, dt = np.asarray(flow_l_s, dtype=np.float64), np.asarray(delta_k, dtype=np.float64)
+    edges, mask = np.asarray(second_edges, dtype=np.float64), np.asarray(valid, dtype=bool)
+    if q.ndim != 1 or not q.size or q.shape != dt.shape or q.shape != mask.shape or edges.shape != (q.size + 1,):
+        raise ValueError(&quot;one flow, temperature difference and quality per interval&quot;)
+    seconds = np.diff(edges)
+    if not np.isfinite(edges).all() or not np.isfinite(seconds).all() or np.any(seconds &lt;= 0):
+        raise ValueError(&quot;interval edges must increase&quot;)
+    use = mask &amp; np.isfinite(q) &amp; np.isfinite(dt) &amp; (q &gt;= 0)
+    # Synthetic water approximation: 1 kg/L and 4.186 kJ/(kg K).
+    e = np.sum(q[use] * dt[use] * seconds[use], dtype=np.float64) * 4.186 / 3600
+    return {&quot;covered_kwh&quot;: float(e), &quot;covered_seconds&quot;: float(seconds[use].sum()),
+            &quot;total_seconds&quot;: float(seconds.sum()), &quot;complete&quot;: bool(use.all())}
+
+
+def timed_reduction(samples=9):
+    if not 3 &lt;= samples &lt;= 25:
+        raise ValueError(&quot;samples must be in 3..25&quot;)
+    # Two layouts, identical values and output shape; copying excluded from timing.
+    c = np.arange(512 * 1024, dtype=np.float64).reshape(512, 1024)
+    f = np.asfortranarray(c)
+    reduce = lambda a: a.sum(axis=1, dtype=np.float64)
+    np.testing.assert_array_equal(reduce(c), reduce(f))
+    traces = {&quot;C&quot;: [], &quot;F&quot;: []}
+    for i in range(samples):
+        for name, a in ((&quot;C&quot;, c), (&quot;F&quot;, f)) if i % 2 == 0 else ((&quot;F&quot;, f), (&quot;C&quot;, c)):
+            t = perf_counter_ns()
+            reduce(a)
+            traces[name].append(perf_counter_ns() - t)
+    return {&quot;numpy&quot;: np.__version__, &quot;shape&quot;: list(c.shape), &quot;dtype&quot;: str(c.dtype),
+            &quot;axis&quot;: 1, &quot;traces_ns&quot;: traces,
+            &quot;medians_ns&quot;: {name: median(trace) for name, trace in traces.items()}}
+
+
+class Contracts(unittest.TestCase):
+    def test_view(self):
+        self.assertEqual(memory_contract(),
+                         {&quot;shape&quot;: [3, 2], &quot;strides_bytes&quot;: [16, -8],
+                          &quot;view_aliases&quot;: True, &quot;advanced_index_aliases&quot;: False})
+
+    def test_telemetry_mask_and_one_channel_contract(self):
+        result, count = telemetry_contract([[2, 4], [np.nan, 8]], [2, 0])
+        np.testing.assert_allclose(result, [[1, np.nan], [np.nan, np.nan]], equal_nan=True)
+        np.testing.assert_array_equal(count, [1, 0])
+        with self.assertRaises(ValueError):
+            telemetry_contract([[1, 2], [3, 4]], [[2], [4]])
+
+    def test_accumulator(self):
+        result = accumulator_contract()
+        self.assertEqual((result[&quot;narrow&quot;], result[&quot;wide&quot;], result[&quot;fsum_reference&quot;]),
+                         (-25536, 40000, 1.0))
+
+    def test_calibration(self):
+        result = calibration_contract()
+        self.assertEqual(result[&quot;rank&quot;], 2)
+        np.testing.assert_allclose([result[&quot;gain&quot;], result[&quot;offset&quot;]], [1.05, 2.0],
+                                   rtol=1e-12, atol=1e-12)
+        self.assertLess(result[&quot;residual_l2_degC&quot;], 1e-10)
+
+    def test_energy_coverage_and_nonmonotonic_rejection(self):
+        result = energy_contract([1, 1], [1, 1], [0, 30, 90], [True, False])
+        self.assertFalse(result[&quot;complete&quot;])
+        self.assertEqual((result[&quot;covered_seconds&quot;], result[&quot;total_seconds&quot;]), (30, 90))
+        self.assertAlmostEqual(result[&quot;covered_kwh&quot;], 4.186 * 30 / 3600)
+        with self.assertRaises(ValueError):
+            energy_contract([1, 1], [1, 1], [0, 30, 29], [True, True])
+
+    def test_benchmark_reports_raw_samples(self):
+        result = timed_reduction(3)
+        self.assertEqual(result[&quot;shape&quot;], [512, 1024])
+        self.assertTrue(all(len(trace) == 3 and min(trace) &gt; 0 for trace in result[&quot;traces_ns&quot;].values()))
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument(&quot;--test&quot;, action=&quot;store_true&quot;)
+    mode.add_argument(&quot;--benchmark&quot;, action=&quot;store_true&quot;)
+    args = p.parse_args()
+    if args.test:
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Contracts)
+        return int(not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful())
+    if args.benchmark:
+        result = timed_reduction()
+    else:
+        normalized, counts = telemetry_contract([[2., 4.]], [2., 4.])
+        result = {&quot;memory&quot;: memory_contract(), &quot;telemetry&quot;: normalized.tolist(),
+                  &quot;valid_per_channel&quot;: counts.tolist(), &quot;precision&quot;: accumulator_contract(),
+                  &quot;calibration&quot;: calibration_contract(),
+                  &quot;energy&quot;: energy_contract([1, 1], [1, 1], [0, 30, 90], [True, False])}
+    print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
+    return 0
+
+
+if __name__ == &quot;__main__&quot;:
+    raise SystemExit(main())
+</code></pre></details>
+  <h3>效能證據：測量設計比單一加速比重要</h3>
+  <ol class="research-list">
+    <li><strong>固定對照：</strong>先記 Python/NumPy 版本、CPU、OS、輸入大小、dtype、axis、C/F layout；BLAS 實驗另外固定執行緒數及 backend。這個 <code>sum</code> 基準不把 BLAS 當解釋。</li>
+    <li><strong>預熱及重複：</strong>不把 import 和轉連續陣列混進核心時間，交替順序降低溫度/時序偏差。不同程序各自重跑；把原始樣本、中位數、波動範圍與未納入的成本一起保存。</li>
+    <li><strong>量峰值而非只數陣列：</strong><code>nbytes</code> 是這個陣列的邏輯元素位元組，不等於其獨占記憶體、程序 RSS 或峰值。用隔離程序的作業系統工具量測峰值，附上單位及量測方法；淡化外部背景負載。</li>
+    <li><strong>保留反證：</strong>小陣列 Python 呼叫與配置成本可能主導；broadcasting 不複製輸入，仍可能物化巨大結果。先把形狀、位元組上界、誤差彙總與結果等價測試寫成固定的驗收條件。</li>
+  </ol>
+</section>
 
       <section class="section-block" id="checklist">
         <div class="section-head">
@@ -939,6 +1194,16 @@ with np.errstate(divide=&quot;raise&quot;, invalid=&quot;raise&quot;, over=&quot
     np.divide(wide, reference, out=normalized, where=valid)</code></pre>
 <p>在分母有效的第一筆，比例 40,000 / 20,000 = 2；後兩筆分別因缺值及分母為 0，保持為 NaN（JSON 輸出 <code>null</code>）。<code>np.divide(where=...)</code> 只寫入真值位置，不提供已初始化的 <code>out</code> 時，假位置無已定義結果。<code>errstate</code> 可攔浮點除零或溢位，不應當成整數陣列的通用範圍檢查。生產門檻還要由感測器、校正模型及極限值測試約束。</p>
 <p>原始參考：<a href="https://numpy.org/doc/stable/reference/arrays.promotion.html">NumPy 型態提升</a> · <a href="https://numpy.org/doc/stable/reference/generated/numpy.divide.html">NumPy divide 的 out 與 where</a>。</p>
+</section>
+<section class="section-block research-section" id="research-sources">
+<div class="section-head"><div><span class="eyebrow">可追溯來源</span><h2>對照官方技術文件</h2></div></div>
+<ul class="research-list">
+<li>NumPy：<a href="https://numpy.org/doc/stable/reference/arrays.ndarray.html">ndarray 與資料描述元</a>、<a href="https://numpy.org/doc/stable/user/basics.copies.html">copy/view</a>、<a href="https://numpy.org/doc/stable/user/basics.broadcasting.html">broadcasting</a>。</li>
+<li>NumPy：<a href="https://numpy.org/doc/stable/reference/arrays.promotion.html">2.x 型別提升</a>、<a href="https://numpy.org/doc/stable/reference/ufuncs.html">ufunc 與 where/out</a>、<a href="https://numpy.org/doc/stable/reference/generated/numpy.allclose.html">allclose 的容差語意</a>、<a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html">最小平方法輸出</a>。</li>
+<li>NumPy：<a href="https://numpy.org/doc/stable/reference/thread_safety.html">執行緒安全及 shared array</a>、<a href="https://numpy.org/doc/stable/reference/generated/numpy.show_runtime.html">執行期診斷</a>。</li>
+<li>PyPA：<a href="https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/">Wheel 平台相容標籤</a>；<a href="https://pyinstaller.org/en/stable/operating-mode.html">PyInstaller 凍結與目標平臺</a>。</li>
+</ul>
+<p>文件連到官方 stable；重跑時記錄實際版號與後端。算例至少需要 NumPy 2.x；本次本機驗證結果不能當目標設備 SLA。</p>
 </section>
 </main>
   </div>

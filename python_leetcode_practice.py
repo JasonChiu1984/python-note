@@ -8,6 +8,7 @@ import unittest
 import itertools
 from collections import deque, OrderedDict
 from dataclasses import dataclass
+from heapq import heappop, heappush
 
 # LeetCode #1: https://leetcode.com/problems/two-sum/
 def two_sum(nums: list[int], target: int) -> list[int]:
@@ -129,6 +130,93 @@ class LRUCache:
         self.data.move_to_end(key)
         if len(self.data) > self.capacity:
             self.data.popitem(last=False)
+
+
+# Original transfer cases, independent of any online judge.
+def count_target_subarrays(values: list[int], target: int) -> int:
+    """Count nonempty contiguous intervals with sum target; negative values allowed."""
+    prefix = count = 0
+    frequencies = {0: 1}
+    for value in values:
+        prefix += value
+        count += frequencies.get(prefix - target, 0)
+        frequencies[prefix] = frequencies.get(prefix, 0) + 1
+    return count
+
+
+def min_batch_capacity(weights: list[int], batches: int) -> int:
+    """Minimum capacity for at most batches nonempty, ordered, contiguous groups."""
+    if not weights or any(weight <= 0 for weight in weights) or batches < 1:
+        raise ValueError("require positive weights and batches, with at least one item")
+
+    def feasible(capacity: int) -> bool:
+        groups, load = 1, 0
+        for weight in weights:
+            if load + weight > capacity:
+                groups += 1
+                load = 0
+            load += weight
+        return groups <= batches
+
+    low, high = max(weights), sum(weights)
+    while low < high:
+        middle = (low + high) // 2
+        if feasible(middle):
+            high = middle
+        else:
+            low = middle + 1
+    return low
+
+
+def dependency_order(tasks: list[str], edges: list[tuple[str, str]]) -> list[str]:
+    """Return an order respecting each directed edge (before, after); reject cycles."""
+    indegree = dict.fromkeys(tasks, 0)
+    if len(indegree) != len(tasks):
+        raise ValueError("task identifiers must be unique")
+    followers: dict[str, list[str]] = {task: [] for task in tasks}
+    for before, after in edges:
+        if before not in indegree or after not in indegree:
+            raise ValueError("edge endpoints must be declared tasks")
+        followers[before].append(after)
+        indegree[after] += 1
+    ready = deque(task for task in tasks if indegree[task] == 0)
+    ordered = []
+    while ready:
+        before = ready.popleft()
+        ordered.append(before)
+        for after in followers[before]:
+            indegree[after] -= 1
+            if indegree[after] == 0:
+                ready.append(after)
+    if len(ordered) != len(tasks):
+        raise ValueError("dependency cycle")
+    return ordered
+
+
+def shortest_distances(
+    graph: dict[str, list[tuple[str, int]]], source: str
+) -> dict[str, int]:
+    """Return distances to reachable vertices; integer edge weights must be nonnegative."""
+    vertices = set(graph)
+    for neighbors in graph.values():
+        for vertex, weight in neighbors:
+            if weight < 0:
+                raise ValueError("Dijkstra requires nonnegative weights")
+            vertices.add(vertex)
+    if source not in vertices:
+        raise ValueError("unknown source")
+    distance = {source: 0}
+    pending = [(0, source)]
+    while pending:
+        total, here = heappop(pending)
+        if total != distance[here]:
+            continue
+        for neighbor, weight in graph.get(here, []):
+            proposal = total + weight
+            if neighbor not in distance or proposal < distance[neighbor]:
+                distance[neighbor] = proposal
+                heappush(pending, (proposal, neighbor))
+    return distance
 
 
 class PracticeTests(unittest.TestCase):
@@ -284,6 +372,101 @@ class PracticeTests(unittest.TestCase):
         for capacity in (0, -1):
             with self.assertRaises(ValueError):
                 LRUCache(capacity)
+
+
+class ResearchTests(unittest.TestCase):
+    def test_prefix_boundary_and_repeated_sums(self):
+        self.assertEqual(count_target_subarrays([], 0), 0)
+        self.assertEqual(count_target_subarrays([0, 0, 0], 0), 6)
+        self.assertEqual(count_target_subarrays([1, -1, 1], 0), 2)
+
+    def test_prefix_exhaustive_against_interval_enumeration(self):
+        for size in range(6):
+            for values in itertools.product((-1, 0, 1), repeat=size):
+                for target in range(-2, 3):
+                    oracle = sum(
+                        sum(values[i:j]) == target
+                        for i in range(size)
+                        for j in range(i + 1, size + 1)
+                    )
+                    self.assertEqual(count_target_subarrays(list(values), target), oracle)
+
+    def test_capacity_rejects_inputs_and_preserves_order(self):
+        for weights, batches in (([], 1), ([0], 1), ([-1], 2), ([3], 0)):
+            with self.subTest(weights=weights, batches=batches), self.assertRaises(ValueError):
+                min_batch_capacity(weights, batches)
+        values = [7, 2, 5, 10, 8]
+        self.assertEqual(min_batch_capacity(values, 2), 18)
+        self.assertEqual(values, [7, 2, 5, 10, 8])
+        self.assertEqual(min_batch_capacity([2], 10), 2)
+
+    def test_capacity_against_all_cut_sets(self):
+        for size in range(1, 6):
+            for weights in itertools.product((1, 2, 3), repeat=size):
+                for batches in range(1, size + 1):
+                    oracle = min(
+                        max(sum(weights[left:right]) for left, right in zip(cuts, cuts[1:]))
+                        for groups in range(1, batches + 1)
+                        for internal in itertools.combinations(range(1, size), groups - 1)
+                        for cuts in [(0, *internal, size)]
+                    )
+                    self.assertEqual(min_batch_capacity(list(weights), batches), oracle)
+
+    def test_dependency_rejects_cycle_unknown_and_duplicates(self):
+        self.assertEqual(dependency_order([], []), [])
+        self.assertEqual(dependency_order(["a", "b"], [("a", "b"), ("a", "b")]), ["a", "b"])
+        for tasks, edges in (
+            (["a"], [("a", "a")]),
+            (["a"], [("a", "x")]),
+            (["a", "a"], []),
+        ):
+            with self.subTest(tasks=tasks, edges=edges), self.assertRaises(ValueError):
+                dependency_order(tasks, edges)
+
+    def test_dependency_against_permutation_oracle(self):
+        tasks = ["a", "b", "c"]
+        possible = list(itertools.permutations(tasks, 2))
+        for flags in itertools.product((False, True), repeat=len(possible)):
+            edges = [edge for edge, enabled in zip(possible, flags) if enabled]
+            oracle = {
+                order for order in itertools.permutations(tasks)
+                if all(order.index(a) < order.index(b) for a, b in edges)
+            }
+            if oracle:
+                self.assertIn(tuple(dependency_order(tasks, edges)), oracle)
+            else:
+                with self.assertRaisesRegex(ValueError, "cycle"):
+                    dependency_order(tasks, edges)
+
+    def test_shortest_paths_rejects_negative_and_unknown_source(self):
+        with self.assertRaisesRegex(ValueError, "nonnegative"):
+            shortest_distances({"s": [], "x": [("y", -1)]}, "s")
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            shortest_distances({"s": []}, "t")
+        self.assertEqual(shortest_distances({"a": [("b", 1)]}, "b"), {"b": 0})
+
+    def test_shortest_paths_stale_entries_zero_and_unreachable(self):
+        graph = {"s": [("a", 10), ("b", 1)], "b": [("a", 1)], "a": [("c", 0)], "x": []}
+        self.assertEqual(shortest_distances(graph, "s"), {"s": 0, "a": 2, "b": 1, "c": 2})
+        self.assertNotIn("x", shortest_distances(graph, "s"))
+
+    def test_shortest_paths_against_bounded_edge_relaxation(self):
+        nodes = ["a", "b", "c"]
+        pairs = list(itertools.permutations(nodes, 2))
+        inf = float("inf")
+        for weights in itertools.product((None, 0, 2), repeat=len(pairs)):
+            graph = {v: [] for v in nodes}
+            for (before, after), weight in zip(pairs, weights):
+                if weight is not None:
+                    graph[before].append((after, weight))
+            oracle = {node: (0 if node == "a" else inf) for node in nodes}
+            for _ in range(len(nodes) - 1):
+                previous = oracle.copy()
+                for before, edges in graph.items():
+                    for after, weight in edges:
+                        oracle[after] = min(oracle[after], previous[before] + weight)
+            self.assertEqual(shortest_distances(graph, "a"),
+                             {node: d for node, d in oracle.items() if d != inf})
 
 
 if __name__ == "__main__":

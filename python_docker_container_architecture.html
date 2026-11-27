@@ -6,12 +6,22 @@
 <style>
 :root{color-scheme:light;--ink:#122a41;--muted:#425971;--line:#c3d3df;--soft:#edf5fb;--green:#13716a;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif}
 *{box-sizing:border-box}body{margin:0;background:#f2f6fa;color:var(--ink);line-height:1.72}main{width:min(100% - 1.5rem,80rem);margin:1rem auto 3rem}section,header{background:#fff;border:1px solid var(--line);border-radius:1rem;margin:1rem 0;padding:clamp(.85rem,3vw,2rem);min-width:0}header{background:linear-gradient(126deg,#102d49,#145e65);color:white}header a{color:#fff}h1{font-size:clamp(1.75rem,4.5vw,3rem);line-height:1.2;margin:.45rem 0}h2,h3{line-height:1.3}a{color:#115479;text-underline-offset:.19em}a:focus-visible{outline:3px solid #a95a15}nav{display:flex;flex-wrap:wrap;gap:.42rem}nav a{border:1px solid var(--line);background:#fff;padding:.3rem .55rem;border-radius:.42rem}p,li,dd,.box{overflow-wrap:anywhere}.board,.grid{display:grid;gap:.75rem}.board{grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))}.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}.box,.card{border:1px solid #a6bfce;border-radius:.65rem;background:var(--soft);padding:.65rem .85rem;min-width:0}.card h3{margin:.25rem 0}.hub{color:white;background:#164c64;text-align:center;margin:0 auto .55rem;max-width:24rem}.graph{border:1px solid var(--line);border-radius:.8rem;padding:.7rem;margin:.8rem 0}.arrow{color:var(--green);font-size:1.15rem;font-weight:800;text-align:center;line-height:1.2;padding:.1rem}.stack{display:grid;gap:.2rem;max-width:48rem;margin:auto}.stack strong,.card strong{display:block}.decision-grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}.notice{border-left:.25rem solid #b66c19;padding:.45rem .7rem;background:#fff5e6}dt{font-weight:780}dd{margin:0 0 .65rem;color:var(--muted)}pre{padding:.7rem .85rem;border-radius:.5rem;background:#15283d;color:#fff;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font-size:.86rem}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}[id]{scroll-margin-top:.6rem}figcaption{font-size:.92rem;color:var(--muted);margin-top:.55rem}ul{padding-left:1.25rem}
+ .trial{max-width:48rem;padding:.65rem .8rem;margin:.85rem 0 0}.trial h3{margin:0}.trial p{margin:.32rem 0}.trial-controls{display:flex;gap:.38rem .55rem;flex-wrap:wrap;align-items:center}.trial label{display:inline-flex;align-items:center;gap:.27rem}.trial select,.trial button{min-height:44px;max-width:100%;padding:.2rem .45rem;font:inherit;border:1px solid #9ab4c3;border-radius:.42rem;background:#fff;color:var(--ink)}.trial button{background:#165a68;color:white}.trial output{display:block;font: .88rem/1.6 ui-monospace,monospace;margin-top:.5rem;padding:.38rem .55rem;background:#fff;border-radius:.35rem;overflow-wrap:anywhere}
 </style>
 </head>
 <body><main>
 <header><a href="python_docker_interop_tutorial.html">回 Docker 與 Python 互動操作</a> · <a href="index.html">教材入口</a>
-<h1>Docker 容器深度研究</h1><p>從 OCI 映像到 Linux 程序，再用工控 Gateway 的部署情境驗證網路、資料、資源與資安邊界。</p><a href="assets/docker_container_research.drawio" download>下載可編輯 draw.io：心智圖、架構圖、流程圖</a></header>
-<nav aria-label="章節"><a href="#mindmap">心智圖</a><a href="#architecture">架構圖</a><a href="#lifecycle">流程圖</a><a href="#mechanisms">核心機制</a><a href="#security">資安分析</a><a href="#lab">實作驗收</a><a href="#sources">官方來源</a></nav>
+<h1>Docker 容器深度研究</h1><p>用研究問題串起 OCI、Linux 隔離與實際部署：哪些是規格保證，哪些需要量測，哪些仍不能外推到工控現場。</p><a href="assets/docker_container_research.drawio" download>下載可編輯 draw.io：心智圖、架構圖、流程圖</a></header>
+<nav aria-label="章節"><a href="#research">研究問題</a><a href="#mindmap">心智圖</a><a href="#architecture">架構圖</a><a href="#lifecycle">流程圖</a><a href="#mechanisms">核心機制</a><a href="#experiment">實驗設計</a><a href="#security">資安設定</a><a href="#threat-model">威脅模型</a><a href="#lab">實作驗收</a><a href="#limitations">限制</a><a href="#sources">證據索引</a></nav>
+<section id="research"><h2>摘要與研究問題</h2>
+<p><strong>研究對象：</strong>Docker Engine 啟動的 Linux 容器，以唯讀合成冰水遙測為案例。容器化改變的是程序的可見範圍、資源治理和部署單位，不會自動改善效能，也不會替應用建立完整的安全邊界。本文把<strong>規格保證</strong>、<strong>環境觀察</strong>和<strong>待驗假設</strong>分開，避免把教學配置寫成現場結論。</p>
+<div class="grid">
+<article class="card"><h3>RQ1｜隔離到底由誰執行？</h3><p>辨認 OCI 映像、runtime 組態與 Linux 核心三層。用程序 PID、UID、資源上限、掛載及端點對照各自的責任。</p></article>
+<article class="card"><h3>RQ2｜尾延遲從哪裡來？</h3><p>比較同主機原生程序與容器化程序的主機端 HTTP 測量，再只改容器 CPU 配額。若 p99 上升且 throttling 同步出現，才支持「CPU 配額影響尾延遲」；單有 p99 不足以定位。</p></article>
+<article class="card"><h3>RQ3｜停止請求何時是安全退出？</h3><p>分開查 listener 關閉、已接請求是否完成、退出碼及強制停止。若只有容器顯示 Exited，不能推論業務工作已完整交接。</p></article>
+<article class="card"><h3>RQ4｜容器化降低了哪些 OT 風險？</h3><p>為映像、Engine、程序、網路、資料完整性分別定義威脅與證據。不能把同一個控制措施當成另一層的通過證明。</p></article>
+</div>
+<p><strong>閱讀順序：</strong>先用三張圖建立模型，再看核心機制與架構取捨；實驗章提供原始 CSV、指標和判讀方式；最後用威脅模型與驗收表回查證據。</p></section>
 <section id="mindmap"><h2>心智圖：Docker 容器的六條主線</h2>
 <figure class="graph" aria-label="Docker 容器的心智圖">
 <div class="hub box"><strong>Docker 容器</strong></div>
@@ -48,15 +58,59 @@
 <div class="box"><strong>5. Exited 與 Removed 不同</strong>停止保留容器物件和可寫層；容器刪除後可寫層消失。Volume 的保留與刪除另有生命週期，不能把它當備份。</div>
 </div><figcaption>主程序也能自行退出，並不一定經過停止請求。一般 restart policy 關注容器退出，不應把 unhealthy 當成它一定會自動重啟的條件。</figcaption></figure>
 </section>
-<section id="mechanisms"><h2>深入拆解：隔離、儲存、資源與網路</h2>
+<section id="mechanisms"><h2>核心機制：從映像內容追到核心執行</h2>
+<h3>1. 一份映像不等於一份執行中的容器</h3>
+<p>映像 index 可指向不同平台的 manifest；manifest 引用 config 與 layer blobs。Registry 所展示的 digest 可能指 index，也可能指單平台 manifest；<code>docker image inspect .Id</code> 不應當作替代的 registry manifest digest。Tag 只是可移動的名稱，內容固定須記錄核准的 digest 與選定平台。Digest 驗的是內容識別，不會回答「哪個團隊發布」「簽章是否可信」「含不含漏洞」。建置期才用的憑證不要放入環境層或映像層；使用為建置提供的 secrets 機制。<a href="#sources">[S01、S08]</a></p>
+<p>啟動時，Engine 將容器組態委託典型的 containerd／shim／OCI runtime 執行鏈。Runtime 依程序、mount、namespace、cgroups 等設定建立可執行環境。<code>runc</code> 不是替 Python 長時間運算的 daemon；它完成建立與啟動後，容器程序的 I/O 和退出交由對應的 shim 與管理層處理。不同平台與 runtime 的實作可以不同。<a href="#sources">[S02、S03]</a></p>
+<h3>2. 可見性、配額、權限是三個維度</h3>
+<div class="grid">
+<div class="card"><strong>Namespace ∣ 看得見什麼</strong><p>PID、network、mount、IPC、UTS 等是各自的視圖。User namespace 可重新映射 UID/GID；是否使用及如何映射依部署模式。容器中 UID 0 不應被當成沒有權限風險。</p></div>
+<div class="card"><strong>cgroups ∣ 能使用多少</strong><p><code>cpus: 0.50</code> 型態設定限制可用 CPU 時間，而不是綁定一顆特定核心。CPU 配額造成的 throttling 與記憶體逼近上限可能都使 p99 拉長，需用核心計數和對照組區分。</p></div>
+<div class="card"><strong>Capability／LSM／seccomp ∣ 允許做什麼</strong><p>Capability 拆分部分特權；seccomp 限制可用系統呼叫；AppArmor／SELinux 依主機與政策提供強制存取控制。Non-root、rootless Engine 與唯讀掛載各有不同保護面，不互相替代。</p></div></div>
+<p>原生 Linux 容器共享主機核心，macOS／Windows 的 Docker Desktop Linux 容器通常在 Linux VM 中共享該 VM 的核心。VM 有客體核心，通常適合需要分離核心的信任邊界；但 VM 也需維護 hypervisor 與客體。若比較 native Linux、容器與 Desktop，不能只把差異歸咎於 Docker：VM 路徑、host filesystem、CPU 架構／模擬、核心版本都可能同時變動。<a href="#sources">[S02、S04、S06]</a></p>
+<h3>3. I/O 路徑決定瓶頸與資料壽命</h3>
+<dl><dt>映像層＋容器可寫層</dt><dd>典型 OverlayFS 以多個唯讀下層提供 rootfs，可寫上層接住變更；第一次修改某些下層檔案時可能 copy-up。實際 snapshotter／儲存驅動應從 Engine 查，不可將 <code>overlay2</code> 當通則。停止保留可寫層，移除容器才失去它。</dd>
+<dt>Volume／bind mount／tmpfs</dt><dd>Volume 由 Engine 管理，資料可獨立於容器存在，但不等於跨主機複寫或已有備份；bind mount 依附 Engine 主機路徑、權限與檔案共享機制；tmpfs 適合允許消失的暫存。對照量測須固定資料量、同步寫入政策、快取條件與底層媒體。<a href="#sources">[S05]</a></dd>
+<dt>容器埠與發布埠</dt><dd>例：同 Compose 網路的客戶端找 <code>telemetry:8080</code>；主機程式走 <code>127.0.0.1:18080</code>。<code>EXPOSE</code> 是映像中的說明，不會自動發布或放行。現場 BACnet/IP 發現還要由網路管理面確認廣播域、路由、ACL 與產品具體設定；不把 Docker Desktop 的通訊結果外推到所在 VLAN。<a href="#sources">[S07]</a></dd></dl>
+<h3>4. PID 1、健康與終止的因果關係</h3>
+<p>用 exec-form <code>CMD</code> 或包裝腳本的 <code>exec</code> 讓應用接到預期訊號；有子程序時另驗訊號轉送和回收。停止要求一般先送 TERM（可改）、達上限後強制結束未退出的程序。容器 <code>running</code>、健康檢查、應用就緒與業務資料正確是四件事。配置一般 restart policy 也不代表只因 unhealthy 就會重啟。<a href="python_deployment_runtime_tutorial.html#operations">原部署教材的 SIGTERM 實測</a>另外展示本機如何分辨成功收尾和超時；不能把該結果算成這個容器案例的預設能力。</p></section>
+
+<section id="experiment"><h2>實驗設計：測量之前先決定可推論什麼</h2>
+<p class="notice"><strong>證據狀態：</strong>此處是可重跑的比較設計，不是實測的 Docker 效能排名。測量程式僅對本機合成服務執行；不改動 PLC、不掃描網路、沒有預填數據。</p>
 <dl>
-<dt>Namespace：程序看得到什麼？</dt><dd>PID、網路、mount、IPC、UTS 等隔離各自的視圖；user namespace 處理 UID/GID 的映射，是否啟用依模式而定。namespace 不是 CPU 或記憶體配額，也不是獨立核心。</dd>
-<dt>cgroups：程序能使用多少？</dt><dd><code>--cpus=0.5</code> 型態的設定限制 CPU 時間，不固定在半顆特定核心。記憶體上限加上囤積的快取會影響服務；以 <code>docker stats</code>、OOMKilled、重啟與應用延遲合併判斷。cgroup v1/v2 的檔案名稱不同，先辨認執行環境。</dd>
-<dt>Overlay 與資料壽命：資料寫到哪？</dt><dd>典型 OverlayFS 讓映像層唯讀，上層承接寫入；既有下層檔案首次修改可能發生 copy-up。實際儲存後端可能是 containerd snapshotter 或其他 Docker 儲存驅動，不應假設每台都用 <code>overlay2</code>。Volume 的持久化不等於跨主機複寫或備份；bind mount 還依賴 Engine 主機路徑及權限。</dd>
-<dt>Tag、Digest 與跨平台</dt><dd>Tag 可變；部署用已驗證的 digest 避免悄悄換版，搭配安全更新與重建。Digest 是內容識別，不等於簽章、來源授權或沒有漏洞；多平台要分清 index digest 與單一平台 manifest digest。</dd>
-<dt>Bridge、服務 DNS 及防火牆</dt><dd>同網路服務用服務名稱和容器埠。主機發布連接埠是另一條路，<code>EXPOSE</code> 不等於發布或防火牆放行。採集跨 VLAN 的 BACnet/IP 之類廣播發現時，要在目標平台核對廣播、路由與 ACL，不能假設 Docker Desktop VM 的通用連接埠映射會轉送它。</dd>
-<dt>PID 1、轉送與收尾</dt><dd>用 exec-form <code>CMD</code> 或在包裝腳本用 <code>exec</code>，避免訊號卡在外層 shell。主程序需實作停止邏輯；子程序多時考慮 init 轉送與回收。停止預算必須由應用與部署平台分別驗證。</dd>
-</dl></section>
+<dt>A：原生 Linux 基線</dt><dd>同一台 Linux 主機、同一 Python 修訂版、同一份 <code>app.py</code>、同一請求內容／記錄設定。在本機以 loopback 啟動同一 Handler；將 18081 當作基線埠，避免和容器的 18080 混用。</dd>
+<dt>B：同主機容器</dt><dd>在同樣的 Linux 主機上，用上一章 Compose 啟動同一 Handler；主機從 18080 走發布埠。A→B 衡量的是「原生路徑到這種部署路徑的總差」，不是純粹的 namespace 成本。若要拆分網路成本，另設同一程序／埠發布設定、只改一項暴露路徑的對照設計。</dd>
+<dt>C：容器加 CPU 配額</dt><dd>對 B 使用只改 CPU 配額的 Compose 覆寫，不同時加入記憶體或 PID 限制。記下有效上限與 <code>cpu.stat</code> 的 <code>nr_throttled</code>、<code>throttled_usec</code> 在試驗前後的差。若主機無相容 cgroup v2 介面或計數不可讀，標記無資料，不當成零。資安章的多項強化檔不是此組的單一變因覆寫。</dd>
+</dl>
+<p><strong>試驗控制：</strong>記錄 OS/kernel、Docker/Compose、Python、CPU 架構與頻率策略、映像 digest、cgroup 版本、測試時間與每組有效配置。每組先暖機，再以相同請求數、併發與逾時重跑至少 5 次；交錯 A/B/C 輪次以減少時間漂移。冷啟動另記快取映像與是否拉取，測「啟動命令 → 首次正確樣本」，不要把 pull 時間混成穩態請求延遲。桌面 VM、arm64/amd64 模擬或不同磁碟應作為獨立條件。</p>
+<h3>量測和判讀</h3>
+<ul><li><strong>每輪原始資料：</strong>保留嘗試序號、單調時鐘起始、耗時、HTTP 狀態和結果。HTTP 200 但資料契約錯也要算失敗；沒有成功樣本時延遲報 <code>null</code>。</li>
+<li><strong>分母：</strong>失敗率＝失敗嘗試／所有測量嘗試；吞吐＝成功數／測量牆鐘時間；p95/p99 以成功樣本的 nearest-rank 計算，須與失敗率並列。每輪 p99 至少建議 1,000 次成功樣本，仍是尾部估計，不是最大延遲。</li>
+<li><strong>跨輪結果：</strong>不要把五輪請求當成五千個彼此獨立的實驗。比較各輪 p99 中位數、範圍或非參數區間；若設計為配對，應報告相同輪次的 B−A 或 C−B 差值。誤差較大時保留未決結論。</li>
+<li><strong>負載邊界：</strong>本程式採固定 worker 的封閉式負載，每次新 TCP 連線，包含連線、讀回及 JSON 驗證；不量真正使用者到 OT 設備的端對端時間。變慢時發送率也可能下降；壓測排隊／大量逾時須另設到達率控制，不把此數字當成容量證明。</li>
+</ul>
+<h3>可重跑命令（在上一章範例目錄）</h3>
+<pre><code># A：終端機 1。以 loopback 啟動原生基線，不開到區網。
+python3 -c 'from app import Handler; from http.server import ThreadingHTTPServer; ThreadingHTTPServer(("127.0.0.1",18081),Handler).serve_forever()'
+# 另一終端機，先驗測試再跑單輪；每輪使用不同的檔名。
+python3 -m unittest -v
+python3 bench_http.py --port 18081 --count 1000 --workers 4 --warmup 32 --csv native-01.csv
+# B：按上一章在本機啟動 telemetry，再量發布埠。
+python3 bench_http.py --port 18080 --count 1000 --workers 4 --warmup 32 --csv docker-01.csv</code></pre>
+<p>組 C 可在測試資料夾另存以下 <code>compose.quota.yaml</code>，只覆寫 CPU 配額；以與組 B 相同的本機 context 重建本實驗服務，等健康檢查通過，再用 18080 跑不同檔名。不要持續疊加資安章的效能變因。</p>
+<pre><code>services:
+  telemetry:
+    cpus: 0.50</code></pre>
+<pre><code>docker --context "$ctx" compose -p python-interop-lab \
+  -f compose.yaml -f compose.quota.yaml up -d --wait --wait-timeout 45 telemetry
+python3 bench_http.py --port 18080 --count 1000 --workers 4 --warmup 32 --csv quota-01.csv</code></pre>
+<p><a href="範例程式碼/docker_python_interop_lab/bench_http.py" download>下載量測程式</a> · <a href="範例程式碼/docker_python_interop_lab/test_bench_http.py" download>下載四項量測測試</a>。CSV 不覆寫既有資料；有失敗時仍輸出證據並回傳非零結束碼。<a href="#sources">[S04、S06、S09]</a></p>
+<div class="trial card" id="interactive-trial">
+<h3>互動實驗｜設定本機試驗規模</h3>
+<p>只產生命令，不執行 Docker 或發送 HTTP。選擇組別和樣本數，保留每輪不同的檔名。</p>
+<div class="trial-controls"><label>組別 <select id="trial-arm"><option value="native">A：原生</option><option value="docker">B：容器</option><option value="quota">C：限額容器</option></select></label><label>樣本 <select id="trial-count"><option>400</option><option selected>1000</option><option>2000</option></select></label><label>並行 <select id="trial-workers"><option>1</option><option selected>4</option><option>8</option></select></label><button type="button" id="trial-generate">產生命令</button></div>
+<output id="trial-command" aria-live="polite">python3 bench_http.py --port 18081 --count 1000 --workers 4 --warmup 32 --csv native-01.csv</output>
+</div></section>
 <section id="security"><h2>資安分析：先辨識信任邊界，再決定怎麼驗</h2>
 <div class="grid">
 <article class="card"><h3>映像與依賴：內容正確嗎？</h3><p>風險：可變 Tag、未授權映像、過時基底或把連線密碼做進 image layer。控制：可信 Registry、digest 固定、SBOM、弱點掃描與簽章驗證；建置用 secrets 機制，執行期用授權祕密來源，不寫在 Dockerfile 或日誌。</p><p><strong>驗收：</strong>核對發行 digest、發行來源、掃描／簽章結果與更新期限；掃描無告警不代表安全。</p></article>
@@ -80,6 +134,16 @@
   -f compose.yaml -f compose.hardening.yaml config</code></pre>
 <p><code>config</code> 只解析合併的設定，不代表核心已套用限制。上線前再從容器組態、執行中的資源指標及應用程式延遲各自驗收。</p>
 <p class="notice"><strong>邊界提醒：</strong>容器共享核心，rootless、唯讀、網路分段都是不同防線，不能互相替代。容器不應被描述為可安全承載任意不受信任程式的通用沙箱。</p></section>
+<section id="threat-model"><h2>工控 Gateway 威脅模型與驗收</h2>
+<p><strong>保護標的：</strong>採集服務的可用性、平台所見點位的完整性與來源時間、憑證與資產資訊的機密性，以及本地控制不受上位故障干擾。信任邊界依序為建置／Registry、Engine 主機、容器程序、OT 設備區與上位平台；網頁沙盒或本機合成資料不跨入後兩區。</p>
+<div class="grid">
+<article class="card"><h3>T1｜製品被換版或來源不明</h3><p><strong>判斷：</strong>生產部署以核准 digest 與平台為準，核對 SBOM、簽章、建置來源、掃描時間與修補責任。拒絕未對應 release 的映像。SBOM 只是組成清單；弱點存在不等於可到達，掃描無告警也不等於安全。</p><p><strong>證據：</strong>發行紀錄、政策檢查、重建和回滾的已知映像。</p></article>
+<article class="card"><h3>T2｜管理身分擴大成主機權限</h3><p><strong>判斷：</strong>採集程序與一般 Web API 不持有 Engine socket、遠端管理憑證或主機管理掛載。區分 non-root 程序、rootless Engine 和獨立 VM；根據需隔離的資產決定是哪一層，不把 socket 檔標成唯讀當成權限控制。</p><p><strong>證據：</strong>靜態服務設定、實際掛載與執行 UID、Engine 帳號範圍和稽核紀錄。</p></article>
+<article class="card"><h3>T3｜點位錯配或來源資訊遺失</h3><p><strong>判斷：</strong>單一點位 ID 對一份版本化對應。協定、單位、有效範圍和來源時間各自保存；取不到來源時間標未知。HTTP 200、Docker healthy 和協定可達都不能證明對應正確。</p><p><strong>證據：</strong>逐點核對從合成輸入到上位端的值、單位、品質、目的端；避免把「沒有讀值」填成合法數字零。預覽與實際上位接收分開記錄。</p></article>
+<article class="card"><h3>T4｜過載或上位故障影響本地控制</h3><p><strong>判斷：</strong>按工區做最小路由集合，記錄允許的目的地址、方向、協定、埠與批准的讀寫範圍。限制輪詢頻率、重試和緩衝；先試合成斷線與恢復，刻意不對現場設備試寫或施壓。</p><p><strong>證據：</strong>應用延遲和錯誤率、cgroup 指標、切換／回復紀錄、品質旗標，以及 PLC 本地連鎖的獨立合格紀錄。</p></article>
+</div>
+<p><strong>驗收矩陣：</strong>對每條失敗路徑記錄前置條件、輸入、預期、觀察位置與回復步驟。停服務至少關注「新連線不再收」「已接處理完成或明示超時」「上位站能辨識資料過期」「本地控制不變」。在合成案例通過，不得直接替現場驗收簽核。<a href="#sources">[S03、S08、S10]</a></p>
+</section>
 <section id="lab"><h2>架構實作：以唯讀合成遙測核對四個層級</h2>
 <p>沿用 <a href="python_docker_interop_tutorial.html#lab">Docker × Python 的 telemetry 實驗</a>。先在已確認的<strong>本機測試</strong>情境啟動，不連真實設備。在上一章實驗的資料夾執行。以下只查該實驗的狀態，並在容器中短暫執行 Python 印出 UID；不變更設備或服務組態。若未啟動，先照原章建置。</p>
 <pre><code>ctx="$(docker context show)"     # 先確認指向隔離的本機測試 Engine
@@ -94,8 +158,38 @@ docker --context "$ctx" stats --no-stream "$cid"
 python3 host.py sample</code></pre>
 <ol><li><strong>平台層：</strong>確認容器存在、健康檢查可回應。</li><li><strong>隔離層：</strong>預期 UID 為 10001、根檔案系統唯讀。檢查沒有額外主機掛載；讀實際輸出，不把教材預期值當測量。</li><li><strong>網路層：</strong>發布應為主機 loopback 的 18080 對容器 8080。主機從 HTTP 讀樣本，不經 Docker socket。</li><li><strong>應用層：</strong>核對 <code>schema=1</code>、<code>point=supply_temp</code>、<code>unit=degC</code>、<code>quality=synthetic</code>。真實 Gateway 還要驗收逾時、過期、重複 ID 和目的端資料一致性。</li></ol>
 <p>取得服務設定、公開埠、容器狀態與實際 HTTP 結果後，才有完整的對照。這個小實驗不宣稱已通過 OT 網路驗收或實際 Docker Engine 壓測。</p></section>
-<section id="sources"><h2>官方來源</h2>
-<ul><li><a href="https://docs.docker.com/get-started/docker-overview/">Docker 概覽</a>、<a href="https://docs.docker.com/engine/">Engine</a>、<a href="https://github.com/containerd/containerd/blob/main/core/runtime/v2/README.md">containerd Runtime v2</a></li>
-<li><a href="https://github.com/opencontainers/image-spec/blob/main/spec.md">OCI Image Spec</a>、<a href="https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md">OCI Runtime Linux 設定</a>、<a href="https://docs.docker.com/engine/storage/">儲存</a>、<a href="https://docs.docker.com/engine/containers/resource_constraints/">資源限制</a></li>
-<li><a href="https://docs.docker.com/compose/how-tos/networking/">Compose 網路</a>、<a href="https://docs.docker.com/reference/cli/docker/container/stop/">容器 stop</a>、<a href="https://docs.docker.com/engine/security/">Engine 資安</a>、<a href="https://docs.docker.com/engine/security/rootless/">Rootless</a>、<a href="https://docs.docker.com/engine/security/seccomp/">seccomp</a>、<a href="https://csrc.nist.gov/pubs/sp/800/190/final">NIST SP 800-190：容器資安指南</a></li></ul></section>
-</main></body></html>
+<section id="limitations"><h2>研究限制、判準與延伸題</h2>
+<ul>
+<li><strong>判準須先登記：</strong>先和場域定出可接受的讀點延遲、錯誤率、重啟恢復及收尾預算，再看數據。不要拿出現最好的一輪當驗收。p99 改善但失敗增加，不能單靠 p99 判定改善。</li>
+<li><strong>內部效度：</strong>比較時固定 logger、worker、資源配置與請求模型。同機發流量與服務會爭 CPU；記錄客戶端條件。檔案快取及頻率調整會使試驗不獨立；資料可做分輪解讀，但不能補造校正後結果。</li>
+<li><strong>外部效度：</strong>本例的 Python 標準庫 HTTP server、合成資料和 loopback 不是多設備真實拓樸。磁碟同步寫入、跨 VLAN、數百點輪詢、多租戶干擾都需要另作實驗。比較年代較早的 KVM／Docker 研究時，引用其工作負載方法，不沿用當年數字作為今天效能保證。</li>
+<li><strong>可重現包：</strong>保留程式版本、映像識別、Compose 合併結果（先去除敏感資訊）、原始 CSV、摘要、失敗分類與試驗順序。保留失敗輪，不只留成功圖。</li>
+</ul>
+<p><strong>延伸練習：</strong>（1）設計只改倍率或讀點名稱的負面驗收，不觸碰現場；（2）為讀寫分離與日誌輪替的儲存配置建立成本模型；（3）比較冷啟動和預拉映像啟動的差異，把發現寫成可推翻的假設。</p>
+</section>
+<section id="sources"><h2>證據索引與閱讀脈絡</h2>
+<p>以規格解釋機制、以原廠文件核對操作、以原始論文理解比較方法。這是敘述性整理，不宣稱完成系統性文獻回顧。</p>
+<ul>
+<li><strong>S01｜製品模型：</strong><a href="https://github.com/opencontainers/image-spec/blob/main/spec.md">OCI Image Spec</a>：index、manifest、config 和 blobs 的關係。</li>
+<li><strong>S02｜核心隔離：</strong><a href="https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md">OCI Runtime Spec（Linux）</a>：namespaces、cgroups、mounts。</li>
+<li><strong>S03｜管理與執行：</strong><a href="https://docs.docker.com/engine/">Docker Engine</a>、<a href="https://github.com/containerd/containerd/blob/main/core/runtime/v2/README.md">containerd Runtime v2</a>、<a href="https://docs.docker.com/reference/cli/docker/container/stop/">Docker stop</a>。</li>
+<li><strong>S04｜資源資料：</strong><a href="https://docs.kernel.org/admin-guide/cgroup-v2.html">Linux 核心 cgroup v2</a>、<a href="https://docs.docker.com/engine/containers/resource_constraints/">Docker 資源限制</a>。</li>
+<li><strong>S05｜資料壽命：</strong><a href="https://docs.docker.com/engine/storage/">Docker 儲存</a>、<a href="https://docs.docker.com/engine/storage/drivers/overlayfs-driver/">OverlayFS driver</a>。</li>
+<li><strong>S06｜原始比較研究：</strong><a href="https://research.ibm.com/publications/an-updated-performance-comparison-of-virtual-machines-and-linux-containers">Felter、Ferreira、Rajamony、Rubio（ISPASS 2015）</a>。比較虛擬機與 Linux 容器的測試因工作負載而異；使用其基線思路，不把當年結果外推至目前版本。</li>
+<li><strong>S07｜資料網路：</strong><a href="https://docs.docker.com/compose/how-tos/networking/">Compose 網路</a>、<a href="https://docs.docker.com/engine/network/port-publishing/">埠發布</a>。</li>
+<li><strong>S08｜分層防護：</strong><a href="https://docs.docker.com/engine/security/">Docker Engine 安全</a>、<a href="https://docs.docker.com/engine/security/rootless/">Rootless</a>、<a href="https://docs.docker.com/engine/security/seccomp/">seccomp</a>、<a href="https://docs.docker.com/build/building/secrets/">建置祕密</a>。</li>
+<li><strong>S09｜測量實作：</strong><a href="https://docs.python.org/3/library/time.html#time.perf_counter_ns">Python 單調效能計時</a>、<a href="https://docs.python.org/3/library/http.client.html">HTTP 標準庫</a>。</li>
+<li><strong>S10｜威脅分類：</strong><a href="https://csrc.nist.gov/pubs/sp/800/190/final">NIST SP 800-190</a> 提供容器安全分類；本文的 OT 驗收是將分類應用到合成場景的設計，不代表 NIST 認證。</li>
+</ul></section>
+
+</main><script>
+const button = document.querySelector('#trial-generate');
+button.addEventListener('click', () => {
+  const arm = document.querySelector('#trial-arm').value;
+  const count = document.querySelector('#trial-count').value;
+  const workers = document.querySelector('#trial-workers').value;
+  const port = arm === 'native' ? '18081' : '18080';
+  document.querySelector('#trial-command').textContent =
+    `python3 bench_http.py --port ${port} --count ${count} --workers ${workers} --warmup 32 --csv ${arm}-01.csv`;
+});
+</script></body></html>
