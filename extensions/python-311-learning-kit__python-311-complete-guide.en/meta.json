@@ -1,0 +1,54 @@
+{
+ "lang": "en",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  11
+ ],
+ "intro": "The 3.11 features engineering projects use most are asyncio.TaskGroup, except* and tomllib. This section combines them in one polling scenario: read a device list from TOML, poll concurrently, and handle failures by exception type.",
+ "example_title": "TaskGroup, except* and tomllib",
+ "example_desc": "M01 is healthy, M02 times out and M03 refuses the connection at once. Note the output: as soon as M03 fails, TaskGroup cancels the other tasks, so M01 returns nothing even though it needs only 0.01 s, and M02 never reaches its timeout. That is TaskGroup's one-fails-all-cancel semantics.",
+ "run_note": "needs Python 3.11 or later",
+ "case": {
+  "title": "One device goes offline and the whole batch loses its data",
+  "paragraphs": [
+   "A project replaced asyncio.gather with TaskGroup and found that one device refusing a connection wiped out the readings of every other device in the batch. This is by design: TaskGroup suits work that only makes sense when every part succeeds, such as the steps of one transaction.",
+   "Device polling usually wants independent results. Catch expected exceptions inside read() and return a reading with bad quality, so TaskGroup only sees real programming errors; or give each device its own TaskGroup."
+  ],
+  "steps": [
+   "Decide whether a batch is all-or-nothing or independent.",
+   "For independent work, handle expected exceptions (timeouts, refused connections) inside the coroutine.",
+   "Use except* to handle every exception in an ExceptionGroup, not just the first.",
+   "Read configuration with tomllib; no third-party toml package is needed."
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.11 has received security fixes only since 2026 and is expected to reach end of life in October 2027. New projects should use 3.13 or later.",
+   "sources": [
+    {
+     "title": "Python Developer's Guide: Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "What is the simplest change that keeps M01's result?",
+   "a": "<p>Catch ConnectionError and TimeoutError inside read() and return something like (name, None) instead of raising. TaskGroup then has no reason to cancel the other tasks.</p>"
+  },
+  {
+   "q": "If M03's delay becomes 0.03 (no refusal), what is printed?",
+   "a": "<p>M01 and M03 succeed and M02 times out at 0.05 s. When TaskGroup receives the TimeoutError the other two have already finished, so their results are kept: \"1 device(s) timed out\" plus two successful readings.</p>"
+  },
+  {
+   "q": "How does except* TimeoutError differ from except TimeoutError?",
+   "a": "<p>except* matches exceptions inside an ExceptionGroup and several except* clauses can run for one group. A plain except matches a single exception and does not catch the ExceptionGroup raised by TaskGroup.</p>"
+  },
+  {
+   "q": "Can tomllib write TOML?",
+   "a": "<p>No, it only reads. Use a third-party package such as tomli-w to write.</p>"
+  }
+ ]
+}

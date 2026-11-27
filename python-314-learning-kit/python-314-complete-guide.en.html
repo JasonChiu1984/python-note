@@ -1172,6 +1172,40 @@ python3.14 -m cProfile -s cumulative examples/hvac_monitor_314.py
 <h2 id="section-37">Part VI — Verification Record</h2>
 <p>The examples were run on macOS arm64 with a standard <strong>CPython 3.14.7</strong> build and the GIL enabled. The runtime and documentation versions are recorded separately. The run covered functional behavior. See <a href="verification.json">verification.json</a> for detailed results.</p>
 <p>See the <a href="https://docs.python.org/3.14/whatsnew/changelog.html">official changelog</a> for the full list of changes.</p>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>Further practice: runnable example, field case and self-check</h2><p>Three 3.14 features are especially useful in engineering code: t-strings (PEP 750) let interpolations be handled safely, annotations are now evaluated lazily (PEP 649/749), and the standard library gains Zstandard compression (PEP 784).</p><h3>Runnable example：t-string parameterised SQL, deferred annotations and zstd</h3><p>A t-string does not produce a str but a Template; to_sql() replaces every interpolation with ? and moves the value into a parameter list, so hostile input is treated purely as data. poll()'s annotations can name classes that do not exist yet. zstd compresses highly repetitive CSV records.</p><p><a class="button" download href="extension-example-en.py">Download example extension-example-en.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.14: t-strings (PEP 750) for safe SQL, deferred annotations (PEP 649), compression.zstd (needs 3.14+).&quot;&quot;&quot;
+import annotationlib
+from compression import zstd
+from string.templatelib import Interpolation, Template
+
+
+def to_sql(t: Template):
+    &quot;&quot;&quot;Turn a t-string into a parameterised query: every interpolation becomes ?, values travel separately.&quot;&quot;&quot;
+    sql, params = [], []
+    for part in t:
+        if isinstance(part, Interpolation):
+            sql.append(&quot;?&quot;)
+            params.append(part.value)
+        else:
+            sql.append(part)
+    return &quot;&quot;.join(sql), params
+
+
+def poll(device: GatewayDevice) -&gt; Reading: ...       # since 3.14 these classes need not exist yet
+
+
+if __name__ == &quot;__main__&quot;:
+    name = &quot;AHU1_SAT&#x27; OR &#x27;1&#x27;=&#x27;1&quot;
+    sql, params = to_sql(t&quot;SELECT value FROM reading WHERE point = {name} AND ts &gt; {1795800000}&quot;)
+    print(&quot;SQL:&quot;, sql)
+    print(&quot;Params:&quot;, params)
+    print(&quot;Annotations (as strings):&quot;, annotationlib.get_annotations(poll, format=annotationlib.Format.STRING))
+    data = b&quot;2026-11-28T10:00:00Z,AHU1_SAT,22.5\n&quot; * 2000
+    packed = zstd.compress(data)
+    print(f&quot;zstd: {len(data):,} bytes compressed below 1% of the original: {len(packed) &lt; len(data) / 100}; round trip ok: {zstd.decompress(packed) == data}&quot;)
+</code></pre><p class="ext-note">How to run：<code>python example.py</code>, needs Python 3.14 or later</p><h4>Expected output (captured from a real run on Python 3.14)</h4><pre><code>SQL: SELECT value FROM reading WHERE point = ? AND ts &gt; ?
+Params: [&quot;AHU1_SAT&#x27; OR &#x27;1&#x27;=&#x27;1&quot;, 1795800000]
+Annotations (as strings): {&#x27;device&#x27;: &#x27;GatewayDevice&#x27;, &#x27;return&#x27;: &#x27;Reading&#x27;}
+zstd: 70,000 bytes compressed below 1% of the original: True; round trip ok: True</code></pre><h3>Field case：A point name with an apostrophe breaks the query</h3><p>A reporting tool built SQL with f-strings and failed as soon as the point name O'Neil_AHU appeared; with web input, injection is the bigger risk. An f-string mixes value and SQL the moment it is created, so no function downstream can tell them apart. A t-string keeps the structure and lets a processing function decide how each interpolation is handled.</p><p>Lazy annotations remove the need for from __future__ import annotations or string annotations when modules reference each other's types, and zstd makes archive compression available without a third-party package.</p><ol><li>Always parameterise database queries; a t-string with a processing function is one way to wrap this.</li><li>Find code that relies on __annotations__ being evaluated eagerly and switch it to annotationlib.</li><li>Evaluate zstd for log and history archives, comparing ratio and speed.</li><li>Run the full test suite on 3.14 before upgrading.</li></ol><h3>Version and regulation updates (checked 2026-11-28)</h3><ul><li>Python 3.14 is in full (bugfix) support; the latest release when this page was checked was 3.14.6. 3.14.5 reverted the incremental garbage collector. <a href="https://devguide.python.org/versions/">Source：Python Developer's Guide: Status of Python versions</a> <a href="https://peps.python.org/pep-0750/">Source：PEP 750</a> <a href="https://peps.python.org/pep-0784/">Source：PEP 784</a></li></ul><h3>Exercises and self-check</h3><ol><li><p>What is the key difference between t"..." and f"..."?</p><details><summary>Show answer</summary><p>An f-string produces a str immediately. A t-string produces a Template that keeps the static strings and every interpolation (value, expression, conversion and format spec), so a processing function can decide how to combine them, for example by escaping or parameterising.</p></details></li><li><p>Does print(t"...") print the combined string?</p><details><summary>Show answer</summary><p>No, it prints the Template's repr. Templates deliberately have no default string conversion; a processing function must render them, which prevents unsafe direct use.</p></details></li><li><p>What happens if the example's poll() definition runs on 3.13?</p><details><summary>Show answer</summary><p>NameError: GatewayDevice is not defined. Before 3.14 annotations were evaluated when the function was defined, unless from __future__ import annotations or string annotations were used.</p></details></li><li><p>Why does the example compress so well?</p><details><summary>Show answer</summary><p>The data is one line repeated 2,000 times and carries almost no information. Real time-series data repeats less, so measure with your own data; zstd's strength is being faster than gzip at a similar ratio.</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <footer>Python Learning Notes · 2026-11-24</footer>

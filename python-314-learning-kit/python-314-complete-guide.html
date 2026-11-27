@@ -1172,6 +1172,40 @@ python3.14 -m cProfile -s cumulative examples/hvac_monitor_314.py
 <h2 id="section-37">第六部｜執行記錄</h2>
 <p>本教材在 macOS arm64 的 <strong>CPython 3.14.7</strong> 一般建置實跑，GIL 啟用。實跑與官方文件核對版本分別記錄，以免誤把型別檢查、free-threaded、其他平台、效能或現場 I/O 當作此次實測結果。逐項輸出請看 <a href="verification.json">verification.json</a>。</p>
 <p>完整變更可沿 <a href="https://docs.python.org/3.14/whatsnew/changelog.html">官方版本紀錄</a> 追查。</p>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>3.14 的三個新功能對工程程式特別有用：t-string（PEP 750）讓插值可以被安全處理、型別註解改為延遲求值（PEP 649／749），以及標準庫內建 Zstandard 壓縮（PEP 784）。</p><h3>可實跑範例：t-string 參數化 SQL、延遲註解與 zstd</h3><p>t-string 不會直接產生字串，而是 Template 物件，to_sql() 把每個插值換成 ? 並把值另外放入參數清單，惡意輸入只會被當成資料。poll() 的註解引用尚未定義的類別也不會出錯。zstd 壓縮重複性高的 CSV 紀錄。</p><p><a class="button" download href="extension-example.py">下載範例 extension-example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.14：t-string（PEP 750）安全組 SQL、延遲求值的型別註解（PEP 649）、compression.zstd（需 Python 3.14+）。&quot;&quot;&quot;
+import annotationlib
+from compression import zstd
+from string.templatelib import Interpolation, Template
+
+
+def to_sql(t: Template):
+    &quot;&quot;&quot;把 t-string 轉成參數化查詢：插值一律變成 ?，值另外傳遞。&quot;&quot;&quot;
+    sql, params = [], []
+    for part in t:
+        if isinstance(part, Interpolation):
+            sql.append(&quot;?&quot;)
+            params.append(part.value)
+        else:
+            sql.append(part)
+    return &quot;&quot;.join(sql), params
+
+
+def poll(device: GatewayDevice) -&gt; Reading: ...       # 3.14 起不需要先定義這兩個類別
+
+
+if __name__ == &quot;__main__&quot;:
+    name = &quot;AHU1_SAT&#x27; OR &#x27;1&#x27;=&#x27;1&quot;
+    sql, params = to_sql(t&quot;SELECT value FROM reading WHERE point = {name} AND ts &gt; {1795800000}&quot;)
+    print(&quot;SQL：&quot;, sql)
+    print(&quot;參數：&quot;, params)
+    print(&quot;註解（字串形式）：&quot;, annotationlib.get_annotations(poll, format=annotationlib.Format.STRING))
+    data = b&quot;2026-11-28T10:00:00Z,AHU1_SAT,22.5\n&quot; * 2000
+    packed = zstd.compress(data)
+    print(f&quot;zstd：{len(data):,} bytes 壓縮後不到原大小的 1%：{len(packed) &lt; len(data) / 100}，解壓還原：{zstd.decompress(packed) == data}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需要 Python 3.14 以上</p><h4>預期輸出（以 Python 3.14 實際執行產生）</h4><pre><code>SQL： SELECT value FROM reading WHERE point = ? AND ts &gt; ?
+參數： [&quot;AHU1_SAT&#x27; OR &#x27;1&#x27;=&#x27;1&quot;, 1795800000]
+註解（字串形式）： {&#x27;device&#x27;: &#x27;GatewayDevice&#x27;, &#x27;return&#x27;: &#x27;Reading&#x27;}
+zstd：70,000 bytes 壓縮後不到原大小的 1%：True，解壓還原：True</code></pre><h3>工程現場案例：點位名稱帶單引號，查詢整個壞掉</h3><p>某報表工具用 f-string 組 SQL，點位名稱 O'Neil_AHU 一出現查詢就失敗；若輸入來自網頁，更可能被注入。f-string 在建立時就把值和 SQL 混在一起，處理函式無從分辨。t-string 保留了結構，處理函式可以決定每個插值要怎麼處理。</p><p>延遲求值的註解讓模組間互相引用型別時不必再加 from __future__ import annotations 或用字串；zstd 則讓壓縮歷史紀錄不必再安裝第三方套件。</p><ol><li>資料庫查詢一律使用參數化；可以用 t-string 加上處理函式包裝。</li><li>檢查專案中依賴 __annotations__ 立即求值的程式碼，改用 annotationlib。</li><li>日誌與歷史資料封存評估改用 zstd，並比較壓縮率與速度。</li><li>升級前在 3.14 上完整跑一次測試。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.14 目前為完整支援（bugfix）階段，本頁核對時最新為 3.14.6；3.14.5 撤回了漸進式垃圾回收。 <a href="https://devguide.python.org/versions/">來源：Python 文件：Status of Python versions</a> <a href="https://peps.python.org/pep-0750/">來源：PEP 750</a> <a href="https://peps.python.org/pep-0784/">來源：PEP 784</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>t"..." 與 f"..." 最大的差別是什麼？</p><details><summary>看解答</summary><p>f-string 立即產生 str；t-string 產生 Template 物件，保留靜態字串與每個插值（值、表達式、轉換與格式）。處理函式可以逐一決定怎麼組合，例如跳脫或參數化。</p></details></li><li><p>直接 print(t"...") 會得到組合後的字串嗎？</p><details><summary>看解答</summary><p>不會，會印出 Template 物件的 repr。Template 沒有預設的字串化行為，必須由處理函式轉換，這是刻意設計，避免不安全的直接使用。</p></details></li><li><p>若在 3.13 執行範例中 poll() 的定義，會發生什麼？</p><details><summary>看解答</summary><p>NameError：GatewayDevice 未定義。3.13 以前註解在定義函式時就求值，除非使用 from __future__ import annotations 或把型別寫成字串。</p></details></li><li><p>為什麼範例的 zstd 壓縮率這麼高？</p><details><summary>看解答</summary><p>資料是同一行重複 2000 次，幾乎沒有新資訊。真實的時序資料重複性較低，壓縮率要用實際資料測試；zstd 的優勢是在相近壓縮率下比 gzip 快。</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <footer>Python 學習筆記 · 2026-11-24</footer>

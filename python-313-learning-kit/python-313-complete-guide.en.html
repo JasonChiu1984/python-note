@@ -1190,6 +1190,42 @@ python3.13 -m cProfile -s cumulative examples/hvac_monitor_313.py
 <h2 id="section-37">Part VI — Verification Record</h2>
 <p>The examples were run on macOS arm64 with a standard <strong>CPython 3.13.15</strong> build and the GIL enabled. The runtime and documentation versions are recorded separately. The run covered functional behavior. See <a href="verification.json">verification.json</a> for detailed results.</p>
 <p>See the <a href="https://docs.python.org/3.13/whatsnew/changelog.html">official changelog</a> for the full list of changes.</p>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>Further practice: runnable example, field case and self-check</h2><p>3.13 added two small but useful standard-library features: copy.replace() unifies "copy with some fields changed", and warnings.deprecated (PEP 702) makes a retired API warn at run time and get flagged by type checkers.</p><h3>Runnable example：copy.replace() and warnings.deprecated</h3><p>PointConfig is a frozen dataclass; copy.replace() returns a new object with a different scale and leaves the original untouched. With @deprecated, every call to read_point() emits a DeprecationWarning and type checkers flag the call site.</p><p><a class="button" download href="extension-example-en.py">Download example extension-example-en.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.13: copy.replace() for modified copies of immutable objects, warnings.deprecated for retiring APIs (needs 3.13+).&quot;&quot;&quot;
+import copy
+import warnings
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PointConfig:
+    name: str
+    addr: int
+    scale: float = 1.0
+
+
+@warnings.deprecated(&quot;read_point() is deprecated; use read_points() for batch reads&quot;)
+def read_point(cfg: PointConfig) -&gt; float:
+    return 225 * cfg.scale
+
+
+def read_points(cfgs):
+    return {c.name: 225 * c.scale for c in cfgs}
+
+
+if __name__ == &quot;__main__&quot;:
+    sat = PointConfig(&quot;SAT&quot;, 0, 0.1)
+    new = copy.replace(sat, scale=0.01)               # works for dataclasses, namedtuples, datetime, ...
+    print(&quot;Original:&quot;, sat)
+    print(&quot;Modified:&quot;, new, &quot;; original unchanged:&quot;, sat.scale)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter(&quot;always&quot;)
+        read_point(sat)
+        print(&quot;Warning from the old API:&quot;, w[0].category.__name__, &quot;-&quot;, w[0].message)
+    print(&quot;New API:&quot;, read_points([sat, new]))
+</code></pre><p class="ext-note">How to run：<code>python example.py</code>, needs Python 3.13 or later</p><h4>Expected output (captured from a real run on Python 3.13)</h4><pre><code>Original: PointConfig(name=&#x27;SAT&#x27;, addr=0, scale=0.1)
+Modified: PointConfig(name=&#x27;SAT&#x27;, addr=0, scale=0.01) ; original unchanged: 0.1
+Warning from the old API: DeprecationWarning - read_point() is deprecated; use read_points() for batch reads
+New API: {&#x27;SAT&#x27;: 2.25}</code></pre><h3>Field case：Changing one point's scale changed every point sharing its config</h3><p>A program kept point settings in mutable objects. To try a new scale someone set cfg.scale directly, and every point referencing the same object changed with it; the reports were wrong for a whole day. With frozen dataclasses and copy.replace(), a change can only create a new object.</p><p>Another common problem is old APIs that can never be removed because nobody knows who still calls them. @deprecated makes callers see the warning immediately in tests (run with -W error::DeprecationWarning) and in the editor.</p><ol><li>Use frozen=True dataclasses for configuration objects.</li><li>Create variants with copy.replace() instead of mutating the original.</li><li>Mark functions being retired with @deprecated, naming the replacement and the removal version.</li><li>Run CI tests with -W error::DeprecationWarning to find remaining callers.</li></ol><h3>Version and regulation updates (checked 2026-11-28)</h3><ul><li>Python 3.13 moved to security-only fixes in October 2026 and is expected to reach end of life in October 2029. On 3.12 and earlier, typing_extensions.deprecated provides the same decorator. <a href="https://devguide.python.org/versions/">Source：Python Developer's Guide: Status of Python versions</a> <a href="https://peps.python.org/pep-0702/">Source：PEP 702</a></li></ul><h3>Exercises and self-check</h3><ol><li><p>Which types support copy.replace()?</p><details><summary>Show answer</summary><p>Any object implementing __replace__. In the standard library that includes dataclasses, namedtuples, datetime, date, time, SimpleNamespace and code objects. Custom classes gain support by defining __replace__.</p></details></li><li><p>What does copy.replace(sat, unit="°C") do?</p><details><summary>Show answer</summary><p>It raises TypeError: a dataclass's __replace__ calls the constructor with the new arguments, and PointConfig has no unit field.</p></details></li><li><p>Why does the example use catch_warnings(record=True) with simplefilter("always")?</p><details><summary>Show answer</summary><p>By default a DeprecationWarning is shown only when triggered from __main__, and only once per location. Recording with "always" makes the example capture and print the warning reliably.</p></details></li><li><p>Why is the result of read_points {'SAT': 2.25}, with only one entry?</p><details><summary>Show answer</summary><p>Both configs are named SAT, so the second value (225 × 0.01 = 2.25) overwrites the first (22.5) under the same key. In practice point names must be unique; check this when loading configuration.</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <footer>Python Learning Notes · 2026-11-24</footer>

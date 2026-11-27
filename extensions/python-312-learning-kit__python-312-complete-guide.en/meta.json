@@ -1,0 +1,58 @@
+{
+ "lang": "en",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  12
+ ],
+ "intro": "3.12 greatly simplified generics and type aliases (PEP 695), added itertools.batched and relaxed f-string syntax (PEP 701). This section shows them with a Modbus register read plan and a typed reading object.",
+ "example_title": "PEP 695 generics, batched and f-strings",
+ "example_desc": "Reading[T] needs no TypeVar or Generic; latest[T] is a generic function; type Address = int creates a lazily evaluated alias whose target lives in __value__. batched(addrs, 125) splits the addresses by the Modbus limit of 125 registers per read.",
+ "run_note": "needs Python 3.12 or later",
+ "case": {
+  "title": "Reading 250 registers at once returns exception code 03",
+  "paragraphs": [
+   "Modbus limits Read Holding Registers to 125 registers per request (many devices allow fewer). A program that asked for 250 got Illegal Data Value. Splitting with batched() by the limit removes the hand-written index arithmetic.",
+   "Type parameters let one Reading class represent numeric points and text status points alike, and type checkers can tell that latest(temps) returns Reading[float]."
+  ],
+  "steps": [
+   "Look up the per-request register limit in the device manual and put it in configuration.",
+   "Build the read plan with batched() and merge contiguous addresses to reduce requests.",
+   "Annotate data classes with PEP 695 type parameters.",
+   "Check with mypy or pyright that generic inference is correct."
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.12 now receives security fixes only and is expected to reach end of life in October 2028. Since 3.13, batched() accepts strict=True to raise when the last batch is short.",
+   "sources": [
+    {
+     "title": "Python Developer's Guide: Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "Python docs: itertools.batched",
+     "url": "https://docs.python.org/3/library/itertools.html#itertools.batched"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "With 260 registers, which batches does batched(addrs, 125) produce?",
+   "a": "<p>(0, 125), (125, 125) and (250, 10). The short last batch is still produced; use strict=True (3.13+) to require full batches.</p>"
+  },
+  {
+   "q": "How does type Address = int differ from Address = int?",
+   "a": "<p>The first creates a TypeAliasType whose value is evaluated lazily, so it can refer to types defined later, and type checkers know it is an alias. The second is an ordinary assignment: Address simply is int.</p>"
+  },
+  {
+   "q": "What happens if the example's f\"{point[\"name\"]}\" runs on 3.11?",
+   "a": "<p>SyntaxError. Before 3.12 an f-string could not reuse its outer quotes inside the braces; you had to write point['name'].</p>"
+  },
+  {
+   "q": "Does Reading[T] check the type of value at run time?",
+   "a": "<p>No. Type parameters are for static checkers only; Reading(\"SAT\", \"abc\") works at run time. Use a validator such as pydantic, or check in __post_init__, when run-time validation is needed.</p>"
+  }
+ ]
+}

@@ -87,6 +87,13 @@ def render(stem: str, page: Path) -> str:
     example = folder / "example.py"
     rel = Path("extensions") / stem / "example.py"
     href = Path(*[".."] * (len(page.relative_to(ROOT).parts) - 1), rel).as_posix()
+    kit = page.parent if page.parent.name.endswith("-learning-kit") else None
+    if kit is not None and example.exists():
+        # 下載包要能離線使用：把範例複製進 kit 目錄，連結改指向同目錄的檔案
+        local = kit / f"extension-example{'-en' if meta.get('lang') == 'en' else ''}.py"
+        if not local.exists() or local.read_bytes() != example.read_bytes():
+            local.write_bytes(example.read_bytes())
+        href, rel = local.name, Path(local.name)
     exe = interpreter_for(meta)
     ver = python_version(exe)
     parts = [STYLE, f'<section class="ext-section" id="extension"><h2>{t["title"]}</h2>']

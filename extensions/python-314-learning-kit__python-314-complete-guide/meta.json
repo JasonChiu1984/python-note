@@ -1,0 +1,62 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  14
+ ],
+ "intro": "3.14 的三個新功能對工程程式特別有用：t-string（PEP 750）讓插值可以被安全處理、型別註解改為延遲求值（PEP 649／749），以及標準庫內建 Zstandard 壓縮（PEP 784）。",
+ "example_title": "t-string 參數化 SQL、延遲註解與 zstd",
+ "example_desc": "t-string 不會直接產生字串，而是 Template 物件，to_sql() 把每個插值換成 ? 並把值另外放入參數清單，惡意輸入只會被當成資料。poll() 的註解引用尚未定義的類別也不會出錯。zstd 壓縮重複性高的 CSV 紀錄。",
+ "run_note": "需要 Python 3.14 以上",
+ "case": {
+  "title": "點位名稱帶單引號，查詢整個壞掉",
+  "paragraphs": [
+   "某報表工具用 f-string 組 SQL，點位名稱 O'Neil_AHU 一出現查詢就失敗；若輸入來自網頁，更可能被注入。f-string 在建立時就把值和 SQL 混在一起，處理函式無從分辨。t-string 保留了結構，處理函式可以決定每個插值要怎麼處理。",
+   "延遲求值的註解讓模組間互相引用型別時不必再加 from __future__ import annotations 或用字串；zstd 則讓壓縮歷史紀錄不必再安裝第三方套件。"
+  ],
+  "steps": [
+   "資料庫查詢一律使用參數化；可以用 t-string 加上處理函式包裝。",
+   "檢查專案中依賴 __annotations__ 立即求值的程式碼，改用 annotationlib。",
+   "日誌與歷史資料封存評估改用 zstd，並比較壓縮率與速度。",
+   "升級前在 3.14 上完整跑一次測試。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.14 目前為完整支援（bugfix）階段，本頁核對時最新為 3.14.6；3.14.5 撤回了漸進式垃圾回收。",
+   "sources": [
+    {
+     "title": "Python 文件：Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "PEP 750",
+     "url": "https://peps.python.org/pep-0750/"
+    },
+    {
+     "title": "PEP 784",
+     "url": "https://peps.python.org/pep-0784/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "t\"...\" 與 f\"...\" 最大的差別是什麼？",
+   "a": "<p>f-string 立即產生 str；t-string 產生 Template 物件，保留靜態字串與每個插值（值、表達式、轉換與格式）。處理函式可以逐一決定怎麼組合，例如跳脫或參數化。</p>"
+  },
+  {
+   "q": "直接 print(t\"...\") 會得到組合後的字串嗎？",
+   "a": "<p>不會，會印出 Template 物件的 repr。Template 沒有預設的字串化行為，必須由處理函式轉換，這是刻意設計，避免不安全的直接使用。</p>"
+  },
+  {
+   "q": "若在 3.13 執行範例中 poll() 的定義，會發生什麼？",
+   "a": "<p>NameError：GatewayDevice 未定義。3.13 以前註解在定義函式時就求值，除非使用 from __future__ import annotations 或把型別寫成字串。</p>"
+  },
+  {
+   "q": "為什麼範例的 zstd 壓縮率這麼高？",
+   "a": "<p>資料是同一行重複 2000 次，幾乎沒有新資訊。真實的時序資料重複性較低，壓縮率要用實際資料測試；zstd 的優勢是在相近壓縮率下比 gzip 快。</p>"
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "升級到 3.15 前，最實際的問題是：「部署環境的直譯器到底支援哪些新功能？」本節提供一個可直接執行的檢查腳本，逐項確認 3.15 的新功能，並列出 3.14 以前的替代寫法。",
+ "example_title": "3.15 功能檢查腳本",
+ "example_desc": "每一項檢查都用 hasattr 或 compile() 試探，不會因為直譯器版本較舊而直接失敗，因此同一支腳本可以在 3.10 到 3.15 上執行。在 3.15 上全部顯示可用；在舊版本上會顯示替代寫法。",
+ "run_note": "在 Python 3.15 執行可看到全部可用；舊版本會列出替代寫法",
+ "case": {
+  "title": "開發機 3.15、現場閘道器 3.12",
+  "paragraphs": [
+   "某團隊在 3.15 上開發，用了 frozendict 與 lazy import，部署到仍是 3.12 的閘道器時才發現無法執行。把這支檢查腳本放進部署前的健康檢查，可以在安裝前就知道目標環境缺少哪些功能。",
+   "另一個常被忽略的是 3.15 預設啟用 UTF-8 模式：Windows 上 open() 不指定 encoding 時，3.14 以前使用系統的 ANSI 碼頁（例如 cp950），3.15 起改為 UTF-8，讀寫舊檔案的結果可能不同。"
+  ],
+  "steps": [
+   "在 pyproject.toml 的 requires-python 寫明最低版本。",
+   "部署前在目標機器執行檢查腳本，或在 CI 以最低支援版本測試。",
+   "所有 open() 明確指定 encoding。",
+   "需要支援舊版本時，只在確定可用時才使用新功能，或提供替代實作。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.15.0 於 2026 年 10 月 9 日發布，本頁核對時最新為 3.15.2。本範例在 3.15.0b4 上產生輸出。",
+   "sources": [
+    {
+     "title": "Python 文件：Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "Python 3.15 新功能",
+     "url": "https://docs.python.org/3.15/whatsnew/3.15.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 lazy import 的檢查用 compile() 而不是直接寫 lazy import json？",
+   "a": "<p>新語法在舊直譯器上是 SyntaxError，而 SyntaxError 發生在整個檔案編譯時，try/except 攔不到。把語法放在字串中交給 compile()，才能在執行時試探並捕捉。</p>"
+  },
+  {
+   "q": "在 3.14 上執行這支腳本，「預設 UTF-8 模式」會顯示什麼？",
+   "a": "<p>除非以 -X utf8 或 PYTHONUTF8=1 執行，否則顯示 ✘ 並提示替代寫法。注意這個檢查反映的是執行時的設定，不只是版本。</p>"
+  },
+  {
+   "q": "若要讓腳本在缺少任何功能時以非零狀態碼結束，好讓 CI 失敗，怎麼改？",
+   "a": "<p>記錄是否有任何檢查失敗，最後 sys.exit(1 if failed else 0)。</p>"
+  },
+  {
+   "q": "frozendict 的替代寫法 MappingProxyType 少了什麼？",
+   "a": "<p>MappingProxyType 只是唯讀檢視，原字典改變時它也跟著變，而且不可雜湊，不能當作字典鍵或放進 set。frozendict 是真正不可變且可雜湊的物件。</p>"
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  13
+ ],
+ "intro": "3.13 有兩個小而實用的標準庫新增：copy.replace() 統一了「複製並修改部分欄位」的寫法，warnings.deprecated（PEP 702）讓淘汰 API 同時在執行時警告並被型別檢查工具標示。",
+ "example_title": "copy.replace() 與 warnings.deprecated",
+ "example_desc": "PointConfig 是凍結的 dataclass，copy.replace() 回傳修改了 scale 的新物件，原物件不變。read_point() 加上 @deprecated 後，每次呼叫都會發出 DeprecationWarning，型別檢查工具也會在呼叫處提示。",
+ "run_note": "需要 Python 3.13 以上",
+ "case": {
+  "title": "改了一個點位的倍率，所有共用設定的點位都變了",
+  "paragraphs": [
+   "某程式的點位設定是可變物件，為了測試新的倍率直接修改 cfg.scale，結果所有引用同一個設定物件的點位一起改變，報表數值錯了一整天。改用凍結的 dataclass 搭配 copy.replace()，修改只會產生新物件。",
+   "另一個常見問題是舊 API 遲遲無法移除，因為不知道誰還在呼叫。@deprecated 讓呼叫端在測試（以 -W error::DeprecationWarning 執行）與編輯器中立即看到警告。"
+  ],
+  "steps": [
+   "設定類物件使用 frozen=True 的 dataclass。",
+   "需要變體時用 copy.replace()，不要修改原物件。",
+   "要淘汰的函式加上 @deprecated 並寫明替代方案與移除版本。",
+   "CI 以 -W error::DeprecationWarning 執行測試，找出仍在使用舊 API 的地方。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.13 於 2026 年 10 月轉為只接受安全性修補，預計 2029 年 10 月終止支援。3.12 以前可使用 typing_extensions.deprecated 取得相同功能。",
+   "sources": [
+    {
+     "title": "Python 文件：Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "PEP 702",
+     "url": "https://peps.python.org/pep-0702/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "copy.replace() 可以用在哪些型別上？",
+   "a": "<p>任何實作 __replace__ 的物件，標準庫中包括 dataclass、namedtuple、datetime、date、time、SimpleNamespace 與 code 物件等。自訂類別實作 __replace__ 就能支援。</p>"
+  },
+  {
+   "q": "若 copy.replace(sat, unit=\"°C\") 會發生什麼？",
+   "a": "<p>TypeError。dataclass 的 __replace__ 會以新參數呼叫建構子，PointConfig 沒有 unit 欄位。</p>"
+  },
+  {
+   "q": "為什麼範例要用 catch_warnings(record=True) 搭配 simplefilter(\"always\")？",
+   "a": "<p>DeprecationWarning 預設只在 __main__ 中觸發時顯示，而且同一位置只顯示一次。記錄模式加上 always 讓範例可以穩定地取得並印出警告內容。</p>"
+  },
+  {
+   "q": "read_points 與 read_point 的結果為什麼是 {'SAT': 2.25}，只有一筆？",
+   "a": "<p>兩個設定的 name 都是 SAT，字典鍵相同，後面的值（225 × 0.01 = 2.25）覆蓋了前面的 22.5。實務上點位名稱必須唯一，可在載入設定時檢查。</p>"
+  }
+ ]
+}

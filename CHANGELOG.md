@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-28 — 全站「延伸學習」擴充
+
+- 93 頁新增「延伸學習」段落：可實跑範例與實際輸出、工程現場案例、版本與法規更新（附來源）、4 題練習與解答。首頁、稽核報告與舊路由別名頁不加。
+- 範例只用標準庫（NumPy 與 pandas 頁除外），由 `scripts/build_extensions.py` 以兩組 PYTHONHASHSEED 各執行一次，輸出不一致即失敗；`tests/test_extensions.py` 檢查頁面與範例同步。
+- 3.11–3.15 完整教材的範例放進下載包（`extension-example*.py`），同步更新 ZIP 與 SHA256SUMS；新增 `scripts/refresh_kit_zips.py`。
+- 3.15 頁面輸出以 3.15.0b4 產生。
+
 ## 2026-11-24 — Python 3.13、3.14 教材與版本校閱
 
 - 新增各版完整 HTML／Markdown、16 個核心單元、版本特性、並行示範、HVAC 模擬與下載包。

@@ -244,4 +244,52 @@ python3.11 python-311-core.py
 python3.11 hvac-monitor-311.py --output report.json</code></pre></section><section id="part-6"><h2>第六部｜驗證紀錄與資料包</h2><p>CPython 3.11.18（Linux x86_64）實跑以下資料包。未連 HVAC 設備、未做效能排名、未驗證第三方套件或型別檢查器。</p><ul><li><a href="python-311-core.py">python-311-core.py</a>: 16 核心例</li><li><a href="python-311-lab.py">python-311-lab.py</a>: 6 項 3.11 功能與邊界</li><li><a href="python-311-concurrency.py">python-311-concurrency.py</a>: 4 種並行情境</li><li><a href="hvac-monitor-311.py">hvac-monitor-311.py</a>: 8 模擬測點</li></ul><pre tabindex="0"><code>python3.11 python-311-core.py
 python3.11 python-311-lab.py
 python3.11 python-311-concurrency.py
-python3.11 hvac-monitor-311.py</code></pre><p><a href="verification.txt">實測紀錄</a> · <a href="https://github.com/JasonChiu1984/python-note/blob/main/python-315-learning-kit/python-315-complete-guide.md">對照 Python 3.15 完整教材</a></p></section></main></div></body></html>
+python3.11 hvac-monitor-311.py</code></pre><p><a href="verification.txt">實測紀錄</a> · <a href="https://github.com/JasonChiu1984/python-note/blob/main/python-315-learning-kit/python-315-complete-guide.md">對照 Python 3.15 完整教材</a></p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>3.11 最常被工程專案用到的是 asyncio.TaskGroup、except* 與 tomllib。本節把三者放在同一個輪詢情境：從 TOML 讀取設備清單，同時輪詢，並依例外類型分別處理。</p><h3>可實跑範例：TaskGroup、except* 與 tomllib</h3><p>M01 正常、M02 會逾時、M03 立即拒絕連線。注意輸出：M03 一失敗，TaskGroup 就取消其他任務，所以 M01 雖然只要 0.01 秒也沒有結果，M02 也來不及逾時。這是 TaskGroup「一個失敗、全部取消」的語意。</p><p><a class="button" download href="extension-example.py">下載範例 extension-example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.11：TaskGroup 同時輪詢、except* 依例外類型分組處理、tomllib 讀設定（需 Python 3.11+）。&quot;&quot;&quot;
+import asyncio
+import tomllib
+
+CONFIG = tomllib.loads(&quot;&quot;&quot;
+[poll]
+timeout_s = 0.05
+[[device]]
+name = &quot;M01&quot;
+delay = 0.01
+[[device]]
+name = &quot;M02&quot;
+delay = 0.2
+[[device]]
+name = &quot;M03&quot;
+delay = -1
+&quot;&quot;&quot;)
+
+
+async def read(dev):
+    if dev[&quot;delay&quot;] &lt; 0:
+        raise ConnectionRefusedError(f&quot;{dev[&#x27;name&#x27;]} 拒絕連線&quot;)
+    async with asyncio.timeout(CONFIG[&quot;poll&quot;][&quot;timeout_s&quot;]):
+        await asyncio.sleep(dev[&quot;delay&quot;])
+    return dev[&quot;name&quot;], 22.5
+
+
+async def main():
+    results = {}
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(read(d)) for d in CONFIG[&quot;device&quot;]]
+    except* TimeoutError as eg:
+        print(f&quot;逾時 {len(eg.exceptions)} 台&quot;)
+    except* ConnectionError as eg:
+        print(&quot;連線錯誤：&quot;, [str(e) for e in eg.exceptions])
+    for t in tasks:
+        if t.done() and not t.cancelled() and t.exception() is None:
+            results.update([t.result()])
+    print(&quot;成功：&quot;, results)
+
+
+if __name__ == &quot;__main__&quot;:
+    print(&quot;設定：&quot;, [d[&quot;name&quot;] for d in CONFIG[&quot;device&quot;]], &quot;逾時&quot;, CONFIG[&quot;poll&quot;][&quot;timeout_s&quot;], &quot;s&quot;)
+    asyncio.run(main())
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需要 Python 3.11 以上</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>設定： [&#x27;M01&#x27;, &#x27;M02&#x27;, &#x27;M03&#x27;] 逾時 0.05 s
+連線錯誤： [&#x27;M03 拒絕連線&#x27;]
+成功： {}</code></pre><h3>工程現場案例：一台設備離線，整批輪詢都沒有資料</h3><p>某專案把 asyncio.gather 改成 TaskGroup 後，發現只要一台設備拒絕連線，同一批其他設備的讀值全部消失。這不是錯誤，而是 TaskGroup 的設計：適合「全部成功才有意義」的工作，例如同一筆交易的多個步驟。</p><p>設備輪詢通常希望各自獨立：在 read() 內部捕捉例外並回傳品質為 bad 的結果，讓 TaskGroup 只處理真正的程式錯誤；或者每台設備各自一個 TaskGroup。</p><ol><li>決定一批工作是「全有全無」還是「各自獨立」。</li><li>各自獨立的工作在協程內部處理預期內的例外（逾時、拒絕連線）。</li><li>用 except* 依類型處理 ExceptionGroup，避免只看第一個例外。</li><li>設定檔改用 tomllib 讀取，不再需要第三方 toml 套件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.11 已於 2026 年起只接受安全性修補，預計 2027 年 10 月終止支援。新專案建議至少使用 3.13。 <a href="https://devguide.python.org/versions/">來源：Python 文件：Status of Python versions</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>要讓 M01 的結果保留下來，最簡單的改法是什麼？</p><details><summary>看解答</summary><p>在 read() 內用 try/except 捕捉 ConnectionError 與 TimeoutError，回傳 (name, None) 之類的結果而不是丟出例外。TaskGroup 就不會取消其他任務。</p></details></li><li><p>如果把 M03 的 delay 改成 0.03（不再拒絕連線），輸出會變成什麼？</p><details><summary>看解答</summary><p>M01 與 M03 成功，M02 在 0.05 秒逾時。TaskGroup 收到 TimeoutError 後取消其他任務，但此時 M01、M03 已經完成，結果仍會保留；輸出「逾時 1 台」與兩台的成功結果。</p></details></li><li><p>except* TimeoutError 與 except TimeoutError 有何不同？</p><details><summary>看解答</summary><p>except* 用來匹配 ExceptionGroup 內的例外，可以同時進入多個 except* 區塊；一般 except 只匹配單一例外，對 TaskGroup 丟出的 ExceptionGroup 不會生效。</p></details></li><li><p>tomllib 可以寫入 TOML 嗎？</p><details><summary>看解答</summary><p>不行，tomllib 只能讀取。需要寫入時使用第三方套件，例如 tomli-w。</p></details></li></ol></section><!-- extension:end -->
+</main></div></body></html>

@@ -1190,6 +1190,42 @@ python3.13 -m cProfile -s cumulative examples/hvac_monitor_313.py
 <h2 id="section-37">第六部｜執行記錄</h2>
 <p>本教材在 macOS arm64 的 <strong>CPython 3.13.15</strong> 一般建置實跑，GIL 啟用。實跑與官方文件核對版本分別記錄，以免誤把型別檢查、free-threaded、其他平台、效能或現場 I/O 當作此次實測結果。逐項輸出請看 <a href="verification.json">verification.json</a>。</p>
 <p>完整變更可沿 <a href="https://docs.python.org/3.13/whatsnew/changelog.html">官方版本紀錄</a> 追查。</p>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>3.13 有兩個小而實用的標準庫新增：copy.replace() 統一了「複製並修改部分欄位」的寫法，warnings.deprecated（PEP 702）讓淘汰 API 同時在執行時警告並被型別檢查工具標示。</p><h3>可實跑範例：copy.replace() 與 warnings.deprecated</h3><p>PointConfig 是凍結的 dataclass，copy.replace() 回傳修改了 scale 的新物件，原物件不變。read_point() 加上 @deprecated 後，每次呼叫都會發出 DeprecationWarning，型別檢查工具也會在呼叫處提示。</p><p><a class="button" download href="extension-example.py">下載範例 extension-example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.13：copy.replace() 產生修改後的不可變物件、warnings.deprecated 標記淘汰 API（需 Python 3.13+）。&quot;&quot;&quot;
+import copy
+import warnings
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PointConfig:
+    name: str
+    addr: int
+    scale: float = 1.0
+
+
+@warnings.deprecated(&quot;read_point() 已淘汰，請改用 read_points() 批次讀取&quot;)
+def read_point(cfg: PointConfig) -&gt; float:
+    return 225 * cfg.scale
+
+
+def read_points(cfgs):
+    return {c.name: 225 * c.scale for c in cfgs}
+
+
+if __name__ == &quot;__main__&quot;:
+    sat = PointConfig(&quot;SAT&quot;, 0, 0.1)
+    new = copy.replace(sat, scale=0.01)               # 適用於 dataclass、namedtuple、datetime 等
+    print(&quot;原設定：&quot;, sat)
+    print(&quot;新設定：&quot;, new, &quot;；原物件不變：&quot;, sat.scale)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter(&quot;always&quot;)
+        read_point(sat)
+        print(&quot;呼叫舊 API 的警告：&quot;, w[0].category.__name__, &quot;-&quot;, w[0].message)
+    print(&quot;新 API：&quot;, read_points([sat, new]))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需要 Python 3.13 以上</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>原設定： PointConfig(name=&#x27;SAT&#x27;, addr=0, scale=0.1)
+新設定： PointConfig(name=&#x27;SAT&#x27;, addr=0, scale=0.01) ；原物件不變： 0.1
+呼叫舊 API 的警告： DeprecationWarning - read_point() 已淘汰，請改用 read_points() 批次讀取
+新 API： {&#x27;SAT&#x27;: 2.25}</code></pre><h3>工程現場案例：改了一個點位的倍率，所有共用設定的點位都變了</h3><p>某程式的點位設定是可變物件，為了測試新的倍率直接修改 cfg.scale，結果所有引用同一個設定物件的點位一起改變，報表數值錯了一整天。改用凍結的 dataclass 搭配 copy.replace()，修改只會產生新物件。</p><p>另一個常見問題是舊 API 遲遲無法移除，因為不知道誰還在呼叫。@deprecated 讓呼叫端在測試（以 -W error::DeprecationWarning 執行）與編輯器中立即看到警告。</p><ol><li>設定類物件使用 frozen=True 的 dataclass。</li><li>需要變體時用 copy.replace()，不要修改原物件。</li><li>要淘汰的函式加上 @deprecated 並寫明替代方案與移除版本。</li><li>CI 以 -W error::DeprecationWarning 執行測試，找出仍在使用舊 API 的地方。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.13 於 2026 年 10 月轉為只接受安全性修補，預計 2029 年 10 月終止支援。3.12 以前可使用 typing_extensions.deprecated 取得相同功能。 <a href="https://devguide.python.org/versions/">來源：Python 文件：Status of Python versions</a> <a href="https://peps.python.org/pep-0702/">來源：PEP 702</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>copy.replace() 可以用在哪些型別上？</p><details><summary>看解答</summary><p>任何實作 __replace__ 的物件，標準庫中包括 dataclass、namedtuple、datetime、date、time、SimpleNamespace 與 code 物件等。自訂類別實作 __replace__ 就能支援。</p></details></li><li><p>若 copy.replace(sat, unit="°C") 會發生什麼？</p><details><summary>看解答</summary><p>TypeError。dataclass 的 __replace__ 會以新參數呼叫建構子，PointConfig 沒有 unit 欄位。</p></details></li><li><p>為什麼範例要用 catch_warnings(record=True) 搭配 simplefilter("always")？</p><details><summary>看解答</summary><p>DeprecationWarning 預設只在 __main__ 中觸發時顯示，而且同一位置只顯示一次。記錄模式加上 always 讓範例可以穩定地取得並印出警告內容。</p></details></li><li><p>read_points 與 read_point 的結果為什麼是 {'SAT': 2.25}，只有一筆？</p><details><summary>看解答</summary><p>兩個設定的 name 都是 SAT，字典鍵相同，後面的值（225 × 0.01 = 2.25）覆蓋了前面的 22.5。實務上點位名稱必須唯一，可在載入設定時檢查。</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <footer>Python 學習筆記 · 2026-11-24</footer>
