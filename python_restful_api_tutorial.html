@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="以設備清冊實作 RESTful API，練習 HTTP 資源建模、分頁、錯誤契約、條件更新與競態測試。">
+<title>RESTful API：資源、HTTP 契約與並行更新｜Python 視覺教材</title>
+<style>
+*{box-sizing:border-box}html{scroll-padding-top:18px}body{margin:0;background:#f5f3ed;color:#192c2a;font:1rem/1.65 system-ui,-apple-system,"Noto Sans TC",sans-serif}a{color:#115f55;text-underline-offset:.18em}a:focus-visible,button:focus-visible,select:focus-visible,pre:focus-visible{outline:3px solid #b95027;outline-offset:3px}.shell{max-width:1450px;margin:auto;padding:clamp(.85rem,3.2vw,3rem);display:grid;grid-template-columns:12rem minmax(0,1fr);gap:clamp(1rem,3vw,3rem)}aside{align-self:start;position:sticky;top:1rem}nav{display:grid;gap:.65rem}nav a{display:block}main,article,section,li{min-width:0;overflow-wrap:anywhere}h1,h2,h3{line-height:1.2}h1{font-size:clamp(1.9rem,4vw,3.7rem);margin:.55rem 0}h2{font-size:clamp(1.36rem,2.3vw,2rem);margin:.2rem 0 .9rem}h3{font-size:1.1rem}.hero{background:#173e38;color:#fffdf6;padding:clamp(1.25rem,4vw,3rem);border-radius:18px}.hero p{max-width:72ch}.tag{display:inline-block;font-size:.85rem;letter-spacing:.09em;font-weight:750;color:#abe6d1}.hero a{color:#c7f8e4}.card{border:1px solid #dedbd1;border-radius:14px;background:#fffefa;padding:clamp(.9rem,2.8vw,2rem);margin-top:1rem}.flow{list-style:none;padding:0;display:grid;gap:1.6rem;grid-template-columns:repeat(4,minmax(0,1fr))}.flow li{position:relative;background:#e9f4ed;border:1px solid #bfd8cd;border-radius:10px;padding:.65rem}.flow strong,.flow small{display:block}.flow li:not(:last-child)::after{content:"→";position:absolute;right:-1.4rem;top:50%;transform:translateY(-50%);color:#135d4e;font-weight:800}.flow li.active{border-color:#116c5c;box-shadow:0 0 0 2px #116c5c;background:#cff0e0}.wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:32rem}caption{text-align:left}th,td{text-align:left;vertical-align:top;padding:.5rem;border-bottom:1px solid #dedbd1}thead{background:#e9f4ed}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}pre{max-width:100%;overflow:auto;background:#162a29;color:#f9fdfb;padding:.8rem 1rem;border-radius:9px;line-height:1.5}button,select{font:inherit;max-width:100%;border-radius:7px;padding:.38rem .72rem}button{background:#155a4e;color:white;border:1px solid #155a4e;cursor:pointer}button:disabled{opacity:.55;cursor:default}select{background:#fffefa;border:1px solid #78968a;color:#192c2a}.controls{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.cards article{padding:.65rem .9rem;background:#eef5ee;border-radius:8px}.cards h3{margin-top:.35rem}.foot{font-size:.92rem;color:#354945}.linkrow{display:flex;flex-wrap:wrap;gap:.9rem}
+@media(max-width:870px){.shell{grid-template-columns:minmax(0,1fr)}aside{position:static}nav{display:flex;flex-wrap:wrap;gap:.25rem .9rem}}
+@media(max-width:600px){.flow,.cards{grid-template-columns:minmax(0,1fr)}.flow li:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-1.55rem;transform:translateX(-50%)}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside aria-label="教材導航"><a href="index.html#web-integration-supplements">← 回教材入口</a><nav aria-label="章節導覽">
+<a href="#design">資源與動詞</a><a href="#contract">設備清冊契約</a><a href="#interactive">互動：雙人更新</a><a href="#run">啟動、請求與測試</a><a href="#production">工業部署邊界</a><a href="#sources">參考文獻</a>
+</nav></aside>
+<main>
+<header class="hero">
+<span class="tag">HTTP SEMANTICS · PYTHON / FASTAPI</span>
+<h1>RESTful API：把設備狀態變成可驗收的 HTTP 契約</h1>
+<p>用一份虛擬設備清冊回答三個工程問題：哪些事是讀取、哪些事會寫入？網路逾時後能不能重送？兩個人同時編輯，怎麼避免後送出的請求蓋掉先前修改？</p>
+<p class="linkrow"><a href="#interactive">操作並行更新流程</a><a href="#run">執行本機實驗</a><a href="python_fastapi_engineering_tutorial.html">FastAPI 主教程</a></p>
+</header>
+<section class="card" id="design">
+<h2>01｜從資源開始，不從 RPC 動詞開始</h2>
+<p><code>/v1/devices</code> 是集合，<code>/v1/devices/ahu-01</code> 是單一資源。JSON 只是表示形式，REST 不是「用 JSON 傳輸」的同義詞。先定義資源名稱、可操作的表示、狀態碼、快取和授權，再選框架；無狀態指每個請求自帶處理所需的資訊，不是不能使用資料庫。</p>
+<div class="wrap" role="region" aria-label="HTTP 方法比較" tabindex="0"><table><thead><tr><th scope="col">方法</th><th scope="col">安全／冪等</th><th scope="col">用途與容易搞錯的地方</th></tr></thead><tbody>
+<tr><th scope="row">GET</th><td>是／是</td><td>讀取資源；不能把應用寫入放進 GET。可另行設計 <code>If-None-Match</code> 與 <code>304</code>；本實驗未實作條件讀取。</td></tr>
+<tr><th scope="row">POST</th><td>否／否（預設）</td><td>建立設備，成功回 <code>201</code> 與 <code>Location</code>。逾時後不能假設失敗；本實驗用呼叫者給的設備 ID 查回，沒有提供冪等鍵機制。</td></tr>
+<tr><th scope="row">PUT</th><td>否／是</td><td>取代可編輯表示，不是只覆蓋 JSON 裡出現的欄位。重送可能收到不同狀態碼，如條件失效回 <code>412</code>；冪等描述效果，不保證回應相同。本 API 只更新既有設備。</td></tr>
+<tr><th scope="row">PATCH</th><td>否／由契約決定</td><td>部分修改；例如設定值和遞增計數，重送效果不同。實作時須先決定媒體型別與 <code>null</code> 的語意，不能把任意 JSON 都當同一種 PATCH。</td></tr>
+<tr><th scope="row">DELETE</th><td>否／是</td><td>同一目標多次刪除，最終狀態仍是不存在；首次可為 <code>204</code>、之後為 <code>404</code>。<code>204</code> 不附內容。</td></tr>
+</tbody></table></div>
+</section>
+<section class="card" id="contract">
+<h2>02｜設備清冊 API 契約</h2>
+<div class="wrap" role="region" aria-label="設備 API 契約" tabindex="0"><table><thead><tr><th scope="col">請求</th><th scope="col">成功</th><th scope="col">應驗收的失敗</th></tr></thead><tbody>
+<tr><th scope="row"><code>GET /v1/devices?limit=2&amp;after=ahu-02</code></th><td><code>200</code>、<code>items</code>、<code>next_after</code></td><td><code>422</code> 超出 1–50 筆或游標格式錯。依 ID 以 <code>&gt; after</code> 讀取；插入發生在游標之前時，後續頁不會看見它。不是跨頁一致快照。</td></tr>
+<tr><th scope="row"><code>POST /v1/devices</code></th><td><code>201</code>，<code>Location</code> 指向新資源</td><td><code>409</code> ID 已存在；超時後用 ID 讀回並核對欄位，不能把所有 <code>409</code> 當作此次成功。</td></tr>
+<tr><th scope="row"><code>GET /v1/devices/ahu-01</code></th><td><code>200</code>、版本 <code>ETag</code></td><td><code>404</code> 不存在；單筆 <code>GET</code> 設 <code>Cache-Control: no-store</code>，此處 ETag 用於後續寫入。</td></tr>
+<tr><th scope="row"><code>PUT /v1/devices/ahu-01</code></th><td><code>200</code>、新表示</td><td><code>428</code> 缺前置條件；<code>400</code> 版本標籤不符本 API 約定；<code>412</code> 版本已變；<code>422</code> 欄位不符契約。</td></tr>
+</tbody></table></div>
+<p>本實驗的 <code>If-Match</code> 要求單一強標籤 <code>"1"</code>，不接受弱標籤、<code>*</code> 或清單；後兩者是 HTTP 支援的形式，這裡是刻意更窄的 API 政策。<code>PUT</code> 請求包含可編輯欄位，伺服器加入 <code>id</code>、<code>revision</code> 並會去除名稱頭尾空白，所以成功回應不附 ETag；需要新標籤時再 <code>GET</code>。</p>
+<p>錯誤用 <code>application/problem+json</code>，提供 <code>type/title/status/detail</code>。客戶端看 HTTP 狀態與文件約定，不要剖析人讀用的 <code>detail</code>。本實驗不提供 <code>instance</code>；正式服務若要指出這次錯誤的唯一 URI，才填此欄位，或另外用 request ID 串接紀錄。</p>
+</section>
+<section class="card" id="interactive">
+<h2>03｜互動流程：兩人從相同版本開始</h2>
+<p>下圖是瀏覽器內的教學模擬，不會發 HTTP 請求，也不會寫入設備。選情境，按「下一步」查看請求、原子版本檢查與回應。</p>
+<div class="controls">
+<label for="scenario">情境</label><select id="scenario"><option value="race">兩人從版本 1 開始</option><option value="missing">寫入缺少 If-Match</option><option value="retry">建立逾時後查回</option></select>
+<button type="button" id="next">下一步</button><button type="button" id="reset">重設</button>
+</div>
+<ol class="flow" aria-label="HTTP 資源寫入流程圖">
+<li><strong>① 客戶端</strong><small>讀取或準備請求</small></li>
+<li><strong>② HTTP 契約</strong><small>驗證欄位與前置條件</small></li>
+<li><strong>③ 更新邊界</strong><small>版本比對與提交一次完成</small></li>
+<li><strong>④ 回應</strong><small>狀態、表示或錯誤格式</small></li>
+</ol>
+<p id="step" aria-live="polite"></p><pre id="wire" tabindex="0" aria-label="HTTP 請求與回應示例"></pre>
+<p><a href="python_restful_api_update_flow.drawio" download>下載可編輯的 draw.io 流程圖</a>。</p>
+</section>
+<section class="card" id="run">
+<h2>04｜本機啟動、手動請求、測試重跑</h2>
+<p>下載 <a href="python_restful_api_lab.py" download>服務程式</a> 和 <a href="test_restful_api_lab.py" download>契約測試</a> 到同一目錄。先啟動虛擬環境再安裝；只綁定本機，重啟會清空資料，本練習不是生產服務。</p>
+<pre tabindex="0"><code>python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install "fastapi==0.141.1" "uvicorn==0.52.1" "httpx2==2.16.2"
+python -m unittest -v test_restful_api_lab
+python -m uvicorn python_restful_api_lab:app --host 127.0.0.1 --port 8000</code></pre>
+<p>另開終端機貼下列請求（macOS/Linux Bash）。若不是全新程序，請用 <code>GET</code> 讀目前的標籤，不要照填 <code>"1"</code>。在服務執行時也可開啟 <code>http://127.0.0.1:8000/docs</code> 查看 OpenAPI。</p>
+<pre tabindex="0"><code>base=http://127.0.0.1:8000
+curl -i -H 'Content-Type: application/json' \
+  -d '{"id":"ahu-01","name":"AHU primary","enabled":true}' "$base/v1/devices"
+curl -i "$base/v1/devices/ahu-01"
+curl -i -X PUT -H 'Content-Type: application/json' -H 'If-Match: "1"' \
+  -d '{"name":"AHU standby","enabled":false}' "$base/v1/devices/ahu-01"
+curl -i -X PUT -H 'Content-Type: application/json' -H 'If-Match: "1"' \
+  -d '{"name":"AHU second editor","enabled":true}' "$base/v1/devices/ahu-01"</code></pre>
+<p><strong>全新程序預期：</strong>依序為 <code>201 → 200 → 200 → 412</code>。最後重新 GET，應只看見第一位編輯者的名稱和版本 2。不能靠 <code>GET</code> 後等幾毫秒再無條件 <code>PUT</code>，也不能把 <code>412</code> 當暫時網路錯誤自動重試。</p>
+</section>
+<section class="card" id="production">
+<h2>05｜工業場景：REST 到哪一層就該停？</h2>
+<div class="cards">
+<article><h3>監看與現場控制分開</h3><p>設備／PLC → 閘道採集 → 快照或歷史儲存 → REST API → HMI／工務看板。清冊裡的 <code>enabled</code> 是資料欄位，不代表遠端啟停。即時控制、保護和聯鎖仍交給適當的現場控制器。</p></article>
+<article><h3>資料正確不等於資料新鮮</h3><p>正式量測表示至少分開來源時間、收到時間、單位、品質與逾期門檻。清冊版本不是量測版本；裝置離線的最後值不能當成現在值。低頻讀快照用 REST，連續推送再評估 SSE、WebSocket 或 MQTT。</p></article>
+<article><h3>版本比對需跟著資料走</h3><p>此例只示範單一程序內的鎖。多 worker 或多主機要用持久化儲存，把版本檢查和更新放同一筆交易，例如 <code>UPDATE … WHERE id = ? AND revision = ?</code>，再依受影響列數判斷結果。持久化版本必須避免資源重建後重複使用同一標籤。</p></article>
+<article><h3>驗收要涵蓋拒絕和未知結果</h3><p>新增 TLS、身分驗證、逐資源授權、速率限制、輸入大小限制及稽核。<code>401</code> 是需驗證並帶適用的挑戰，<code>403</code> 是無權限；<code>429</code> 可搭配 <code>Retry-After</code>。不要在通用客戶端無條件重試寫入；每次逾時都須區分是否可能已提交。</p></article>
+</div>
+<p class="linkrow"><a href="python_web_frontend_dataflow_tutorial.html">Python 與前端資料流</a><a href="python_industrial_data_gateway_tutorial.html">工業資料採集 Gateway</a><a href="python_integration_resilience_tutorial.html">外部整合：逾時、重試與冪等</a></p>
+</section>
+<section class="card foot" id="sources">
+<h2>資料來源</h2><ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9110.html">RFC 9110：HTTP 方法、ETag、前置條件</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc6585.html">RFC 6585：428 與 429</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9457.html">RFC 9457：Problem Details</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc5789.html">RFC 5789：HTTP PATCH</a></li>
+<li><a href="https://fastapi.tiangolo.com/tutorial/testing/">FastAPI 官方測試指南</a></li>
+<li><a href="https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm">Fielding：REST 架構風格</a></li>
+</ul>
+<p>校閱：<time datetime="2026-11-27">2026-11-27</time>。公開教材只有靜態頁面；HTTP 呼叫需自行啟動上面的本機服務。</p>
+</section>
+</main>
+</div>
+<script>
+"use strict";
+const scenarios={
+ race:[
+  ["兩位編輯者都讀到版本 1。","GET /v1/devices/ahu-01\n200 OK\nETag: \"1\""],
+  ["A 送出完整替代表示，並附上原本看到的標籤。","PUT /v1/devices/ahu-01\nIf-Match: \"1\"\n\n{\"name\":\"AHU standby\",\"enabled\":false}"],
+  ["A 的版本檢查與更新一起完成，設備版本變為 2。","200 OK\n\n{\"id\":\"ahu-01\",\"name\":\"AHU standby\",\"enabled\":false,\"revision\":2}"],
+  ["B 仍帶版本 1，遭拒；先重新讀取，再決定是否合併。","PUT /v1/devices/ahu-01\nIf-Match: \"1\"\n\n412 Precondition Failed\nContent-Type: application/problem+json"]],
+ missing:[
+  ["客戶端準備取代設備欄位。","PUT /v1/devices/ahu-01"],
+  ["服務收到請求，但沒有 If-Match。","Content-Type: application/json\n\n{\"name\":\"AHU standby\",\"enabled\":false}"],
+  ["未進入更新區段；資料沒有被改動。","No write"],
+  ["退回 428；先 GET 一次，取得版本後再送出。","428 Precondition Required\nCache-Control: no-store\nContent-Type: application/problem+json"]],
+ retry:[
+  ["客戶端指定設備 ID，送出建立請求。","POST /v1/devices\n\n{\"id\":\"ahu-01\",\"name\":\"AHU primary\",\"enabled\":true}"],
+  ["伺服器已收到有效輸入。","Validate ID, name, enabled"],
+  ["伺服器完成建立，但連線逾時；客戶端不知道結果。","Server: created\nClient: timeout"],
+  ["依原本的 ID 查回，核對內容，不盲目新增另一個 ID。","GET /v1/devices/ahu-01\n200 OK\nETag: \"1\""]]};
+const select=document.getElementById("scenario"), next=document.getElementById("next");
+const nodes=[...document.querySelectorAll(".flow li")];let index=0;
+function render(){const [label,line]=scenarios[select.value][index];nodes.forEach((n,i)=>{n.classList.toggle("active",i===index);if(i===index)n.setAttribute("aria-current","step");else n.removeAttribute("aria-current");});
+ document.getElementById("step").textContent=(index+1)+"/4："+label;
+ document.getElementById("wire").textContent=line;
+ next.disabled=index===3;}
+function reset(){index=0;render();}
+select.addEventListener("change",reset);document.getElementById("reset").addEventListener("click",reset);next.addEventListener("click",()=>{index=Math.min(3,index+1);render();});render();
+</script>
+</body>
+</html>
