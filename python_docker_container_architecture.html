@@ -127,6 +127,7 @@ python3 bench_http.py --port 18080 --count 1000 --workers 4 --warmup 32 --csv qu
 <figure class="graph"><div class="stack"><div class="box"><strong>界定重現條件</strong>固定映像、架構、工作負載，記下容器 ID。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>在程序所在群組採樣</strong>用 cgroup.procs 核對 PID；沒有權限就記為無資料。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>只改一項配置</strong>逐輪記錄 cgroup 前後差值、請求錯誤、p99 與退出狀態。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>排除其他原因再下結論</strong>核對上層配額、應用佇列和同期負載；保留反例。</div></div><figcaption>圖 4｜實驗採證流程。容器重建後，前後樣本不得相減。</figcaption></figure>
 <h3>D1｜延遲變長，真的被 CPU 限流嗎？</h3>
 <p>在前面的 B/C 組各跑至少五輪。每輪先記容器 ID，群組快照夾住同一輪請求，不跨重建相減。範例從本機終端把收集器經 stdin 傳給容器內 Python，工具不需要掛載 Docker socket。不使用 TTY，JSON 才不混雜終端格式。<code>docker exec</code> 本身會多一個短命程序；如果實驗只有幾毫秒，不能忽略這項擾動。</p>
+<p class="notice" id="d1-probe-boundary"><strong>量測範圍：</strong>預設 Compose 健康檢查每 3 秒在容器內啟動 Python 呼叫 <code>/healthz</code>。若剛好落在採樣窗口內，探針也會用掉同一個 cgroup 的 CPU 配額。因此下列 B/C 比較量的是<strong>整個服務的 cgroup</strong>，不能把限流差值全歸因於 <code>/sample</code>。若只想比較請求處理路徑，B、C 都套用同一份僅供量測的覆寫（在 <code>telemetry</code> 下設定 <code>healthcheck: {disable: true}</code>），以同一套有逾時的主機端 <code>/healthz</code> 探測確認就緒，並在首次快照前完成暖機。仍應單獨考量採集命令的開銷；一般部署保留健康檢查。</p>
 <pre><code>ctx=default  # 僅在確認這是本機實驗 Engine 時使用
 cid=&quot;$(docker --context &quot;$ctx&quot; compose -p python-interop-lab ps -q telemetry)&quot;
 test -n &quot;$cid&quot; || exit 1
