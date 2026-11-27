@@ -816,7 +816,75 @@ html[data-lab-layout] main :is(.grid,.flex)>* {max-inline-size:100%}
         <div id="checklistGrid" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
       </div>
     </section>
-  </main>
+  <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁的沙盒模擬了 CRUD。本節改成一個真正會執行的 FastAPI 程式，並加入兩個寫入控制常用的機制：Pydantic 範圍驗證，以及用 ETag／If-Match 防止兩個人同時修改同一個設定點。</p><h3>可實跑範例：設定點 API：驗證、相依替換與樂觀鎖</h3><p>get_store() 在正式環境可能連到資料庫或 BACnet 閘道器，測試時用 dependency_overrides 換成記憶體物件；TestClient 在同一個程序內送出請求，不需要啟動伺服器。PUT 沒帶 If-Match 回 428、版本不符回 412、超出範圍回 422。</p><p><a class="button" download href="extensions/fastapi_api/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;FastAPI：Pydantic 驗證、相依注入替換、ETag 條件更新，全部用 TestClient 在記憶體中測試（需 fastapi、httpx）。&quot;&quot;&quot;
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi.testclient import TestClient
+from pydantic import BaseModel, Field
+
+
+class Setpoint(BaseModel):
+    value: Annotated[float, Field(ge=5.0, le=15.0, description=&quot;冰水出水溫度 °C&quot;)]
+
+
+class Store:
+    def __init__(self):
+        self.data = {&quot;CH-01&quot;: {&quot;value&quot;: 7.0, &quot;version&quot;: 1}}
+
+
+def get_store() -&gt; Store:                       # 正式環境可能連資料庫或 BACnet 閘道
+    raise RuntimeError(&quot;測試中應被替換&quot;)
+
+
+app = FastAPI()
+
+
+@app.get(&quot;/chillers/{cid}/setpoint&quot;)
+def read(cid: str, response: Response, store: Store = Depends(get_store)):
+    item = store.data.get(cid) or HTTPException(404, &quot;unknown chiller&quot;)
+    if isinstance(item, HTTPException):
+        raise item
+    response.headers[&quot;ETag&quot;] = f&#x27;&quot;{item[&quot;version&quot;]}&quot;&#x27;
+    return {&quot;chiller&quot;: cid, &quot;value&quot;: item[&quot;value&quot;]}
+
+
+@app.put(&quot;/chillers/{cid}/setpoint&quot;)
+def write(cid: str, body: Setpoint, response: Response, store: Store = Depends(get_store),
+          if_match: Annotated[str | None, Header()] = None):
+    item = store.data.get(cid)
+    if item is None:
+        raise HTTPException(404, &quot;unknown chiller&quot;)
+    if if_match is None:
+        raise HTTPException(428, &quot;需要 If-Match，避免覆寫他人變更&quot;)
+    if if_match != f&#x27;&quot;{item[&quot;version&quot;]}&quot;&#x27;:
+        raise HTTPException(412, &quot;版本已變更，請重新讀取&quot;)
+    item.update(value=body.value, version=item[&quot;version&quot;] + 1)
+    response.headers[&quot;ETag&quot;] = f&#x27;&quot;{item[&quot;version&quot;]}&quot;&#x27;
+    return {&quot;chiller&quot;: cid, &quot;value&quot;: item[&quot;value&quot;]}
+
+
+if __name__ == &quot;__main__&quot;:
+    store = Store()
+    app.dependency_overrides[get_store] = lambda: store
+    c = TestClient(app)
+    r = c.get(&quot;/chillers/CH-01/setpoint&quot;)
+    etag = r.headers[&quot;ETag&quot;]
+    print(&quot;GET&quot;, r.status_code, r.json(), &quot;ETag&quot;, etag)
+    print(&quot;PUT 無 If-Match&quot;, c.put(&quot;/chillers/CH-01/setpoint&quot;, json={&quot;value&quot;: 8.0}).status_code)
+    r = c.put(&quot;/chillers/CH-01/setpoint&quot;, json={&quot;value&quot;: 8.0}, headers={&quot;If-Match&quot;: etag})
+    print(&quot;PUT 正確版本&quot;, r.status_code, r.json(), &quot;新 ETag&quot;, r.headers[&quot;ETag&quot;])
+    print(&quot;PUT 舊版本  &quot;, c.put(&quot;/chillers/CH-01/setpoint&quot;, json={&quot;value&quot;: 9.0}, headers={&quot;If-Match&quot;: etag}).status_code)
+    bad = c.put(&quot;/chillers/CH-01/setpoint&quot;, json={&quot;value&quot;: 25.0}, headers={&quot;If-Match&quot;: r.headers[&quot;ETag&quot;]})
+    print(&quot;PUT 超出範圍&quot;, bad.status_code, bad.json()[&quot;detail&quot;][0][&quot;msg&quot;])
+    print(&quot;GET 不存在 &quot;, c.get(&quot;/chillers/CH-99/setpoint&quot;).status_code)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需先 pip install fastapi httpx</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>GET 200 {&#x27;chiller&#x27;: &#x27;CH-01&#x27;, &#x27;value&#x27;: 7.0} ETag &quot;1&quot;
+PUT 無 If-Match 428
+PUT 正確版本 200 {&#x27;chiller&#x27;: &#x27;CH-01&#x27;, &#x27;value&#x27;: 8.0} 新 ETag &quot;2&quot;
+PUT 舊版本   412
+PUT 超出範圍 422 Input should be less than or equal to 15
+GET 不存在  404</code></pre><h3>工程現場案例：兩位值班人員同時調整冰水出水溫度</h3><p>夜間兩位值班人員從不同畫面讀到冰水出水設定點 7.0 °C。A 改成 8.0 °C 以節能，幾秒後 B 依舊畫面改成 6.5 °C 以應付機房高溫。沒有版本控制時，B 的寫入直接蓋掉 A 的決定，雙方都以為自己的設定生效。</p><p>加上 ETag 後，B 送出的 If-Match 是舊版本 "1"，伺服器回 412，B 必須重新讀取最新值（8.0 °C）再決定。範圍驗證則確保任何人都不能送出 25 °C 這類明顯錯誤的值，錯誤在 API 層就被擋下，不會到達冰機。</p><ol><li>寫入類 API 一律回傳 ETag，並要求寫入時帶 If-Match（缺少時回 428）。</li><li>設定點的合法範圍寫在 Pydantic 模型，與設備手冊一致，並在 OpenAPI 文件中可見。</li><li>外部系統（資料庫、閘道器）都以 Depends 注入，測試時替換，避免測試真的寫到設備。</li><li>記錄每次成功寫入的使用者、舊值、新值與版本。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 FastAPI 最新版為 0.165.0、Uvicorn 0.54.0、Pydantic 2.14.4、httpx 0.29.0。FastAPI 仍為 0.x 版本，次版號更新可能有行為變更，requirements 應固定版本並在升級時跑完整測試。 <a href="https://pypi.org/project/fastapi/">來源：PyPI：fastapi</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼缺少 If-Match 回 428 而不是直接允許寫入？</p><details><summary>看解答</summary><p>428 Precondition Required（RFC 6585）表示伺服器要求條件式請求。若允許無條件寫入，舊版用戶端或手寫腳本就能繞過版本檢查，樂觀鎖形同虛設。</p></details></li><li><p>範例中 Setpoint 的 value 若傳入字串 "8.0"，會被接受嗎？</p><details><summary>看解答</summary><p>會。Pydantic 預設的寬鬆模式會把數字字串轉成 float。若要嚴格只接受數字，可在欄位上設定 strict=True 或使用 StrictFloat。</p></details></li><li><p>dependency_overrides 用完後應該怎麼處理？</p><details><summary>看解答</summary><p>測試結束後要清除（app.dependency_overrides.clear()），否則同一個 app 物件在其他測試中仍會使用替身。pytest 中通常寫成 fixture，在 yield 之後清除。</p></details></li><li><p>若兩個請求在同一毫秒內都帶正確的 If-Match 到達，範例能保證只有一個成功嗎？</p><details><summary>看解答</summary><p>不能。範例的「比對版本再更新」不是原子操作，在多工作者或多執行緒部署下仍有競態。正式環境要靠資料庫的條件更新（UPDATE … WHERE version = ?）或鎖來保證。</p></details></li></ol></section><!-- extension:end -->
+</main>
 
   <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
     <div>參考來源：

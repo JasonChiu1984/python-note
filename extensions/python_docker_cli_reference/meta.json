@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁整理了 Docker 指令與預期輸出。本節把 docker ps 與 docker inspect 的 JSON 輸出交給 Python 檢查，一次找出現場最常見的容器問題：重啟迴圈、沒有健康檢查、以 root 執行、沒有記憶體上限與使用 :latest。",
+ "example_title": "容器健康度批次檢查",
+ "example_desc": "範例內嵌兩段模擬輸出；實際使用時把 docker ps -a --format '{{json .}}' 與 docker inspect 的結果存成檔案再讀入。檢查規則可依專案增減。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker",
+ "case": {
+  "title": "Modbus 輪詢容器重啟 147 次，資料庫卻沒告警",
+  "paragraphs": [
+   "某邊緣主機以 Docker 執行閘道器、輪詢程式與 InfluxDB。輪詢容器因設定檔錯誤持續崩潰，重啟政策是 always，所以 docker ps 偶爾看到它是 Up 狀態；但因為沒有健康檢查，監控只看到「容器存在」就判定正常，趨勢資料斷了三天才被發現。",
+   "範例把這類問題變成可定期執行的檢查：重啟次數過多、缺少 HEALTHCHECK、以 root 執行、沒有記憶體上限，以及使用無法追溯版本的 :latest 標籤。InfluxDB 的重啟政策為 no，主機重開機後不會自動啟動，也被一併列出。"
+  ],
+  "steps": [
+   "每個容器都定義 HEALTHCHECK，檢查實際功能（例如最近一次成功輪詢的時間），而不只是程序存在。",
+   "映像標籤使用版本號或 digest，部署紀錄可追溯。",
+   "Dockerfile 指定非 root 使用者，並設定記憶體上限。",
+   "把範例的檢查排入每日排程，結果送到既有的告警管道。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Docker SDK for Python（docker 套件）本頁核對時最新版為 7.2.0。用 SDK 取得的 attrs 結構與 docker inspect 的 JSON 相同，範例的檢查邏輯可直接沿用。",
+   "sources": [
+    {
+     "title": "PyPI：docker",
+     "url": "https://pypi.org/project/docker/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "Config.User 為空字串代表什麼？",
+   "a": "<p>代表映像沒有指定使用者，容器內程序預設以 root（UID 0）執行。即使在容器內，root 權限仍會擴大逃逸或掛載卷宗被誤寫的影響範圍。</p>"
+  },
+  {
+   "q": "HostConfig.Memory 為 0 代表什麼？為什麼要設定上限？",
+   "a": "<p>0 表示沒有限制，容器可以用到主機全部記憶體。程式記憶體洩漏時會拖垮同一主機上的其他服務；設定上限後只會影響該容器，並由重啟政策處理。</p>"
+  },
+  {
+   "q": "若要把「重啟次數大於 5」改成「最近一小時內重啟超過 3 次」，需要哪些資料？",
+   "a": "<p>RestartCount 是累計值，無法得知時間分布。需要定期記錄 RestartCount 與時間，計算一小時內的差值；或讀取 docker events 的 die／start 事件。</p>"
+  },
+  {
+   "q": "為什麼 :latest 被列為問題？",
+   "a": "<p>:latest 只是一個會移動的標籤。重新拉取映像時可能取得不同版本，事故時無法確定現場跑的是哪一版。應使用明確版本或 image digest（@sha256:…）。</p>"
+  }
+ ]
+}
