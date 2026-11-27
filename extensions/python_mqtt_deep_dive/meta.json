@@ -1,0 +1,36 @@
+{
+  "lang": "zh",
+  "python": "3.13",
+  "checked": "2026-11-28",
+  "intro": "本節用純 Python 重現三個常被誤解的 MQTT 細節：主題萬用字元怎麼比對、封包長度怎麼編碼，以及 QoS 1 重送時落地端怎麼去重。",
+  "example_title": "主題比對、Remaining Length 與冪等落地",
+  "example_desc": "不需要 broker，直接執行即可看到結果。topic_matches() 依 MQTT 規格處理 +、# 與 $ 開頭的系統主題；encode_remaining_length() 可對照規格的編碼表；IdempotentSink 以（裝置, 序號）去重，並檢查序號缺口。",
+  "run_note": "只需 Python 3.10 以上，無第三方套件",
+  "case": {
+    "title": "閘道器重連後，趨勢圖出現重複點與跳點",
+    "paragraphs": [
+      "某棟大樓的 Modbus 轉 MQTT 閘道器以 QoS 1 上傳空調箱送風溫度。4G 線路斷線重連後，broker 重送了未確認的訊息，歷史資料庫因此多出重複點；另一方面，閘道器本機緩衝在重連時又以不同順序補送，趨勢圖出現時間倒退。",
+      "根本原因是落地端把「收到一則訊息」當成「新增一筆資料」。QoS 1 只保證至少送達一次，不保證只送一次，也不保證跨連線的順序。解法是在 payload 帶裝置序號與量測時間戳，落地端以（裝置, 序號）做唯一鍵，排序依量測時間而不是到達時間。"
+    ],
+    "steps": [
+      "在閘道器的 payload 加入單調遞增序號與量測時間（UTC），不要用 broker 收到的時間當資料時間。",
+      "資料庫以（device_id, seq）建立唯一索引，寫入採 INSERT … ON CONFLICT DO NOTHING 或等效語法。",
+      "定期檢查序號缺口，缺口代表遺失而不是延遲，要觸發補抓或告警。",
+      "主題設計保留層級語意（site/棟/設備類型/編號/點位），訂閱端用 + 過濾，避免用 # 訂閱整棵樹。"
+    ]
+  },
+  "updates": [
+    {"text": "paho-mqtt 2.x 起建立 Client 時必須指定 callback API 版本（例如 mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)），回呼函式簽名也和 1.x 不同。網路上大量 1.x 範例直接複製會報錯或行為不符；本頁核對時最新版為 2.2.0。",
+     "sources": [{"title": "PyPI：paho-mqtt", "url": "https://pypi.org/project/paho-mqtt/"}]}
+  ],
+  "exercises": [
+    {"q": "site/b1/# 會不會匹配 site/b1？site/+/# 會不會匹配 site？請先判斷再用 topic_matches() 驗證。",
+     "a": "<p>site/b1/# 會匹配 site/b1，因為 # 也代表父層本身。site/+/# 不匹配 site，因為 + 必須對應一個實際存在的層級。</p>"},
+    {"q": "一則 payload 為 200 bytes 的 PUBLISH 封包，Remaining Length 需要幾個位元組？",
+     "a": "<p>Remaining Length 包含可變標頭與 payload，總長度介於 128 到 16,383 之間，需要 2 個位元組。可以用 encode_remaining_length() 代入實際長度確認。</p>"},
+    {"q": "IdempotentSink 把已見過的鍵全部放在記憶體的 set 裡。長時間運作會有什麼問題？怎麼改？",
+     "a": "<p>set 會無限成長。實務上應由資料庫唯一索引負責去重；若要在記憶體快取，只保留每台裝置最近 N 個序號或最近一段時間的鍵，並在程序重啟後以資料庫為準。</p>"},
+    {"q": "為什麼 # 開頭的訂閱不應該收到 $SYS/broker/uptime？",
+     "a": "<p>MQTT 規格規定以 $ 開頭的主題保留給 broker 內部使用，開頭為萬用字元的過濾不可匹配它們。要訂閱系統主題必須明確寫出 $SYS/…。</p>"}
+  ]
+}

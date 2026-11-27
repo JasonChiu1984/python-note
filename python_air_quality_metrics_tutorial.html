@@ -125,6 +125,71 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
 </section>
 <p>延伸教材：<a href="python_chiller_efficiency_tutorial.html">冰水主機效率</a>（設備效率與空品分開查證） · <a href="python_datacenter_efficiency_tutorial.html">資料中心能源效率</a>（耗能指標與用能邊界）。</p>
 <p><a href="index.html">回 Python 教材路線</a> · <a href="#top">回頁首</a></p>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節強調先確認資料品質再計算。本節把這個原則套到最常見的室內指標 CO2：八小時移動平均、涵蓋率判定，以及由 CO2 反推外氣量。</p><h3>可實跑範例：CO2 八小時平均與外氣量估算</h3><p>合成一天的會議室 CO2 資料（含 40 分鐘通訊中斷），計算截至不同時間點的八小時平均與涵蓋率，再用穩態質量平衡估算要維持 1,000 ppm 需要多少外氣。CO2 產生率 0.005 L/s/人是常用近似值，活動量不同時要調整。</p><p><a class="button" download href="extensions/python_air_quality_metrics_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;CO2 八小時移動平均、資料涵蓋率與外氣量估算（教學模型）。
+
+- 室內空氣品質標準：CO2 八小時值 1,000 ppm、PM2.5 二十四小時值 35 μg/m3。
+- 本例規定一個八小時窗至少要有 75% 的分鐘資料才計算平均，這是設計選擇，不是法規。
+- 外氣量以穩態質量平衡估算：Q = N × G ÷ (Cin − Cout)，G 取成人坐姿約 0.005 L/s/人的近似值。
+&quot;&quot;&quot;
+from datetime import datetime, timedelta
+from statistics import fmean
+
+LIMIT_CO2_8H = 1000
+MIN_COVERAGE = 0.75
+CO2_GEN_LPS = 0.005          # L/s/人，近似值
+
+
+def synthetic_day(start):
+    &quot;&quot;&quot;08:00–18:00 的會議室，每分鐘一筆；12:00–12:40 通訊中斷造成缺值。&quot;&quot;&quot;
+    rows = []
+    co2 = 450.0
+    for m in range(600):
+        t = start + timedelta(minutes=m)
+        people = 0 if t.hour &lt; 9 or t.hour &gt;= 17 else (12 if 13 &lt;= t.hour &lt; 16 else 6)
+        target = 430 + people * 75                      # 簡化的穩態濃度
+        co2 += (target - co2) * 0.05                    # 一階逼近
+        if not (t.hour == 12 and t.minute &lt; 40):
+            rows.append((t, round(co2)))
+    return rows
+
+
+def rolling_8h(rows, end):
+    window_start = end - timedelta(hours=8)
+    values = [v for t, v in rows if window_start &lt; t &lt;= end]
+    coverage = len(values) / 480
+    if coverage &lt; MIN_COVERAGE:
+        return None, coverage
+    return fmean(values), coverage
+
+
+def outdoor_air_lps(people, c_in, c_out=420):
+    &quot;&quot;&quot;穩態估算所需外氣量 L/s；c_in 必須高於 c_out。&quot;&quot;&quot;
+    if c_in &lt;= c_out:
+        raise ValueError(&quot;室內濃度需高於室外，才能用 CO2 估算外氣量&quot;)
+    return people * CO2_GEN_LPS / ((c_in - c_out) * 1e-6)
+
+
+if __name__ == &quot;__main__&quot;:
+    rows = synthetic_day(datetime(2026, 11, 20, 8, 0))
+    print(f&quot;取樣筆數：{len(rows)}（應有 600 筆，缺 {600 - len(rows)} 筆）&quot;)
+    peak_t, peak_v = max(rows, key=lambda r: r[1])
+    print(f&quot;單筆最高：{peak_v} ppm @ {peak_t:%H:%M}&quot;)
+    for hh in (16, 17, 18):
+        end = datetime(2026, 11, 20, hh, 0) - timedelta(minutes=1) if hh == 18 else datetime(2026, 11, 20, hh, 0)
+        avg, cov = rolling_8h(rows, end)
+        verdict = &quot;資料不足&quot; if avg is None else (&quot;超過標準&quot; if avg &gt; LIMIT_CO2_8H else &quot;符合標準&quot;)
+        shown = &quot;—&quot; if avg is None else f&quot;{avg:.0f} ppm&quot;
+        print(f&quot;截至 {end:%H:%M} 的八小時平均：{shown}，涵蓋率 {cov:.0%}，{verdict}&quot;)
+    for people in (6, 12):
+        q = outdoor_air_lps(people, c_in=1000)
+        print(f&quot;{people} 人、維持室內 1,000 ppm 所需外氣量：約 {q:.0f} L/s（{q * 3.6:.0f} m3/h）&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>取樣筆數：560（應有 600 筆，缺 40 筆）
+單筆最高：1330 ppm @ 15:12
+截至 16:00 的八小時平均：967 ppm，涵蓋率 92%，符合標準
+截至 17:00 的八小時平均：1045 ppm，涵蓋率 92%，超過標準
+截至 17:59 的八小時平均：1020 ppm，涵蓋率 92%，超過標準
+6 人、維持室內 1,000 ppm 所需外氣量：約 52 L/s（186 m3/h）
+12 人、維持室內 1,000 ppm 所需外氣量：約 103 L/s（372 m3/h）</code></pre><h3>工程現場案例：會議室下午 CO2 超標，空調箱外氣風門卻顯示全開</h3><p>範例中單筆最高 1,330 ppm 出現在 15:12，但法規看的是八小時值：截至 16:00 的平均仍在 967 ppm，到 17:00 才超過 1,000 ppm。只看單筆最高值會過早告警，只看日平均又會漏掉下午的問題。</p><p>現場常見的原因是外氣風門開度與實際外氣量不一致：風門連桿鬆脫、外氣濾網堵塞，或 DDC 的最小外氣設定在下午被節能排程覆寫。CO2 推估的外氣量（12 人約 103 L/s）可以和空調箱外氣風量計或風門開度對照，找出差異。</p><ol><li>確認 CO2 感測器裝在呼吸帶高度（約 1.1 m）、遠離出風口與門口，並記錄最近一次校正日期。</li><li>從 BAS 匯出 CO2、外氣風門開度、空調箱運轉狀態與室內人數（或門禁、會議預約）資料，時間對齊到分鐘。</li><li>用範例的 rolling_8h() 計算八小時值；涵蓋率不足的窗口標示為資料不足，不要用內插補成合格。</li><li>比對 CO2 推估外氣量與風量量測值，差異超過 20% 時檢查風門、濾網與 DDC 排程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現行「室內空氣品質標準」（101 年 11 月 23 日發布）仍是 9 項：CO2 八小時值 1,000 ppm、CO 八小時值 9 ppm、甲醛一小時值 0.08 ppm、TVOC 一小時值 0.56 ppm、細菌 1,500 CFU/m3、真菌 1,000 CFU/m3、PM10 二十四小時值 75 μg/m3、PM2.5 二十四小時值 35 μg/m3、臭氧八小時值 0.06 ppm。部分地方公告場所另有更嚴格的自主管理值（例如 CO2 800 ppm），要看場所適用的公告。 <a href="https://www.laws.taipei.gov.tw/lawatt/Law/A040300030009600-20121123-2000-001.pdf">來源：臺北市法規：室內空氣品質標準</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MIN_COVERAGE 改成 0.95 後重新執行，三個時間點的結果會怎麼變？這樣的設定合理嗎？</p><details><summary>看解答</summary><p>三個窗口的涵蓋率都是 92%，全部變成「資料不足」。門檻太高會讓一次短暫斷線就失去整天的判定；太低又會讓平均值失去代表性。實務上要依量測計畫或稽核要求決定，並在報表上寫明門檻。</p></details></li><li><p>同一間會議室若要把 CO2 控制在 800 ppm 以下，12 人需要多少外氣？</p><details><summary>看解答</summary><p>Q = 12 × 0.005 ÷ ((800 − 420) × 10⁻⁶) ≈ 158 L/s，約 568 m³/h，比 1,000 ppm 時多 50% 以上。可以用 outdoor_air_lps(12, c_in=800) 驗證。目標值越接近室外濃度，需要的外氣量增加得越快。</p></details></li><li><p>為什麼 outdoor_air_lps() 在室內濃度低於或等於室外時要直接報錯，而不是回傳很大的數字？</p><details><summary>看解答</summary><p>公式的分母變成零或負數，結果沒有物理意義。這通常代表感測器偏移、室外值取錯測站，或空間根本沒人。直接報錯能逼使用者先檢查資料，而不是把錯誤數字送進控制邏輯。</p></details></li><li><p>PM2.5 的標準是二十四小時值。要把 rolling_8h() 改成 PM2.5 用的函式，需要改哪些地方？</p><details><summary>看解答</summary><p>窗口改成 24 小時（timedelta(hours=24)），分母改成 1,440 分鐘（或依實際取樣間隔計算應有筆數），門檻改成 35 μg/m³。若感測器是 5 分鐘一筆，分母要用 288，不能沿用分鐘數。</p></details></li></ol></section><!-- extension:end -->
 </main>
 <script>
 "use strict";
