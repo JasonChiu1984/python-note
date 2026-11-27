@@ -1,19 +1,64 @@
-{"lang":"zh","python":"3.13","checked":"2026-11-28",
-"intro":"本節完全離線，示範一個「好鄰居」爬蟲的三個習慣：先讀 robots.txt、對同一主機限速，以及用 ETag 條件請求避免重複下載沒有變更的頁面。",
-"example_title":"robots.txt、速率限制與條件請求快取",
-"example_desc":"用 urllib.robotparser 解析一份內嵌的 robots.txt，針對特定 User-Agent 判斷能否擷取；用模擬時鐘實作 Crawl-delay；FakeServer 在 ETag 相同時回 304，統計可省下多少傳輸量。",
-"run_note":"只需 Python 3.10 以上，無第三方套件；不會連線到任何網站",
-"case":{"title":"每天抓公開能源資料，被對方封鎖 IP","paragraphs":[
-"某整合商每天從公用事業網站抓公開的月用電統計，程式每次都重新下載所有歷史月份，也沒有限速。對方網站把這種流量視為異常並封鎖了來源 IP，導致整批報表中斷。",
-"改成條件請求後，未變更的月份只回 304，範例中傳輸量從 192.5 KB 降到 144.5 KB；在真實情境中，歷史月份幾乎不變，節省比例會更高。再加上 User-Agent 聯絡資訊與固定間隔，對方也能在有疑慮時聯絡，而不是直接封鎖。"],
-"steps":["先確認資料是否有官方 API 或開放資料下載，有就不要爬網頁。",
-"每次執行先讀 robots.txt，並遵守對方的使用條款；robots.txt 允許不等於授權。",
-"保存每個 URL 的 ETag／Last-Modified，下次帶 If-None-Match／If-Modified-Since。",
-"設定每主機的請求間隔與每日上限，User-Agent 帶聯絡方式。"]},
-"updates":[{"text":"Robots Exclusion Protocol 已在 2022 年標準化為 RFC 9309。RFC 規定同時符合多條規則時以最長（最具體）的規則為準；Python 的 urllib.robotparser 則依檔案中出現的順序採用第一條符合的規則，兩者在規則順序混雜時結果可能不同。Crawl-delay 不在 RFC 9309 內，是部分網站的延伸用法。","sources":[{"title":"RFC 9309","url":"https://www.rfc-editor.org/rfc/rfc9309"},{"title":"Python 文件：urllib.robotparser","url":"https://docs.python.org/3/library/urllib.robotparser.html"}]},
-{"text":"本頁核對時常用套件版本：requests 2.34.2、httpx 0.29.0、beautifulsoup4 4.15.0、lxml 6.2.0。","sources":[{"title":"PyPI：beautifulsoup4","url":"https://pypi.org/project/beautifulsoup4/"}]}],
-"exercises":[
-{"q":"把 bms-report-bot 群組的 Allow 與 Disallow 兩行對調，/public/energy/2026-11 還能擷取嗎？依 RFC 9309 又應該如何？","a":"<p>urllib.robotparser 會先遇到 Disallow: /，判定不允許。依 RFC 9309，Allow: /public/energy/ 比 Disallow: / 更長、更具體，應判定允許。這就是兩者的差異；撰寫 robots.txt 時把 Allow 放在前面可同時相容兩種實作。</p>"},
-{"q":"為什麼 /admin/users 被拒絕，即使 * 群組也寫了 Disallow: /admin/？","a":"<p>爬蟲只採用最符合自己 User-Agent 的那一組規則。bms-report-bot 有專屬群組，所以 * 群組的規則不適用；被拒絕是因為專屬群組的 Disallow: /。</p>"},
-{"q":"伺服器沒有提供 ETag，只有 Last-Modified，Crawler 要怎麼改？","a":"<p>快取改存 Last-Modified 的值，請求時帶 If-Modified-Since。注意 Last-Modified 只有秒級精度，同一秒內多次更新可能漏判；若頁面很重要，可再比對內容雜湊。</p>"},
-{"q":"若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？","a":"<p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p>"}]}
+{
+ "lang": "zh",
+ "python": "3.13",
+ "checked": "2026-11-28",
+ "intro": "本節完全離線，示範一個「好鄰居」爬蟲的三個習慣：先讀 robots.txt、對同一主機限速，以及用 ETag 條件請求避免重複下載沒有變更的頁面。",
+ "example_title": "robots.txt、速率限制與條件請求快取",
+ "example_desc": "用 urllib.robotparser 解析一份內嵌的 robots.txt，針對特定 User-Agent 判斷能否擷取；用模擬時鐘實作 Crawl-delay；FakeServer 在 ETag 相同時回 304，統計可省下多少傳輸量。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不會連線到任何網站",
+ "case": {
+  "title": "每天抓公開能源資料，被對方封鎖 IP",
+  "paragraphs": [
+   "某整合商每天從公用事業網站抓公開的月用電統計，程式每次都重新下載所有歷史月份，也沒有限速。對方網站把這種流量視為異常並封鎖了來源 IP，導致整批報表中斷。",
+   "改成條件請求後，未變更的月份只回 304，範例中傳輸量從 192.5 KB 降到 144.5 KB；在真實情境中，歷史月份幾乎不變，節省比例會更高。再加上 User-Agent 聯絡資訊與固定間隔，對方也能在有疑慮時聯絡，而不是直接封鎖。"
+  ],
+  "steps": [
+   "先確認資料是否有官方 API 或開放資料下載，有就不要爬網頁。",
+   "每次執行先讀 robots.txt，並遵守對方的使用條款；robots.txt 允許不等於授權。",
+   "保存每個 URL 的 ETag／Last-Modified，下次帶 If-None-Match／If-Modified-Since。",
+   "設定每主機的請求間隔與每日上限，User-Agent 帶聯絡方式。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Robots Exclusion Protocol 已在 2022 年標準化為 RFC 9309，規定同時符合多條規則時以最長（最具體）的規則為準。實測 Python 3.13.18、3.14.6、3.15.0b4 的 urllib.robotparser 已採最長匹配；仍在用的 3.12（實測 3.12.13）則依出現順序採第一條符合的規則，規則順序混雜時兩者結果不同。Crawl-delay 不在 RFC 9309 內，是部分網站的延伸用法。",
+   "sources": [
+    {
+     "title": "RFC 9309",
+     "url": "https://www.rfc-editor.org/rfc/rfc9309"
+    },
+    {
+     "title": "Python 文件：urllib.robotparser",
+     "url": "https://docs.python.org/3/library/urllib.robotparser.html"
+    }
+   ]
+  },
+  {
+   "text": "本頁核對時常用套件版本：requests 2.34.2、httpx 0.29.0、beautifulsoup4 4.15.0、lxml 6.2.0。",
+   "sources": [
+    {
+     "title": "PyPI：beautifulsoup4",
+     "url": "https://pypi.org/project/beautifulsoup4/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 bms-report-bot 群組的 Allow 與 Disallow 兩行對調（Disallow: / 在前），/public/energy/2026-11 還能擷取嗎？請分別用 Python 3.12 與 3.13 以上驗證。",
+   "a": "<p>Python 3.13 以上（實測 3.13.18）依 RFC 9309 採最長匹配，Allow: /public/energy/ 比 Disallow: / 更具體，判定允許。Python 3.12.13 依出現順序先遇到 Disallow: /，判定不允許。撰寫 robots.txt 時把較具體的 Allow 放在前面，兩種實作的結果才會一致；爬蟲程式也應在部署環境實測，不要假設行為。</p>"
+  },
+  {
+   "q": "為什麼 /admin/users 被拒絕，即使 * 群組也寫了 Disallow: /admin/？",
+   "a": "<p>爬蟲只採用最符合自己 User-Agent 的那一組規則。bms-report-bot 有專屬群組，所以 * 群組的規則不適用；被拒絕是因為專屬群組的 Disallow: /。</p>"
+  },
+  {
+   "q": "伺服器沒有提供 ETag，只有 Last-Modified，Crawler 要怎麼改？",
+   "a": "<p>快取改存 Last-Modified 的值，請求時帶 If-Modified-Since。注意 Last-Modified 只有秒級精度，同一秒內多次更新可能漏判；若頁面很重要，可再比對內容雜湊。</p>"
+  },
+  {
+   "q": "若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？",
+   "a": "<p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p>"
+  }
+ ]
+}
