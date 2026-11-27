@@ -5,9 +5,8 @@
 <section id="architecture"><h2>01｜工控資料流</h2><ol class="flow" aria-label="從來源到歷史資料庫"><li>現場控制器<small>本地閉迴路／保護</small></li><li>採集閘道<small>時間、品質、序號、離線緩衝</small></li><li>MQTT Broker<small>身份、主題授權、轉送</small></li><li>歷史服務<small>交易寫入、去重、監測</small></li></ol><p>閘道把設備的來源值、量測 UTC 時間、資料品質、單位與來源識別形成事件。監控端優先讀快照和歷史，不以 Broker 可用作為安全聯鎖或控制迴路的前提。事件到達延遲要分為採集週期、閘道排隊、轉送與持久化四段，不用 TCP 往返時間冒充畫面新鮮度。</p></section>
 <section id="qos"><h2>02｜QoS 不是資料庫交易</h2><div class="scroll" role="region" tabindex="0" aria-label="QoS 比較"><table><thead><tr><th>級別</th><th>協定語意（每一段）</th><th>選用條件</th></tr></thead><tbody><tr><td>0</td><td>至多一次；PUBLISH 無該級別的協定回應</td><td>高頻快照，少量丟失可接受</td></tr><tr><td>1</td><td>至少一次；PUBLISH → PUBACK；可能重複</td><td>事件需可重送，消費端以穩定事件鍵去重</td></tr><tr><td>2</td><td>恰一次的協定傳遞；PUBLISH → PUBREC → PUBREL → PUBCOMP</td><td>協定端點確需此語意，且可承受多階段往返與狀態成本</td></tr></tbody></table></div><p>Publisher→Broker 與 Broker→Subscriber 各自交付；訂閱的核准 QoS 是接收上限，不能把原始 QoS 0 提升成交付保證。<code>DUP</code> 描述此連線傳送端是否在重送 PUBLISH，不是業務事件重複判定；<code>Packet Identifier</code> 是協定交換識別，可在交換完成後重用，不是長期全域事件 ID。</p><p class="note">需要業務恰一次效果時，讓事件鍵與業務寫入在同一交易提交，並確認客戶端是否能延後確認至提交後。若還要呼叫外部服務，另設發件箱（outbox）及下游冪等鍵，不把 PUBACK 當資料庫提交。</p></section>
 <section id="topic-state"><h2>03｜主題、保留訊息與連線狀態</h2><p><code>plant/a/gw01/telemetry</code> 承載事件；<code>plant/a/gw01/status</code> 放保留狀態。發布使用具體主題；訂閱篩選器的 <code>+</code> 只匹配一層，末尾 <code>#</code> 匹配多層。</p><ul><li><strong>Retain：</strong>Broker 可保存每主題末筆保留訊息，供後續訂閱取得目前快照，不是事件歷史。保留旗標搭配零位元組載荷可清除該主題的保留訊息。</li><li><strong>Session：</strong>以 Client ID 識別，Session Expiry 決定中斷後保留狀態多久，Clean Start 決定本次是否捨棄舊狀態；查 CONNACK 的 Session Present，不假定續接成功。</li><li><strong>Birth / LWT：</strong>連線成功後由應用發布 retained online；CONNECT 先設定 Will（遺囑）作為異常離線訊號。正常停機若想留下 offline，應主動發布再正常斷線。Will Delay 可減少短斷抖動；失聯警示仍應加心跳／超時與資料年齡，不以 retained online 推定仍在線。</li><li><strong>Expiry：</strong>Message Expiry 限制 Broker 儲存及轉送的時效，與 Session Expiry 分開。閘道重播仍要用量測時間重算剩餘 TTL，消費端也要拒絕過期或不合理的未來時間。</li></ul></section>
-<section id="replay"><h2>04｜離線重播與冪等落地</h2><ol class="flow"><li>產生事件鍵<small>source + epoch + seq</small></li><li>記錄送出前資料<small>有限磁碟、剩餘時效</small></li><li>復線分批補送<small>保留原鍵與量測時間</small></li><li>交易式寫入<small>重複略過、衝突告警</small></li></ol><p>epoch 在每次真正重建序號域時更換，傳輸重連不重建；若暫存跨重開機，重播原 epoch/seq、不重新編號。序號可偵測同一 epoch 的缺口，不可把不同 epoch 的序號直接比較。晚到的舊 epoch 歷史事件不能直接覆寫目前快照，需另有快照新鮮度規則與時間同步。重播保持限速、磁碟上限、可觀察的丟棄與缺口告警。</p><details open><summary>完整 Python 離線練習：寫入、重送、衝突、過期、重開機</summary><pre><code id="mqtt-example">from dataclasses import dataclass
+<section id="replay"><h2>04｜離線重播與冪等落地</h2><ol class="flow"><li>產生事件鍵<small>source + epoch + seq</small></li><li>記錄送出前資料<small>有限磁碟、剩餘時效</small></li><li>復線分批補送<small>保留原鍵與量測時間</small></li><li>交易式寫入<small>重複略過、衝突告警</small></li></ol><p>epoch 在每次真正重建序號域時更換，傳輸重連不重建；若暫存跨重開機，重播原 epoch/seq、不重新編號。序號可偵測同一 epoch 的缺口，不可把不同 epoch 的序號直接比較。晚到的舊 epoch 歷史事件不能直接覆寫目前快照，需另有快照新鮮度規則與時間同步。重播保持限速、磁碟上限、可觀察的丟棄與缺口告警。</p><p>本例由消費端用「現在時間減量測時間」判定樣本時效，接受 −5 至 30 秒（含端點）。量測時間快超過 5 秒回報 <code>future-clock-skew</code>；量測已超過 30 秒回報 <code>expired</code>。時效先於入庫與查重，所以同一事件超出時效時，不會再判斷是重複或衝突。這不是 MQTT 5 的 <em>Message Expiry Interval</em>：後者是 MQTT 訊息的存活期限，不依應用資料內的量測時間計算。</p><details open><summary>完整 Python 離線練習：寫入、重送、衝突、時間偏移、重開機</summary><pre><code id="mqtt-example">from dataclasses import dataclass
 import sqlite3
-import time
 
 
 @dataclass(frozen=True)
@@ -23,7 +22,10 @@ def store(db, msg: Sample, now: int) -&gt; str:
     # 教學只接受單一已知來源；正式環境須把身份對應到 topic 與 source。
     if msg.source != &quot;gw01&quot; or msg.seq &lt; 0 or not msg.epoch:
         return &quot;invalid&quot;
-    if not -5 &lt;= now - msg.measured_at &lt;= 30:
+    age_s = now - msg.measured_at
+    if age_s &lt; -5:
+        return &quot;future-clock-skew&quot;
+    if age_s &gt; 30:
         return &quot;expired&quot;
     key = (msg.source, msg.epoch, msg.seq)
     data = (msg.measured_at, msg.milli_c)
@@ -47,16 +49,25 @@ def main():
         db.execute(&quot;&quot;&quot;CREATE TABLE samples (
           source TEXT, epoch TEXT, seq INTEGER, ts INTEGER, value INTEGER,
           PRIMARY KEY (source, epoch, seq))&quot;&quot;&quot;)
-        now = int(time.time())
+        now = 1000  # 固定秒數，讓邊界情境可重現
         a = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 3, now, 22_500)
         bad = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 3, now, 99_000)
-        late = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 2, now - 100, 22_300)
+        late = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 2, now - 31, 22_300)
+        future = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 4, now + 6, 22_400)
+        oldest_ok = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 5, now - 30, 22_400)
+        fastest_ok = Sample(&quot;gw01&quot;, &quot;boot-A&quot;, 6, now + 5, 22_400)
         next_boot = Sample(&quot;gw01&quot;, &quot;boot-B&quot;, 3, now, 22_600)
-        results = [store(db, x, now) for x in (a, a, bad, late, next_boot)]
+        cases = (a, a, bad, late, future, oldest_ok, fastest_ok, next_boot)
+        results = [store(db, x, now) for x in cases]
         assert results == [
-            &quot;inserted&quot;, &quot;duplicate&quot;, &quot;identity-conflict&quot;, &quot;expired&quot;, &quot;inserted&quot;
+            &quot;inserted&quot;, &quot;duplicate&quot;, &quot;identity-conflict&quot;, &quot;expired&quot;,
+            &quot;future-clock-skew&quot;, &quot;inserted&quot;, &quot;inserted&quot;, &quot;inserted&quot;
         ]
-        assert db.execute(&quot;SELECT COUNT(*) FROM samples&quot;).fetchone()[0] == 2
+        assert store(db, a, now + 31) == &quot;expired&quot;
+        assert store(db, bad, now - 6) == &quot;future-clock-skew&quot;
+        assert db.execute(
+            &quot;SELECT epoch, seq FROM samples ORDER BY epoch, seq&quot;
+        ).fetchall() == [(&quot;boot-A&quot;, 3), (&quot;boot-A&quot;, 5), (&quot;boot-A&quot;, 6), (&quot;boot-B&quot;, 3)]
         print(&quot; / &quot;.join(results))
     finally:
         db.close()
