@@ -4,7 +4,7 @@ from http import HTTPStatus
 from threading import Lock
 from typing import Annotated
 
-from fastapi import FastAPI, Header, Query, Response
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, StringConstraints
@@ -101,12 +101,20 @@ def create_app() -> FastAPI:
         return item
 
     @app.put("/v1/devices/{device_id}", response_model=Device,
-             responses=problems(400, 404, 412, 422, 428))
-    def replace_device(device_id: ID, body: DeviceWrite,
-                       if_match: Annotated[list[str] | None, Header(
-                           description="Supply exactly one field line with one strong version tag.")] = None):
-        # API policy: a single version-specific strong tag is required.
-        if if_match is None:
+             responses=problems(400, 404, 412, 422, 428),
+             openapi_extra={"parameters": [{
+                 "name": "If-Match",
+                 "in": "header",
+                 "required": True,
+                 "schema": {"type": "string"},
+                 "description": "Send exactly one field line with the strong ETag from GET.",
+                 "example": '"1"',
+             }]})
+    def replace_device(device_id: ID, body: DeviceWrite, request: Request):
+        # OpenAPI describes the accepted value; raw access detects repeated lines
+        # and lets us return 428, not FastAPI's request-validation 422, if absent.
+        if_match = request.headers.getlist("if-match")
+        if not if_match:
             raise HTTPException(428, "Read the current ETag and supply If-Match.",
                                 headers={"Cache-Control": "no-store"})
         if len(if_match) != 1 or not Tag.fullmatch(if_match[0].strip()):

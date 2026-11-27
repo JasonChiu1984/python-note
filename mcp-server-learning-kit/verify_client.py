@@ -13,6 +13,11 @@ from mcp.client.streamable_http import streamable_http_client
 PROTOCOL = "2026-07-28"
 
 
+def require(ok: bool, check: str) -> None:
+    if not ok:
+        raise RuntimeError(f"MCP smoke failed: {check}")
+
+
 async def main(http: bool) -> None:
     async with AsyncExitStack() as stack:
         if http:
@@ -25,22 +30,31 @@ async def main(http: bool) -> None:
             server = Path(__file__).with_name("server.py")
             target = StdioServerParameters(command=sys.executable, args=[str(server)])
         client = await stack.enter_async_context(Client(target, mode="auto"))
-        assert client.protocol_version == PROTOCOL, client.protocol_version
+        require(client.protocol_version == PROTOCOL, "protocol version")
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
-        assert "query" in tools["search_notes"].input_schema["properties"]
-        assert tools["search_notes"].annotations.read_only_hint is True
+        search = tools.get("search_notes")
+        require(search is not None, "search_notes is listed")
+        require("query" in search.input_schema.get("properties", {}), "query in tool schema")
+        require(search.annotations is not None and search.annotations.read_only_hint is True,
+                "read-only tool annotation")
         hit = await client.call_tool("search_notes", {"query": "Pump", "limit": 1})
-        assert not hit.is_error and "pump" in repr(hit.structured_content)
+        require(not hit.is_error and "pump" in repr(hit.structured_content), "valid search returns pump")
         invalid = await client.call_tool("search_notes", {"query": "Pump", "limit": 0})
-        assert invalid.is_error
+        require(invalid.is_error, "out-of-range limit rejected")
         blank = await client.call_tool("search_notes", {"query": " "})
-        assert blank.is_error
+        require(blank.is_error, "blank query rejected")
         resources = (await client.list_resources()).resources
-        info = await client.read_resource(resources[0].uri)
-        assert "合成資料" in info.contents[0].text
-        assert "summarize_notes" in {p.name for p in (await client.list_prompts()).prompts}
+        require(any(str(resource.uri) == "demo://notes/about" for resource in resources),
+                "demo resource is listed")
+        info = await client.read_resource("demo://notes/about")
+        require(any("合成資料" in getattr(item, "text", "") for item in info.contents),
+                "resource identifies synthetic data")
+        prompts = (await client.list_prompts()).prompts
+        require(any(prompt.name == "summarize_notes" for prompt in prompts),
+                "summarize_notes is listed")
         prompt = await client.get_prompt("summarize_notes", {"topic": "pump"})
-        assert "pump" in prompt.messages[0].content.text
+        require(any("pump" in getattr(message.content, "text", "") for message in prompt.messages),
+                "prompt expands the topic")
         print("PASS", client.protocol_version, client.server_info.name, "HTTP" if http else "STDIO")
 
 

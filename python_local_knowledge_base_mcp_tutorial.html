@@ -74,7 +74,7 @@ if __name__ == &quot;__main__&quot;:
         mcp.run(transport=&quot;streamable-http&quot;, host=&quot;127.0.0.1&quot;, port=8000)
     else:
         mcp.run(transport=&quot;stdio&quot;)
-</code></pre></section><section id="verification"><div class="num">06 / MCP SERVER</div><h2>驗證、故障測試與觀測</h2><p>本次以 Python 3.13 與 MCP SDK 2.3.0 實跑 stdio 及 loopback Streamable HTTP，兩者都經 server/discover 取得 2026-07-28；另以 curl 直接送原始 JSON-RPC，確認結果帶 resultType、ttlMs、cacheScope 與 serverInfo，舊式 initialize 也仍可由 SDK 2.x 回應；測試涵蓋工具 Schema、有效查詢、拒絕越界及空白、資源讀取、提示模板。未測生產身分驗證、高可用或廠商伺服器。</p><h3>verify_client.py</h3><pre><code>&quot;&quot;&quot;以 MCP Python SDK 2.x 的 Client 實際探索與呼叫 server.py 的 smoke test（規格 2026-07-28）。&quot;&quot;&quot;
+</code></pre></section><section id="verification"><div class="num">06 / MCP SERVER</div><h2>驗證、故障測試與觀測</h2><p>本次以 Python 3.13 與 MCP SDK 2.3.0 實跑 stdio 及 loopback Streamable HTTP，兩者都經 server/discover 取得 2026-07-28；另以 curl 直接送原始 JSON-RPC，確認結果帶 resultType、ttlMs、cacheScope 與 serverInfo，舊式 initialize 也仍可由 SDK 2.x 回應；測試涵蓋工具 Schema、有效查詢、拒絕越界及空白、資源讀取、提示模板。未測生產身分驗證、高可用或廠商伺服器。 驗收用明確的失敗檢查，不使用會被 <code>python -O</code> 或 <code>PYTHONOPTIMIZE</code> 移除的 <code>assert</code>；所有檢查通過才印出 <code>PASS</code>。</p><h3>verify_client.py</h3><pre><code>&quot;&quot;&quot;以 MCP Python SDK 2.x 的 Client 實際探索與呼叫 server.py 的 smoke test（規格 2026-07-28）。&quot;&quot;&quot;
 import argparse
 import asyncio
 import sys
@@ -89,6 +89,11 @@ from mcp.client.streamable_http import streamable_http_client
 PROTOCOL = &quot;2026-07-28&quot;
 
 
+def require(ok: bool, check: str) -&gt; None:
+    if not ok:
+        raise RuntimeError(f&quot;MCP smoke failed: {check}&quot;)
+
+
 async def main(http: bool) -&gt; None:
     async with AsyncExitStack() as stack:
         if http:
@@ -101,22 +106,31 @@ async def main(http: bool) -&gt; None:
             server = Path(__file__).with_name(&quot;server.py&quot;)
             target = StdioServerParameters(command=sys.executable, args=[str(server)])
         client = await stack.enter_async_context(Client(target, mode=&quot;auto&quot;))
-        assert client.protocol_version == PROTOCOL, client.protocol_version
+        require(client.protocol_version == PROTOCOL, &quot;protocol version&quot;)
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
-        assert &quot;query&quot; in tools[&quot;search_notes&quot;].input_schema[&quot;properties&quot;]
-        assert tools[&quot;search_notes&quot;].annotations.read_only_hint is True
+        search = tools.get(&quot;search_notes&quot;)
+        require(search is not None, &quot;search_notes is listed&quot;)
+        require(&quot;query&quot; in search.input_schema.get(&quot;properties&quot;, {}), &quot;query in tool schema&quot;)
+        require(search.annotations is not None and search.annotations.read_only_hint is True,
+                &quot;read-only tool annotation&quot;)
         hit = await client.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot;Pump&quot;, &quot;limit&quot;: 1})
-        assert not hit.is_error and &quot;pump&quot; in repr(hit.structured_content)
+        require(not hit.is_error and &quot;pump&quot; in repr(hit.structured_content), &quot;valid search returns pump&quot;)
         invalid = await client.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot;Pump&quot;, &quot;limit&quot;: 0})
-        assert invalid.is_error
+        require(invalid.is_error, &quot;out-of-range limit rejected&quot;)
         blank = await client.call_tool(&quot;search_notes&quot;, {&quot;query&quot;: &quot; &quot;})
-        assert blank.is_error
+        require(blank.is_error, &quot;blank query rejected&quot;)
         resources = (await client.list_resources()).resources
-        info = await client.read_resource(resources[0].uri)
-        assert &quot;合成資料&quot; in info.contents[0].text
-        assert &quot;summarize_notes&quot; in {p.name for p in (await client.list_prompts()).prompts}
+        require(any(str(resource.uri) == &quot;demo://notes/about&quot; for resource in resources),
+                &quot;demo resource is listed&quot;)
+        info = await client.read_resource(&quot;demo://notes/about&quot;)
+        require(any(&quot;合成資料&quot; in getattr(item, &quot;text&quot;, &quot;&quot;) for item in info.contents),
+                &quot;resource identifies synthetic data&quot;)
+        prompts = (await client.list_prompts()).prompts
+        require(any(prompt.name == &quot;summarize_notes&quot; for prompt in prompts),
+                &quot;summarize_notes is listed&quot;)
         prompt = await client.get_prompt(&quot;summarize_notes&quot;, {&quot;topic&quot;: &quot;pump&quot;})
-        assert &quot;pump&quot; in prompt.messages[0].content.text
+        require(any(&quot;pump&quot; in getattr(message.content, &quot;text&quot;, &quot;&quot;) for message in prompt.messages),
+                &quot;prompt expands the topic&quot;)
         print(&quot;PASS&quot;, client.protocol_version, client.server_info.name, &quot;HTTP&quot; if http else &quot;STDIO&quot;)
 
 

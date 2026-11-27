@@ -84,6 +84,17 @@ class Contract(unittest.TestCase):
             self.assertEqual(sorted(pool.map(write, ["Writer A", "Writer B"])), [200, 412])
         self.assertEqual(self.client.get(self.path).json()["revision"], 2)
 
+    def test_openapi_requires_a_single_string_if_match_header(self):
+        schema = self.client.get("/openapi.json").json()
+        operation = schema["paths"]["/v1/devices/{device_id}"]["put"]
+        headers = [p for p in operation["parameters"]
+                   if p["in"] == "header" and p["name"].lower() == "if-match"]
+        self.assertEqual(len(headers), 1)
+        self.assertIs(headers[0]["required"], True)
+        self.assertEqual(headers[0]["schema"], {"type": "string"})
+        self.assertEqual(headers[0]["example"], '"1"')
+        self.assertIn("428", operation["responses"])
+
     def test_openapi_problem_matches_wire(self):
         s = self.client.get("/openapi.json").json()
         read = s["paths"]["/v1/devices/{device_id}"]["get"]["responses"]
