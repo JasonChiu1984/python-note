@@ -7,12 +7,13 @@
 :root{color-scheme:light;--ink:#122a41;--muted:#425971;--line:#c3d3df;--soft:#edf5fb;--green:#13716a;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif}
 *{box-sizing:border-box}body{margin:0;background:#f2f6fa;color:var(--ink);line-height:1.72}main{width:min(100% - 1.5rem,80rem);margin:1rem auto 3rem}section,header{background:#fff;border:1px solid var(--line);border-radius:1rem;margin:1rem 0;padding:clamp(.85rem,3vw,2rem);min-width:0}header{background:linear-gradient(126deg,#102d49,#145e65);color:white}header a{color:#fff}h1{font-size:clamp(1.75rem,4.5vw,3rem);line-height:1.2;margin:.45rem 0}h2,h3{line-height:1.3}a{color:#115479;text-underline-offset:.19em}a:focus-visible{outline:3px solid #a95a15}nav{display:flex;flex-wrap:wrap;gap:.42rem}nav a{border:1px solid var(--line);background:#fff;padding:.3rem .55rem;border-radius:.42rem}p,li,dd,.box{overflow-wrap:anywhere}.board,.grid{display:grid;gap:.75rem}.board{grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))}.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}.box,.card{border:1px solid #a6bfce;border-radius:.65rem;background:var(--soft);padding:.65rem .85rem;min-width:0}.card h3{margin:.25rem 0}.hub{color:white;background:#164c64;text-align:center;margin:0 auto .55rem;max-width:24rem}.graph{border:1px solid var(--line);border-radius:.8rem;padding:.7rem;margin:.8rem 0}.arrow{color:var(--green);font-size:1.15rem;font-weight:800;text-align:center;line-height:1.2;padding:.1rem}.stack{display:grid;gap:.2rem;max-width:48rem;margin:auto}.stack strong,.card strong{display:block}.decision-grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}.notice{border-left:.25rem solid #b66c19;padding:.45rem .7rem;background:#fff5e6}dt{font-weight:780}dd{margin:0 0 .65rem;color:var(--muted)}pre{padding:.7rem .85rem;border-radius:.5rem;background:#15283d;color:#fff;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font-size:.86rem}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}[id]{scroll-margin-top:.6rem}figcaption{font-size:.92rem;color:var(--muted);margin-top:.55rem}ul{padding-left:1.25rem}
  .trial{max-width:48rem;padding:.65rem .8rem;margin:.85rem 0 0}.trial h3{margin:0}.trial p{margin:.32rem 0}.trial-controls{display:flex;gap:.38rem .55rem;flex-wrap:wrap;align-items:center}.trial label{display:inline-flex;align-items:center;gap:.27rem}.trial select,.trial button{min-height:44px;max-width:100%;padding:.2rem .45rem;font:inherit;border:1px solid #9ab4c3;border-radius:.42rem;background:#fff;color:var(--ink)}.trial button{background:#165a68;color:white}.trial output{display:block;font: .88rem/1.6 ui-monospace,monospace;margin-top:.5rem;padding:.38rem .55rem;background:#fff;border-radius:.35rem;overflow-wrap:anywhere}
+#evidence-lab summary{cursor:pointer;font-weight:700;padding:.65rem .15rem;color:#115479}#evidence-lab details{border:1px solid var(--line);border-radius:.55rem;padding:.2rem .6rem}
 </style>
 </head>
 <body><main>
 <header><a href="python_docker_interop_tutorial.html">回 Docker 與 Python 互動操作</a> · <a href="index.html">教材入口</a>
-<h1>Docker 容器深度研究</h1><p>用研究問題串起 OCI、Linux 隔離與實際部署：哪些是規格保證，哪些需要量測，哪些仍不能外推到工控現場。</p><a href="assets/docker_container_research.drawio" download>下載可編輯 draw.io：心智圖、架構圖、流程圖</a></header>
-<nav aria-label="章節"><a href="#research">研究問題</a><a href="#mindmap">心智圖</a><a href="#architecture">架構圖</a><a href="#lifecycle">流程圖</a><a href="#mechanisms">核心機制</a><a href="#experiment">實驗設計</a><a href="#security">資安設定</a><a href="#threat-model">威脅模型</a><a href="#lab">實作驗收</a><a href="#limitations">限制</a><a href="#sources">證據索引</a></nav>
+<h1>Docker 容器深度研究</h1><p>用研究問題串起 OCI、Linux 隔離與實際部署：哪些是規格保證，哪些需要量測，哪些仍不能外推到工控現場。</p><a href="assets/docker_container_research.drawio" download>下載可編輯 draw.io：四張研究圖</a></header>
+<nav aria-label="章節"><a href="#research">研究問題</a><a href="#mindmap">心智圖</a><a href="#architecture">架構圖</a><a href="#lifecycle">流程圖</a><a href="#mechanisms">核心機制</a><a href="#experiment">實驗設計</a><a href="#kernel-trace">核心執行鏈</a><a href="#evidence-lab">採證實驗</a><a href="#interpretation">故障判讀</a><a href="#security">資安設定</a><a href="#threat-model">威脅模型</a><a href="#lab">實作驗收</a><a href="#limitations">限制</a><a href="#sources">證據索引</a></nav>
 <section id="research"><h2>摘要與研究問題</h2>
 <p><strong>研究對象：</strong>Docker Engine 啟動的 Linux 容器，以唯讀合成冰水遙測為案例。容器化改變的是程序的可見範圍、資源治理和部署單位，不會自動改善效能，也不會替應用建立完整的安全邊界。本文把<strong>規格保證</strong>、<strong>環境觀察</strong>和<strong>待驗假設</strong>分開，避免把教學配置寫成現場結論。</p>
 <div class="grid">
@@ -111,6 +112,208 @@ python3 bench_http.py --port 18080 --count 1000 --workers 4 --warmup 32 --csv qu
 <div class="trial-controls"><label>組別 <select id="trial-arm"><option value="native">A：原生</option><option value="docker">B：容器</option><option value="quota">C：限額容器</option></select></label><label>樣本 <select id="trial-count"><option>400</option><option selected>1000</option><option>2000</option></select></label><label>並行 <select id="trial-workers"><option>1</option><option selected>4</option><option>8</option></select></label><button type="button" id="trial-generate">產生命令</button></div>
 <output id="trial-command" aria-live="polite">python3 bench_http.py --port 18081 --count 1000 --workers 4 --warmup 32 --csv native-01.csv</output>
 </div></section>
+
+<section id="kernel-trace"><h2>從 OCI 設定追到 Linux 核心</h2>
+<p>以 <code>docker run</code> 啟動多架構映像為例：Engine 建立容器設定並選擇平台；containerd 準備映像快照；shim 管理該任務，典型配置再由 runc 實作 OCI 的 create/start。Linux 核心依程序所屬的 namespace、cgroup 與安全原則執行限制。下表是責任順序，不是對所有 Engine/OCI 實作的系統呼叫順序保證。實驗不要以 <code>runc</code> 短命程序是否還在判斷容器健康。</p>
+<div class="grid">
+<article class="card"><h3>程序樹、PID 1 與重啟</h3><p>一個程序對容器內和主機可見的 PID 可能不同。使用 <code>--init</code> 時，小型 init 會成為 PID 1，終止訊號通常由它轉送；仍須實測應用是否停止收新任務、結清在途資料，以及背景子程序是否退出。單看退出碼 0 也不能證明最後一筆量測落盤。</p></article>
+<article class="card"><h3>cpuset、weight 與 quota</h3><p><code>cpuset.cpus.effective</code> 是現行可使用的 CPU 集合；<code>cpu.weight</code> 用在同層有競爭時的相對份額；<code>cpu.max</code> 是週期配額。例：<code>50000 100000</code> 代表每 100 ms 有 50 ms CPU 時間，可能由幾個執行緒合計用完，不是固定分配半顆實體核心。葉層顯示 <code>max</code> 不排除祖先群組已被限額。</p></article>
+<article class="card"><h3>RSS、回收壓力與 OOM</h3><p><code>memory.current</code> 是群組用量，不是單一 Python 程序 RSS，會含例如 page cache 等開銷；<code>memory.high</code> 施加回收壓力，<code>memory.max</code> 是硬上限。<code>memory.events.local</code> 的 <code>high</code>、<code>oom</code>、<code>oom_kill</code> 觀測不同事件，不能互換。若懷疑上層限制，以授權的主機監控查祖先群組，不能以葉層計數定案。</p></article>
+<article class="card"><h3>儲存與網路成本</h3><p>把「修改既有映像檔」與「在 volume 建新檔」直接相比，會同時改操作與掛載。測 copy-up 時，同一種檔案大小、寫入偏移、持久化方式及裝置；第一寫和後續寫分開。同樣地，主機到發布埠通常多了 Engine 的轉送路徑；不要把 bridge、NAT、Desktop VM 和應用序列化的成本全算給容器抽象。</p></article>
+</div>
+</section>
+<section id="evidence-lab"><h2>可重跑的因果驗證：CPU、記憶體與停止</h2>
+<p class="notice"><strong>驗證範圍：</strong>本教材驗證無 Docker 也能跑的採證測試、資料解析與頁面功能；下列 Docker Engine 對照組需在有權使用的本機 Linux 測試主機實跑。沒有填入假測量值，也不可對正式 Gateway／PLC 執行實驗。</p>
+<figure class="graph"><div class="stack"><div class="box"><strong>界定重現條件</strong>固定映像、架構、工作負載，記下容器 ID。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>在程序所在群組採樣</strong>用 cgroup.procs 核對 PID；沒有權限就記為無資料。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>只改一項配置</strong>逐輪記錄 cgroup 前後差值、請求錯誤、p99 與退出狀態。</div><div class="arrow" aria-hidden="true">↓</div><div class="box"><strong>排除其他原因再下結論</strong>核對上層配額、應用佇列和同期負載；保留反例。</div></div><figcaption>圖 4｜實驗採證流程。容器重建後，前後樣本不得相減。</figcaption></figure>
+<h3>D1｜延遲變長，真的被 CPU 限流嗎？</h3>
+<p>在前面的 B/C 組各跑至少五輪。每輪先記容器 ID，群組快照夾住同一輪請求，不跨重建相減。範例從本機終端把收集器經 stdin 傳給容器內 Python，工具不需要掛載 Docker socket。不使用 TTY，JSON 才不混雜終端格式。<code>docker exec</code> 本身會多一個短命程序；如果實驗只有幾毫秒，不能忽略這項擾動。</p>
+<pre><code>ctx=default  # 僅在確認這是本機實驗 Engine 時使用
+cid=&quot;$(docker --context &quot;$ctx&quot; compose -p python-interop-lab ps -q telemetry)&quot;
+test -n &quot;$cid&quot; || exit 1
+# 請先新建一個不存在的輪次目錄，防止覆寫前次證據。
+mkdir round-c01 &amp;&amp; (
+  set -e
+  snap() { docker --context &quot;$ctx&quot; exec -i &quot;$cid&quot; python - &lt; cgroup_evidence.py; }
+  snap &gt; round-c01/before.json
+  rc=0
+  python3 bench_http.py --port 18080 --count 1000 --workers 4 --warmup 0 \
+    --csv round-c01/requests.csv &gt; round-c01/http.json || rc=$?
+  snap &gt; round-c01/after.json
+  python3 cgroup_evidence.py --diff round-c01/before.json round-c01/after.json \
+    &gt; round-c01/delta.json
+  exit &quot;$rc&quot;
+)</code></pre>
+<p>比對 <code>Δnr_throttled / Δnr_periods</code>（分母為 0 時不計算）、<code>Δthrottled_usec</code>、p99 及錯誤率。支持配額假設的證據是：同一負載下 C 的有效配額確實較低，且多輪尾延遲與限流計數同步上升；若兩組都同樣節流，或只有延遲增加，先查客戶端 CPU、佇列積壓、記錄 I/O、主機層祖先 cgroup。比值不是請求被限流的百分比。前後配置若有變動，該輪不要混入穩態比較。</p>
+<h3>D2｜記憶體上限與退出原因</h3>
+<p>使用同一個本機已建好的範例映像。兩組同樣配置 32 MiB 合成 buffer，只有記憶體上限不同，兩組停用額外 swap；啟動後保留停止的容器供 <code>inspect</code>。不可在生產 context 執行。若主機無法限制記憶體／swap，跳過，不當成通過；Python 原先的 RSS、配置器是否碰到所有頁、架構或宿主壓力都會影響結果。命令以 Bash 和名稱唯一的測試標籤為例。</p>
+<pre><code>ctx=default
+# 先在實驗主機建立本機映像；以下 run 不拉取映像或連外。
+docker --context &quot;$ctx&quot; build -t docker-research-local:trial .
+stamp=&quot;$(date +%s)-$$&quot;
+for limit in 24m 96m; do
+  name=&quot;docker-research-mem-${limit}-${stamp}&quot;
+  docker --context &quot;$ctx&quot; run --pull=never --network none --name &quot;$name&quot; \
+    --memory &quot;$limit&quot; --memory-swap &quot;$limit&quot; --pids-limit 16 \
+    docker-research-local:trial python -c \
+    &#x27;b=bytearray(32*1024*1024); b[::4096]=bytes(8192); print(&quot;allocated&quot;,len(b))&#x27;
+  # 退出碼保留對照；命令本身報錯不等於成功重現 OOM。
+  docker --context &quot;$ctx&quot; inspect --format     &#x27;{{.State.ExitCode}} OOM={{.State.OOMKilled}}&#x27; &quot;$name&quot; &amp;&amp;
+    docker --context &quot;$ctx&quot; rm &quot;$name&quot;
+done</code></pre>
+<p>高上限組應產生 <code>allocated</code> 標記；低上限組可能在配置前或配置中失敗。若 <code>OOM=true</code>，且受控主機同期的對應群組 <code>oom_kill</code> 或 OOM 紀錄相符，支持被 OOM 終止；<code>exit=137</code> 單獨只能作為 SIGKILL 型態的線索，不能單獨判 OOM。不要把失敗閾值推廣成 Python 記憶體需求。</p>
+<h3>D3｜測試停止預算，不碰正式資料</h3>
+<p>同一個 Python 合成工作以 exec-form 作為容器命令。在 SIGTERM handler 模擬 2 秒結清：5 秒寬裕組應見 <code>drained</code> 與 exit 0；1 秒組應見終止但沒有結清標記。執行 <code>docker stop</code> 前先確認該測試容器已寫出 <code>ready</code>；未出現時不要開始計時。排程高度負載時，應以實際觀察判讀。</p>
+<pre><code>ctx=default
+stamp=&quot;$(date +%s)-$$&quot;
+name=&quot;docker-research-term-${stamp}&quot;
+docker --context &quot;$ctx&quot; run -d --pull=never --network none --name &quot;$name&quot; \
+  docker-research-local:trial python -u -c &#x27;
+import signal, time
+def finish(signum, frame):
+    print(&quot;draining&quot;)
+    time.sleep(2)
+    print(&quot;drained&quot;)
+    raise SystemExit(0)
+signal.signal(signal.SIGTERM, finish)
+print(&quot;ready&quot;)
+while True:
+    time.sleep(0.1)
+&#x27;
+docker --context &quot;$ctx&quot; logs &quot;$name&quot;  # 確認 ready 後，再執行下一行
+docker --context &quot;$ctx&quot; stop --timeout 5 &quot;$name&quot;
+docker --context &quot;$ctx&quot; logs &quot;$name&quot;
+docker --context &quot;$ctx&quot; inspect --format &#x27;{{.State.ExitCode}} OOM={{.State.OOMKilled}}&#x27; &quot;$name&quot;
+docker --context &quot;$ctx&quot; rm &quot;$name&quot;
+# 另開一個名稱不同的容器重跑，僅將 stop --timeout 改成 1。</code></pre>
+<p>正式採集程序應避免在 Python signal handler 裡做 I/O 或等待；通常只設停止旗標，由主迴圈關閉入口、限制排空時間並留下已提交序號。此處的 <code>sleep</code> 僅用來產生受控的退出差異。</p>
+<details><summary>展開唯讀採證程式：如何定位程序所屬群組</summary>
+<p>讀取 <code>/proc/self/cgroup</code> 與 <code>/proc/self/mountinfo</code>，從 cgroup v2 mount root 換算相對路徑；再要求 <code>cgroup.procs</code> 包含自身 PID，避免把上層群組當本容器。以前後 <code>boot_id</code> 與 cgroup inode 核對，並檢查計數未下降。已知限制：部分委派、受限 procfs 或混合 v1/v2 配置可能無法驗證；計數缺失一律保留 <code>null</code>。</p><pre><code>&quot;&quot;&quot;Read-only Linux cgroup v2 collector; no daemon socket or third-party dependency.&quot;&quot;&quot;
+import argparse
+import json
+import os
+import platform
+import re
+from pathlib import Path
+from time import time_ns
+
+SCALARS = (&quot;cpu.max&quot;, &quot;cpu.weight&quot;, &quot;cpuset.cpus.effective&quot;, &quot;memory.current&quot;,
+           &quot;memory.high&quot;, &quot;memory.max&quot;, &quot;memory.swap.max&quot;, &quot;pids.current&quot;, &quot;pids.max&quot;)
+COUNTERS = {&quot;cpu.stat&quot;: (&quot;usage_usec&quot;, &quot;nr_periods&quot;, &quot;nr_throttled&quot;, &quot;throttled_usec&quot;),
+            &quot;memory.events.local&quot;: (&quot;high&quot;, &quot;max&quot;, &quot;oom&quot;, &quot;oom_kill&quot;, &quot;oom_group_kill&quot;),
+            &quot;pids.events&quot;: (&quot;max&quot;,)}
+
+
+def unescape(value):
+    return re.sub(r&quot;\\([0-7]{3})&quot;, lambda m: chr(int(m[1], 8)), value)
+
+
+def read(path):
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return None
+
+
+def locate(proc, pid):
+    if not proc.is_dir():
+        return None
+    membership = read(proc / &quot;cgroup&quot;) or &quot;&quot;
+    rows = [row[3:] for row in membership.splitlines() if row.startswith(&quot;0::/&quot;)]
+    if len(rows) != 1:
+        return None
+    group = Path(rows[0])
+    for line in (read(proc / &quot;mountinfo&quot;) or &quot;&quot;).splitlines():
+        lhs, sep, rhs = line.partition(&quot; - &quot;)
+        parts = lhs.split()
+        if not sep or len(parts) &lt; 5 or rhs.split()[:1] != [&quot;cgroup2&quot;]:
+            continue
+        root, mount = map(lambda x: Path(unescape(x)), parts[3:5])
+        options = [group.relative_to(&quot;/&quot;)]
+        if group.is_relative_to(root):
+            options.insert(0, group.relative_to(root))
+        for relative in options:
+            # Never walk up to an ancestor or trust namespace-relative paths alone.
+            if &quot;..&quot; in relative.parts:
+                continue
+            path = mount / relative
+            try:
+                inode = path.stat()
+            except OSError:
+                continue
+            procs = read(path / &quot;cgroup.procs&quot;)
+            if procs is not None and str(pid) in procs.split():
+                return path, [inode.st_dev, inode.st_ino]
+    return None
+
+
+def parse_counters(raw, keys):
+    found = {}
+    for row in (raw or &quot;&quot;).splitlines():
+        items = row.split()
+        if len(items) == 2 and items[1].isascii() and items[1].isdigit():
+            found[items[0]] = int(items[1])
+    return {key: found.get(key) for key in keys}
+
+
+def snapshot():
+    base = {&quot;schema&quot;: 1, &quot;kernel&quot;: platform.release(), &quot;sample_unix_ns&quot;: time_ns(),
+            &quot;boot_id&quot;: read(Path(&quot;/proc/sys/kernel/random/boot_id&quot;))}
+    result = locate(Path(&quot;/proc/self&quot;), os.getpid())
+    if result is None:
+        return dict(base, status=&quot;unavailable&quot;, reason=&quot;verified cgroup v2 leaf not readable&quot;)
+    path, obj = result
+    return dict(base, status=&quot;ok&quot;, identity=obj, scalars={k: read(path / k) for k in SCALARS},
+                counters={f: parse_counters(read(path / f), keys) for f, keys in COUNTERS.items()})
+
+
+def compare(a, b):
+    if any(s.get(&quot;schema&quot;) != 1 or s.get(&quot;status&quot;) != &quot;ok&quot; or not s.get(&quot;boot_id&quot;) for s in (a, b)):
+        raise ValueError(&quot;both samples must be readable v2 snapshots with boot identity&quot;)
+    if (a[&quot;boot_id&quot;], a[&quot;identity&quot;]) != (b[&quot;boot_id&quot;], b[&quot;identity&quot;]):
+        raise ValueError(&quot;samples belong to different cgroup instances&quot;)
+    if a[&quot;sample_unix_ns&quot;] &gt;= b[&quot;sample_unix_ns&quot;]:
+        raise ValueError(&quot;sample order invalid; check clock or input&quot;)
+    delta = {}
+    for f, keys in COUNTERS.items():
+        delta[f] = {}
+        for k in keys:
+            before = a[&quot;counters&quot;].get(f, {}).get(k)
+            after = b[&quot;counters&quot;].get(f, {}).get(k)
+            if before is not None and after is not None and after &lt; before:
+                raise ValueError(f&quot;counter reset: {f}/{k}&quot;)
+            delta[f][k] = None if before is None or after is None else after - before
+    return {&quot;schema&quot;: 1, &quot;delta&quot;: delta,
+            &quot;configuration_changed&quot;: [k for k in SCALARS
+              if not k.endswith(&quot;.current&quot;) and a[&quot;scalars&quot;].get(k) != b[&quot;scalars&quot;].get(k)]}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--diff&quot;, nargs=2, type=Path, metavar=(&quot;BEFORE&quot;, &quot;AFTER&quot;))
+    args = parser.parse_args()
+    try:
+        result = compare(*(json.loads(path.read_text()) for path in args.diff)) if args.diff else snapshot()
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        parser.error(str(exc))
+    print(json.dumps(result, indent=2, allow_nan=False))
+    return 2 if result.get(&quot;status&quot;) == &quot;unavailable&quot; else 0
+
+
+if __name__ == &quot;__main__&quot;:
+    raise SystemExit(main())
+</code></pre></details>
+<p><a href="範例程式碼/docker_python_interop_lab/cgroup_evidence.py" download>下載採證程式</a> · <a href="範例程式碼/docker_python_interop_lab/test_cgroup_evidence.py" download>下載測試</a>。在同一資料夾用 <code>python3 -m unittest -v test_cgroup_evidence</code> 重現。</p>
+</section>
+<section id="interpretation"><h2>診斷對照：同一種症狀，可能是不同層的問題</h2>
+<div class="grid" id="diagnosis-cards">
+<article class="card" id="diagnose-cpu"><h3>p99 上升</h3><p>先對照飽和度、節流與失敗比例。若 p99 上升但群組無節流，不能用未發生的葉層事件解釋；查上層配額、應用在途量、TCP backlog 與對端延遲。CPU 降速本身也可能拉長 p99 而不增加 quota 計數。</p></article>
+<article class="card" id="diagnose-kill"><h3>退出碼 137</h3><p>對讀 Docker OOM 標記、主機紀錄與停止事件時間線。低記憶體 OOM 與 stop 超時會出現相同退出碼。遇到重啟後新容器，不可讓新的零值覆蓋舊事故證據。</p></article>
+<article class="card" id="diagnose-storage"><h3>第一次寫入特別慢</h3><p>比較下層檔案首寫和後續寫、相同方式寫 volume 控制組。確認快取、<code>fsync</code> 次數和實際快照驅動。如果 volume 首寫也慢，先排除資料檔延遲配置、磁碟及快取，不歸咎 copy-up。</p></article>
+<article class="card" id="diagnose-freshness"><h3>服務健康，遙測卻過時</h3><p>同時讀程序存活、採集完整性與點位來源時間。若本地 PLC 持續自行控制但中控讀到舊值，先標記 stale，依工區設定的最大資料年齡告警。盲目重啟可能丟掉待傳事件，不能取代來源資料驗收。</p></article>
+</div>
+<p><strong>部署決策：</strong>同組織、可信程式的唯讀採集優先以非 root、分區網路、最小裝置授權與有限資源起步。若要執行不受信任的跨租戶程式，另評估獨立 VM 或更強隔離；一般容器與宿主共用核心。Rootless 降低 daemon 層級的權限，仍要驗 cgroup 控制器委派、落盤權限與網路行為。把映像 digest、來源驗證、備份還原和實際量測分開做成可稽核紀錄。</p>
+</section>
+
 <section id="security"><h2>資安分析：先辨識信任邊界，再決定怎麼驗</h2>
 <div class="grid">
 <article class="card"><h3>映像與依賴：內容正確嗎？</h3><p>風險：可變 Tag、未授權映像、過時基底或把連線密碼做進 image layer。控制：可信 Registry、digest 固定、SBOM、弱點掃描與簽章驗證；建置用 secrets 機制，執行期用授權祕密來源，不寫在 Dockerfile 或日誌。</p><p><strong>驗收：</strong>核對發行 digest、發行來源、掃描／簽章結果與更新期限；掃描無告警不代表安全。</p></article>
@@ -180,6 +383,7 @@ python3 host.py sample</code></pre>
 <li><strong>S08｜分層防護：</strong><a href="https://docs.docker.com/engine/security/">Docker Engine 安全</a>、<a href="https://docs.docker.com/engine/security/rootless/">Rootless</a>、<a href="https://docs.docker.com/engine/security/seccomp/">seccomp</a>、<a href="https://docs.docker.com/build/building/secrets/">建置祕密</a>。</li>
 <li><strong>S09｜測量實作：</strong><a href="https://docs.python.org/3/library/time.html#time.perf_counter_ns">Python 單調效能計時</a>、<a href="https://docs.python.org/3/library/http.client.html">HTTP 標準庫</a>。</li>
 <li><strong>S10｜威脅分類：</strong><a href="https://csrc.nist.gov/pubs/sp/800/190/final">NIST SP 800-190</a> 提供容器安全分類；本文的 OT 驗收是將分類應用到合成場景的設計，不代表 NIST 認證。</li>
+<li><strong>S11｜額外查核：</strong><a href="https://docs.docker.com/engine/containers/runmetrics/">Docker 執行期指標</a>、<a href="https://docs.docker.com/reference/cli/docker/container/inspect/">Docker inspect</a>、<a href="https://docs.docker.com/reference/cli/docker/container/stop/">Docker stop</a>。本文 D 組為教學實驗設計，並非文件保證的測量結果。</li>
 </ul></section>
 
 </main><script>
