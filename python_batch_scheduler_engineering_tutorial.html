@@ -453,7 +453,48 @@ class BatchSchedulerEngineeringTests(unittest.TestCase):
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>批次失敗時先看契約，再看人</h2><p>大多數混亂來自缺 lease、checkpoint 或 backfill 邊界。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓批次執行證據進 release note</h2><p>operator 能從更新紀錄知道誰跑了什麼、失敗在哪裡、如何回補。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁提醒「同一天不一定是 24 小時」。本節用 zoneinfo 實際算出夏令時間切換日的日批次視窗長度，並示範以當地日期為批次鍵，讓重跑具備冪等性。</p><h3>可實跑範例：夏令時間與冪等的日批次</h3><p>day_window() 以當地午夜到隔天午夜為一天，透過 UTC 計算實際長度。紐約在 2026 年 3 月 8 日只有 23 小時、11 月 1 日有 25 小時；台北沒有夏令時間，固定 24 小時。Store 以批次鍵去重。</p><p><a class="button" download href="extensions/python_batch_scheduler_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;依「當地日期」切批次視窗：遇到夏令時間切換，一天不一定是 24 小時；批次鍵用當地日期，重跑時冪等（標準函式庫）。&quot;&quot;&quot;
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+
+def day_window(d: date, tz: ZoneInfo):
+    start = datetime.combine(d, time(0), tz)
+    end = datetime.combine(d + timedelta(days=1), time(0), tz)
+    hours = (end.astimezone(timezone.utc) - start.astimezone(timezone.utc)) / timedelta(hours=1)
+    return start, end, hours
+
+
+class Store:
+    def __init__(self):
+        self.done: dict[str, float] = {}
+
+    def run_batch(self, key, value):
+        if key in self.done:
+            return f&quot;{key} 已完成，略過（冪等）&quot;
+        self.done[key] = value
+        return f&quot;{key} 寫入 {value}&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    for tzname, days in ((&quot;America/New_York&quot;, [date(2026, 3, 7), date(2026, 3, 8), date(2026, 11, 1)]),
+                         (&quot;Asia/Taipei&quot;, [date(2026, 3, 8)])):
+        tz = ZoneInfo(tzname)
+        for d in days:
+            s, e, h = day_window(d, tz)
+            print(f&quot;{tzname:&lt;17} {d} 視窗 {s:%H:%M %Z} → {e:%m-%d %H:%M %Z}，長度 {h:.0f} 小時&quot;)
+    store = Store()
+    for attempt in range(2):
+        print(store.run_batch(&quot;site-a/daily-kwh/2026-11-01&quot;, 18_240.5))
+    print(&quot;若以 24 小時累加來切日，11-01 這天會少算 1 小時、隔天多出 1 小時。&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上；Windows 若缺時區資料，先 pip install tzdata</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>America/New_York  2026-03-07 視窗 00:00 EST → 03-08 00:00 EST，長度 24 小時
+America/New_York  2026-03-08 視窗 00:00 EST → 03-09 00:00 EDT，長度 23 小時
+America/New_York  2026-11-01 視窗 00:00 EDT → 11-02 00:00 EST，長度 25 小時
+Asia/Taipei       2026-03-08 視窗 00:00 CST → 03-09 00:00 CST，長度 24 小時
+site-a/daily-kwh/2026-11-01 寫入 18240.5
+site-a/daily-kwh/2026-11-01 已完成，略過（冪等）
+若以 24 小時累加來切日，11-01 這天會少算 1 小時、隔天多出 1 小時。</code></pre><h3>工程現場案例：美國分公司的日報，每年有兩天數字怪怪的</h3><p>某跨國公司的能源日報以 UTC 時間每 24 小時切一次，再轉成各地日期。美國廠區在夏令時間切換的兩天，日報分別少了 1 小時與多了 1 小時的用電，月報加總雖然正確，日均與尖峰分析卻在那兩天出現異常，每年都要人工解釋一次。</p><p>改成以當地日期切視窗後，3 月 8 日的報表明確標示 23 小時、11 月 1 日標示 25 小時，計算日均時用實際小時數。批次鍵使用「站點／報表類型／當地日期」，排程重跑或補跑時不會重複寫入。</p><ol><li>批次視窗以當地日期定義，計算時轉成 UTC 範圍查詢資料。</li><li>報表同時記錄視窗的實際長度，不假設 24 小時。</li><li>批次鍵包含站點、報表類型與當地日期，寫入前先檢查或使用唯一索引。</li><li>排程器本身用 UTC 觸發，避免夏令時間切換當天的 02:00 不存在或出現兩次。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 APScheduler 最新穩定版為 3.11.3。zoneinfo 自 Python 3.9 起內建；Windows 沒有系統時區資料庫，需安裝 tzdata 套件。 <a href="https://docs.python.org/3/library/zoneinfo.html">來源：Python 文件：zoneinfo</a> <a href="https://pypi.org/project/apscheduler/">來源：PyPI：apscheduler</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若改用「先轉 UTC、加 24 小時、再轉回紐約時間」來算 3 月 8 日的結束時間，會得到什麼？直接寫 start + timedelta(hours=24) 又會得到什麼？</p><details><summary>看解答</summary><p>經 UTC 加 24 小時會得到 3 月 9 日 01:00 EDT，多跨了一小時，視窗錯了。直接 start + timedelta(hours=24) 是牆上時間運算，得到 3 月 9 日 00:00 EDT，剛好正確，但這是巧合而非刻意。日期邊界最清楚的寫法是 datetime.combine(下一天, 00:00, tz)，再用 UTC 相減求實際長度。</p></details></li><li><p>排程設定為每天當地 02:30 執行，紐約 3 月 8 日會發生什麼？</p><details><summary>看解答</summary><p>當天 02:00 直接跳到 03:00，02:30 不存在；不同排程器可能跳過、延後或報錯。11 月 1 日的 01:30 則會出現兩次。這就是建議以 UTC 觸發的原因。</p></details></li><li><p>批次鍵若用 UTC 日期，台北的日報會有什麼問題？</p><details><summary>看解答</summary><p>台北的當地日期 00:00–08:00 對應 UTC 前一天，日報會把兩個當地日期的資料混在同一個鍵下，與使用者認知的「一天」不符。</p></details></li><li><p>Store.run_batch 只檢查鍵是否存在。若第一次執行寫到一半就失敗，重跑時會怎樣？怎麼改？</p><details><summary>看解答</summary><p>若「標記完成」在寫入資料之前，重跑會被誤判為已完成而跳過；若在之後但兩者不在同一交易，可能重複。應把資料寫入與完成標記放在同一個資料庫交易（參考日誌與狀態持久化頁的範例）。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

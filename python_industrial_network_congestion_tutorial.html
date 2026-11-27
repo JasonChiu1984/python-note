@@ -249,6 +249,50 @@ python python_roadmap_ot_research_lab.py congestion --test</code></pre>
 <details><summary>本章核心運算（簡化節錄）</summary><pre><code>finish_ms += 25 if outcome == &quot;ok&quot; else timeout_ms</code></pre></details>
 <p>一手資料：<a href="https://www.modbus.org/file/secure/modbusoverserial.pdf">Modbus Serial Line 1.02</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST OT 安全與可用性</a></p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁以情境找出塞車位置。本節針對最常見的 RS-485 Modbus RTU 匯流排，算出一次交易的時間組成，並示範多個上位系統共用閘道器與從站離線時，輪詢週期會怎麼惡化。</p><h3>可實跑範例：Modbus RTU 輪詢週期與匯流排使用率</h3><p>字元時間以 11 bits 計（起始、8 資料、同位、停止）。3.5 字元靜默在 19200 bps 以上依規範固定 1.75 ms。從站回應時間 15 ms 與離線逾時 1 s 是假設值，請以現場量測取代。</p><p><a class="button" download href="extensions/python_industrial_network_congestion_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;RS-485 Modbus RTU 輪詢週期估算：字元時間、3.5 字元靜默、從站回應時間，找出排隊在哪裡（標準函式庫）。&quot;&quot;&quot;
+
+BITS_PER_CHAR = 11          # 1 起始 + 8 資料 + 1 同位 + 1 停止（或 2 停止、無同位）
+
+
+def char_time_ms(baud):
+    return BITS_PER_CHAR / baud * 1000
+
+
+def silent_ms(baud):
+    &quot;&quot;&quot;3.5 字元靜默；Modbus 規範在 19200 bps 以上建議固定 1.75 ms。&quot;&quot;&quot;
+    return 1.75 if baud &gt; 19200 else 3.5 * char_time_ms(baud)
+
+
+def transaction_ms(baud, regs, slave_resp_ms):
+    req_bytes = 8                                  # 位址1＋功能碼1＋起始2＋數量2＋CRC2
+    resp_bytes = 5 + 2 * regs                      # 位址1＋功能碼1＋位元組數1＋資料＋CRC2
+    wire = (req_bytes + resp_bytes) * char_time_ms(baud)
+    return wire + 2 * silent_ms(baud) + slave_resp_ms, wire
+
+
+if __name__ == &quot;__main__&quot;:
+    slaves, regs, resp = 30, 20, 15.0
+    for baud in (9600, 19200, 38400, 115200):
+        tx, wire = transaction_ms(baud, regs, resp)
+        cycle = slaves * tx / 1000
+        print(f&quot;{baud:&gt;6} bps：單次交易 {tx:6.1f} ms（線上 {wire:5.1f} ms），{slaves} 台一輪 {cycle:5.2f} s&quot;)
+    print()
+    tx, _ = transaction_ms(19200, regs, resp)
+    for clients in (1, 2, 4):
+        print(f&quot;{clients} 個上位系統共用同一閘道、各自每 2 s 輪詢一次：匯流排使用率 &quot;
+              f&quot;{clients * slaves * tx / 2000:.0%}{&#x27;  ← 超過 100%，請求開始排隊&#x27; if clients * slaves * tx &gt; 2000 else &#x27;&#x27;}&quot;)
+    tx_timeout, _ = transaction_ms(19200, regs, 1000)
+    print(f&quot;若有 1 台從站離線、逾時設 1 s：每輪多 {tx_timeout - tx:.0f} ms，&quot;
+          f&quot;一輪變成 {(slaves - 1) * tx / 1000 + tx_timeout / 1000:.2f} s&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>  9600 bps：單次交易   83.8 ms（線上  60.7 ms），30 台一輪  2.51 s
+ 19200 bps：單次交易   49.4 ms（線上  30.4 ms），30 台一輪  1.48 s
+ 38400 bps：單次交易   33.7 ms（線上  15.2 ms），30 台一輪  1.01 s
+115200 bps：單次交易   23.6 ms（線上   5.1 ms），30 台一輪  0.71 s
+
+1 個上位系統共用同一閘道、各自每 2 s 輪詢一次：匯流排使用率 74%
+2 個上位系統共用同一閘道、各自每 2 s 輪詢一次：匯流排使用率 148%  ← 超過 100%，請求開始排隊
+4 個上位系統共用同一閘道、各自每 2 s 輪詢一次：匯流排使用率 296%  ← 超過 100%，請求開始排隊
+若有 1 台從站離線、逾時設 1 s：每輪多 985 ms，一輪變成 2.47 s</code></pre><h3>工程現場案例：新增能源平台後，原本 BAS 的告警延遲到好幾秒</h3><p>某大樓的 30 台電表接在一條 19200 bps 的 RS-485 上，經 Modbus TCP 閘道器給 BAS 每 2 秒輪詢一次，匯流排使用率約 74%。業主再接上能源管理平台，同樣每 2 秒輪詢，使用率變成 148%：閘道器把兩邊的請求排隊，BAS 的資料延遲越積越長。</p><p>範例也顯示：一台電表離線、逾時設 1 秒時，一輪輪詢從 1.48 秒拉長到 2.47 秒，已超過 2 秒的更新目標。解法包括由一個系統輪詢後轉發給另一個（不要兩邊同時直讀）、提高鮑率、合併讀取範圍，以及縮短逾時並把離線從站暫時移出輪詢。</p><ol><li>量測每台從站的實際回應時間與逾時次數。</li><li>計算目前的匯流排使用率，新增任何上位系統前先試算。</li><li>多個系統需要同一份資料時，只讓一個系統輪詢並轉發。</li><li>離線從站採退避重試，不要每輪都等滿逾時時間。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pymodbus 最新版為 3.16.2。pymodbus 3.x 的用戶端預設為非同步 API，逾時與重試參數名稱與 2.x 不同，升級時要重新檢查設定。 <a href="https://pypi.org/project/pymodbus/">來源：PyPI：pymodbus</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>9600 bps 下讀 20 個暫存器，線上傳輸時間為什麼是 60.7 ms？</p><details><summary>看解答</summary><p>請求 8 bytes、回應 5 + 40 = 45 bytes，共 53 字元，每字元 11 ÷ 9600 秒 ≈ 1.146 ms，53 × 1.146 ≈ 60.7 ms。</p></details></li><li><p>為什麼鮑率從 38400 提高到 115200，單次交易只從 33.7 ms 降到 23.6 ms？</p><details><summary>看解答</summary><p>線上時間從 15.2 ms 降到 5.1 ms，但從站回應時間 15 ms 不變，成了主要瓶頸。和乙太網路速度頁的結論相同：先找出時間花在哪裡。</p></details></li><li><p>若改成每台電表一次讀 60 個暫存器（合併 3 次讀取），19200 bps 一輪的時間會怎麼變？</p><details><summary>看解答</summary><p>原本 3 次交易各約 49.4 ms，共約 148 ms；合併後只付一次從站回應與兩次靜默時間，transaction_ms(19200, 60, 15) 約 95.2 ms，省下約三分之一。合併讀取通常是最有效的改善。</p></details></li><li><p>逾時應該設多長？</p><details><summary>看解答</summary><p>略大於從站最大正常回應時間加上傳輸時間，例如量測的 P99 回應時間再加一些餘裕，而不是隨便設 1 秒。逾時太長會拖慢整輪，太短則會誤判離線。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer><script>
 (() => {
   "use strict";

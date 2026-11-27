@@ -220,4 +220,58 @@ if __name__ == "__main__":
 <li>S10 <a href="https://www.rfc-editor.org/rfc/rfc3418.html">RFC 3418：基本 SNMP MIB 與 sysUpTime</a></li>
 <li>S11 <a href="https://www.rfc-editor.org/rfc/rfc1901.html">RFC 1901：community-based SNMPv2</a></li>
 <li>S12 <a href="https://www.rfc-editor.org/rfc/rfc5591.html">RFC 5591：Transport Security Model</a>、<a href="https://www.rfc-editor.org/rfc/rfc6353.html">RFC 6353：TLS／DTLS Transport Model</a></li>
-</ul></section></main></body></html>
+</ul></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁研究 SNMP 的量測與安全。本節把 SNMPv2c GetRequest 用 BER 手動編碼一次，讓你看到 community 字串確實以明文出現在封包裡；並示範 Counter32 回捲時怎麼正確計算流量。</p><h3>可實跑範例：BER 編碼 GetRequest 與 Counter32 回捲</h3><p>tlv() 實作 BER 的標籤—長度—值，oid() 處理物件識別碼的特殊編碼（前兩個數字合併、大數以 7 bits 分段）。編碼結果可以與 Wireshark 的 SNMP 解析對照。</p><p><a class="button" download href="extensions/python_snmp_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;手動以 BER 編碼 SNMPv2c GetRequest，並示範 Counter32 回捲時的速率計算（標準函式庫）。
+
+SNMPv1/v2c 的 community 以明文傳送，只適合隔離的管理網段；需要認證與加密時用 SNMPv3（authPriv）。
+&quot;&quot;&quot;
+
+
+def tlv(tag, value: bytes):
+    n = len(value)
+    length = bytes([n]) if n &lt; 128 else bytes([0x80 | ((n.bit_length() + 7) // 8)]) + n.to_bytes((n.bit_length() + 7) // 8, &quot;big&quot;)
+    return bytes([tag]) + length + value
+
+
+def integer(v):
+    return tlv(0x02, v.to_bytes(max(1, (v.bit_length() + 8) // 8), &quot;big&quot;, signed=True))
+
+
+def oid(dotted):
+    parts = [int(x) for x in dotted.split(&quot;.&quot;)]
+    body = bytes([40 * parts[0] + parts[1]])
+    for p in parts[2:]:
+        chunk = [p &amp; 0x7F]
+        p &gt;&gt;= 7
+        while p:
+            chunk.insert(0, 0x80 | (p &amp; 0x7F))
+            p &gt;&gt;= 7
+        body += bytes(chunk)
+    return tlv(0x06, body)
+
+
+def get_request(community, request_id, oids):
+    varbinds = tlv(0x30, b&quot;&quot;.join(tlv(0x30, oid(o) + tlv(0x05, b&quot;&quot;)) for o in oids))
+    pdu = tlv(0xA0, integer(request_id) + integer(0) + integer(0) + varbinds)
+    return tlv(0x30, integer(1) + tlv(0x04, community.encode()) + pdu)      # version 1 = v2c
+
+
+def rate(prev, curr, seconds, bits=32):
+    delta = curr - prev if curr &gt;= prev else curr + 2 ** bits - prev
+    return delta / seconds
+
+
+if __name__ == &quot;__main__&quot;:
+    pkt = get_request(&quot;public&quot;, 0x1234, [&quot;1.3.6.1.2.1.1.3.0&quot;, &quot;1.3.6.1.2.1.2.2.1.10.1&quot;])
+    print(f&quot;GetRequest {len(pkt)} bytes：&quot;, pkt.hex(&quot; &quot;))
+    print(&quot;sysUpTime.0 OID 編碼：&quot;, oid(&quot;1.3.6.1.2.1.1.3.0&quot;).hex(&quot; &quot;))
+    print(&quot;community &#x27;public&#x27; 以明文出現在封包中：&quot;, b&quot;public&quot; in pkt)
+    prev, curr = 4_294_000_000, 1_500_000            # ifInOctets 在兩次輪詢間回捲
+    bps = rate(prev, curr, 60) * 8
+    print(f&quot;Counter32 回捲：{prev:,} → {curr:,}，60 秒平均 {bps / 1e6:.2f} Mbps&quot;)
+    print(f&quot;同樣流量若用 1 Gbps 滿載，Counter32 約 {2 ** 32 * 8 / 1e9:.0f} 秒就回捲一次；高速介面請改讀 ifHCInOctets（Counter64）&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不會送出任何封包</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>GetRequest 57 bytes： 30 37 02 01 01 04 06 70 75 62 6c 69 63 a0 2a 02 02 12 34 02 01 00 02 01 00 30 1e 30 0c 06 08 2b 06 01 02 01 01 03 00 05 00 30 0e 06 0a 2b 06 01 02 01 02 02 01 0a 01 05 00
+sysUpTime.0 OID 編碼： 06 08 2b 06 01 02 01 01 03 00
+community &#x27;public&#x27; 以明文出現在封包中： True
+Counter32 回捲：4,294,000,000 → 1,500,000，60 秒平均 0.33 Mbps
+同樣流量若用 1 Gbps 滿載，Counter32 約 34 秒就回捲一次；高速介面請改讀 ifHCInOctets（Counter64）</code></pre><h3>工程現場案例：UPS 與 PDU 的 SNMP community 都是 public</h3><p>某機房的 UPS、PDU 與交換器都開著 SNMPv2c，community 為預設的 public，而且和辦公網路同一個 VLAN。任何人用免費工具就能讀取設備資訊；若 write community 也是預設值，甚至能修改設定。範例顯示 community 字串直接以明文出現在封包中，網路上任何能看到流量的人都能取得。</p><p>改善方式是改用 SNMPv3 authPriv（帳號、認證與加密），把管理介面移到獨立管理網段，關閉不需要的 write 權限。流量監控則要改讀 64 位元計數器：1 Gbps 介面滿載時，32 位元計數器約 34 秒就回捲一次，輪詢週期稍長就會算錯。</p><ol><li>盤點所有開啟 SNMP 的設備、版本與 community／帳號。</li><li>改用 SNMPv3 authPriv，停用 v1／v2c；短期無法停用時至少更換 community 並限制來源 IP。</li><li>管理介面放在獨立 VLAN，只允許監控主機存取 UDP 161。</li><li>流量計算一律使用 ifHCInOctets／ifHCOutOctets（Counter64），並處理回捲。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pysnmp 最新版為 7.1.34。pysnmp 7.x 以 asyncio 為主要介面，舊版同步範例需要改寫。 <a href="https://pypi.org/project/pysnmp/">來源：PyPI：pysnmp</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>OID 1.3.6.1 的前兩個數字為什麼編碼成單一位元組 0x2B？</p><details><summary>看解答</summary><p>BER 規定前兩個數字合併為 40 × X + Y：40 × 1 + 3 = 43 = 0x2B。這是為了節省一個位元組，也是手動解析 OID 時最常出錯的地方。</p></details></li><li><p>若 OID 中有一個數字是 300，會被編成哪些位元組？</p><details><summary>看解答</summary><p>300 = 0b1_0010_1100，以 7 bits 分段為 0000010 與 0101100，前段加上續傳位元得到 0x82 0x2C。可呼叫 oid('1.3.300') 驗證。</p></details></li><li><p>rate() 能處理一次輪詢間隔內回捲兩次的情況嗎？</p><details><summary>看解答</summary><p>不能。程式只能偵測「現值小於前值」，回捲兩次以上時差值會被低估且無法察覺。對策是縮短輪詢週期，或改用 Counter64。</p></details></li><li><p>設備重開機後計數器歸零，rate() 會誤判成回捲嗎？如何區分？</p><details><summary>看解答</summary><p>會，因為現值小於前值。可同時讀 sysUpTime：若 sysUpTime 變小，代表設備重開機，該區間的速率應標示為無效，而不是當成回捲計算。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

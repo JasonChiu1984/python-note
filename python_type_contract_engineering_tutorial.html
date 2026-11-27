@@ -486,7 +486,67 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>常見問題多半來自邊界混用</h2><p>不要讓外部 payload 直接流進核心 business logic。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓型別契約支援重構與交付</h2><p>型別策略應能幫團隊更快改、更穩交付，而不是增加無效儀式。</p></div></div><div class="cards"></div></section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁主張把外部 payload 與內部領域狀態分開。本節示範完整的邊界轉換：外部資料用 TypedDict 描述形狀，進入系統時逐欄驗證並收集所有錯誤，通過後才轉成不可變的領域物件。</p><h3>可實跑範例：TypedDict 邊界驗證與領域物件轉換</h3><p>TypedDict 只是給型別檢查器看的描述，執行期不會自動驗證；所以 to_domain() 自行檢查必要欄位、未知欄位、型別與範圍，並把所有錯誤一次回報。bool 是 int 的子類別，要特別排除。</p><p><a class="button" download href="extensions/python_type_contract_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;外部 payload（TypedDict）→ 驗證 → 內部領域物件（frozen dataclass），並收集所有錯誤一次回報（標準函式庫）。&quot;&quot;&quot;
+from dataclasses import dataclass
+from typing import Literal, NotRequired, TypedDict, get_type_hints
+
+
+class PointPayload(TypedDict):          # 外部系統送來的形狀，欄位可能缺漏、型別可能錯
+    name: str
+    addr: int
+    datatype: Literal[&quot;int16&quot;, &quot;uint16&quot;, &quot;float32&quot;]
+    scale: NotRequired[float]
+
+
+@dataclass(frozen=True, slots=True)
+class Point:                             # 內部只接受已驗證、單位明確的物件
+    name: str
+    addr: int
+    datatype: str
+    scale: float
+
+
+ALLOWED_TYPES = {&quot;int16&quot;, &quot;uint16&quot;, &quot;float32&quot;}
+
+
+def to_domain(raw: dict) -&gt; Point:
+    errors = []
+    hints = get_type_hints(PointPayload)
+    for key in (&quot;name&quot;, &quot;addr&quot;, &quot;datatype&quot;):
+        if key not in raw:
+            errors.append(f&quot;缺少 {key}&quot;)
+    unknown = set(raw) - set(hints)
+    if unknown:
+        errors.append(f&quot;未知欄位 {sorted(unknown)}&quot;)
+    if &quot;addr&quot; in raw and (not isinstance(raw[&quot;addr&quot;], int) or isinstance(raw[&quot;addr&quot;], bool) or not 0 &lt;= raw[&quot;addr&quot;] &lt;= 65535):
+        errors.append(f&quot;addr 必須是 0–65535 的整數，收到 {raw[&#x27;addr&#x27;]!r}&quot;)
+    if &quot;datatype&quot; in raw and raw[&quot;datatype&quot;] not in ALLOWED_TYPES:
+        errors.append(f&quot;datatype 必須是 {sorted(ALLOWED_TYPES)}，收到 {raw[&#x27;datatype&#x27;]!r}&quot;)
+    scale = raw.get(&quot;scale&quot;, 1.0)
+    if not isinstance(scale, (int, float)) or isinstance(scale, bool) or scale == 0:
+        errors.append(f&quot;scale 必須是非零數值，收到 {scale!r}&quot;)
+    if errors:
+        raise ValueError(&quot;；&quot;.join(errors))
+    return Point(raw[&quot;name&quot;], raw[&quot;addr&quot;], raw[&quot;datatype&quot;], float(scale))
+
+
+if __name__ == &quot;__main__&quot;:
+    samples = [
+        {&quot;name&quot;: &quot;SAT&quot;, &quot;addr&quot;: 0, &quot;datatype&quot;: &quot;int16&quot;, &quot;scale&quot;: 0.1},
+        {&quot;name&quot;: &quot;KW&quot;, &quot;addr&quot;: 100, &quot;datatype&quot;: &quot;float32&quot;},
+        {&quot;name&quot;: &quot;RAT&quot;, &quot;addr&quot;: &quot;1&quot;, &quot;datatype&quot;: &quot;int32&quot;, &quot;units&quot;: &quot;degC&quot;},
+        {&quot;addr&quot;: True, &quot;datatype&quot;: &quot;uint16&quot;, &quot;scale&quot;: 0},
+    ]
+    for raw in samples:
+        try:
+            print(&quot;OK  &quot;, to_domain(raw))
+        except ValueError as e:
+            print(&quot;FAIL&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.11 以上（typing.NotRequired），無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>OK   Point(name=&#x27;SAT&#x27;, addr=0, datatype=&#x27;int16&#x27;, scale=0.1)
+OK   Point(name=&#x27;KW&#x27;, addr=100, datatype=&#x27;float32&#x27;, scale=1.0)
+FAIL 未知欄位 [&#x27;units&#x27;]；addr 必須是 0–65535 的整數，收到 &#x27;1&#x27;；datatype 必須是 [&#x27;float32&#x27;, &#x27;int16&#x27;, &#x27;uint16&#x27;]，收到 &#x27;int32&#x27;
+FAIL 缺少 name；addr 必須是 0–65535 的整數，收到 True；scale 必須是非零數值，收到 0</code></pre><h3>工程現場案例：點位匯入只回報第一個錯誤，修了十次才成功</h3><p>某匯入工具在遇到第一個錯誤時就丟出例外。一份 300 列的點位表有 12 處錯誤，使用者每修一處就要重新上傳一次。改成收集該列所有錯誤後一次回報，使用者一次就能看到全部問題。</p><p>另一個常見問題是 addr 欄位收到字串 "1" 或布林值 True。若不嚴格檢查，"1" 可能在某處被隱式轉換、True 則等於 1，最後讀錯暫存器。範例對這兩種情況都會明確拒絕。</p><ol><li>外部資料的形狀寫成 TypedDict 或 Pydantic 模型，作為與對方的契約文件。</li><li>邊界轉換函式收集所有錯誤一次回報，並標示列號或來源。</li><li>內部只使用驗證過的 frozen dataclass，型別檢查器可以確保不會把原始 dict 傳進核心邏輯。</li><li>在 CI 執行 mypy 或 pyright，並把未知欄位的處理方式（拒絕或忽略）寫進契約。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>PEP 728 的 TypedDict closed=True 與 extra_items 已在 Python 3.15 加入，可以讓型別檢查器拒絕未知欄位；執行期驗證仍需自行實作或使用 Pydantic。本頁核對時 mypy 最新版為 2.4.1、Pydantic 2.14.4。 <a href="https://peps.python.org/pep-0728/">來源：PEP 728</a> <a href="https://pypi.org/project/pydantic/">來源：PyPI：pydantic</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼檢查 addr 時要加上 not isinstance(raw['addr'], bool)？</p><details><summary>看解答</summary><p>bool 是 int 的子類別，isinstance(True, int) 為 True。不排除的話 True 會被當成位址 1，造成難以察覺的錯誤。</p></details></li><li><p>TypedDict 在執行期會檢查欄位型別嗎？</p><details><summary>看解答</summary><p>不會。TypedDict 在執行期就是普通 dict，只有型別檢查器會使用它的描述。執行期驗證必須自己寫或交給 Pydantic 等工具。</p></details></li><li><p>若要允許 scale 為 0（代表此點位停用），要怎麼修改契約與程式？</p><details><summary>看解答</summary><p>應該新增明確的欄位（例如 enabled: bool），而不是讓 0 同時代表倍率與停用。用一個值表達兩種意思會讓下游計算出錯。若真的要允許，修改 scale 的檢查並在文件中說明語意。</p></details></li><li><p>為什麼 Point 是 frozen dataclass，而不是直接使用驗證過的 dict？</p><details><summary>看解答</summary><p>dict 在任何地方都能被修改，也沒有固定欄位；frozen dataclass 欄位固定、不可修改、型別檢查器可追蹤，確保進入核心邏輯的都是驗證過的資料。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

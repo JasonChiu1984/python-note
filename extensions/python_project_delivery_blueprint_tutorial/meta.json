@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁把各章節收斂成可交付專案。本節提供一個交付前的自動檢查：必要檔案是否齊全、pyproject 版本是否有對應的 CHANGELOG 條目、程式碼中有沒有寫死的密碼。",
+ "example_title": "交付前結構契約檢查",
+ "example_desc": "check() 只做最基本、最常被遺漏的檢查，失敗項目全部列出。秘密偵測只用簡單的正規表示式，會有漏判與誤判；正式專案請搭配 gitleaks 等專用工具。檔案建立在暫存目錄。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "交付給業主的版本，原始碼裡有資料庫密碼",
+  "paragraphs": [
+   "某專案交付時把整個資料夾壓縮給業主，事後才發現 __init__.py 裡有測試用的資料庫密碼，而且和正式環境相同。另外 pyproject 寫 1.2.0、CHANGELOG 最新卻是 1.1.0，業主無法判斷這次改了什麼。",
+   "範例把這些檢查變成交付前必跑的腳本：第一次列出 3 個問題，修正後（加上測試、更新 CHANGELOG、密碼改由環境變數讀取）顯示可以交付。檢查清單會隨專案成長，重點是每一項都能自動判斷。"
+  ],
+  "steps": [
+   "把交付物清單寫成 REQUIRED，與合約或驗收文件對齊。",
+   "版本號只在 pyproject 維護，CHANGELOG 必須有對應條目。",
+   "秘密一律由環境變數或秘密管理服務提供，並在 CI 執行秘密掃描。",
+   "檢查腳本加進 CI 的 release 工作，失敗就不能打包。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "pyproject.toml 的 [project] 欄位依 PEP 621 定義，現行規格由 Python Packaging User Guide 維護。本頁核對時 uv 最新版為 0.13.10、pytest 9.2.0。",
+   "sources": [
+    {
+     "title": "pyproject.toml 規格",
+     "url": "https://packaging.python.org/en/latest/specifications/pyproject-toml/"
+    },
+    {
+     "title": "PyPI：uv",
+     "url": "https://pypi.org/project/uv/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "版本號用正規表示式從 pyproject 讀取，有什麼風險？有更好的方法嗎？",
+   "a": "<p>若 version 寫在其他區段或格式稍有不同，正規表示式可能讀錯。Python 3.11 起內建 tomllib，可以正確剖析 TOML：tomllib.loads(text)['project']['version']。</p>"
+  },
+  {
+   "q": "SECRET 正規表示式為什麼要求引號內至少 6 個字元？",
+   "a": "<p>避免把 password = \"\"、token = \"x\" 這類空值或範例誤判為秘密。這是在誤判與漏判之間取捨，所以正式專案要搭配專用工具。</p>"
+  },
+  {
+   "q": "修正後的程式改成 os.environ['BMS_DB_PASSWORD']，若環境變數沒設會怎樣？這是好事嗎？",
+   "a": "<p>會在啟動時丟出 KeyError。這是好事：設定缺漏在啟動時就被發現，而不是執行到連線資料庫時才失敗，也不會悄悄用空密碼連線。</p>"
+  },
+  {
+   "q": "除了範例的四項，你會再加哪些交付前檢查？",
+   "a": "<p>例如：所有測試通過、授權檔案存在、相依套件版本已鎖定（uv.lock）、文件中的版本號一致、建置產物可以在乾淨環境安裝。每一項都應能自動判斷。</p>"
+  }
+ ]
+}

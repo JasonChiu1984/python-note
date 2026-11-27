@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁研究 SNMP 的量測與安全。本節把 SNMPv2c GetRequest 用 BER 手動編碼一次，讓你看到 community 字串確實以明文出現在封包裡；並示範 Counter32 回捲時怎麼正確計算流量。",
+ "example_title": "BER 編碼 GetRequest 與 Counter32 回捲",
+ "example_desc": "tlv() 實作 BER 的標籤—長度—值，oid() 處理物件識別碼的特殊編碼（前兩個數字合併、大數以 7 bits 分段）。編碼結果可以與 Wireshark 的 SNMP 解析對照。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不會送出任何封包",
+ "case": {
+  "title": "UPS 與 PDU 的 SNMP community 都是 public",
+  "paragraphs": [
+   "某機房的 UPS、PDU 與交換器都開著 SNMPv2c，community 為預設的 public，而且和辦公網路同一個 VLAN。任何人用免費工具就能讀取設備資訊；若 write community 也是預設值，甚至能修改設定。範例顯示 community 字串直接以明文出現在封包中，網路上任何能看到流量的人都能取得。",
+   "改善方式是改用 SNMPv3 authPriv（帳號、認證與加密），把管理介面移到獨立管理網段，關閉不需要的 write 權限。流量監控則要改讀 64 位元計數器：1 Gbps 介面滿載時，32 位元計數器約 34 秒就回捲一次，輪詢週期稍長就會算錯。"
+  ],
+  "steps": [
+   "盤點所有開啟 SNMP 的設備、版本與 community／帳號。",
+   "改用 SNMPv3 authPriv，停用 v1／v2c；短期無法停用時至少更換 community 並限制來源 IP。",
+   "管理介面放在獨立 VLAN，只允許監控主機存取 UDP 161。",
+   "流量計算一律使用 ifHCInOctets／ifHCOutOctets（Counter64），並處理回捲。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 pysnmp 最新版為 7.1.34。pysnmp 7.x 以 asyncio 為主要介面，舊版同步範例需要改寫。",
+   "sources": [
+    {
+     "title": "PyPI：pysnmp",
+     "url": "https://pypi.org/project/pysnmp/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "OID 1.3.6.1 的前兩個數字為什麼編碼成單一位元組 0x2B？",
+   "a": "<p>BER 規定前兩個數字合併為 40 × X + Y：40 × 1 + 3 = 43 = 0x2B。這是為了節省一個位元組，也是手動解析 OID 時最常出錯的地方。</p>"
+  },
+  {
+   "q": "若 OID 中有一個數字是 300，會被編成哪些位元組？",
+   "a": "<p>300 = 0b1_0010_1100，以 7 bits 分段為 0000010 與 0101100，前段加上續傳位元得到 0x82 0x2C。可呼叫 oid('1.3.300') 驗證。</p>"
+  },
+  {
+   "q": "rate() 能處理一次輪詢間隔內回捲兩次的情況嗎？",
+   "a": "<p>不能。程式只能偵測「現值小於前值」，回捲兩次以上時差值會被低估且無法察覺。對策是縮短輪詢週期，或改用 Counter64。</p>"
+  },
+  {
+   "q": "設備重開機後計數器歸零，rate() 會誤判成回捲嗎？如何區分？",
+   "a": "<p>會，因為現值小於前值。可同時讀 sysUpTime：若 sysUpTime 變小，代表設備重開機，該區間的速率應標示為無效，而不是當成回捲計算。</p>"
+  }
+ ]
+}
