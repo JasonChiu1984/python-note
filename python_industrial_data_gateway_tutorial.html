@@ -297,7 +297,7 @@ mokutil --sb-state</code></pre>
         </div>
       </section>
       <section class="section-block" id="mapping" data-group="mapping"><div class="section-head"><div><span class="eyebrow">IO Mapping</span><h2>點位表是工業軟體的契約</h2><p>點位表應涵蓋來源定位、資料型別、工程單位、資料品質及告警；只有 Modbus 等以暫存器定址的來源才需要 register。</p></div></div><div class="gw-guide">
-<h3>點位表示和事件格式</h3><p>固定 <code>point_id</code>，把來源定位與工程含義分開。至少記錄裝置、協定定位、原始型別、符號／位元序、倍率、工程單位、有效範圍、更新策略、最大資料年齡與點表版本。改倍率或單位應留版本、遷移方式和測試向量。</p>
+<h3>點位表示和事件格式</h3><p>固定 <code>point_id</code>，在同一份 Gateway 點位表內必須唯一，並把來源定位與工程含義分開。離線範例在第一次讀取前拒絕重複 ID，避免一筆 <code>GOOD</code> 值被配到另一點的 OPC UA、BACnet 或 MQTT 目的地。至少記錄裝置、協定定位、原始型別、符號／位元序、倍率、工程單位、有效範圍、更新策略、最大資料年齡與點表版本。改倍率或單位應留版本、遷移方式和測試向量。</p>
 <pre tabindex="0"><code>{
   "schema_version": 1, "point_map_version": "2026-11",
   "event_id": "gw-a-000051", "point_id": "ahu-01.supply_air_temperature",
@@ -500,7 +500,12 @@ class MockModbusDevice:
 
 class IndustrialGateway:
     def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0) -&gt; None:
-        self.points = list(points)
+        self.points = tuple(points)
+        seen: set[str] = set()
+        for point in self.points:
+            if point.point_id in seen:
+                raise GatewayError(f"Duplicate point_id: {point.point_id}")
+            seen.add(point.point_id)
         self.device = device
         self.timeout_seconds = timeout_seconds
         self.last_scan_duration_seconds: float | None = None
@@ -641,7 +646,8 @@ def default_points() -&gt; list[GatewayPoint]:
             bacnet_object_instance=2,
             mqtt_topic="plant/tw01/pump/run_feedback",
         ),
-    ]</code></pre></details>
+    ]
+</code></pre></details>
 <details class="example-file"><summary><code>src/industrial_data_gateway/__init__.py</code></summary>
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_data_gateway/src/industrial_data_gateway/__init__.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from .gateway import (
@@ -668,11 +674,13 @@ __version__ = "0.1.0"
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/industrial_data_gateway/tests/test_gateway.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from __future__ import annotations
 
+from dataclasses import replace
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from industrial_data_gateway.gateway import (
+    GatewayError,
     IndustrialGateway,
     MockModbusDevice,
     decode_float32_words,
@@ -692,6 +700,38 @@ class IndustrialGatewayTests(unittest.TestCase):
         readings, alarms = gateway.poll_once()
         self.assertEqual([item.quality for item in readings], ["GOOD", "GOOD"])
         self.assertEqual(alarms, [])
+
+    def test_duplicate_ids_fail_before_reading_in_both_orders(self) -&gt; None:
+        boiler, pump = default_points()
+        duplicate = replace(pump, point_id=boiler.point_id)
+        for points in ((boiler, duplicate), (duplicate, boiler)):
+            with self.subTest(points=points):
+                device = Mock(spec=MockModbusDevice)
+                with self.assertRaisesRegex(GatewayError, "Duplicate point_id: boiler_supply_temp"):
+                    IndustrialGateway(iter(points), device)
+                device.read_holding_registers.assert_not_called()
+
+    def test_one_shot_mapping_preserves_values_and_destinations(self) -&gt; None:
+        high, low = encode_float32_words(42.5)
+        points = default_points()
+        gateway = IndustrialGateway(iter(points), MockModbusDevice({1: high, 2: low, 11: 1}))
+        readings, alarms = gateway.poll_once()
+        report = gateway.build_gateway_report(readings, alarms)
+        self.assertEqual(alarms, [])
+        self.assertEqual([r.quality for r in readings], ["GOOD", "GOOD"])
+        self.assertEqual(readings[0].value, 42.5)
+        self.assertIs(readings[1].value, True)
+        for i, point in enumerate(points):
+            ua = report["opcua"]["nodes"][i]
+            obj = report["bacnet"]["objects"][i]
+            mqtt = report["mqtt"][i]
+            self.assertEqual((ua["node_id"], ua["value"], ua["quality"]),
+                             (point.opcua_node_id, readings[i].value, "GOOD"))
+            self.assertEqual((obj["object_type"], obj["object_instance"], obj["present_value"], obj["quality"]),
+                             (point.bacnet_object_type, point.bacnet_object_instance, readings[i].value, "GOOD"))
+            self.assertEqual(mqtt["topic"], point.mqtt_topic)
+            self.assertEqual(json.loads(mqtt["payload"]),
+                             {"value": readings[i].value, "unit": point.unit, "quality": "GOOD"})
 
     def test_high_alarm_is_reported(self) -&gt; None:
         high, low = encode_float32_words(91.2)
@@ -741,7 +781,8 @@ class IndustrialGatewayTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()</code></pre></details>
+    unittest.main()
+</code></pre></details>
 <!-- /example-source -->
 </div>
 </section>

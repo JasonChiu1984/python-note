@@ -31,6 +31,8 @@ python3 scripts/run_gateway_smoke.py
 
 ## 現場注意
 
+- 點位表內每個 `point_id` 必須唯一。程式在第一次讀取前拒絕重複 ID，避免把正常讀值套到錯誤的協定目的地。
+
 - 真實 Modbus TCP 預設 port 常見為 `502`，此範例不開 socket。
 - OPC UA 範例的 `Security=None` 與 `4840` 只是輸出欄位，沒有 OPC UA 端點在監聽。正式部署以設備實際端點、受信憑證、適用的簽章與加密模式及唯讀授權為準。
 - BACnet/IP 單播、跨 IP 子網廣播及跨 BACnet 網路路由分開評估；有跨子網廣播需求時才規劃 BBMD／Foreign Device。

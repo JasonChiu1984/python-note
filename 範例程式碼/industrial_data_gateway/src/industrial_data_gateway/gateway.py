@@ -82,7 +82,12 @@ class MockModbusDevice:
 
 class IndustrialGateway:
     def __init__(self, points: Iterable[GatewayPoint], device: MockModbusDevice, timeout_seconds: float = 2.0) -> None:
-        self.points = list(points)
+        self.points = tuple(points)
+        seen: set[str] = set()
+        for point in self.points:
+            if point.point_id in seen:
+                raise GatewayError(f"Duplicate point_id: {point.point_id}")
+            seen.add(point.point_id)
         self.device = device
         self.timeout_seconds = timeout_seconds
         self.last_scan_duration_seconds: float | None = None
