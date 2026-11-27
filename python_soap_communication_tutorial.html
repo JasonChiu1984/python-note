@@ -56,7 +56,7 @@ Content-Type: application/soap+xml; charset=utf-8; action="urn:teaching:gateway:
 <section id="lab"><h2>07｜離線 Python：同一個契約驗兩版 SOAP</h2>
 <p><a href="python_soap_contract_lab.py" download>下載 Python 程式與單元測試</a>。存到本機後執行：</p>
 <pre><code>python3 python_soap_contract_lab.py -v</code></pre>
-<p>程式是額外縮窄的教學 profile：限定單一 Body 操作、拒絕所有 Header、限定 UTF-8、大小 32 KiB、深度 16、節點 200，並依 QName 驗證值和單位。不是通用 SOAP client、不開網路、不執行 WSDL 服務。離線程式只實作窄化應用驗證，不能取代完整 XSD 驗證器或 SOAP 處理模型。<code>CHW_01</code> 的格式限制是應用規則，XSD 此處只宣告字串。</p>
+<p>程式是額外縮窄的教學 profile：限定單一 Body 操作、拒絕所有 Header、限定 UTF-8、大小 32 KiB、深度 16、節點 200，並依 QName 驗證值和單位。<code>ReadPointResponse</code> 採元素序列：只允許空格、Tab、CR 或 LF 作為排版，拒絕欄位前、後或欄位間的其他文字。不是通用 SOAP client、不開網路、不執行 WSDL 服務。離線程式只實作窄化應用驗證，不能取代完整 XSD 驗證器或 SOAP 處理模型。<code>CHW_01</code> 的格式限制是應用規則，XSD 此處只宣告字串。</p>
 <details><summary>展開完整實驗程式</summary><pre><code>&quot;&quot;&quot;離線 SOAP 契約實驗；不啟動伺服器、不送 HTTP、不接真實設備。&quot;&quot;&quot;
 import re
 import unittest
@@ -204,6 +204,10 @@ def read_response(version, reply):
         raise TransportError(f&quot;HTTP {reply.status}; 無 SOAP Fault&quot;)
     if child.tag != q(NS, &quot;ReadPointResponse&quot;) or [e.tag for e in child] != [q(NS, &quot;value&quot;), q(NS, &quot;unit&quot;)]:
         raise ContractError(&quot;操作或欄位 QName 不符&quot;)
+    # XSD 元素內容只允許子元素與 XML 定義的排版空白。
+    inter_element = [child.text, *(element.tail for element in child)]
+    if any((part or &quot;&quot;).strip(&quot; \t\r\n&quot;) for part in inter_element):
+        raise ContractError(&quot;回應容器的元素間不得有文字&quot;)
     if any(len(e) or e.attrib for e in child):
         raise ContractError(&quot;欄位應為純文字&quot;)
     text = (child[0].text or &quot;&quot;).strip()
@@ -237,6 +241,28 @@ class Tests(unittest.TestCase):
         for version in SOAP:
             with self.subTest(version=version):
                 self.assertEqual(read_response(version, success(version)), Decimal(&quot;7.25&quot;))
+
+    def test_response_wrapper_preserves_xml_formatting_whitespace(self):
+        for version in SOAP:
+            with self.subTest(version=version):
+                node = ET.fromstring(success(version).body)[0][0]
+                node.text = node[0].tail = node[1].tail = &quot; \r\t\n &quot;
+                reply = Reply(200, MEDIA[version], envelope(version, node))
+                self.assertEqual(read_response(version, reply), Decimal(&quot;7.25&quot;))
+
+    def test_response_wrapper_rejects_character_data(self):
+        for version in SOAP:
+            for slot in (&quot;before_value&quot;, &quot;between_fields&quot;, &quot;after_unit&quot;):
+                for text in (&quot;說明&quot;, &quot;\u00a0&quot;):
+                    with self.subTest(version=version, slot=slot, text=text):
+                        node = ET.fromstring(success(version).body)[0][0]
+                        if slot == &quot;before_value&quot;:
+                            node.text = text
+                        else:
+                            node[int(slot == &quot;after_unit&quot;)].tail = text
+                        reply = Reply(200, MEDIA[version], envelope(version, node))
+                        with self.assertRaisesRegex(ContractError, &quot;元素間不得有文字&quot;):
+                            read_response(version, reply)
 
     def test_request_headers_and_ns(self):
         for v in SOAP:
@@ -343,6 +369,7 @@ if __name__ == &quot;__main__&quot;:
 <table><caption>可驗證的觀察，不用 happy path 代替交付</caption><thead><tr><th scope="col">對照</th><th scope="col">期待證據</th><th scope="col">驗證層級</th></tr></thead><tbody>
 <tr><th scope="row">1.1 與 1.2 正常回應</th><td>Content-Type 對版，QName 相同，兩者輸出 <code>Decimal("7.25")</code>。</td><td>離線實驗</td></tr>
 <tr><th scope="row">不同前綴與錯誤 URI</th><td>前綴不同但 URI 相同不影響欄位識別；錯 URI 即拒絕。若含 Fault QName，不用前綴字串判定安全或重試。</td><td>離線實驗，正式端須另驗 Fault QName 解析</td></tr>
+<tr><th scope="row">回應元素之間的文字</th><td>一般 XML 排版空白仍可解析為 <code>7.25</code>；即使欄位值與狀態碼不變，欄位前、中、後的其他文字（含不換行空格）都拒絕。</td><td>SOAP 1.1／1.2 離線測試；以附帶 XSD 對照業務元素</td></tr>
 <tr><th scope="row">HTTP 與 Fault 不一致</th><td>HTTP 400／500 的 SOAP 仍可分類；固定測資中的異常 200+Fault 不接受為業務成功。HTTP 503 HTML 分為中介層錯誤。</td><td>離線實驗</td></tr>
 <tr><th scope="row">內容限制與業務格式</th><td>拒絕 Header、超出預算、DTD、錯誤編碼、單位和量程。拒絕時不污染量測或寫入狀態。</td><td>離線實驗；正式服務還需檢查流量預算</td></tr>
 <tr><th scope="row">兩套不同技術棧</th><td>使用受控的同一版 WSDL/XSD，固定作業 ID；保存經遮蔽的請求、回應、HTTP 標頭、Fault 分類和應用輸出。比對 expanded QName / 型別後值而非字節相等。</td><td>待目標測試環境驗證</td></tr>

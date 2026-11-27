@@ -145,6 +145,10 @@ def read_response(version, reply):
         raise TransportError(f"HTTP {reply.status}; 無 SOAP Fault")
     if child.tag != q(NS, "ReadPointResponse") or [e.tag for e in child] != [q(NS, "value"), q(NS, "unit")]:
         raise ContractError("操作或欄位 QName 不符")
+    # XSD 元素內容只允許子元素與 XML 定義的排版空白。
+    inter_element = [child.text, *(element.tail for element in child)]
+    if any((part or "").strip(" \t\r\n") for part in inter_element):
+        raise ContractError("回應容器的元素間不得有文字")
     if any(len(e) or e.attrib for e in child):
         raise ContractError("欄位應為純文字")
     text = (child[0].text or "").strip()
@@ -178,6 +182,28 @@ class Tests(unittest.TestCase):
         for version in SOAP:
             with self.subTest(version=version):
                 self.assertEqual(read_response(version, success(version)), Decimal("7.25"))
+
+    def test_response_wrapper_preserves_xml_formatting_whitespace(self):
+        for version in SOAP:
+            with self.subTest(version=version):
+                node = ET.fromstring(success(version).body)[0][0]
+                node.text = node[0].tail = node[1].tail = " \r\t\n "
+                reply = Reply(200, MEDIA[version], envelope(version, node))
+                self.assertEqual(read_response(version, reply), Decimal("7.25"))
+
+    def test_response_wrapper_rejects_character_data(self):
+        for version in SOAP:
+            for slot in ("before_value", "between_fields", "after_unit"):
+                for text in ("說明", "\u00a0"):
+                    with self.subTest(version=version, slot=slot, text=text):
+                        node = ET.fromstring(success(version).body)[0][0]
+                        if slot == "before_value":
+                            node.text = text
+                        else:
+                            node[int(slot == "after_unit")].tail = text
+                        reply = Reply(200, MEDIA[version], envelope(version, node))
+                        with self.assertRaisesRegex(ContractError, "元素間不得有文字"):
+                            read_response(version, reply)
 
     def test_request_headers_and_ns(self):
         for v in SOAP:
