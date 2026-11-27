@@ -69,6 +69,88 @@ assert energy + basic == D("239000.00")</code></pre></section>
 <li><a href="https://hc2.taipower.com.tw/2289/2363/2388/2389/10732/normalPost">台電電價小常識</a>：夏月、抄表與帳務說明。</li>
 <li><a href="https://hc2.taipower.com.tw/media/5c5d3mrv/%E5%8F%B0%E9%9B%BB114%E5%8F%8A115%E5%B9%B4%E6%99%82%E9%96%93%E9%9B%BB%E5%83%B9%E6%97%A5%E6%9B%86%E8%A1%A8.pdf?mediaDL=true">台電 2025／2026 時間電價日曆</a>：實務請按帳期改查相應年度。</li>
 <li><a href="https://service.taipower.com.tw/ebpps2/electricityFeeTrial">台電電費試算</a>：依受理範圍試算，正式金額以台電帳單為準。</li></ul></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節延伸頁面前段的住宅級距與時間電價，改看機房與大樓最常被忽略的一項：契約容量與 15 分鐘需量。</p><h3>可實跑範例：15 分鐘需量與超約試算</h3><p>把電力表每分鐘的 kW 取樣切成 00／15／30／45 分的區間取平均，找出最高需量，再判斷超約量與分段加收。只用標準函式庫與 Decimal，避免浮點誤差。單價是假設值，換成你的契約與電價表即可。</p><p><a class="button" download href="extensions/python_taiwan_electricity_billing_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;從 1 分鐘電力取樣計算 15 分鐘需量、契約超約與尖峰比例（教學模型，非帳單引擎）。
+
+情境：機房配電盤的電力表每分鐘回傳一筆有效功率 kW（例如經 Modbus 讀回）。
+台電以 15 分鐘平均功率計需量；本例找出當日最高需量並判斷是否超過契約容量。
+超約部分的加收倍數（10% 以內 2 倍、超過 10% 的部分 3 倍）以參數傳入，實際以台電電價表為準。
+&quot;&quot;&quot;
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime, timedelta
+
+D = Decimal
+
+
+def synthetic_samples(start: datetime) -&gt; list[tuple[datetime, Decimal]]:
+    &quot;&quot;&quot;產生 4 小時的合成資料：08:00 起冰機逐台啟動，10:30 三台同時加載造成尖峰。&quot;&quot;&quot;
+    samples = []
+    for minute in range(240):
+        t = start + timedelta(minutes=minute)
+        kw = D(420)                                   # IT 負載與基本空調
+        if minute &gt;= 30:
+            kw += D(180)                              # 第 1 台冰機
+        if minute &gt;= 60:
+            kw += D(170)                              # 第 2 台冰機
+        if 150 &lt;= minute &lt; 175:
+            kw += D(260)                              # 10:30 第 3 台冰機同時加載
+        kw += D(minute % 7)                           # 小幅波動
+        samples.append((t, kw))
+    return samples
+
+
+def demand_15min(samples):
+    &quot;&quot;&quot;依 00/15/30/45 分切齊的區間求平均功率；區間樣本不足 15 筆視為資料缺漏。&quot;&quot;&quot;
+    buckets: dict[datetime, list[Decimal]] = {}
+    for t, kw in samples:
+        key = t.replace(minute=t.minute - t.minute % 15, second=0, microsecond=0)
+        buckets.setdefault(key, []).append(kw)
+    result = {}
+    for key, values in sorted(buckets.items()):
+        if len(values) &lt; 15:
+            raise ValueError(f&quot;{key:%H:%M} 區間只有 {len(values)} 筆，需先補值或標記缺漏&quot;)
+        result[key] = (sum(values) / len(values)).quantize(D(&quot;0.1&quot;), ROUND_HALF_UP)
+    return result
+
+
+def excess_charge(max_kw, contract_kw, unit_price, within_mult=D(2), beyond_mult=D(3)):
+    excess = max(D(0), max_kw - contract_kw)
+    tier1 = min(excess, (contract_kw * D(&quot;0.10&quot;)).quantize(D(&quot;0.1&quot;)))
+    tier2 = excess - tier1
+    charge = tier1 * unit_price * within_mult + tier2 * unit_price * beyond_mult
+    return excess, tier1, tier2, charge.quantize(D(&quot;1&quot;), ROUND_HALF_UP)
+
+
+if __name__ == &quot;__main__&quot;:
+    samples = synthetic_samples(datetime(2026, 7, 15, 8, 0))
+    demand = demand_15min(samples)
+    peak_at, peak_kw = max(demand.items(), key=lambda kv: kv[1])
+    print(f&quot;15 分鐘區間數：{len(demand)}&quot;)
+    print(f&quot;最高需量：{peak_kw} kW（{peak_at:%H:%M}–{peak_at + timedelta(minutes=15):%H:%M}）&quot;)
+    top3 = sorted(demand.items(), key=lambda kv: kv[1], reverse=True)[:3]
+    print(&quot;前三高區間：&quot; + &quot;、&quot;.join(f&quot;{t:%H:%M}={kw}&quot; for t, kw in top3))
+
+    contract_kw = D(900)
+    unit_price = D(&quot;236.20&quot;)   # 假設的每 kW 月基本電費單價，僅供演算
+    excess, t1, t2, charge = excess_charge(peak_kw, contract_kw, unit_price)
+    print(f&quot;契約容量 {contract_kw} kW，超約 {excess} kW（10% 內 {t1}、超過 10% {t2}）&quot;)
+    print(f&quot;假設單價下的超約加收：NT$ {charge:,}&quot;)
+
+    # 錯開第 3 台冰機啟動（改為逐段加載，每 5 分鐘 +65 kW）的效果
+    staged = []
+    for t, kw in samples:
+        m = int((t - samples[0][0]).total_seconds() // 60)
+        if 150 &lt;= m &lt; 175:
+            kw = kw - D(260) + D(65) * min(4, (m - 150) // 5 + 1)
+        staged.append((t, kw))
+    staged_peak = max(demand_15min(staged).values())
+    print(f&quot;分段加載後最高需量：{staged_peak} kW，&quot;
+          f&quot;{&#x27;仍超約&#x27; if staged_peak &gt; contract_kw else &#x27;未超約&#x27;}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>15 分鐘區間數：16
+最高需量：1033.0 kW（10:30–10:45）
+前三高區間：10:30=1033.0、10:45=946.4、09:30=773.2
+契約容量 900 kW，超約 133.0 kW（10% 內 90.0、超過 10% 43.0）
+假設單價下的超約加收：NT$ 72,986
+分段加載後最高需量：946.4 kW，仍超約</code></pre><h3>工程現場案例：冰水主機同時加載造成的需量尖峰</h3><p>某機房夏季早上依序啟動三台冰機。前兩台錯開 30 分鐘啟動，第 3 台卻因排程與溫度設定點同時觸發，在 10:30 那 15 分鐘把平均功率推到 1,033 kW，超過 900 kW 契約容量。整個月只要這一個區間超約，當月就要按最高需量計算加收。</p><p>範例最後一段把第 3 台冰機改成每 5 分鐘加載 65 kW，最高需量只降到 946 kW，仍然超約。這說明分段加載能削減尖峰，但真正的解法往往是調整啟停排程、限制冰機負載上限（demand limit），或重新評估契約容量。</p><ol><li>從 BAS 或電力監控系統匯出至少一個夏月的 1 分鐘或 15 分鐘功率資料，確認時間戳是本地時間且沒有缺漏。</li><li>用範例的 demand_15min() 找出每月最高需量與發生時段，對照當時的冰機、空壓機、電熱設備啟停紀錄。</li><li>在 DDC 加上需量限制邏輯：預測 15 分鐘平均將超過門檻時，先暫停可延後的負載，而不是等超約後才處理。</li><li>以 12 個月的最高需量分布評估契約容量，並把超約加收與多訂契約的基本電費一起比較。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>2026 年 3 月與 9 月兩次電價費率審議會都決議不調整，全國平均電價維持每度 3.7823 元；9 月會議把是否調整延到 12 月的第 3 次審議會再議，最快影響 2027 年 1 月起的電費。本頁住宅級距仍是 2025-10-01 生效的費率，使用前請再核對台電最新電價表。 <a href="https://news.pts.org.tw/article/801034">來源：公視新聞網：2026 年首次電價審議不調整</a> <a href="https://www.businesstoday.com.tw/article/category/183027/post/202609180046/">來源：今周刊：10 月電價凍漲、12 月再議</a></li><li>2026 年 1 月 1 日至 12 月 31 日適用的輸配電費率合計值由每度 0.8465 元調為 0.7457 元。這主要影響綠電直供、轉供與自用發電設備轉供時的電網使用費，一般用戶電費不受影響；若專案有綠電轉供，報表要另列這一項。 <a href="https://www.ctee.com.tw/news/20251204700107-439901">來源：工商時報：2026 輸配電費率調整</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>某區間 15 筆 1 分鐘取樣中有 3 筆因通訊逾時缺漏，範例程式會怎麼處理？為什麼不直接用剩下 12 筆取平均？</p><details><summary>看解答</summary><p>程式會丟出 ValueError。用 12 筆取平均會把缺漏期間當成不存在，若缺的正好是加載瞬間，算出的需量會偏低，報表就會漏掉真正的超約。正確做法是先依電力表的累計電能（kWh）回推該區間平均功率，或把該區間標記為缺漏並人工確認。</p></details></li><li><p>把契約容量改成 1,000 kW 後重新執行，超約量與加收各是多少？請先手算再執行驗證。</p><details><summary>看解答</summary><p>最高需量 1,033.0 kW，超約 33.0 kW，全部落在 10%（100 kW）以內，只按 2 倍計：33.0 × 236.20 × 2 = 15,589.2，四捨五入為 NT$ 15,589。</p></details></li><li><p>為什麼需量計算要用 Decimal，而不是 float？</p><details><summary>看解答</summary><p>電費是金額計算，float 的二進位誤差在大量累加後會出現 0.01 元級的差異，與帳單核對時難以解釋。Decimal 可以指定精度與四捨五入規則（ROUND_HALF_UP），結果與人工計算一致。</p></details></li><li><p>修改 synthetic_samples()，讓第 3 台冰機延到 11:15 才啟動（此時第 1 台已卸載 100 kW），最高需量會落在哪個區間？</p><details><summary>看解答</summary><p>提示：把第 3 台的條件改成 195 &lt;= minute &lt; 220，並在 minute &gt;= 195 時讓第 1 台的 180 改為 80。重新執行後最高需量會落在 11:15 區間，為 933.2 kW，仍略高於 900 kW。重點是要先量測、再調整排程，而不是憑感覺判斷。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頁首</a></footer>
 <script>
 document.querySelector('[data-copy]').addEventListener('click', async (evt)=>{

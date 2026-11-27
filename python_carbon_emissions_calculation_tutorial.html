@@ -93,7 +93,73 @@ print(as_json(report))
 <ol><li>每筆保留場址、期間、排放源、來源憑證、活動量與單位，活動資料變更要有原因。</li><li>每筆係數保留來源、版本、適用地區、活動量分母、涵蓋氣體、係數年度、GWP 報告版本及使用的方法；不要因為網站出新版就覆蓋歷史成果。基線重算要有已核准規則。</li><li>核對 1 MWh＝1,000 kWh、1 t＝1,000 kg，空值不得轉為 0。用對帳差異檢查多表重複或漏表；完整性不足時不要出聲稱完成的合計。</li><li>對同月份現場查兩種範疇二的用電分配，合格契約 kWh ＋ 未覆蓋 kWh 必須等於同站同期間的外購 kWh；先檢查重複憑證，再看排放差異。</li></ol>
 <p>此頁是組織營運排放的工程教學，不是碳足跡查證、法規適用認定或申報憑證。範疇三、抵換額度、產品生命週期與申報對象均不在算例內。</p>
 <ul><li><a href="https://ghgprotocol.org/corporate-standard">GHG Protocol Corporate Standard</a></li><li><a href="https://ghgprotocol.org/scope-2-guidance">GHG Protocol Scope 2 Guidance</a></li><li><a href="https://ghgregistry.moenv.gov.tw/epa_ghg/Downloads/FileDownloads.aspx?Type_ID=6">環境部事業溫室氣體平台：盤查、公告係數與作業資料</a></li><li><a href="https://www.moeaea.gov.tw/ECW/populace/news/News.aspx?kind=1&amp;menu_id=41&amp;news_id=34473">經濟部能源署：114 年度電力排碳係數公告</a></li></ul>
-</section></main>
+</section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節示範單月計算。本節把 12 個月資料彙總成年度範疇一、二，並接上 2026 年起實際開徵的碳費。</p><h3>可實跑範例：年度彙總、地區／市場基礎與碳費試算</h3><p>電力係數採 114 年度產業電力排碳係數 0.466；天然氣與柴油係數是教學假設值，正式盤查必須換成環境部排放係數管理表的對應版本。程式同時算地區基礎與扣除再生能源憑證後的市場基礎，兩者要分開揭露，不能互相取代。</p><p><a class="button" download href="extensions/python_carbon_emissions_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;年度範疇一、二彙總與碳費試算（教學模型）。
+
+- 範疇二採 114 年度「產業電力排碳係數」0.466 kgCO2e/kWh（經濟部能源署公告）。
+- 燃料排放係數為教學假設值，正式盤查請改用環境部「溫室氣體排放係數管理表」對應年度版本。
+- 碳費以一般費率每公噸 300 元、年排放量扣除 25,000 公噸後計費（碳費收費辦法）。
+&quot;&quot;&quot;
+from decimal import Decimal as D, ROUND_HALF_UP
+
+ELECTRICITY_FACTOR = D(&quot;0.466&quot;)            # kgCO2e/kWh，114 年度產業係數
+FUEL_FACTORS = {                           # kgCO2e/單位，教學假設值
+    &quot;natural_gas_m3&quot;: D(&quot;2.09&quot;),
+    &quot;diesel_l&quot;: D(&quot;2.61&quot;),
+}
+
+# 某廠 12 個月的活動量：電力 kWh、天然氣 m3、柴油 L（緊急發電機）
+MONTHLY = [
+    # (月, 電力 kWh, 天然氣 m3, 柴油 L)
+    (1, 3_850_000, 182_000, 900), (2, 3_420_000, 171_000, 0),
+    (3, 3_910_000, 176_500, 1_200), (4, 4_020_000, 160_200, 0),
+    (5, 4_480_000, 151_000, 0), (6, 4_960_000, 140_800, 2_400),
+    (7, 5_210_000, 138_400, 0), (8, 5_260_000, 139_900, 0),
+    (9, 4_870_000, 145_700, 1_100), (10, 4_390_000, 156_300, 0),
+    (11, 4_010_000, 168_800, 0), (12, 3_930_000, 179_600, 800),
+]
+GREEN_POWER_KWH = 6_000_000                # 當年度取得並註銷的再生能源憑證對應電量
+
+
+def t(kg: D) -&gt; D:
+    return (kg / 1000).quantize(D(&quot;0.01&quot;), ROUND_HALF_UP)
+
+
+def annual_totals():
+    kwh = sum(D(m[1]) for m in MONTHLY)
+    gas = sum(D(m[2]) for m in MONTHLY)
+    diesel = sum(D(m[3]) for m in MONTHLY)
+    scope1 = gas * FUEL_FACTORS[&quot;natural_gas_m3&quot;] + diesel * FUEL_FACTORS[&quot;diesel_l&quot;]
+    scope2_location = kwh * ELECTRICITY_FACTOR
+    scope2_market = (kwh - GREEN_POWER_KWH) * ELECTRICITY_FACTOR
+    return kwh, gas, diesel, t(scope1), t(scope2_location), t(scope2_market)
+
+
+def carbon_fee(total_t: D, rate=D(300), threshold=D(25_000)):
+    chargeable = max(D(0), total_t - threshold)
+    return chargeable, (chargeable * rate).quantize(D(&quot;1&quot;), ROUND_HALF_UP)
+
+
+if __name__ == &quot;__main__&quot;:
+    kwh, gas, diesel, s1, s2_loc, s2_mkt = annual_totals()
+    print(f&quot;年用電 {kwh:,} kWh、天然氣 {gas:,} m3、柴油 {diesel:,} L&quot;)
+    print(f&quot;範疇一：{s1:,} tCO2e&quot;)
+    print(f&quot;範疇二（地區基礎，0.466）：{s2_loc:,} tCO2e&quot;)
+    print(f&quot;範疇二（市場基礎，扣除 {GREEN_POWER_KWH:,} kWh 憑證）：{s2_mkt:,} tCO2e&quot;)
+    total = s1 + s2_loc
+    print(f&quot;範疇一＋二（地區基礎）：{total:,} tCO2e&quot;)
+    chargeable, fee = carbon_fee(total)
+    print(f&quot;若適用碳費一般費率：計費排放量 {chargeable:,} t，碳費 NT$ {fee:,}&quot;)
+    peak = max(MONTHLY, key=lambda m: m[1])
+    print(f&quot;用電最高月份：{peak[0]} 月，{peak[1]:,} kWh，&quot;
+          f&quot;占全年 {(D(peak[1]) / kwh * 100).quantize(D(&#x27;0.1&#x27;))}%&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>年用電 52,310,000 kWh、天然氣 1,910,200 m3、柴油 6,400 L
+範疇一：4,009.02 tCO2e
+範疇二（地區基礎，0.466）：24,376.46 tCO2e
+範疇二（市場基礎，扣除 6,000,000 kWh 憑證）：21,580.46 tCO2e
+範疇一＋二（地區基礎）：28,385.48 tCO2e
+若適用碳費一般費率：計費排放量 3,385.48 t，碳費 NT$ 1,015,644
+用電最高月份：8 月，5,260,000 kWh，占全年 10.1%</code></pre><h3>工程現場案例：接近碳費門檻的工廠</h3><p>範例工廠範疇一加範疇二約 2.84 萬公噸，超過 2.5 萬公噸的碳費門檻。依一般費率試算，扣除 2.5 萬公噸後的 3,385 公噸要繳約 101 萬元。電力占總排放的 86%，因此最有效的減量手段通常在空調、空壓與製程用電，而不是燃料。</p><p>以冰水系統為例：若把冰水主機的年平均 kW/RT 從 0.75 降到 0.65，在相同冷凍噸時數下，冰水主機用電約可減少 13%。這類改善要先建立量測基準（冰機電力、冰水流量與進出水溫），否則改善前後的節電量無法查證，也無法放進自主減量計畫。</p><ol><li>從電費單與 BAS 電力監控各取一份年度用電，兩者差異超過 2% 時先查明原因（電表倍率、換表、漏抄）。</li><li>燃料用量以採購發票與庫存盤點交叉核對，緊急發電機柴油另外記錄測試運轉時數。</li><li>地區基礎與市場基礎分別計算；再生能源憑證要有註銷證明，且電量年度與盤查年度一致。</li><li>把每月排放畫成趨勢圖，標出改善措施上線日期，作為減量成效的證據。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>經濟部能源署 2026 年 6 月公布 114 年度電力排碳係數：台電電力排碳係數 0.467、產業電力排碳係數 0.466（供企業盤查與揭露使用）、民生住宅電力排碳係數 0.471 kgCO2e/度。 <a href="https://udn.com/news/story/7238/9540934">來源：聯合新聞網：114 年度電力排碳係數</a></li><li>碳費已於 2026 年 5 月首次徵收：年排放量 2.5 萬公噸以上的電力、燃氣供應業及製造業，須在 5 月底前依前一年排放量繳費。一般費率每公噸 300 元；自主減量計畫獲核准者適用優惠費率 A（50 元）或 B（100 元），共 403 廠獲准。 <a href="https://udn.com/news/story/7238/9452575">來源：聯合新聞網：排碳大戶 5 月首度繳碳費</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 GREEN_POWER_KWH 改成 10,000,000，市場基礎的範疇二會變成多少？為什麼地區基礎的數字不變？</p><details><summary>看解答</summary><p>(52,310,000 − 10,000,000) × 0.466 ÷ 1000 = 19,716.46 tCO2e。地區基礎反映實際所在電網的平均排放強度，不因購買憑證改變；憑證只影響市場基礎。兩者都要揭露。</p></details></li><li><p>年排放量 10 萬公噸、適用一般費率的工廠，碳費是多少？</p><details><summary>看解答</summary><p>(100,000 − 25,000) × 300 = 22,500,000 元。可以把範例的 carbon_fee(D(100000)) 印出來驗證。</p></details></li><li><p>盤查時發現 3 月電表因換表，抄表值從 998,500 跳回 1,200。程式應該怎麼處理？</p><details><summary>看解答</summary><p>不能直接相減（會得到負值）。要以換表紀錄分段計算：舊表最後讀值減上期讀值，加上新表讀值減新表起始值，並乘上各自的倍率。在程式中應偵測負差值並要求輸入換表紀錄，而不是自動取絕對值。</p></details></li><li><p>為什麼範例把係數集中放在 ELECTRICITY_FACTOR 與 FUEL_FACTORS 常數，而不是寫在計算式裡？</p><details><summary>看解答</summary><p>係數每年公告一次，且要能追溯版本。集中管理才能在報表上標示採用的年度與來源，係數更新時也只改一處；更好的做法是把係數和年度、來源網址一起存成資料檔。</p></details></li></ol></section><!-- extension:end -->
+</main>
 <footer><a href="index.html#facility-metrics">回設施教材</a> · <a href="python_factory_energy_metrics_tutorial.html">延伸：工廠能效指標</a></footer>
 <script>
 'use strict';
