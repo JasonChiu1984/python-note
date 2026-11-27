@@ -2,21 +2,29 @@
 import argparse
 import asyncio
 import sys
+from contextlib import AsyncExitStack
 from pathlib import Path
 
+import httpx2
+
 from mcp import Client, StdioServerParameters
+from mcp.client.streamable_http import streamable_http_client
 
 PROTOCOL = "2026-07-28"
 
 
 async def main(http: bool) -> None:
-    if http:
-        target = "http://127.0.0.1:8000/mcp"
-    else:
-        server = Path(__file__).with_name("server.py")
-        target = StdioServerParameters(command=sys.executable, args=[str(server)])
-    # mode="auto"：先呼叫 server/discover 選定版本；只有舊版 server 才退回 initialize 握手。
-    async with Client(target, mode="auto") as client:
+    async with AsyncExitStack() as stack:
+        if http:
+            # This local-only exercise must not route through the ambient proxy.
+            http_client = await stack.enter_async_context(
+                httpx2.AsyncClient(trust_env=False, timeout=10.0)
+            )
+            target = streamable_http_client("http://127.0.0.1:8000/mcp", http_client=http_client)
+        else:
+            server = Path(__file__).with_name("server.py")
+            target = StdioServerParameters(command=sys.executable, args=[str(server)])
+        client = await stack.enter_async_context(Client(target, mode="auto"))
         assert client.protocol_version == PROTOCOL, client.protocol_version
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
         assert "query" in tools["search_notes"].input_schema["properties"]

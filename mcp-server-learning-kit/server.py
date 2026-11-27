@@ -1,7 +1,7 @@
 """唯讀 MCP 示範（規格 2026-07-28，MCP Python SDK 2.x）：固定合成資料，不讀檔、不連外、不寫入。
 
 2026-07-28 規格是無狀態的：沒有 initialize 握手，也沒有 Mcp-Session-Id。
-每個請求都在 _meta 帶協定版本與 client 能力；server 以 server/discover 公告自己。
+每個請求都在 _meta 宣告版本及 client 能力；沒有能力時使用空物件。server 提供 server/discover。
 """
 import argparse
 import sys
@@ -29,7 +29,7 @@ def search_notes(
     if not needle:
         raise ToolError("查詢不能只有空白")
     # 舊規格的 Logging 功能已列為 Deprecated；stdio 伺服器的診斷訊息寫到 stderr。
-    print(f"search_notes query={needle!r}", file=sys.stderr)
+    print("search_notes: accepted", file=sys.stderr)
     return [
         dict(note) for note in NOTES
         if needle in (note["title"] + " " + note["summary"]).casefold()
