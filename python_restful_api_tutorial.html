@@ -41,7 +41,7 @@
 <tr><th scope="row"><code>GET /v1/devices/ahu-01</code></th><td><code>200</code>、版本 <code>ETag</code></td><td><code>404</code> 不存在；單筆 <code>GET</code> 設 <code>Cache-Control: no-store</code>，此處 ETag 用於後續寫入。</td></tr>
 <tr><th scope="row"><code>PUT /v1/devices/ahu-01</code></th><td><code>200</code>、新表示</td><td><code>428</code> 缺前置條件；<code>400</code> 版本標籤不符本 API 約定；<code>412</code> 版本已變；<code>422</code> 欄位不符契約。</td></tr>
 </tbody></table></div>
-<p>本實驗的 <code>If-Match</code> 要求單一強標籤 <code>"1"</code>，不接受弱標籤、<code>*</code> 或清單；後兩者是 HTTP 支援的形式，這裡是刻意更窄的 API 政策。<code>PUT</code> 請求包含可編輯欄位，伺服器加入 <code>id</code>、<code>revision</code> 並會去除名稱頭尾空白，所以成功回應不附 ETag；需要新標籤時再 <code>GET</code>。</p>
+<p>本實驗的 <code>If-Match</code> 要求單一強標籤 <code>"1"</code>，不接受弱標籤、<code>*</code> 或清單。HTTP 支援 <code>*</code> 與標籤清單，但本實驗要求一個欄位行和一個標籤：逗號清單與重複的 <code>If-Match</code> 欄位行（即使內容相同）都回 <code>400</code>，不會更新設備。<code>PUT</code> 請求包含可編輯欄位，伺服器加入 <code>id</code>、<code>revision</code> 並會去除名稱頭尾空白，所以成功回應不附 ETag；需要新標籤時再 <code>GET</code>。</p>
 <p>錯誤用 <code>application/problem+json</code>，提供 <code>type/title/status/detail</code>。客戶端看 HTTP 狀態與文件約定，不要剖析人讀用的 <code>detail</code>。本實驗不提供 <code>instance</code>；正式服務若要指出這次錯誤的唯一 URI，才填此欄位，或另外用 request ID 串接紀錄。</p>
 </section>
 <section class="card" id="interactive">

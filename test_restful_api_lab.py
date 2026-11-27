@@ -62,6 +62,18 @@ class Contract(unittest.TestCase):
         same = self.client.put(self.path, json=patch, headers={"If-Match": '"2"'})
         self.assertEqual(same.json()["revision"], 2)
 
+    def test_duplicate_if_match_fields_do_not_update(self):
+        self.make()
+        before = self.client.get(self.path)
+        changed = {"name": "Must not overwrite", "enabled": False}
+        for tags in (('"1"', '"2"'), ('"2"', '"1"'), ('"1"', '"1"')):
+            with self.subTest(tags=tags):
+                headers = [("If-Match", tag) for tag in tags]
+                self.assert_problem(self.client.put(self.path, json=changed, headers=headers), 400)
+                after = self.client.get(self.path)
+                self.assertEqual(after.json(), before.json())
+                self.assertEqual(after.headers["etag"], before.headers["etag"])
+
     def test_two_concurrent_writers_have_one_winner(self):
         self.make()
         def write(name):

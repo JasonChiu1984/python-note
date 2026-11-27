@@ -103,18 +103,20 @@ def create_app() -> FastAPI:
     @app.put("/v1/devices/{device_id}", response_model=Device,
              responses=problems(400, 404, 412, 422, 428))
     def replace_device(device_id: ID, body: DeviceWrite,
-                       if_match: Annotated[str | None, Header(description='Required for updates; absent header returns 428.')] = None):
+                       if_match: Annotated[list[str] | None, Header(
+                           description="Supply exactly one field line with one strong version tag.")] = None):
         # API policy: a single version-specific strong tag is required.
         if if_match is None:
             raise HTTPException(428, "Read the current ETag and supply If-Match.",
                                 headers={"Cache-Control": "no-store"})
-        if not Tag.fullmatch(if_match.strip()):
-            raise HTTPException(400, 'Supply one strong revision tag such as "1".')
+        if len(if_match) != 1 or not Tag.fullmatch(if_match[0].strip()):
+            raise HTTPException(400, 'Supply exactly one If-Match field with a strong tag such as "1".')
+        tag = if_match[0].strip()
         with lock:  # Keep the version test and assignment in one critical section.
             current = data.get(device_id)
             if current is None:
                 raise HTTPException(404, "Device not found.")
-            if if_match.strip() != f'"{current.revision}"':
+            if tag != f'"{current.revision}"':
                 raise HTTPException(412, "Version changed. Read and reconcile before retrying.")
             # A no-op replacement need not create a new revision.
             if body.name == current.name and body.enabled == current.enabled:
