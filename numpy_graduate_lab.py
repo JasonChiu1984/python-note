@@ -57,7 +57,10 @@ def calibration_contract():
 
 def energy_contract(flow_l_s, delta_k, second_edges, valid):
     q, dt = np.asarray(flow_l_s, dtype=np.float64), np.asarray(delta_k, dtype=np.float64)
-    edges, mask = np.asarray(second_edges, dtype=np.float64), np.asarray(valid, dtype=bool)
+    edges = np.asarray(second_edges, dtype=np.float64)
+    mask = np.asarray(valid)
+    if np.ma.isMaskedArray(valid) or mask.dtype != np.dtype(bool):
+        raise ValueError("valid must be an explicit Boolean mask without missing values")
     if q.ndim != 1 or not q.size or q.shape != dt.shape or q.shape != mask.shape or edges.shape != (q.size + 1,):
         raise ValueError("one flow, temperature difference and quality per interval")
     seconds = np.diff(edges)
@@ -121,6 +124,22 @@ class Contracts(unittest.TestCase):
         self.assertAlmostEqual(result["covered_kwh"], 4.186 * 30 / 3600)
         with self.assertRaises(ValueError):
             energy_contract([1, 1], [1, 1], [0, 30, 29], [True, True])
+
+    def test_energy_mask_is_explicit_and_zero_flow_is_measured(self):
+        good = energy_contract([1], [1], [0, 30], [True])
+        self.assertTrue(good["complete"])
+        self.assertEqual(good["covered_seconds"], 30)
+        self.assertAlmostEqual(good["covered_kwh"], 4.186 * 30 / 3600)
+        for flow, mask, complete, covered in ((1, [False], False, 0),
+                                              (0, np.array([True]), True, 30)):
+            with self.subTest(flow=flow, complete=complete):
+                result = energy_contract([flow], [1], [0, 30], mask)
+                self.assertEqual(result, dict(covered_kwh=0.0, covered_seconds=covered,
+                                              total_seconds=30.0, complete=complete))
+        for mask in ([np.nan], [1], [None], np.array([True], dtype=object),
+                     np.ma.array([True], mask=[True])):
+            with self.subTest(mask=mask), self.assertRaisesRegex(ValueError, "Boolean mask"):
+                energy_contract([1], [1], [0, 30], mask)
 
     def test_benchmark_reports_raw_samples(self):
         result = timed_reduction(3)

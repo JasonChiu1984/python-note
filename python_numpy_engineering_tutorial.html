@@ -983,7 +983,7 @@ python numpy_graduate_lab.py --benchmark &gt; timing.json</code></pre>
       <tr><td>感測器正規化</td><td>定義資料軸 <code>(時間, 通道)</code>；校正向量只接受 <code>(通道,)</code>。</td><td>除數為零或非有限值時保留 NaN，逐欄計數；拒絕 <code>(通道, 1)</code> 混入。</td><td>能靠 shape 檢查通道順序或設備 ID；仍須 schema。</td></tr>
       <tr><td>整數與相消</td><td>運算前擴寬，對照過窄的加法；浮點另與標準庫 <code>math.fsum</code> 比對。</td><td><code>-25536</code> 與 <code>40000</code>，以及不同加總法的相消差異。</td><td><code>float64</code> 可以消掉所有精度風險。</td></tr>
       <tr><td>校正最小平方法</td><td>合成參考溫度與輸出，模型 <code>y = g x + b</code>；以 <code>lstsq</code> 解，檢查秩、殘差與奇異值。</td><td><code>g ≈ 1.05</code>、<code>b ≈ 2.0 °C</code>、秩 2。浮點殘差採容差而非精確比較。</td><td>現場線性模型一定適用；須另用驗證期間與獨立標準器。</td></tr>
-      <tr><td>冰水量積分</td><td>對不等長區間積分 <code>4.186 × q × ΔT × Δt / 3600</code>；假設水密度約 1 kg/L，<code>q</code> 是 L/s、<code>ΔT</code> 是 K、<code>Δt</code> 是 s。</td><td>算例覆蓋 <code>30/90 s</code>，有效資料積分約 <code>0.03488 kWh(th)</code>，不可標成整段值。</td><td>這個水物性近似可直接用於乙二醇混合液、異常方向或計費驗收。</td></tr>
+      <tr><td>冰水量積分</td><td>對不等長區間積分 <code>4.186 × q × ΔT × Δt / 3600</code>；假設水密度約 1 kg/L，<code>q</code> 是 L/s、<code>ΔT</code> 是 K、<code>Δt</code> 是 s。</td><td>算例覆蓋 <code>30/90 s</code>，有效資料積分約 <code>0.03488 kWh(th)</code>，不可標成整段值。<code>valid</code> 只收布林遮罩，數字（含 <code>NaN</code>）與帶缺值的遮罩不可直接當品質。上游應先把狀態依規則映射為 <code>True</code> 或 <code>False</code>，或明確拒絕缺值。零覆蓋的 <code>0 kWh</code> 是空集合的總和；流量實測為零且品質有效，才是有覆蓋的零。</td><td>這個水物性近似可直接用於乙二醇混合液、異常方向或計費驗收。</td></tr>
       <tr><td>C/F layout</td><td>同一 <code>(512, 1024)</code> float64 合成矩陣，等值驗證、預建兩個陣列，交替量測 <code>sum(axis=1)</code>。</td><td>每布局原始 ns 樣本與中位數。建置/拷貝不計入；比較端到端成本時要再獨立納入。</td><td>結果可直接外推其他 axis、CPU 或真實 I/O。</td></tr>
     </tbody></table>
   </div>
@@ -1046,7 +1046,10 @@ def calibration_contract():
 
 def energy_contract(flow_l_s, delta_k, second_edges, valid):
     q, dt = np.asarray(flow_l_s, dtype=np.float64), np.asarray(delta_k, dtype=np.float64)
-    edges, mask = np.asarray(second_edges, dtype=np.float64), np.asarray(valid, dtype=bool)
+    edges = np.asarray(second_edges, dtype=np.float64)
+    mask = np.asarray(valid)
+    if np.ma.isMaskedArray(valid) or mask.dtype != np.dtype(bool):
+        raise ValueError(&quot;valid must be an explicit Boolean mask without missing values&quot;)
     if q.ndim != 1 or not q.size or q.shape != dt.shape or q.shape != mask.shape or edges.shape != (q.size + 1,):
         raise ValueError(&quot;one flow, temperature difference and quality per interval&quot;)
     seconds = np.diff(edges)
@@ -1110,6 +1113,22 @@ class Contracts(unittest.TestCase):
         self.assertAlmostEqual(result[&quot;covered_kwh&quot;], 4.186 * 30 / 3600)
         with self.assertRaises(ValueError):
             energy_contract([1, 1], [1, 1], [0, 30, 29], [True, True])
+
+    def test_energy_mask_is_explicit_and_zero_flow_is_measured(self):
+        good = energy_contract([1], [1], [0, 30], [True])
+        self.assertTrue(good[&quot;complete&quot;])
+        self.assertEqual(good[&quot;covered_seconds&quot;], 30)
+        self.assertAlmostEqual(good[&quot;covered_kwh&quot;], 4.186 * 30 / 3600)
+        for flow, mask, complete, covered in ((1, [False], False, 0),
+                                              (0, np.array([True]), True, 30)):
+            with self.subTest(flow=flow, complete=complete):
+                result = energy_contract([flow], [1], [0, 30], mask)
+                self.assertEqual(result, dict(covered_kwh=0.0, covered_seconds=covered,
+                                              total_seconds=30.0, complete=complete))
+        for mask in ([np.nan], [1], [None], np.array([True], dtype=object),
+                     np.ma.array([True], mask=[True])):
+            with self.subTest(mask=mask), self.assertRaisesRegex(ValueError, &quot;Boolean mask&quot;):
+                energy_contract([1], [1], [0, 30], mask)
 
     def test_benchmark_reports_raw_samples(self):
         result = timed_reduction(3)

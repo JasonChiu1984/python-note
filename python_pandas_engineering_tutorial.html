@@ -1032,7 +1032,7 @@ merged = source.merge(dimension, on=&quot;id&quot;, how=&quot;left&quot;,
 
   <h3 id="pandas-contract">一、輸入型別、缺值與拷貝語意</h3>
   <div class="grad-grid">
-    <article><h4>解析是一份契約</h4><p>範例以 <code>dtype=</code> 將設備 ID 讀為 <code>string</code>，不讓 <code>001</code> 變成整數 1；<code>Float64</code> 則保留電力缺值。以 <code>keep_default_na=False</code> 及欄位專用 <code>na_values</code> 定義空白規則，不讓其他欄位中可能合法的字串 <code>NA</code> 自動成為缺值。<code>convert_dtypes()</code> 可協助探索，不替代業務契約與欄位驗證。</p></article>
+    <article><h4>解析是一份契約</h4><p>範例以 <code>dtype=</code> 將設備 ID 讀為 <code>string</code>，不讓 <code>001</code> 變成整數 1；<code>Float64</code> 則保留電力缺值。以 <code>keep_default_na=False</code> 及欄位專用 <code>na_values</code> 定義空白規則，不讓其他欄位中可能合法的字串 <code>NA</code> 自動成為缺值。<code>convert_dtypes()</code> 可協助探索，不替代業務契約與欄位驗證。離線實驗先用 <code>csv.reader</code> 核對原始欄名與每筆欄數，再交給 Pandas。第一筆多一欄時，Pandas 可能把前置欄推成索引，欄名仍全部正確。整行為空可略過；<code>kw</code> 欄空白且狀態為 <code>MISSING</code> 則保留為缺值。大型檔案需改用對應的串流驗證策略，不應直接照搬此雙次解析的記憶體實驗。參見 <a href="https://pandas.pydata.org/docs/user_guide/io.html#files-with-an-implicit-index-column">Pandas 隱含索引說明</a>。</p></article>
     <article><h4>缺值不是零</h4><p><code>isna()</code> 判斷缺值，不用 <code>== pd.NA</code>。值為 0 代表設備在該段時間的平均功率為零，缺值是未知；若兩者都填 0，數值總和雖可能不變，覆蓋率和推論卻會改變。規則先檢查讀值和品質旗標一致，再拒絕負值與無限大。</p></article>
     <article><h4>標籤會自動對齊</h4><p>兩個 Series 相加通常先對齊 index，不是依實體位置配對。位置是資料契約時要先檢查順序和長度；標籤是契約時要檢查 index 唯一性。不要為了消除缺值就先 <code>reset_index(drop=True)</code>。</p></article>
     <article><h4>更新要明確</h4><p>用 <code>df.loc[mask, "kw"] = 0</code> 表達對哪一個 DataFrame 寫入。Pandas 3.0 起 Copy-on-Write 是唯一模式，鏈式指派不會回寫原表。即使在舊版本觀察到鏈式指派可動，也不應依賴。不能僅由有沒有呼叫 <code>copy()</code> 推論峰值記憶體。</p></article>

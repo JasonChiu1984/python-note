@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import io
 import json
 import platform
@@ -21,10 +22,23 @@ CSV = """device_id,event_at,kw,status
 
 
 def read_telemetry(text: str) -> pd.DataFrame:
+    columns = ["device_id", "event_at", "kw", "status"]
+    records = csv.reader(io.StringIO(text, newline=""), strict=True)
+    try:
+        if next(records, None) != columns:
+            raise ValueError("unexpected schema")
+        for fields in records:
+            if not fields:
+                continue  # Ignore empty lines, not empty required fields.
+            if len(fields) != len(columns):
+                raise ValueError(f"unexpected field count at line {records.line_num}: "
+                                 f"expected {len(columns)}, found {len(fields)}")
+    except csv.Error as exc:
+        raise ValueError(f"invalid CSV at line {records.line_num}: {exc}") from exc
     x = pd.read_csv(io.StringIO(text), dtype={
         "device_id": "string", "event_at": "string", "kw": "Float64", "status": "string",
     }, keep_default_na=False, na_values={"kw": [""]})
-    if list(x.columns) != ["device_id", "event_at", "kw", "status"]:
+    if list(x.columns) != columns:
         raise ValueError("unexpected schema")
     if not x["device_id"].str.fullmatch(r"\d{3}", na=False).all():
         raise ValueError("device_id must be exactly 3 digits")
@@ -122,6 +136,22 @@ class Tests(unittest.TestCase):
                         CSV.replace("00:00:00Z", "00:00:00"), CSV.replace("4,GOOD", "inf,GOOD")]:
             with self.assertRaises(ValueError):
                 read_telemetry(invalid)
+
+    def test_csv_record_width_before_index_inference(self):
+        header, first, missing, *_ = CSV.splitlines()
+        extra = "unexpected," + first
+        for row in (extra, first + ",", "001,2026-01-01T00:00:00Z,0", '"unexpected,comma",' + first):
+            for prefix in ("", first + "\n"):
+                with self.subTest(row=row, prefix=prefix):
+                    with self.assertRaisesRegex(ValueError, "unexpected field count"):
+                        read_telemetry(header + "\n" + prefix + row + "\n")
+        parsed = read_telemetry(header + '\n"001",' + first.split(",", 1)[1]
+                                + "\n\n" + missing + "\n")
+        self.assertEqual(parsed["device_id"].tolist(), ["001", "001"])
+        self.assertEqual(parsed["kw"].iloc[0], 0)
+        self.assertTrue(pd.isna(parsed["kw"].iloc[1]))
+        with self.assertRaisesRegex(ValueError, "invalid CSV"):
+            read_telemetry(header + '\n"001,unclosed')
 
     def test_join_contract(self):
         self.assertEqual(len(attach_assets(self.x, self.assets)), len(self.x))
