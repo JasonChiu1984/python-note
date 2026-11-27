@@ -1102,7 +1102,53 @@ python python_advanced_outbox_capstone_lab.py</code></pre>
   <p>延伸：<a href="https://docs.python.org/3/library/sqlite3.html#transaction-control">Python sqlite3 交易控制</a>、<a href="https://www.sqlite.org/lang_upsert.html">SQLite UPSERT</a>。</p>
 </section>
 
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁有 100 個高階案例。本節示範這些案例共通的設計方式：把處理流程拆成小的生成器函式串成管線，每一段只做一件事、可以單獨測試，並以去抖動避免告警在門檻附近反覆觸發。</p><h3>可實跑範例：可組合的告警管線與去抖動</h3><p>validate() 濾掉不合理的讀值（例如通訊錯誤造成的 999），debounce() 需要連續 3 筆超標才告警、連續 3 筆正常才解除，pipeline() 只負責串接並把結果交給注入的 notify 函式。</p><p><a class="button" download href="extensions/python_advanced_engineering_cases/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;高階案例：把「輪詢 → 驗證 → 去抖動告警 → 通知」組成可測試的管線，每一段都是可替換的函式（標準函式庫）。&quot;&quot;&quot;
+from dataclasses import dataclass
+from typing import Callable, Iterable, Iterator
+
+
+@dataclass(frozen=True)
+class Reading:
+    t: int
+    point: str
+    value: float | None
+
+
+def validate(rows: Iterable[Reading], lo=-20, hi=60) -&gt; Iterator[Reading]:
+    for r in rows:
+        if r.value is not None and lo &lt;= r.value &lt;= hi:
+            yield r
+
+
+def debounce(rows: Iterable[Reading], limit: float, need: int) -&gt; Iterator[tuple[int, str, str]]:
+    &quot;&quot;&quot;連續 need 筆超標才觸發、連續 need 筆正常才解除，避免在門檻附近來回跳動。&quot;&quot;&quot;
+    state, streak = &quot;normal&quot;, 0
+    for r in rows:
+        breach = r.value &gt; limit
+        streak = streak + 1 if breach == (state == &quot;normal&quot;) else 0
+        if streak &gt;= need:
+            state = &quot;alarm&quot; if state == &quot;normal&quot; else &quot;normal&quot;
+            streak = 0
+            yield r.t, r.point, state
+
+
+def pipeline(source: Iterable[Reading], notify: Callable[[str], None]):
+    for t, point, state in debounce(validate(source), limit=28.0, need=3):
+        notify(f&quot;t={t} {point} → {state}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    raw = [27.8, 28.2, 27.9, 28.3, 28.4, 999, 28.6, 28.1, 27.6, 27.8, 28.1, 27.5, 27.4, 27.2]
+    readings = [Reading(t, &quot;AHU1_SAT&quot;, v) for t, v in enumerate(raw)]
+    sent = []
+    pipeline(readings, sent.append)
+    print(&quot;原始資料：&quot;, raw)
+    print(&quot;通知：&quot;, sent)
+    print(f&quot;沒有去抖動時，超過 28 °C 的跳動次數：{sum(1 for a, b in zip(raw, raw[1:]) if (a &gt; 28) != (b &gt; 28) and b != 999)}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>原始資料： [27.8, 28.2, 27.9, 28.3, 28.4, 999, 28.6, 28.1, 27.6, 27.8, 28.1, 27.5, 27.4, 27.2]
+通知： [&#x27;t=6 AHU1_SAT → alarm&#x27;, &#x27;t=13 AHU1_SAT → normal&#x27;]
+沒有去抖動時，超過 28 °C 的跳動次數：6</code></pre><h3>工程現場案例：送風溫度在 28 °C 附近徘徊，一小時發了 30 封告警</h3><p>某空調箱的送風溫度在 28 °C 上下 0.3 °C 之間波動，簡單的「大於 28 就告警、小於就解除」讓值班手機一小時響了 30 次，最後大家把通知關掉，真正的異常反而被忽略。</p><p>範例的原始資料在門檻附近跳動 6 次，加上去抖動後只產生一次告警與一次解除。另一個細節是 999：這是通訊錯誤的填值，若不先過濾，會觸發一次假的超溫。把過濾、判斷、通知分成獨立的段落，每一段都能單獨測試與替換。</p><ol><li>列出流程的每個步驟，每一步寫成輸入一串資料、輸出一串資料的函式。</li><li>告警判斷加上去抖動（連續筆數或持續時間），並設定不同的觸發與解除條件。</li><li>通知方式以參數注入，測試時用串列收集，上線時換成簡訊或 Teams。</li><li>異常值的過濾規則要記錄被丟棄的數量，避免默默吃掉真實事件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>範例使用 dataclass(frozen=True) 與 X | None 型別語法，需 Python 3.10 以上。生成器管線在 Python 3.15 的 free-threaded 建置下也能正確運作，但同一個生成器不可同時由多個執行緒消費。 <a href="https://docs.python.org/3/howto/functional.html#generators">來源：Python 文件：生成器</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 debounce 的 need 改成 2，會產生幾則通知？</p><details><summary>看解答</summary><p>過濾後的序列在 28.2、27.9 之後，28.3、28.4 就連續 2 筆超標，於 t=4 告警；之後 27.6、27.8 連續 2 筆正常，於 t=9 解除；28.1 只有 1 筆不會再觸發。共 2 則，但時間點提早。可修改參數驗證。</p></details></li><li><p>為什麼 validate() 用生成器（yield），而不是回傳清單？</p><details><summary>看解答</summary><p>生成器逐筆處理，資料可以來自無限的即時串流，記憶體用量固定；回傳清單則必須等全部資料讀完。管線中每一段都用生成器，資料就能從頭流到尾。</p></details></li><li><p>debounce 只用筆數判斷。若輪詢間隔不固定（有時 5 秒、有時 60 秒），會有什麼問題？</p><details><summary>看解答</summary><p>3 筆可能代表 15 秒也可能代表 3 分鐘，告警的時間意義不一致。可改成以持續時間判斷：記錄開始超標的時間，超過指定秒數才觸發。</p></details></li><li><p>pipeline() 的 notify 參數為什麼不直接寫死成發送簡訊的函式？</p><details><summary>看解答</summary><p>寫死就無法在測試中驗證通知內容，也無法在不同場合換成不同通道。依賴注入讓同一條管線可以用於測試、開發與正式環境。</p></details></li></ol></section><!-- extension:end -->
+</main>
     <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>

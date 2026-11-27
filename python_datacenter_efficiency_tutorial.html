@@ -340,4 +340,35 @@ python python_roadmap_ot_research_lab.py datacenter --test</code></pre>
 <details><summary>本章核心運算（簡化節錄）</summary><pre><code>energy_th = sum(hours * flow * delta_t * k for hours, flow, delta_t, _ in windows)</code></pre></details>
 <p>一手資料：<a href="https://www.energy.gov/cmei/femp/articles/best-practices-guide-energy-efficient-data-center-design">美國 DOE 機房能效設計指南</a> · <a href="https://handbook.ashrae.org/handbooks/S20/SI/s20_ch13/s20_ch13_si.aspx">ASHRAE Hydronic Heating and Cooling</a></p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明機房能效指標。本節用 12 個月的能量資料計算年度 PUE、冷卻 partial PUE 與 WUE，並示範三個常見的計算錯誤：用瞬時功率代表年度、把月 PUE 直接平均，以及用水量單位換算。</p><h3>可實跑範例：年度 PUE、partial PUE 與 WUE</h3><p>PUE 以年度能量加總計算（總設施能量 ÷ IT 能量）；partial PUE 只看冷卻子系統；WUE 以每 kWh IT 能量的用水公升數表示。資料為合成值。</p><p><a class="button" download href="extensions/python_datacenter_efficiency_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;機房能效：PUE、partial PUE、WUE 與年度累計，並示範用瞬時值與能量值計算 PUE 的差異（標準函式庫）。&quot;&quot;&quot;
+
+# 每月能量（MWh）與用水（m3）：IT、冷卻、配電損失、照明與其他
+MONTHS = [
+    # (IT, 冷卻, 配電損失, 其他, 用水)
+    (720, 180, 43, 12, 2100), (650, 150, 39, 11, 1800), (720, 185, 43, 12, 2300),
+    (700, 215, 42, 12, 2900), (730, 265, 44, 12, 3800), (710, 300, 43, 12, 4600),
+    (735, 330, 44, 12, 5200), (735, 335, 44, 12, 5300), (710, 290, 43, 12, 4400),
+    (725, 240, 43, 12, 3300), (705, 195, 42, 12, 2500), (725, 180, 43, 12, 2200),
+]
+
+
+if __name__ == &quot;__main__&quot;:
+    it = sum(m[0] for m in MONTHS)
+    total = sum(sum(m[:4]) for m in MONTHS)
+    cooling = sum(m[1] for m in MONTHS)
+    water = sum(m[4] for m in MONTHS)
+    print(f&quot;年度 PUE = {total:,} ÷ {it:,} = {total / it:.3f}&quot;)
+    print(f&quot;冷卻 partial PUE = ({it:,} + {cooling:,}) ÷ {it:,} = {(it + cooling) / it:.3f}&quot;)
+    print(f&quot;WUE = {water:,} m3 ÷ {it:,} MWh = {water * 1000 / (it * 1000):.2f} L/kWh&quot;)
+    monthly = [sum(m[:4]) / m[0] for m in MONTHS]
+    print(&quot;各月 PUE：&quot;, [round(p, 2) for p in monthly])
+    print(f&quot;各月 PUE 算術平均 {sum(monthly) / 12:.4f}，年度 PUE {total / it:.4f}：此例 IT 負載穩定所以接近；IT 負載季節變化大時兩者會明顯不同，年度值應以能量加總計算&quot;)
+    peak_it_kw, peak_total_kw = 1050, 1680                   # 夏季某時刻的瞬時功率
+    print(f&quot;夏季尖峰瞬時 PUE = {peak_total_kw / peak_it_kw:.2f}，不能代表年度值&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>年度 PUE = 12,086 ÷ 8,565 = 1.411
+冷卻 partial PUE = (8,565 + 2,865) ÷ 8,565 = 1.335
+WUE = 40,400 m3 ÷ 8,565 MWh = 4.72 L/kWh
+各月 PUE： [1.33, 1.31, 1.33, 1.38, 1.44, 1.5, 1.53, 1.53, 1.49, 1.41, 1.35, 1.32]
+各月 PUE 算術平均 1.4099，年度 PUE 1.4111：此例 IT 負載穩定所以接近；IT 負載季節變化大時兩者會明顯不同，年度值應以能量加總計算
+夏季尖峰瞬時 PUE = 1.60，不能代表年度值</code></pre><h3>工程現場案例：夏季尖峰的 PUE 1.60 被拿去和別家的年度 PUE 比較</h3><p>某機房在夏季某個下午量到總功率 1,680 kW、IT 功率 1,050 kW，PUE 1.60，被拿去和同業公布的年度 PUE 1.4 比較，結論是能效很差。實際上這座機房的年度 PUE 是 1.41，冬季月份只有 1.31。</p><p>PUE 必須說明量測方式：瞬時、月或年度，以及能量量測點的位置（UPS 輸出或 PDU 輸出）。冷卻的 partial PUE 1.335 則顯示冷卻用電占 IT 能量的 33%，夏季明顯上升，提高冰水溫度或延長外氣冷卻時數是主要改善方向。</p><ol><li>PUE 以能量（kWh）計算，至少涵蓋 12 個月，並標示 IT 能量的量測點。</li><li>冷卻、配電、照明等子系統分別計算 partial PUE，找出改善重點。</li><li>用水量與 IT 能量同期間計算 WUE，標示是否包含冷卻水塔補水。</li><li>對外比較時確認對方使用相同的定義與量測等級。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>PUE 的定義與量測等級見 ISO/IEC 30134-2。歐盟能源效率指令的委任規章 (EU) 2024/1364 要求一定規模以上的資料中心每年申報 PUE、WUE 等指標，台灣廠商若營運歐盟據點需留意。 <a href="https://www.iso.org/standard/63451.html">來源：ISO/IEC 30134-2</a> <a href="https://eur-lex.europa.eu/eli/reg_del/2024/1364/oj">來源：EUR-Lex：Delegated Regulation (EU) 2024/1364</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若 7 月的 IT 能量從 735 降到 500 MWh（其他不變），7 月的 PUE 會變成多少？</p><details><summary>看解答</summary><p>(500 + 330 + 44 + 12) ÷ 500 = 1.772。IT 負載下降時冷卻與損失不會等比例下降，PUE 會變差，這是低負載機房 PUE 偏高的常見原因。</p></details></li><li><p>為什麼年度 PUE 不能用 12 個月 PUE 的算術平均？</p><details><summary>看解答</summary><p>PUE 是比值，各月的 IT 能量不同，直接平均等於給每個月相同權重。正確做法是先加總能量再相除，相當於以 IT 能量為權重的平均。</p></details></li><li><p>WUE 的計算中，m³ 換成公升、MWh 換成 kWh，為什麼程式裡兩個 1000 會互相抵消？</p><details><summary>看解答</summary><p>1 m³ = 1,000 L，1 MWh = 1,000 kWh，分子分母都乘以 1,000，比值不變。程式寫出兩個 1000 是為了讓單位換算清楚可見。</p></details></li><li><p>partial PUE 1.335 代表什麼？</p><details><summary>看解答</summary><p>冷卻用電約為 IT 用電的 33.5%。若改善冷卻讓 partial PUE 降到 1.25，以年度 IT 能量 8,565 MWh 計，約可省下 (0.335 − 0.25) × 8,565 ≈ 728 MWh。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>

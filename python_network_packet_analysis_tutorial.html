@@ -521,4 +521,54 @@ python python_packet_research_lab.py --cases &gt; study-cases.json</code></pre>
 </ul>
 <p>規格依據：<a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791 IPv4</a>、<a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768 UDP</a>、<a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293 TCP</a>與 <a href="https://www.wireshark.org/docs/wsug_html_chunked/ChAdvChecksums.html">Wireshark 校驗和及 offload 說明</a>。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明封包分析方法。本節把 tshark 匯出的欄位交給 Python 處理：依交易 ID 配對請求與回應、計算回應時間、找出重傳、沒有回應的交易與 Modbus 例外回應。</p><h3>可實跑範例：從封包欄位計算 Modbus 回應時間</h3><p>輸入模擬 tshark -T fields -e frame.time_relative -e … 的逗號分隔輸出。功能碼大於等於 128 代表例外回應（0x80 加上原功能碼）。重傳以同一交易 ID 出現兩次請求判斷。</p><p><a class="button" download href="extensions/python_network_packet_analysis_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;從封包時間戳計算 Modbus TCP 回應時間、找出重傳與未回應的交易（標準函式庫）。
+
+輸入模擬 tshark -T fields 的輸出：時間, 方向, 交易 ID, 功能碼。
+&quot;&quot;&quot;
+from statistics import median
+
+ROWS = &quot;&quot;&quot;\
+0.000000,req,1,3
+0.018200,resp,1,3
+0.500000,req,2,3
+0.524900,resp,2,3
+1.000000,req,3,3
+1.200000,req,3,3
+1.231000,resp,3,3
+1.500000,req,4,16
+2.000000,req,5,3
+2.019500,resp,5,131
+&quot;&quot;&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    reqs, resps = {}, {}
+    retrans = []
+    for line in ROWS.splitlines():
+        t, d, tid, fc = line.split(&quot;,&quot;)
+        t, tid, fc = float(t), int(tid), int(fc)
+        if d == &quot;req&quot;:
+            if tid in reqs:
+                retrans.append(tid)
+            reqs.setdefault(tid, (t, fc))
+        else:
+            resps[tid] = (t, fc)
+    rtts = {}
+    for tid, (t, fc) in reqs.items():
+        if tid not in resps:
+            print(f&quot;交易 {tid}（FC{fc}）沒有回應&quot;)
+            continue
+        rt, rfc = resps[tid]
+        rtts[tid] = (rt - t) * 1000
+        note = f&quot;  ← 例外回應（FC{rfc} = 0x80 + {rfc - 128}）&quot; if rfc &gt;= 128 else &quot;&quot;
+        print(f&quot;交易 {tid} FC{fc}：{rtts[tid]:.1f} ms{note}&quot;)
+    print(f&quot;重傳的交易：{retrans}（回應時間以第一次請求計，包含了重傳等待）&quot;)
+    print(f&quot;回應時間中位數 {median(rtts.values()):.1f} ms，最大 {max(rtts.values()):.1f} ms&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>交易 1 FC3：18.2 ms
+交易 2 FC3：24.9 ms
+交易 3 FC3：231.0 ms
+交易 4（FC16）沒有回應
+交易 5 FC3：19.5 ms  ← 例外回應（FC131 = 0x80 + 3）
+重傳的交易：[3]（回應時間以第一次請求計，包含了重傳等待）
+回應時間中位數 22.2 ms，最大 231.0 ms</code></pre><h3>工程現場案例：電表偶爾讀取失敗，擷取封包後找到原因</h3><p>某電表的讀取成功率約 95%，程式日誌只看到逾時。在閘道器擷取 10 分鐘封包後，用範例的方法分析：多數交易在 20 ms 內回應，少數交易在第一次請求後沒有回應，200 ms 後重傳才成功；寫入交易（FC16）則完全沒有回應，而讀取的 FC3 偶爾回 0x83 例外。</p><p>這些證據指向兩件事：電表在忙碌時會丟棄請求，用戶端的重傳間隔與逾時設定需要調整；寫入功能可能在電表端被停用。封包分析讓問題從「偶爾讀不到」變成可以和廠商討論的具體現象。</p><ol><li>在最靠近設備的位置擷取，並記錄擷取點與時間同步方式。</li><li>用 tshark 以顯示篩選匯出需要的欄位，存成 CSV 方便重複分析。</li><li>依交易 ID 配對請求與回應，計算回應時間分布、重傳與例外碼。</li><li>把結果整理成時間、交易、現象的表格，作為與設備廠商溝通的依據。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 scapy 最新版為 2.8.0、pyshark 0.6。大量封包分析時，tshark 匯出欄位再用 Python 處理，通常比在 Python 中逐封包解碼快很多。 <a href="https://www.wireshark.org/docs/man-pages/tshark.html">來源：Wireshark 文件：tshark</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>交易 5 的回應功能碼 131 代表什麼？</p><details><summary>看解答</summary><p>131 = 0x83 = 0x80 + 3，是 FC3 的例外回應，後面會帶一個例外碼（例如 02 非法資料位址）。回應時間正常，但讀取失敗。</p></details></li><li><p>交易 3 的回應時間 231 ms 包含了什麼？</p><details><summary>看解答</summary><p>從第一次請求（1.000 s）到回應（1.231 s）。其中 200 ms 是第一次請求沒有回應、等待後重傳的時間，第二次請求後 31 ms 就得到回應。只看平均回應時間會誤以為設備很慢。</p></details></li><li><p>Modbus TCP 的交易 ID 會循環使用（0–65535），長時間擷取時配對會出什麼問題？怎麼改？</p><details><summary>看解答</summary><p>同一個 ID 可能在不同時間代表不同交易，舊的請求會被新的回應配對。可同時用 TCP 連線（來源埠）與時間窗限制配對，例如只配對 1 秒內的請求與回應。</p></details></li><li><p>中位數 22.2 ms 與最大值 231 ms，報告時應該怎麼呈現？</p><details><summary>看解答</summary><p>同時提供中位數、P95、最大值與重傳次數。中位數代表一般情況，尾端數字代表使用者偶爾遇到的問題，兩者都要看。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

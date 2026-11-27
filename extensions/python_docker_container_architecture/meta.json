@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁說明容器架構。本節提供一個多階段建置的 Dockerfile 範本，並寫一個簡單的靜態檢查器，對照常見寫法找出六個問題：未固定版本、以 root 執行、沒有健康檢查、秘密寫進映像、快取層順序與 shell 形式的 CMD。",
+ "example_title": "多階段 Dockerfile 與靜態檢查",
+ "example_desc": "範本在 build 階段把相依套件與專案編成 wheel，執行階段只安裝 wheel，不帶編譯工具。檢查器只做文字層級的規則比對，正式專案可搭配 hadolint 等工具。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker",
+ "case": {
+  "title": "閘道器容器停機要等 10 秒，而且每次部署都重新安裝全部套件",
+  "paragraphs": [
+   "某閘道器的 Dockerfile 以 CMD python main.py（shell 形式）啟動。容器停止時 SIGTERM 送給的是 /bin/sh，Python 程序收不到，Docker 等滿 10 秒後強制終止，輪詢中的資料因此遺失。改成 exec 形式 ENTRYPOINT [\"python\", …] 後，程序能收到訊號並優雅停機。",
+   "同一個 Dockerfile 先 COPY . 整個專案再 pip install，任何一行程式修改都讓安裝層的快取失效，每次建置都重新下載所有套件。範本把相依宣告檔先複製、安裝，再複製原始碼，日常修改只會重建最後幾層。"
+  ],
+  "steps": [
+   "基底映像固定到版本（或 digest），並定期更新以取得安全修正。",
+   "使用多階段建置，執行映像不含編譯器與建置快取。",
+   "建立非 root 使用者並以 USER 切換，ENTRYPOINT 使用 exec 形式。",
+   "秘密在執行時以環境變數或掛載提供，不寫進 ENV、ARG 或映像檔案。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 官方映像的 slim 標籤以 Debian 為基礎；本頁範本以 python:3.13-slim 為例，3.14、3.15 亦有對應標籤。BuildKit 的 RUN --mount=type=secret 可在建置時使用秘密而不留在映像層中。",
+   "sources": [
+    {
+     "title": "Docker 文件：Build secrets",
+     "url": "https://docs.docker.com/build/building/secrets/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 ENV DB_PASSWORD=… 即使在後面的指令 unset，秘密仍然留在映像中？",
+   "a": "<p>每個 Dockerfile 指令會產生一層，ENV 的值記錄在映像設定與歷史中，docker history 或 docker inspect 就能看到。後續指令無法從前面的層刪除資料。</p>"
+  },
+  {
+   "q": "範本為什麼在第二階段 rm -rf /wheels？這樣做有效嗎？",
+   "a": "<p>COPY 與 RUN 是不同層，COPY 帶進來的 /wheels 仍存在於前一層，rm 只是在新層標記刪除，映像大小不會變小。更好的做法是用 RUN --mount=type=bind,from=build 直接從建置階段掛載安裝，不複製進映像。</p>"
+  },
+  {
+   "q": "lint() 判斷「未固定版本」的規則有什麼漏洞？",
+   "a": "<p>只檢查 :latest 與沒有冒號的情況，像 python:3 這種只固定主版本的標籤也會隨時間改變，但不會被抓到。可改成要求完整版本號或 @sha256 digest。</p>"
+  },
+  {
+   "q": "HEALTHCHECK 最後加上 || exit 1 的用意是什麼？",
+   "a": "<p>Docker 的健康檢查以結束碼 0 為健康、1 為不健康。部分指令失敗時可能回傳其他值（例如 2），明確轉成 1 可以避免被解讀為保留值。</p>"
+  }
+ ]
+}
