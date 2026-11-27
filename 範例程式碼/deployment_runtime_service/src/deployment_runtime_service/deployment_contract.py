@@ -18,6 +18,7 @@ REQUIRED_COMPOSE_TOKENS = [
     "services:",
     "deployment-runtime-service:",
     "APP_PORT:",
+    "stop_grace_period:",
     "restart: unless-stopped",
     "healthcheck:",
     "resources:",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from threading import TIMEOUT_MAX
 
 
 class ConfigError(ValueError):
@@ -53,8 +54,8 @@ def load_config(env: dict[str, str] | None = None) -> RuntimeConfig:
         raise ConfigError("APP_PORT must be between 1 and 65535")
     if dependency_status not in {"healthy", "degraded", "down"}:
         raise ConfigError("DEPENDENCY_STATUS must be healthy, degraded, or down")
-    if shutdown_timeout <= 0:
-        raise ConfigError("SHUTDOWN_TIMEOUT_SECONDS must be greater than zero")
+    if not 0 < shutdown_timeout <= TIMEOUT_MAX:
+        raise ConfigError("SHUTDOWN_TIMEOUT_SECONDS must be positive and within the supported wait range")
 
     return RuntimeConfig(
         app_name=app_name,

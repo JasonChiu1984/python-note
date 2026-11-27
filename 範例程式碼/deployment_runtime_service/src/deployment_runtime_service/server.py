@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Condition
 from typing import Any
 
 from .config import ConfigError, RuntimeConfig, load_config
@@ -37,20 +38,45 @@ class RuntimeHandler(BaseHTTPRequestHandler):
         self._send_json(status_code, payload)
 
 
-def build_server(config: RuntimeConfig, state: RuntimeState) -> ThreadingHTTPServer:
+class RuntimeServer(ThreadingHTTPServer):
+    # Request workers cannot keep the process alive beyond the drain deadline.
+    daemon_threads = True
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._idle = Condition()
+        self._active = 0
+        super().__init__(*args, **kwargs)
+        self.timeout = 0.1
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        with self._idle:
+            self._active += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._request_finished()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_finished()
+
+    def _request_finished(self) -> None:
+        with self._idle:
+            self._active -= 1
+            self._idle.notify_all()
+
+    def drain(self, timeout: float) -> bool:
+        with self._idle:
+            return self._idle.wait_for(lambda: self._active == 0, timeout=timeout)
+
+
+def build_server(config: RuntimeConfig, state: RuntimeState) -> RuntimeServer:
     RuntimeHandler.config = config
     RuntimeHandler.state = state
-    return ThreadingHTTPServer((config.host, config.port), RuntimeHandler)
-
-
-def install_signal_handlers(server: ThreadingHTTPServer, state: RuntimeState) -> None:
-    def handle_signal(signum: int, _frame: object) -> None:
-        state.mark_draining()
-        log_json("shutdown_requested", signal=signum)
-        server.shutdown()
-
-    signal.signal(signal.SIGTERM, handle_signal)
-    signal.signal(signal.SIGINT, handle_signal)
+    return RuntimeServer((config.host, config.port), RuntimeHandler)
 
 
 def main() -> int:
@@ -62,14 +88,30 @@ def main() -> int:
 
     state = RuntimeState.started_now()
     server = build_server(config, state)
-    install_signal_handlers(server, state)
-    log_json("service_started", service=config.app_name, port=config.port, environment=config.environment)
+    stop_signal = None
+
+    def record_signal(signum: int, _frame: object) -> None:
+        nonlocal stop_signal
+        # No logging, locks or blocking shutdown calls inside a signal handler.
+        if stop_signal is None:
+            stop_signal = signum
+
     try:
-        server.serve_forever()
+        signal.signal(signal.SIGTERM, record_signal)
+        signal.signal(signal.SIGINT, record_signal)
+        log_json("service_started", service=config.app_name, port=config.port, environment=config.environment)
+        while stop_signal is None:
+            server.handle_request()
+        state.mark_draining()
+        log_json("shutdown_requested", signal=stop_signal)
     finally:
         server.server_close()
-        log_json("service_stopped", service=config.app_name)
-    return 0
+
+    drained = server.drain(config.shutdown_timeout_seconds)
+    if not drained:
+        log_json("shutdown_timed_out", timeout_seconds=config.shutdown_timeout_seconds)
+    log_json("service_stopped", service=config.app_name, drained=drained)
+    return 0 if drained else 1
 
 
 if __name__ == "__main__":

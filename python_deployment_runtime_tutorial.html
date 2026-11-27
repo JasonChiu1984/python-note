@@ -137,9 +137,10 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 scripts/run_deployment_smoke.py</code></pre><div class="cards"></div>
 <div class="course-example" id="example-deployment-runtime-service">
 <h3>範例程式碼 · 部署與服務健康檢查</h3>
-<p>對照設定載入、健康檢查與服務關閉流程，使用本機 smoke 程式查看結果。</p>
+<p>對照設定載入、健康檢查與服務關閉流程，smoke 驗證設定與靜態契約；用 unittest 另行實測 SIGTERM、SIGINT、既有請求收尾與超時，不需啟動 Docker。</p>
 <p>從筆記根目錄執行（macOS／Linux）</p><pre tabindex="0"><code>cd 範例程式碼/deployment_runtime_service
-PYTHONPATH=src python3 scripts/run_deployment_smoke.py</code></pre>
+PYTHONPATH=src python3 scripts/run_deployment_smoke.py
+PYTHONPATH=src python3 -m unittest discover -s tests -v</code></pre>
 <!-- example-source: deployment_runtime_service -->
 <p class="example-repo"><a href="https://github.com/JasonChiu1984/python-note/tree/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service">在 GitHub 開啟專案資料夾</a></p>
 <details class="example-file"><summary><code>scripts/run_deployment_smoke.py</code></summary>
@@ -200,6 +201,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from threading import TIMEOUT_MAX
 
 
 class ConfigError(ValueError):
@@ -249,8 +251,8 @@ def load_config(env: dict[str, str] | None = None) -&gt; RuntimeConfig:
         raise ConfigError("APP_PORT must be between 1 and 65535")
     if dependency_status not in {"healthy", "degraded", "down"}:
         raise ConfigError("DEPENDENCY_STATUS must be healthy, degraded, or down")
-    if shutdown_timeout &lt;= 0:
-        raise ConfigError("SHUTDOWN_TIMEOUT_SECONDS must be greater than zero")
+    if not 0 &lt; shutdown_timeout &lt;= TIMEOUT_MAX:
+        raise ConfigError("SHUTDOWN_TIMEOUT_SECONDS must be positive and within the supported wait range")
 
     return RuntimeConfig(
         app_name=app_name,
@@ -283,6 +285,7 @@ REQUIRED_COMPOSE_TOKENS = [
     "services:",
     "deployment-runtime-service:",
     "APP_PORT:",
+    "stop_grace_period:",
     "restart: unless-stopped",
     "healthcheck:",
     "resources:",
@@ -428,6 +431,7 @@ from __future__ import annotations
 import json
 import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Condition
 from typing import Any
 
 from .config import ConfigError, RuntimeConfig, load_config
@@ -460,20 +464,45 @@ class RuntimeHandler(BaseHTTPRequestHandler):
         self._send_json(status_code, payload)
 
 
-def build_server(config: RuntimeConfig, state: RuntimeState) -&gt; ThreadingHTTPServer:
+class RuntimeServer(ThreadingHTTPServer):
+    # Request workers cannot keep the process alive beyond the drain deadline.
+    daemon_threads = True
+
+    def __init__(self, *args: Any, **kwargs: Any) -&gt; None:
+        self._idle = Condition()
+        self._active = 0
+        super().__init__(*args, **kwargs)
+        self.timeout = 0.1
+
+    def process_request(self, request: Any, client_address: Any) -&gt; None:
+        with self._idle:
+            self._active += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._request_finished()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -&gt; None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_finished()
+
+    def _request_finished(self) -&gt; None:
+        with self._idle:
+            self._active -= 1
+            self._idle.notify_all()
+
+    def drain(self, timeout: float) -&gt; bool:
+        with self._idle:
+            return self._idle.wait_for(lambda: self._active == 0, timeout=timeout)
+
+
+def build_server(config: RuntimeConfig, state: RuntimeState) -&gt; RuntimeServer:
     RuntimeHandler.config = config
     RuntimeHandler.state = state
-    return ThreadingHTTPServer((config.host, config.port), RuntimeHandler)
-
-
-def install_signal_handlers(server: ThreadingHTTPServer, state: RuntimeState) -&gt; None:
-    def handle_signal(signum: int, _frame: object) -&gt; None:
-        state.mark_draining()
-        log_json("shutdown_requested", signal=signum)
-        server.shutdown()
-
-    signal.signal(signal.SIGTERM, handle_signal)
-    signal.signal(signal.SIGINT, handle_signal)
+    return RuntimeServer((config.host, config.port), RuntimeHandler)
 
 
 def main() -&gt; int:
@@ -485,14 +514,30 @@ def main() -&gt; int:
 
     state = RuntimeState.started_now()
     server = build_server(config, state)
-    install_signal_handlers(server, state)
-    log_json("service_started", service=config.app_name, port=config.port, environment=config.environment)
+    stop_signal = None
+
+    def record_signal(signum: int, _frame: object) -&gt; None:
+        nonlocal stop_signal
+        # No logging, locks or blocking shutdown calls inside a signal handler.
+        if stop_signal is None:
+            stop_signal = signum
+
     try:
-        server.serve_forever()
+        signal.signal(signal.SIGTERM, record_signal)
+        signal.signal(signal.SIGINT, record_signal)
+        log_json("service_started", service=config.app_name, port=config.port, environment=config.environment)
+        while stop_signal is None:
+            server.handle_request()
+        state.mark_draining()
+        log_json("shutdown_requested", signal=stop_signal)
     finally:
         server.server_close()
-        log_json("service_stopped", service=config.app_name)
-    return 0
+
+    drained = server.drain(config.shutdown_timeout_seconds)
+    if not drained:
+        log_json("shutdown_timed_out", timeout_seconds=config.shutdown_timeout_seconds)
+    log_json("service_stopped", service=config.app_name, drained=drained)
+    return 0 if drained else 1
 
 
 if __name__ == "__main__":
@@ -508,7 +553,16 @@ __version__ = "0.1.0"
 <p><a href="https://github.com/JasonChiu1984/python-note/blob/main/%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F%E7%A2%BC/deployment_runtime_service/tests/test_runtime_service.py">在 GitHub 查看此檔案</a></p>
 <pre tabindex="0"><code>from pathlib import Path
 import json
+import os
+import queue
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
 import unittest
+from urllib.request import urlopen
 
 from deployment_runtime_service.config import ConfigError, load_config
 from deployment_runtime_service.deployment_contract import validate_deployment_files
@@ -538,6 +592,11 @@ class RuntimeConfigTests(unittest.TestCase):
     def test_invalid_port_is_rejected(self) -&gt; None:
         with self.assertRaises(ConfigError):
             load_config({"APP_PORT": "70000"})
+
+    def test_shutdown_timeout_must_be_finite_and_positive(self) -&gt; None:
+        for raw in ("0", "-1", "nan", "inf", "1e50"):
+            with self.subTest(value=raw), self.assertRaises(ConfigError):
+                load_config({"SHUTDOWN_TIMEOUT_SECONDS": raw})
 
 
 class HealthContractTests(unittest.TestCase):
@@ -588,6 +647,107 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertEqual(missing, {"Dockerfile": [], "compose.yaml": [], ".dockerignore": []})
 
 
+@unittest.skipUnless(os.name == "posix", "POSIX signal delivery required")
+class ProcessLifecycleTests(unittest.TestCase):
+    def test_exit_after_normal_stop_signals(self) -&gt; None:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=sig):
+                self._exercise(sig)
+
+    def test_existing_request_finishes_before_exit(self) -&gt; None:
+        self._exercise(signal.SIGTERM, hold=True)
+
+    def test_over_budget_request_is_not_reported_as_drained(self) -&gt; None:
+        self._exercise(signal.SIGTERM, hold=True, expire=True)
+
+    def _exercise(self, sig: signal.Signals, *, hold: bool = False, expire: bool = False) -&gt; None:
+        with socket.socket() as reserve:
+            reserve.bind(("127.0.0.1", 0))
+            port = reserve.getsockname()[1]
+        env = dict(os.environ, PYTHONPATH=str(PROJECT_ROOT / "src"),
+                   APP_HOST="127.0.0.1", APP_PORT=str(port), DEPENDENCY_STATUS="healthy",
+                   SHUTDOWN_TIMEOUT_SECONDS="0.2" if expire else "5")
+        args = [sys.executable, "-u", "-m", "deployment_runtime_service.server"]
+        if hold:
+            # Only the synthetic handler is replaced. main() still owns the real
+            # listener, POSIX signal handler, deadline and exit status.
+            args = [sys.executable, "-u", "-c", """
+import os
+import sys
+from deployment_runtime_service import server
+original = server.RuntimeHandler.do_GET
+def get(self):
+    if self.path != "/hold":
+        return original(self)
+    server.log_json("test_entered")
+    os.read(sys.stdin.fileno(), 1)
+    self._send_json(200, {"status": "finished"})
+    server.log_json("test_finished")
+server.RuntimeHandler.do_GET = get
+raise SystemExit(server.main())
+"""]
+        with subprocess.Popen(args, env=env, text=True, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE) as child:
+            assert child.stdout is not None and child.stdin is not None
+            messages: queue.Queue[dict] = queue.Queue()
+            def collect() -&gt; None:
+                for line in child.stdout:
+                    messages.put(json.loads(line))
+            reader = threading.Thread(target=collect, daemon=True)
+            reader.start()
+            events = []
+            def wait_event(event: str) -&gt; dict:
+                until = time.monotonic() + 5
+                while time.monotonic() &lt; until:
+                    try:
+                        row = messages.get(timeout=max(0, until - time.monotonic()))
+                    except queue.Empty:
+                        break
+                    events.append(row["event"])
+                    if row["event"] == event:
+                        return row
+                self.fail(f"missing {event}; logged {events!r}")
+            pending = None
+            try:
+                wait_event("service_started")
+                with urlopen(f"http://127.0.0.1:{port}/readyz", timeout=2) as r:
+                    self.assertEqual(r.status, 200)
+                wait_event("http_access")
+                if hold:
+                    pending = socket.create_connection(("127.0.0.1", port), timeout=3)
+                    pending.sendall(b"GET /hold HTTP/1.0\r\nHost: localhost\r\n\r\n")
+                    wait_event("test_entered")
+                child.send_signal(sig)
+                self.assertEqual(wait_event("shutdown_requested")["signal"], sig)
+                if hold and not expire:
+                    self.assertIsNone(child.poll(), "exited while request was held")
+                    child.stdin.write("\n")
+                    child.stdin.flush()
+                    wait_event("test_finished")
+                    assert pending is not None
+                    with pending.makefile("rb") as stream:
+                        first = stream.readline()
+                        self.assertIn(b" 200 ", first)
+                        self.assertIn(b'"finished"', stream.read())
+                if expire:
+                    self.assertEqual(wait_event("shutdown_timed_out")["timeout_seconds"], .2)
+                self.assertIs(wait_event("service_stopped")["drained"], not expire)
+                self.assertEqual(child.wait(timeout=5), 1 if expire else 0)
+                reader.join(timeout=2)
+                rest = []
+                while not messages.empty():
+                    rest.append(messages.get_nowait()["event"])
+                self.assertEqual((events + rest).count("shutdown_requested"), 1)
+                self.assertEqual((events + rest).count("service_stopped"), 1)
+            finally:
+                if pending is not None:
+                    pending.close()
+                if child.poll() is None:
+                    child.kill()
+                child.wait()
+                reader.join(timeout=2)
+
+
 if __name__ == "__main__":
     unittest.main()
 </code></pre></details>
@@ -621,10 +781,10 @@ if __name__ == "__main__":
         ["health-liveness", "Health", "/healthz 只表示 process 還活著", "dependency degraded 不一定要讓 liveness 失敗，否則平台可能反覆重啟。", "GET /healthz -> 200", "process health is separated."],
         ["health-readiness", "Health", "/readyz 決定是否接流量", "dependency down、migration 未完成或 draining 時，readiness 應回 503。", "GET /readyz -> 503", "traffic gate is explicit."],
         ["health-startup", "Health", "Startup gate 避免服務太早接流量", "初始化 schema、cache warmup、protocol reconnect 完成前不應 ready。", "startup_ready=false", "platform waits before routing."],
-        ["health-drain", "Health", "Draining 狀態要讓 readiness 先失敗", "rolling update 收到 SIGTERM 後，先停止接新流量，再完成既有工作。", "state.draining = true", "shutdown is graceful."]
+        ["health-drain", "Health", "進入 draining 後 readiness 不再表示可接流量", "rolling update 收到 SIGTERM 後，先關閉監聽 socket，再於預算內收尾既有請求。部署平台須另行協調先摘流量；本機客戶端不一定觀察得到 readiness 503。", "state.draining = true", "draining is distinct from listener shutdown."]
       ],
       operations: [
-        ["ops-signal", "Operations", "SIGTERM 是部署平台的停止通知", "服務需攔截 SIGTERM/SIGINT，進入 draining 並在 timeout 內結束。", "signal.signal(SIGTERM, handler)", "rolling update can stop cleanly."],
+        ["ops-signal", "Operations", "SIGTERM 是部署平台的停止通知", "signal handler 只記錄訊號；主迴圈關閉 listener，再等已接收的請求。預設 10 秒內收尾成功回傳 0；超時記錄並回傳 1。Compose 預留 12 秒供平台終止。", "signal.signal(SIGTERM, handler)", "test process exit, not only the readiness flag."],
         ["ops-resource", "Operations", "Resource limit 要與 timeout 一起看", "CPU/memory 限制會影響 latency、worker count 與 health timeout。", "memory: 256M cpus: 0.50", "capacity assumption is visible."],
         ["ops-restart", "Operations", "Restart policy 不能替代錯誤處理", "unless-stopped 可恢復短暫錯誤，但 config error 應 fail fast 並告警。", "restart: unless-stopped", "runtime recovery has boundaries."],
         ["ops-network", "Operations", "Network 與 port 要最小暴露", "只發布需要的 port；資料庫、broker、PLC subnet 應透過 network policy 控制。", "ports: 8080:8080", "attack surface is limited."]
