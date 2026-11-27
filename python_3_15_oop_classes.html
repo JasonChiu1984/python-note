@@ -876,7 +876,69 @@ if __name__ == "__main__":
 <!-- /example-source -->
       </div>
     </section>
-  </main>
+  <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節延伸本頁的 MRO 模擬器，用一個設備類別階層實際執行：混入類別如何依 C3 MRO 串接、Protocol 與 ABC 判斷「是不是設備」的差異，以及不一致的繼承順序會在什麼時候被拒絕。</p><h3>可實跑範例：C3 MRO、Protocol 與 ABC</h3><p>Meter 繼承兩個混入類別與抽象基底 Device，describe() 透過 super() 依 MRO 串接。ThirdPartySensor 沒有繼承任何類別，但符合 Readable Protocol 的結構。最後一行檢查 Python 3.15 的 typing.disjoint_base（PEP 800）是否可用。</p><p><a class="button" download href="extensions/python_3_15_oop_classes/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;設備類別階層：C3 MRO、Protocol 結構型別與 ABC 的差異（需 Python 3.10+；3.15 可加上 disjoint_base 標註）。&quot;&quot;&quot;
+import sys
+from abc import ABC, abstractmethod
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class Readable(Protocol):
+    def read(self) -&gt; float: ...
+
+
+class Device(ABC):
+    @abstractmethod
+    def read(self) -&gt; float: ...
+
+    def describe(self):
+        return f&quot;{type(self).__name__} -&gt; {self.read()}&quot;
+
+
+class ModbusMixin:
+    def describe(self):
+        return &quot;Modbus:&quot; + super().describe()
+
+
+class LoggingMixin:
+    def describe(self):
+        return &quot;Log:&quot; + super().describe()
+
+
+class Meter(LoggingMixin, ModbusMixin, Device):
+    def read(self):
+        return 123.4
+
+
+class ThirdPartySensor:              # 沒有繼承任何東西，但有 read()
+    def read(self):
+        return 21.7
+
+
+if __name__ == &quot;__main__&quot;:
+    print(f&quot;Python {sys.version_info.major}.{sys.version_info.minor}&quot;)
+    print(&quot;MRO：&quot;, &quot; → &quot;.join(c.__name__ for c in Meter.__mro__))
+    print(&quot;describe()：&quot;, Meter().describe())
+    s = ThirdPartySensor()
+    print(&quot;ThirdPartySensor 是 Readable：&quot;, isinstance(s, Readable), &quot;；是 Device：&quot;, isinstance(s, Device))
+    try:
+        Device()
+    except TypeError as e:
+        print(&quot;直接建立抽象類別：&quot;, type(e).__name__)
+    try:
+        type(&quot;Bad&quot;, (ModbusMixin, LoggingMixin, Meter), {})
+    except TypeError as e:
+        print(&quot;不一致的 MRO：&quot;, str(e).split(&quot;\n&quot;)[0])
+    import typing
+    print(&quot;typing.disjoint_base 可用：&quot;, hasattr(typing, &quot;disjoint_base&quot;))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，程式主體需 Python 3.10 以上；本頁輸出以 Python 3.15 產生</p><h4>預期輸出（以 Python 3.15 實際執行產生）</h4><pre><code>Python 3.15
+MRO： Meter → LoggingMixin → ModbusMixin → Device → ABC → object
+describe()： Log:Modbus:Meter -&gt; 123.4
+ThirdPartySensor 是 Readable： True ；是 Device： False
+直接建立抽象類別： TypeError
+不一致的 MRO： Cannot create a consistent method resolution order (MRO) for bases ModbusMixin, LoggingMixin, Meter
+typing.disjoint_base 可用： True</code></pre><h3>工程現場案例：整合第三方感測器，要不要強迫它繼承我們的基底類別？</h3><p>某專案的設備驅動都繼承自 Device 抽象類別。整合廠商提供的感測器程式庫時，對方的類別不可能改成繼承我們的 Device，於是出現大量包裝類別。範例顯示，若邏輯只需要「能 read()」，用 Protocol 描述就能直接接受第三方物件。</p><p>ABC 適合需要共用實作（例如 describe()）與強制子類別實作方法的情境；Protocol 適合只描述介面、讓型別檢查器與 isinstance() 檢查結構。兩者可以並存：自己的驅動繼承 Device，對外的函式參數型別用 Readable。</p><ol><li>列出函式真正用到的方法，用 Protocol 描述參數型別，而不是要求繼承特定基底類別。</li><li>共用實作放在 ABC 或混入類別，混入類別一律呼叫 super() 以配合 MRO。</li><li>新增混入類別時印出 __mro__ 確認順序，並寫測試鎖定。</li><li>runtime_checkable 只檢查方法是否存在，不檢查簽名與回傳型別；嚴格檢查交給 mypy 等工具。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>PEP 800 在 Python 3.15 新增 typing.disjoint_base，用來標記不能與其他特定基底類別同時被繼承的類別（例如具有不相容記憶體佈局的類別），讓型別檢查器提前發現執行時才會出錯的多重繼承。本頁核對時 mypy 最新版為 2.4.1。 <a href="https://peps.python.org/pep-0800/">來源：PEP 800</a> <a href="https://pypi.org/project/mypy/">來源：PyPI：mypy</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 Meter 的父類別順序改成 (ModbusMixin, LoggingMixin, Device)，describe() 的輸出會變成什麼？</p><details><summary>看解答</summary><p>MRO 變成 Meter → ModbusMixin → LoggingMixin → Device，輸出為 Modbus:Log:Meter -&gt; 123.4。混入類別的串接順序就是 MRO 順序。</p></details></li><li><p>為什麼 type('Bad', (ModbusMixin, LoggingMixin, Meter), {}) 會失敗？</p><details><summary>看解答</summary><p>Meter 的 MRO 要求 LoggingMixin 在 ModbusMixin 之前，但 Bad 的基底順序要求 ModbusMixin 在 LoggingMixin 之前，C3 線性化無法同時滿足兩者，因此拒絕建立類別。</p></details></li><li><p>ThirdPartySensor 的 read() 若改成回傳字串，isinstance(s, Readable) 還會是 True 嗎？</p><details><summary>看解答</summary><p>會。runtime_checkable 的 isinstance 只檢查 read 屬性是否存在，不檢查回傳型別。回傳型別錯誤要靠靜態型別檢查器發現。</p></details></li><li><p>Device() 為什麼不能直接建立？</p><details><summary>看解答</summary><p>Device 繼承 ABC 且有尚未實作的 @abstractmethod read()，抽象類別不能實例化，會丟出 TypeError。</p></details></li></ol></section><!-- extension:end -->
+</main>
 
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>

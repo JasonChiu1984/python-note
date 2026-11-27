@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "前面以互動模擬說明 free-threaded 的原理。本節提供一支可在你自己的直譯器上執行的程式：先確認是不是 free-threaded 建置、GIL 有沒有啟用，再比較兩種正確的多執行緒寫法。",
+ "example_title": "確認建置類型與兩種執行緒安全寫法",
+ "example_desc": "本頁輸出以一般建置（有 GIL）的 Python 3.15 產生；在 python3.15t 上執行時第二行會顯示 free-threaded 建置為 True。輸出只包含正確性檢查，不印執行時間，因為時間受核心數與負載影響，每次都不同。",
+ "run_note": "需 Python 3.13 以上（sys._is_gil_enabled 自 3.13 起提供）；建議分別用 python3.15 與 python3.15t 執行比較",
+ "case": {
+  "title": "閘道器改用 free-threaded 後，計數器偶爾少算",
+  "paragraphs": [
+   "某閘道器以多執行緒輪詢 40 台電表，每輪結束時累加「成功讀取次數」。在一般建置下這個未加鎖的 += 幾乎不出錯，因為 GIL 讓位元組碼切換的時機很有限；改用 free-threaded 建置後，執行緒真的同時執行，計數開始偶爾少算。這不是 free-threaded 的錯誤，而是程式原本就有的競態條件被放大了。",
+   "範例展示兩種正確寫法：讓每個執行緒只處理自己的資料、最後由主執行緒合併（不需要鎖、擴展性最好），或對共享狀態加鎖。遷移到 free-threaded 前，先用 ThreadSanitizer 或壓力測試找出這類共享可變狀態。"
+  ],
+  "steps": [
+   "用 sys._is_gil_enabled() 與 sysconfig 確認部署環境的實際建置，寫進啟動日誌。",
+   "列出所有跨執行緒共享的可變物件（計數器、快取、清單），改為每執行緒獨立再合併，或加鎖。",
+   "確認使用的 C 擴充套件已宣告支援 free-threading，否則匯入時 GIL 可能被重新啟用。",
+   "以相同負載比較一般建置與 free-threaded 建置的吞吐量與正確性，再決定是否切換。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.15 已於 2026-10-09 發布，本頁核對時最新為 3.15.2。free-threaded 建置（python3.15t）仍是另外提供的建置；匯入未宣告支援的 C 擴充時，直譯器可能重新啟用 GIL，可用 sys._is_gil_enabled() 確認。",
+   "sources": [
+    {
+     "title": "What's new in Python 3.15",
+     "url": "https://docs.python.org/3.15/whatsnew/3.15.html"
+    },
+    {
+     "title": "Python 文件：Free-threading 支援",
+     "url": "https://docs.python.org/3/howto/free-threading-python.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 locked_counter() 中的 with lock: 拿掉，在一般建置與 free-threaded 建置各執行幾次，結果有什麼差異？",
+   "a": "<p>一般建置下多半仍得到 200,000，但這是 GIL 切換時機造成的巧合，不是保證；free-threaded 建置下常會少於 200,000。正確性不能依賴 GIL。</p>"
+  },
+  {
+   "q": "為什麼 partial_sum() 的寫法不需要鎖？",
+   "a": "<p>每個執行緒只讀取自己的範圍、回傳自己的結果，沒有共享的可變狀態；合併由主執行緒在 map() 回傳後進行。這種「分割—處理—合併」是多執行緒最容易做對、也最容易擴展的模式。</p>"
+  },
+  {
+   "q": "sysconfig.get_config_var('Py_GIL_DISABLED') 與 sys._is_gil_enabled() 回答的問題有什麼不同？",
+   "a": "<p>前者是編譯時設定：這個直譯器是不是 free-threaded 建置。後者是執行時狀態：此刻 GIL 是否啟用。free-threaded 建置在載入不相容擴充或設定 PYTHON_GIL=1 時，GIL 仍可能被啟用。</p>"
+  },
+  {
+   "q": "I/O 密集的 Modbus 輪詢，改用 free-threaded 建置會變快嗎？",
+   "a": "<p>通常幫助不大。I/O 等待時一般建置也會釋放 GIL，瓶頸在設備回應時間。free-threaded 的效益主要在 CPU 密集工作，例如大量資料解析或計算。</p>"
+  }
+ ]
+}

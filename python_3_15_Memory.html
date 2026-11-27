@@ -919,7 +919,50 @@ html[data-lab-layout] main :is(.grid,.flex)>* {max-inline-size:100%}
       </div>
     </section>
 
-  </main>
+  <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用 tracemalloc 實際量測同樣 10 萬筆讀值，用三種資料結構存放時的記憶體差距，並示範 frozendict 作為不可變、可雜湊設定物件的用法。</p><h3>可實跑範例：tracemalloc 比較資料結構與 frozendict 設定</h3><p>tracemalloc 量的是 Python 物件配置，數值會隨版本與平台略有不同，重點是倍數關係。frozendict 是 Python 3.15 新增的內建型別，因此本範例需要 3.15。</p><p><a class="button" download href="extensions/python_3_15_Memory/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;用 tracemalloc 比較三種存放 10 萬筆讀值的方式，並示範 frozendict 作為不可變設定的記憶與雜湊行為。&quot;&quot;&quot;
+import sys
+import tracemalloc
+from array import array
+
+N = 100_000
+
+
+def measure(build):
+    tracemalloc.start()
+    obj = build()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return obj, current
+
+
+if __name__ == &quot;__main__&quot;:
+    print(f&quot;Python {sys.version_info.major}.{sys.version_info.minor}&quot;)
+    rows = [
+        (&quot;list[float]&quot;, lambda: [20.0 + i * 0.001 for i in range(N)]),
+        (&quot;array(&#x27;d&#x27;)&quot;, lambda: array(&quot;d&quot;, (20.0 + i * 0.001 for i in range(N)))),
+        (&quot;list[dict]&quot;, lambda: [{&quot;ts&quot;: i, &quot;v&quot;: 20.0 + i * 0.001} for i in range(N)]),
+    ]
+    base = None
+    for name, build in rows:
+        _, cur = measure(build)
+        base = base or cur
+        print(f&quot;{name:&lt;12} 約 {cur / 1024 / 1024:5.1f} MiB（{cur / base:4.1f} 倍）&quot;)
+    cfg = frozendict(device=&quot;AHU-01&quot;, unit_id=3, scale=0.1)
+    cache = {cfg: &quot;已解析的點位設定&quot;}                # frozendict 可雜湊，可當字典鍵或快取鍵
+    print(&quot;frozendict 當快取鍵：&quot;, cache[frozendict(scale=0.1, device=&quot;AHU-01&quot;, unit_id=3)])
+    try:
+        cfg[&quot;scale&quot;] = 1.0
+    except TypeError as e:
+        print(&quot;修改 frozendict：&quot;, type(e).__name__)
+    print(&quot;產生新版本：&quot;, cfg | {&quot;scale&quot;: 0.01})
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需 Python 3.15</p><h4>預期輸出（以 Python 3.15 實際執行產生）</h4><pre><code>Python 3.15
+list[float]  約   3.1 MiB（ 1.0 倍）
+array(&#x27;d&#x27;)   約   0.8 MiB（ 0.3 倍）
+list[dict]   約  23.6 MiB（ 7.7 倍）
+frozendict 當快取鍵： 已解析的點位設定
+修改 frozendict： TypeError
+產生新版本： frozendict({&#x27;device&#x27;: &#x27;AHU-01&#x27;, &#x27;unit_id&#x27;: 3, &#x27;scale&#x27;: 0.01})</code></pre><h3>工程現場案例：一週趨勢資料讓報表程式記憶體爆掉</h3><p>某報表程式把一週、200 個點位、每分鐘一筆的資料讀成 list[dict]，每筆字典含時間戳與數值，總共約 200 萬筆。依範例的比例，list[dict] 約是 list[float] 的 7.7 倍、array('d') 的 25 倍以上，跑在 1 GB 記憶體的邊緣主機上直接被系統終止。</p><p>改成每個點位一個 array('d') 加一個共用的時間軸後，記憶體降到原本的幾十分之一。設定類資料則改用 frozendict：不會被意外修改，又能當作快取鍵，避免同樣的點位設定被重複解析。</p><ol><li>用 tracemalloc 或 Tachyon 找出記憶體最大的資料結構，不要憑感覺優化。</li><li>大量同型數值改用 array、NumPy 或 pandas 欄位，而不是物件清單。</li><li>不變的設定用 frozendict 或 frozen dataclass，並當作快取鍵重用解析結果。</li><li>在部署環境的記憶體上限下做壓力測試，記錄峰值。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.15 新增內建 frozendict（PEP 814）與 Tachyon 取樣剖析器（profiling.sampling，PEP 799）；增量 GC 已在 3.14.5 與 3.15 回復為 3.13 的分代 GC。本範例以 3.15.0b4 實測，正式版行為相同。 <a href="https://docs.python.org/3.15/whatsnew/3.15.html">來源：What's new in Python 3.15</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 list[dict] 比 list[float] 多那麼多記憶體？</p><details><summary>看解答</summary><p>每個字典本身有雜湊表結構，還要存兩個鍵的參照與兩個值物件（int 與 float），而 list[float] 每筆只有一個 float 物件加一個指標。array('d') 則把數值直接存成連續的 8 bytes，沒有物件開銷。</p></details></li><li><p>frozendict 的 | 運算為什麼回傳新物件而不是修改原物件？</p><details><summary>看解答</summary><p>frozendict 不可變，任何「修改」都必須產生新物件。這讓舊版本仍然有效，適合保存設定的歷史版本或在多執行緒間安全共享。</p></details></li><li><p>把 cache 的鍵改成一般 dict 會發生什麼？</p><details><summary>看解答</summary><p>dict 不可雜湊，當作字典鍵會丟出 TypeError: unhashable type: 'dict'。這就是 frozendict 能當快取鍵的原因。</p></details></li><li><p>tracemalloc.get_traced_memory() 回傳的 current 與 peak 有什麼差別？範例為什麼用 current？</p><details><summary>看解答</summary><p>current 是目前仍配置中的記憶體，peak 是追蹤期間的最高值。範例要比較建好的資料結構常駐大小，所以用 current；若要知道建構過程（例如產生器、暫存清單）的瞬間需求，就看 peak。</p></details></li></ol></section><!-- extension:end -->
+</main>
 
   <!-- 頁尾 -->
   <footer class="border-t border-slate-800/80 bg-surface/60 mt-10">

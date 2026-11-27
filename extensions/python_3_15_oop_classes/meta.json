@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "本節延伸本頁的 MRO 模擬器，用一個設備類別階層實際執行：混入類別如何依 C3 MRO 串接、Protocol 與 ABC 判斷「是不是設備」的差異，以及不一致的繼承順序會在什麼時候被拒絕。",
+ "example_title": "C3 MRO、Protocol 與 ABC",
+ "example_desc": "Meter 繼承兩個混入類別與抽象基底 Device，describe() 透過 super() 依 MRO 串接。ThirdPartySensor 沒有繼承任何類別，但符合 Readable Protocol 的結構。最後一行檢查 Python 3.15 的 typing.disjoint_base（PEP 800）是否可用。",
+ "run_note": "程式主體需 Python 3.10 以上；本頁輸出以 Python 3.15 產生",
+ "case": {
+  "title": "整合第三方感測器，要不要強迫它繼承我們的基底類別？",
+  "paragraphs": [
+   "某專案的設備驅動都繼承自 Device 抽象類別。整合廠商提供的感測器程式庫時，對方的類別不可能改成繼承我們的 Device，於是出現大量包裝類別。範例顯示，若邏輯只需要「能 read()」，用 Protocol 描述就能直接接受第三方物件。",
+   "ABC 適合需要共用實作（例如 describe()）與強制子類別實作方法的情境；Protocol 適合只描述介面、讓型別檢查器與 isinstance() 檢查結構。兩者可以並存：自己的驅動繼承 Device，對外的函式參數型別用 Readable。"
+  ],
+  "steps": [
+   "列出函式真正用到的方法，用 Protocol 描述參數型別，而不是要求繼承特定基底類別。",
+   "共用實作放在 ABC 或混入類別，混入類別一律呼叫 super() 以配合 MRO。",
+   "新增混入類別時印出 __mro__ 確認順序，並寫測試鎖定。",
+   "runtime_checkable 只檢查方法是否存在，不檢查簽名與回傳型別；嚴格檢查交給 mypy 等工具。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "PEP 800 在 Python 3.15 新增 typing.disjoint_base，用來標記不能與其他特定基底類別同時被繼承的類別（例如具有不相容記憶體佈局的類別），讓型別檢查器提前發現執行時才會出錯的多重繼承。本頁核對時 mypy 最新版為 2.4.1。",
+   "sources": [
+    {
+     "title": "PEP 800",
+     "url": "https://peps.python.org/pep-0800/"
+    },
+    {
+     "title": "PyPI：mypy",
+     "url": "https://pypi.org/project/mypy/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 Meter 的父類別順序改成 (ModbusMixin, LoggingMixin, Device)，describe() 的輸出會變成什麼？",
+   "a": "<p>MRO 變成 Meter → ModbusMixin → LoggingMixin → Device，輸出為 Modbus:Log:Meter -&gt; 123.4。混入類別的串接順序就是 MRO 順序。</p>"
+  },
+  {
+   "q": "為什麼 type('Bad', (ModbusMixin, LoggingMixin, Meter), {}) 會失敗？",
+   "a": "<p>Meter 的 MRO 要求 LoggingMixin 在 ModbusMixin 之前，但 Bad 的基底順序要求 ModbusMixin 在 LoggingMixin 之前，C3 線性化無法同時滿足兩者，因此拒絕建立類別。</p>"
+  },
+  {
+   "q": "ThirdPartySensor 的 read() 若改成回傳字串，isinstance(s, Readable) 還會是 True 嗎？",
+   "a": "<p>會。runtime_checkable 的 isinstance 只檢查 read 屬性是否存在，不檢查回傳型別。回傳型別錯誤要靠靜態型別檢查器發現。</p>"
+  },
+  {
+   "q": "Device() 為什麼不能直接建立？",
+   "a": "<p>Device 繼承 ABC 且有尚未實作的 @abstractmethod read()，抽象類別不能實例化，會丟出 TypeError。</p>"
+  }
+ ]
+}

@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "本節用 tracemalloc 實際量測同樣 10 萬筆讀值，用三種資料結構存放時的記憶體差距，並示範 frozendict 作為不可變、可雜湊設定物件的用法。",
+ "example_title": "tracemalloc 比較資料結構與 frozendict 設定",
+ "example_desc": "tracemalloc 量的是 Python 物件配置，數值會隨版本與平台略有不同，重點是倍數關係。frozendict 是 Python 3.15 新增的內建型別，因此本範例需要 3.15。",
+ "run_note": "需 Python 3.15",
+ "case": {
+  "title": "一週趨勢資料讓報表程式記憶體爆掉",
+  "paragraphs": [
+   "某報表程式把一週、200 個點位、每分鐘一筆的資料讀成 list[dict]，每筆字典含時間戳與數值，總共約 200 萬筆。依範例的比例，list[dict] 約是 list[float] 的 7.7 倍、array('d') 的 25 倍以上，跑在 1 GB 記憶體的邊緣主機上直接被系統終止。",
+   "改成每個點位一個 array('d') 加一個共用的時間軸後，記憶體降到原本的幾十分之一。設定類資料則改用 frozendict：不會被意外修改，又能當作快取鍵，避免同樣的點位設定被重複解析。"
+  ],
+  "steps": [
+   "用 tracemalloc 或 Tachyon 找出記憶體最大的資料結構，不要憑感覺優化。",
+   "大量同型數值改用 array、NumPy 或 pandas 欄位，而不是物件清單。",
+   "不變的設定用 frozendict 或 frozen dataclass，並當作快取鍵重用解析結果。",
+   "在部署環境的記憶體上限下做壓力測試，記錄峰值。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.15 新增內建 frozendict（PEP 814）與 Tachyon 取樣剖析器（profiling.sampling，PEP 799）；增量 GC 已在 3.14.5 與 3.15 回復為 3.13 的分代 GC。本範例以 3.15.0b4 實測，正式版行為相同。",
+   "sources": [
+    {
+     "title": "What's new in Python 3.15",
+     "url": "https://docs.python.org/3.15/whatsnew/3.15.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 list[dict] 比 list[float] 多那麼多記憶體？",
+   "a": "<p>每個字典本身有雜湊表結構，還要存兩個鍵的參照與兩個值物件（int 與 float），而 list[float] 每筆只有一個 float 物件加一個指標。array('d') 則把數值直接存成連續的 8 bytes，沒有物件開銷。</p>"
+  },
+  {
+   "q": "frozendict 的 | 運算為什麼回傳新物件而不是修改原物件？",
+   "a": "<p>frozendict 不可變，任何「修改」都必須產生新物件。這讓舊版本仍然有效，適合保存設定的歷史版本或在多執行緒間安全共享。</p>"
+  },
+  {
+   "q": "把 cache 的鍵改成一般 dict 會發生什麼？",
+   "a": "<p>dict 不可雜湊，當作字典鍵會丟出 TypeError: unhashable type: 'dict'。這就是 frozendict 能當快取鍵的原因。</p>"
+  },
+  {
+   "q": "tracemalloc.get_traced_memory() 回傳的 current 與 peak 有什麼差別？範例為什麼用 current？",
+   "a": "<p>current 是目前仍配置中的記憶體，peak 是追蹤期間的最高值。範例要比較建好的資料結構常駐大小，所以用 current；若要知道建構過程（例如產生器、暫存清單）的瞬間需求，就看 peak。</p>"
+  }
+ ]
+}

@@ -49,14 +49,28 @@ def missing_requirements(meta: dict) -> list[str]:
     return [m for m in meta.get("requires", []) if importlib.util.find_spec(m) is None]
 
 
-def run_example(path: Path) -> str:
+def interpreter_for(meta: dict) -> str | None:
+    """Pick the interpreter: the current one, or EXT_PYTHON_3XX from the environment for newer minimums."""
+    import os
+    need = tuple(meta.get("min_python", (3, 10)))
+    if sys.version_info[:2] >= need:
+        return sys.executable
+    return os.environ.get(f"EXT_PYTHON_{need[0]}{need[1]}")
+
+
+def python_version(exe: str) -> str:
+    return subprocess.run([exe, "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def run_example(path: Path, exe: str = sys.executable) -> str:
     """Run twice with different hash seeds; the published output must not depend on either."""
     import os
     outputs = []
     for seed in ("0", "1"):
         env = {**os.environ, "PYTHONHASHSEED": seed}
         with tempfile.TemporaryDirectory() as tmp:
-            proc = subprocess.run([sys.executable, "-X", "utf8", str(path)], cwd=tmp, capture_output=True,
+            proc = subprocess.run([exe, "-X", "utf8", str(path)], cwd=tmp, capture_output=True,
                                   text=True, encoding="utf-8", timeout=120, env=env)
         if proc.returncode != 0:
             raise SystemExit(f"{path} failed:\n{proc.stderr}")
@@ -73,13 +87,14 @@ def render(stem: str, page: Path) -> str:
     example = folder / "example.py"
     rel = Path("extensions") / stem / "example.py"
     href = Path(*[".."] * (len(page.relative_to(ROOT).parts) - 1), rel).as_posix()
-    ver = meta.get("python", "3.13")
+    exe = interpreter_for(meta)
+    ver = python_version(exe)
     parts = [STYLE, f'<section class="ext-section" id="extension"><h2>{t["title"]}</h2>']
     if meta.get("intro"):
         parts.append(f"<p>{meta['intro']}</p>")
     if example.exists():
         code = example.read_text(encoding="utf-8")
-        out = run_example(example)
+        out = run_example(example, exe)
         parts += [f'<h3>{t["example"]}：{meta["example_title"]}</h3>',
                   f"<p>{meta.get('example_desc', '')}</p>",
                   f'<p><a class="button" download href="{href}">{t["download"]} {html.escape(rel.name)}</a></p>',
@@ -140,9 +155,10 @@ def main() -> int:
         page = known.get(folder.name)
         if page is None:
             raise SystemExit(f"no page for extensions/{folder.name}")
-        missing = missing_requirements(json.loads((folder / "meta.json").read_text(encoding="utf-8")))
-        if missing:
-            print(f"skip {folder.name}: missing {', '.join(missing)}")
+        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        missing = missing_requirements(meta)
+        if missing or interpreter_for(meta) is None:
+            print(f"skip {folder.name}: missing {', '.join(missing) or 'Python ' + '.'.join(map(str, meta['min_python']))}")
             continue
         new = apply(page, render(folder.name, page))
         if new != page.read_text(encoding="utf-8"):
