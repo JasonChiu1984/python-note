@@ -693,6 +693,9 @@ REQUIRED_COLUMNS = {"order_id", "customer_id", "country", "created_at", "amount"
 def load_orders(csv_path: Path) -&gt; pd.DataFrame:
     orders = pd.read_csv(
         csv_path,
+        keep_default_na=False,
+        # 只把契約欄位的空欄當缺值。NA 國別碼與 NULL 識別碼可合法存在。
+        na_values={column: [""] for column in REQUIRED_COLUMNS},
         dtype={
             "order_id": "string",
             "customer_id": "string",
@@ -813,6 +816,26 @@ def test_month_uses_utc_boundary(tmp_path):
     )
     report = build_report(load_orders(csv_path))
     assert report["revenue"][0]["month"] == "2026-05"
+
+
+def test_csv_missing_markers_are_column_contracts(tmp_path: Path) -&gt; None:
+    csv_path = tmp_path / "country-sentinels.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "0007,c1,NA,2026-06-01T00:00:00Z,20\n"
+        "NULL,c2,,2026-06-02T00:00:00Z,5\n"
+        "0009,c3,TW,2026-06-03T00:00:00Z,\n",
+        encoding="utf-8",
+    )
+    orders = load_orders(csv_path)
+    assert orders["order_id"].tolist() == ["0007", "NULL", "0009"]
+    assert orders["country"].isna().tolist() == [False, True, False]
+    report = build_report(orders)
+    assert report["quality"] == {"rows": 3, "amount_missing_ratio": 0.3333, "countries": ["NA"]}
+    assert report["revenue"] == [
+        {"country": "NA", "month": "2026-06", "revenue": 20.0, "orders": 1},
+        {"country": None, "month": "2026-06", "revenue": 5.0, "orders": 1},
+    ]
 </code></pre></details>
 <!-- /example-source -->
 </div>
@@ -1029,7 +1052,7 @@ df = pd.read_csv(io.StringIO(csv), dtype={"country": "string", "amount": "Float6
 assert df["country"].eq("NA").fillna(False).sum() == 1
 assert df["country"].isna().sum() == 1
 assert df["amount"].sum() == 25  # 只比對總額會漏掉國別錯配</code></pre>
-<p>這是明確欄位政策的獨立示例；舊 ETL 命令的解析規則應另行驗證。依來源規格決定其他代碼與空白字串如何處理。<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html">pandas read_csv</a>、<a href="https://ungegn.un.org/dashboard/countries/details?id=516">聯合國國別資料</a>。</p>
+<p>此頁可下載的訂單 ETL 也採用這項欄位政策，保留合法的國別碼和識別碼；測試會分開核對國別分組與總額。依來源規格決定其他代碼與空白字串如何處理。<a href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html">pandas read_csv</a>、<a href="https://ungegn.un.org/dashboard/countries/details?id=516">聯合國國別資料</a>。</p>
 <h3 id="pandas-relational">二、關聯運算：基數決定列數</h3>
   <p>遙測是事實表，資產資料是每設備一列的維度表。對單一鍵 <em>k</em>，若兩側各有 <em>Lₖ</em>、<em>Rₖ</em> 列，內連接會產生 <em>Lₖ × Rₖ</em> 列：3 筆事件撞到 2 列同設備資料會得到 6 列，不是新增了 3 筆觀測。若不先驗基數，事後 <code>groupby().sum()</code> 可能把同一筆 kWh 算兩次。</p>
   <pre><code>out = events.merge(assets, on="device_id", how="left",

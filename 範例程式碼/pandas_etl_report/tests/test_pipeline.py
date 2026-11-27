@@ -63,3 +63,23 @@ def test_month_uses_utc_boundary(tmp_path):
     )
     report = build_report(load_orders(csv_path))
     assert report["revenue"][0]["month"] == "2026-05"
+
+
+def test_csv_missing_markers_are_column_contracts(tmp_path: Path) -> None:
+    csv_path = tmp_path / "country-sentinels.csv"
+    csv_path.write_text(
+        "order_id,customer_id,country,created_at,amount\n"
+        "0007,c1,NA,2026-06-01T00:00:00Z,20\n"
+        "NULL,c2,,2026-06-02T00:00:00Z,5\n"
+        "0009,c3,TW,2026-06-03T00:00:00Z,\n",
+        encoding="utf-8",
+    )
+    orders = load_orders(csv_path)
+    assert orders["order_id"].tolist() == ["0007", "NULL", "0009"]
+    assert orders["country"].isna().tolist() == [False, True, False]
+    report = build_report(orders)
+    assert report["quality"] == {"rows": 3, "amount_missing_ratio": 0.3333, "countries": ["NA"]}
+    assert report["revenue"] == [
+        {"country": "NA", "month": "2026-06", "revenue": 20.0, "orders": 1},
+        {"country": None, "month": "2026-06", "revenue": 5.0, "orders": 1},
+    ]

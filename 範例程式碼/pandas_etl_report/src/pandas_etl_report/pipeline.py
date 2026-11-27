@@ -12,6 +12,9 @@ REQUIRED_COLUMNS = {"order_id", "customer_id", "country", "created_at", "amount"
 def load_orders(csv_path: Path) -> pd.DataFrame:
     orders = pd.read_csv(
         csv_path,
+        keep_default_na=False,
+        # 只把契約欄位的空欄當缺值。NA 國別碼與 NULL 識別碼可合法存在。
+        na_values={column: [""] for column in REQUIRED_COLUMNS},
         dtype={
             "order_id": "string",
             "customer_id": "string",
