@@ -13,8 +13,8 @@ class Sample:
     octets: int
     # Collector-assigned continuity epoch; changes on known restart/remapping.
     epoch: int
-    # Equivalent to a collected ifCounterDiscontinuityTime value.
-    discontinuity: int
+    # Returned TimeTicks (including zero), or None if no evidence was returned.
+    discontinuity: int | None
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,15 @@ def evaluate(a: Sample, b: Sample, *, width: int, capacity_bps: int,
         return Rate("time-order")
     if dt > max_gap_s:
         return Rate("stale-gap")
-    if a.epoch != b.epoch or a.discontinuity != b.discontinuity:
+    if a.epoch != b.epoch:
+        return Rate("discontinuity")
+    markers = (a.discontinuity, b.discontinuity)
+    if any(m is not None and (type(m) is not int or not 0 <= m < 1 << 32)
+           for m in markers):
+        return Rate("invalid-discontinuity-marker")
+    if any(m is None for m in markers):
+        return Rate("missing-discontinuity-marker")
+    if markers[0] != markers[1]:
         return Rate("discontinuity")
     max_octets = capacity_bps * dt / 8
     delta = (b.octets - a.octets) % modulus
@@ -83,6 +91,28 @@ class Cases(unittest.TestCase):
                            (Sample(1, "a", 1, 10, 1, 5), "discontinuity")]:
             self.assertEqual(evaluate(a, b, width=64, capacity_bps=1_000_000_000),
                              Rate(quality))
+
+    def test_missing_is_not_reported_zero(self):
+        for left, right, wanted in (
+            (0, 0, Rate("ok", 800.0, 0.00008)),
+            (None, None, Rate("missing-discontinuity-marker")),
+            (None, 0, Rate("missing-discontinuity-marker")),
+            (0, None, Rate("missing-discontinuity-marker")),
+            (0, 5, Rate("discontinuity")),
+        ):
+            with self.subTest(left=left, right=right):
+                a = Sample(0, "a", 1, 1000, 1, left)
+                b = Sample(10, "a", 1, 2000, 1, right)
+                self.assertEqual(evaluate(a, b, width=64, capacity_bps=1_000_000_000), wanted)
+
+    def test_timeticks_domain(self):
+        valid = (1 << 32) - 1
+        a = Sample(0, "a", 1, 1000, 1, valid)
+        for marker in (valid, valid + 1, -1, True, 5.0, "5"):
+            with self.subTest(marker=marker):
+                b = Sample(10, "a", 1, 2000, 1, marker)
+                wanted = Rate("ok", 800.0, 0.00008) if type(marker) is int and marker == valid else Rate("invalid-discontinuity-marker")
+                self.assertEqual(evaluate(a, b, width=64, capacity_bps=1_000_000_000), wanted)
 
     def test_bad_samples(self):
         a = Sample(1, "a", 1, 10, 1, 0)
