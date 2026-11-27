@@ -33,6 +33,18 @@ class InteropTests(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError):
                 host.compose_status("reviewed-local")
 
+    def test_cli_closes_http_error_response(self):
+        body = io.BytesIO(b'{"error": "not_found"}')
+        error = HTTPError("http://127.0.0.1/sample", 404, "Not Found", {}, body)
+        with patch("sys.argv", ["host.py", "sample"]), patch.object(
+            host, "sample", side_effect=error
+        ), patch("sys.stderr", new_callable=io.StringIO) as out:
+            with self.assertRaises(SystemExit) as result:
+                host.main()
+        self.assertEqual(result.exception.code, 1)
+        self.assertIn("HTTPError: HTTP Error 404: Not Found", out.getvalue())
+        self.assertTrue(body.closed)
+
     def test_http_data_plane(self):
         with ThreadingHTTPServer(("127.0.0.1", 0), app.Handler) as server:
             worker = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02})
@@ -46,7 +58,8 @@ class InteropTests(unittest.TestCase):
                     host.sample(f"{base}/healthz")
                 with self.assertRaises(HTTPError) as error:
                     host.sample(f"{base}/wrong")
-                self.assertEqual(error.exception.code, 404)
+                with error.exception as response:
+                    self.assertEqual(response.code, 404)
             finally:
                 server.shutdown()  # 與 serve_forever 不在同一執行緒。
                 worker.join(timeout=2)

@@ -3,6 +3,7 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 HERE = Path(__file__).resolve().parent
@@ -48,6 +49,9 @@ def main():
         result = compose_status(args.context) if args.action == "status" else sample()
     except subprocess.CalledProcessError as exc:
         p.exit(1, f"Docker CLI exit {exc.returncode}: {(exc.stderr or '').strip()[:500]}\n")
+    except HTTPError as exc:
+        with exc:  # HTTPError 同時是需要關閉的 HTTP 回應。
+            p.exit(1, f"HTTPError: {exc}\n")
     except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
         p.exit(1, f"{type(exc).__name__}: {exc}\n")
     print(json.dumps(result, ensure_ascii=False, indent=2))
