@@ -97,4 +97,79 @@ if __name__ == &quot;__main__&quot;:
         print(&quot;接收後 10 ms:&quot;, quality(sample, .010, 0, .060))
         print(&quot;接收後 80 ms:&quot;, quality(sample, .080, 0, .060))</code></pre></details><p>測試涵蓋正負溫度、錯誤長度、感測無效和恰達過期邊界。此例只檢查相同本機時鐘的接收年齡；未驗證來源時間、序號換屆或實際協定交換。</p></section>
 <section id="acceptance"><h2>07｜工控驗收：先單設備，再擴大</h2><ol><li>記錄機型、韌體、EDS、I/O 實例、位址、尺寸和設備支援的 RPI；保存手冊對照。</li><li>以隔離的試車台核對每一方向的已知輸入與狀態，檢查縮放、空值及品質傳遞。</li><li>增加預期負載，分別觀察 PLC 更新、網路及來源資料年齡；實測丟包、故障及重接前後的行為。</li><li>核准設備端故障行為和控制連續性後再主系統上線；任何安全功能另依對應合規流程驗證。</li></ol>
-<p>原始來源：<a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA EtherNet/IP 技術總覽</a> · <a href="https://www.odva.org/technology-standards/key-technologies/ethernet-ip/">ODVA EtherNet/IP</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf">ODVA EtherNet/IP Quick Start</a> · <a href="https://www.odva.org/publication_download/cip-security-at-a-glance-pub-319/">ODVA CIP Security</a>。</p></section></main></body></html>
+<p>原始來源：<a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA EtherNet/IP 技術總覽</a> · <a href="https://www.odva.org/technology-standards/key-technologies/ethernet-ip/">ODVA EtherNet/IP</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf">ODVA EtherNet/IP Quick Start</a> · <a href="https://www.odva.org/publication_download/cip-security-at-a-glance-pub-319/">ODVA CIP Security</a>。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節不連實機，只用 struct 組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應，練習讀懂封包裡的位元組，並注意同一個封包裡 little-endian 與 big-endian 混用的位置。</p><h3>可實跑範例：封裝標頭與 ListIdentity 解析</h3><p>封裝標頭固定 24 位元組、全部 little-endian；Identity 項目中的 Socket Address 沿用 sockaddr_in，是 big-endian。程式也示範長度欄位與實際資料不符時直接拒絕。</p><p><a class="button" download href="extensions/python_ethernetip_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應（離線，標準函式庫 struct）。
+
+封裝標頭固定 24 位元組，全部為 little-endian：
+command(2) length(2) session_handle(4) status(4) sender_context(8) options(4)
+&quot;&quot;&quot;
+import struct
+
+HEADER = struct.Struct(&quot;&lt;HHII8sI&quot;)
+LIST_IDENTITY = 0x0063
+
+
+def build_list_identity(context=b&quot;BMS-0001&quot;):
+    return HEADER.pack(LIST_IDENTITY, 0, 0, 0, context, 0)
+
+
+def parse_header(data: bytes):
+    if len(data) &lt; HEADER.size:
+        raise ValueError(&quot;封包不足 24 位元組&quot;)
+    cmd, length, session, status, ctx, opts = HEADER.unpack_from(data)
+    if len(data) != HEADER.size + length:
+        raise ValueError(f&quot;長度欄位 {length} 與實際資料 {len(data) - HEADER.size} 不符&quot;)
+    return dict(command=hex(cmd), length=length, session=session, status=status, context=ctx)
+
+
+def parse_identity_item(item: bytes):
+    &quot;&quot;&quot;CIP Identity 項目（Type 0x000C）。Socket Address 為 big-endian，其餘 little-endian。&quot;&quot;&quot;
+    (version,) = struct.unpack_from(&quot;&lt;H&quot;, item, 0)
+    family, port, ip = struct.unpack_from(&quot;&gt;hH4s&quot;, item, 2)
+    vendor, dev_type, product, rev_major, rev_minor, status, serial, name_len = \
+        struct.unpack_from(&quot;&lt;HHHBBHIB&quot;, item, 18)
+    name = item[33:33 + name_len].decode(&quot;ascii&quot;)
+    state = item[33 + name_len]
+    return dict(version=version, ip=&quot;.&quot;.join(map(str, ip)), port=port, vendor_id=vendor,
+                device_type=dev_type, product_code=product, revision=f&quot;{rev_major}.{rev_minor:03d}&quot;,
+                serial=f&quot;0x{serial:08X}&quot;, product_name=name, state=state)
+
+
+def synthetic_response():
+    name = b&quot;1756-EN2T/D&quot;
+    item = (struct.pack(&quot;&lt;H&quot;, 1) + struct.pack(&quot;&gt;hH4s8s&quot;, 2, 44818, bytes([192, 168, 10, 20]), bytes(8))
+            + struct.pack(&quot;&lt;HHHBBHIB&quot;, 1, 12, 166, 11, 2, 0x0030, 0x00C0FFEE, len(name)) + name + bytes([3]))
+    cpf = struct.pack(&quot;&lt;HHH&quot;, 1, 0x000C, len(item)) + item          # item count, type, length
+    return HEADER.pack(LIST_IDENTITY, len(cpf), 0, 0, b&quot;BMS-0001&quot;, 0) + cpf
+
+
+if __name__ == &quot;__main__&quot;:
+    req = build_list_identity()
+    print(&quot;請求（UDP 44818 廣播）：&quot;, req.hex(&quot; &quot;))
+    print(&quot;請求標頭：&quot;, parse_header(req))
+    resp = synthetic_response()
+    hdr = parse_header(resp)
+    print(&quot;回應標頭：&quot;, hdr)
+    count, item_type, item_len = struct.unpack_from(&quot;&lt;HHH&quot;, resp, 24)
+    print(f&quot;CPF 項目數 {count}，型別 0x{item_type:04X}，長度 {item_len}&quot;)
+    for k, v in parse_identity_item(resp[30:30 + item_len]).items():
+        print(f&quot;  {k:&lt;13} {v}&quot;)
+    try:
+        parse_header(resp[:-3])
+    except ValueError as e:
+        print(&quot;截斷封包：&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不會送出任何網路封包</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>請求（UDP 44818 廣播）： 63 00 00 00 00 00 00 00 00 00 00 00 42 4d 53 2d 30 30 30 31 00 00 00 00
+請求標頭： {&#x27;command&#x27;: &#x27;0x63&#x27;, &#x27;length&#x27;: 0, &#x27;session&#x27;: 0, &#x27;status&#x27;: 0, &#x27;context&#x27;: b&#x27;BMS-0001&#x27;}
+回應標頭： {&#x27;command&#x27;: &#x27;0x63&#x27;, &#x27;length&#x27;: 51, &#x27;session&#x27;: 0, &#x27;status&#x27;: 0, &#x27;context&#x27;: b&#x27;BMS-0001&#x27;}
+CPF 項目數 1，型別 0x000C，長度 45
+  version       1
+  ip            192.168.10.20
+  port          44818
+  vendor_id     1
+  device_type   12
+  product_code  166
+  revision      11.002
+  serial        0x00C0FFEE
+  product_name  1756-EN2T/D
+  state         3
+截斷封包： 長度欄位 51 與實際資料 48 不符</code></pre><h3>工程現場案例：盤點現場 PLC 與通訊模組</h3><p>接手一個舊廠區時，常常沒有完整的 PLC 清冊。ListIdentity 是 EtherNet/IP 的唯讀探索指令（UDP 44818），回應包含廠商代碼、產品代碼、韌體版本、序號與產品名稱，可以在不改變設備狀態的前提下建立清冊，並找出韌體過舊、需要評估資安公告的模組。</p><p>即使是唯讀探索，也要在維護窗口、經現場同意後進行，並限制在指定網段。廣播封包可能被防火牆或交換器政策阻擋，結果不完整時要用單播逐台確認，不要直接當成「沒有設備」。</p><ol><li>取得網段清單與執行許可，確認不會影響控制網路的頻寬。</li><li>以單播或受控廣播送出 ListIdentity，記錄每台回應的 IP、廠商代碼、產品代碼、韌體版本與序號。</li><li>把韌體版本與廠商資安公告比對，列出需要升級或加強網路隔離的設備。</li><li>清冊與網路圖一起納入變更管理，之後每次異動都更新。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 Python 常用的 EtherNet/IP 套件版本：pycomm3 1.2.16、cpppo 5.8.0。存取 PLC 標籤前要確認套件支援的控制器系列與連線方式，並優先使用唯讀標籤。 <a href="https://pypi.org/project/pycomm3/">來源：PyPI：pycomm3</a> <a href="https://pypi.org/project/cpppo/">來源：PyPI：cpppo</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 HEADER 用 "<HHII8sI"，而 Socket Address 要用 ">hH4s"？</p><details><summary>看解答</summary><p>EtherNet/IP 封裝與 CIP 資料採 little-endian；Socket Address 欄位直接沿用 BSD sockaddr_in 結構，依網路慣例採 big-endian（網路位元組順序）。同一個封包裡兩種順序並存，解析時要分段處理。</p></details></li><li><p>回應標頭的 length 是 51，Identity 項目長度是 45。差的 6 位元組是什麼？</p><details><summary>看解答</summary><p>CPF（Common Packet Format）前導：項目數（2 位元組）、項目型別（2 位元組）、項目長度（2 位元組）。</p></details></li><li><p>若產品名稱是 32 個字元，parse_identity_item() 需要修改嗎？</p><details><summary>看解答</summary><p>不需要。名稱是 SHORT_STRING，第一個位元組是長度，程式依長度切片；state 也依名稱長度計算位置。但應加上邊界檢查，避免長度欄位大於實際資料。</p></details></li><li><p>為什麼探索時用 ListIdentity，而不是直接讀寫標籤？</p><details><summary>看解答</summary><p>ListIdentity 不需要建立 session，也不會讀寫控制資料，對設備影響最小。讀寫標籤需要 RegisterSession 與連線，若路徑或資料型別錯誤，可能影響控制器或產生不預期的寫入。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

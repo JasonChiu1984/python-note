@@ -84,6 +84,81 @@ python3 python_web_crawling_lab.py quality</code></pre>
         rows.append(row)  # 保留候選，交由 quality_report 比對衝突</code></pre>
 <p>本教材沒有可輸入的外部 URL、深度擴張、登入或反封鎖功能。要處理站方授權的正式資料，另行設計分頁上限、版本化欄位、結果對帳、重複或格式異常告警，不把資料中的文字或網址當成指令。</p>
 <ul><li><a href="https://www.rfc-editor.org/rfc/rfc9309.html">RFC 9309：Robots Exclusion Protocol</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after">RFC 9110：Retry-After</a>、<a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-if-none-match">If-None-Match</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc6585.html#section-4">RFC 6585：429</a></li><li><a href="https://docs.python.org/3/library/html.parser.html">Python 官方：html.parser</a></li><li><a href="https://docs.python.org/3/library/urllib.robotparser.html">Python 官方：urllib.robotparser</a></li></ul></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節完全離線，示範一個「好鄰居」爬蟲的三個習慣：先讀 robots.txt、對同一主機限速，以及用 ETag 條件請求避免重複下載沒有變更的頁面。</p><h3>可實跑範例：robots.txt、速率限制與條件請求快取</h3><p>用 urllib.robotparser 解析一份內嵌的 robots.txt，針對特定 User-Agent 判斷能否擷取；用模擬時鐘實作 Crawl-delay；FakeServer 在 ETag 相同時回 304，統計可省下多少傳輸量。</p><p><a class="button" download href="extensions/python_web_crawling_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;離線示範：robots.txt 判讀、每主機速率限制、ETag 條件請求快取（標準函式庫）。&quot;&quot;&quot;
+import urllib.robotparser
+
+ROBOTS = &quot;&quot;&quot;
+User-agent: *
+Disallow: /admin/
+Disallow: /search
+Crawl-delay: 5
+
+User-agent: bms-report-bot
+Allow: /public/energy/
+Disallow: /
+Crawl-delay: 10
+&quot;&quot;&quot;.splitlines()
+
+UA = &quot;bms-report-bot&quot;
+
+
+class FakeServer:
+    &quot;&quot;&quot;模擬伺服器：資料沒變時回 304，並統計傳輸位元組。&quot;&quot;&quot;
+    def __init__(self):
+        self.version = 1
+        self.bytes_sent = 0
+
+    def get(self, path, if_none_match=None):
+        etag = f&#x27;&quot;v{self.version}&quot;&#x27;
+        if if_none_match == etag:
+            self.bytes_sent += 120                       # 只有標頭
+            return 304, etag, None
+        body = f&quot;&lt;table&gt;&lt;tr&gt;&lt;td&gt;{path}&lt;/td&gt;&lt;td&gt;{self.version * 1000} kWh&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&quot;
+        self.bytes_sent += 120 + 48_000                  # 假設完整頁面約 48 KB
+        return 200, etag, body
+
+
+class Crawler:
+    def __init__(self, robots_lines, server):
+        self.rp = urllib.robotparser.RobotFileParser()
+        self.rp.parse(robots_lines)
+        self.server = server
+        self.cache: dict[str, tuple[str, str]] = {}
+        self.clock = 0.0                                  # 模擬時鐘（秒）
+        self.next_allowed = 0.0
+
+    def fetch(self, path):
+        if not self.rp.can_fetch(UA, path):
+            return f&quot;{path}: robots.txt 不允許，跳過&quot;
+        delay = self.rp.crawl_delay(UA) or 1
+        if self.clock &lt; self.next_allowed:
+            self.clock = self.next_allowed                # 等到允許的時間
+        self.next_allowed = self.clock + delay
+        etag = self.cache.get(path, (None, None))[0]
+        status, new_etag, body = self.server.get(path, etag)
+        if status == 200:
+            self.cache[path] = (new_etag, body)
+        return f&quot;t={self.clock:&gt;4.0f}s {path}: {status}{&#x27;（沿用快取）&#x27; if status == 304 else &#x27;&#x27;}&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    srv = FakeServer()
+    c = Crawler(ROBOTS, srv)
+    for p in [&quot;/public/energy/2026-11&quot;, &quot;/public/energy/2026-11&quot;, &quot;/admin/users&quot;,
+              &quot;/public/energy/2026-10&quot;, &quot;/search?q=kwh&quot;]:
+        print(c.fetch(p))
+    srv.version = 2                                       # 伺服器資料更新
+    print(c.fetch(&quot;/public/energy/2026-11&quot;))
+    print(f&quot;總傳輸量約 {srv.bytes_sent / 1000:.1f} KB；若每次都完整下載約 {4 * 48.12:.1f} KB&quot;)
+    print(&quot;請求時建議帶 User-Agent 與聯絡方式，例如：&quot;, f&quot;{UA}/1.0 (+mailto:ops@example.com)&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不會連線到任何網站</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>t=   0s /public/energy/2026-11: 200
+t=  10s /public/energy/2026-11: 304（沿用快取）
+/admin/users: robots.txt 不允許，跳過
+t=  20s /public/energy/2026-10: 200
+/search?q=kwh: robots.txt 不允許，跳過
+t=  30s /public/energy/2026-11: 200
+總傳輸量約 144.5 KB；若每次都完整下載約 192.5 KB
+請求時建議帶 User-Agent 與聯絡方式，例如： bms-report-bot/1.0 (+mailto:ops@example.com)</code></pre><h3>工程現場案例：每天抓公開能源資料，被對方封鎖 IP</h3><p>某整合商每天從公用事業網站抓公開的月用電統計，程式每次都重新下載所有歷史月份，也沒有限速。對方網站把這種流量視為異常並封鎖了來源 IP，導致整批報表中斷。</p><p>改成條件請求後，未變更的月份只回 304，範例中傳輸量從 192.5 KB 降到 144.5 KB；在真實情境中，歷史月份幾乎不變，節省比例會更高。再加上 User-Agent 聯絡資訊與固定間隔，對方也能在有疑慮時聯絡，而不是直接封鎖。</p><ol><li>先確認資料是否有官方 API 或開放資料下載，有就不要爬網頁。</li><li>每次執行先讀 robots.txt，並遵守對方的使用條款；robots.txt 允許不等於授權。</li><li>保存每個 URL 的 ETag／Last-Modified，下次帶 If-None-Match／If-Modified-Since。</li><li>設定每主機的請求間隔與每日上限，User-Agent 帶聯絡方式。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Robots Exclusion Protocol 已在 2022 年標準化為 RFC 9309。RFC 規定同時符合多條規則時以最長（最具體）的規則為準；Python 的 urllib.robotparser 則依檔案中出現的順序採用第一條符合的規則，兩者在規則順序混雜時結果可能不同。Crawl-delay 不在 RFC 9309 內，是部分網站的延伸用法。 <a href="https://www.rfc-editor.org/rfc/rfc9309">來源：RFC 9309</a> <a href="https://docs.python.org/3/library/urllib.robotparser.html">來源：Python 文件：urllib.robotparser</a></li><li>本頁核對時常用套件版本：requests 2.34.2、httpx 0.29.0、beautifulsoup4 4.15.0、lxml 6.2.0。 <a href="https://pypi.org/project/beautifulsoup4/">來源：PyPI：beautifulsoup4</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 bms-report-bot 群組的 Allow 與 Disallow 兩行對調，/public/energy/2026-11 還能擷取嗎？依 RFC 9309 又應該如何？</p><details><summary>看解答</summary><p>urllib.robotparser 會先遇到 Disallow: /，判定不允許。依 RFC 9309，Allow: /public/energy/ 比 Disallow: / 更長、更具體，應判定允許。這就是兩者的差異；撰寫 robots.txt 時把 Allow 放在前面可同時相容兩種實作。</p></details></li><li><p>為什麼 /admin/users 被拒絕，即使 * 群組也寫了 Disallow: /admin/？</p><details><summary>看解答</summary><p>爬蟲只採用最符合自己 User-Agent 的那一組規則。bms-report-bot 有專屬群組，所以 * 群組的規則不適用；被拒絕是因為專屬群組的 Disallow: /。</p></details></li><li><p>伺服器沒有提供 ETag，只有 Last-Modified，Crawler 要怎麼改？</p><details><summary>看解答</summary><p>快取改存 Last-Modified 的值，請求時帶 If-Modified-Since。注意 Last-Modified 只有秒級精度，同一秒內多次更新可能漏判；若頁面很重要，可再比對內容雜湊。</p></details></li><li><p>若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？</p><details><summary>看解答</summary><p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頁首</a></footer><script>
 document.querySelector('[data-copy]').addEventListener('click', async (evt)=>{
   const block=document.getElementById(evt.currentTarget.dataset.copy);

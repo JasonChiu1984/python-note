@@ -133,4 +133,54 @@ if __name__ == &quot;__main__&quot;:
         result = {scope: dict(minutes=value, fractions=fractions(value))
                   for scope, value in counts.items()}
         print(json.dumps(dict(result=result, trace=trace), default=str,
-                         ensure_ascii=False, indent=2))</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section></main></body></html>
+                         ensure_ascii=False, indent=2))</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到完整的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段對結果的影響。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown，不放進分母。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
+from datetime import datetime, timedelta
+
+PLANNED = (datetime(2026, 11, 20, 8, 0), datetime(2026, 11, 20, 16, 0))   # 計畫生產 8 小時
+EVENTS = [                     # (開始時間, 狀態)；狀態持續到下一筆事件
+    (&quot;08:00&quot;, &quot;run&quot;), (&quot;09:40&quot;, &quot;stop_changeover&quot;), (&quot;10:10&quot;, &quot;run&quot;),
+    (&quot;12:00&quot;, &quot;unknown&quot;),      # 閘道器斷線，無回授
+    (&quot;12:20&quot;, &quot;run&quot;), (&quot;14:05&quot;, &quot;stop_fault&quot;), (&quot;14:50&quot;, &quot;run&quot;),
+]
+IDEAL_CYCLE_S = 30            # 理想節拍：每件 30 秒
+GOOD, TOTAL = 690, 720        # 良品數、總產出
+
+
+def durations():
+    day = PLANNED[0].date()
+    times = [datetime.combine(day, datetime.strptime(t, &quot;%H:%M&quot;).time()) for t, _ in EVENTS]
+    times.append(PLANNED[1])
+    acc: dict[str, timedelta] = {}
+    for (start, end), (_, state) in zip(zip(times, times[1:]), EVENTS):
+        acc[state] = acc.get(state, timedelta()) + (end - start)
+    return acc
+
+
+if __name__ == &quot;__main__&quot;:
+    acc = durations()
+    planned = PLANNED[1] - PLANNED[0]
+    for state, d in sorted(acc.items()):
+        print(f&quot;{state:&lt;17} {d}&quot;)
+    unknown = acc.get(&quot;unknown&quot;, timedelta())
+    run = acc.get(&quot;run&quot;, timedelta())
+    known = planned - unknown
+    availability = run / known
+    performance = TOTAL * IDEAL_CYCLE_S / run.total_seconds()
+    quality = GOOD / TOTAL
+    print(f&quot;未知時段 {unknown}（占計畫 {unknown / planned:.1%}），不列入分母也不算停機&quot;)
+    print(f&quot;可用率 A = {run} ÷ {known} = {availability:.1%}&quot;)
+    print(f&quot;效能 P = {TOTAL} × {IDEAL_CYCLE_S}s ÷ {run} = {performance:.1%}&quot;)
+    print(f&quot;品質 Q = {GOOD} ÷ {TOTAL} = {quality:.1%}&quot;)
+    print(f&quot;OEE = {availability * performance * quality:.1%}&quot;)
+    print(f&quot;若把未知當停機：A = {run / planned:.1%}，OEE = {run / planned * performance * quality:.1%}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>run               6:25:00
+stop_changeover   0:30:00
+stop_fault        0:45:00
+unknown           0:20:00
+未知時段 0:20:00（占計畫 4.2%），不列入分母也不算停機
+可用率 A = 6:25:00 ÷ 7:40:00 = 83.7%
+效能 P = 720 × 30s ÷ 6:25:00 = 93.5%
+品質 Q = 690 ÷ 720 = 95.8%
+OEE = 75.0%
+若把未知當停機：A = 80.2%，OEE = 71.9%</code></pre><h3>工程現場案例：OEE 因通訊中斷被低估 3 個百分點</h3><p>範例中閘道器在 12:00–12:20 斷線。若把這 20 分鐘當成停機，可用率從 83.7% 降到 80.2%，OEE 從 75.0% 降到 71.9%。這 3 個百分點會讓產線看起來比實際差，也可能讓維修團隊去追一個不存在的故障。</p><p>反過來，若把斷線期間當成運轉，同樣會高估。正確做法是單獨列出 unknown，並在報表上寫明涵蓋率；unknown 比例過高時，先處理資料收集問題，再談改善稼動率。</p><ol><li>確認狀態訊號來源：PLC 的運轉位元、電流門檻，或 MES 的工單狀態，各自的延遲與可靠度不同。</li><li>停機原因代碼要在現場輸入或由 PLC 給出，不要事後在報表上補。</li><li>理想節拍以設備規格或最佳實績為準，並在報表上註明，避免各班別用不同標準。</li><li>unknown 比例超過 2% 時，先檢查閘道器、網路與緩衝設定。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OEE 與可用率、效能、品質的定義可參考 ISO 22400-2（製造營運管理 KPI）。各公司常有自己的口徑，例如計畫停機是否列入分母，報表必須寫明採用哪一種。 <a href="https://www.iso.org/standard/54497.html">來源：ISO 22400-2</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若理想節拍改成 28 秒，效能與 OEE 會變成多少？</p><details><summary>看解答</summary><p>P = 720 × 28 ÷ 23,100 = 87.3%；OEE = 83.7% × 87.3% × 95.8% ≈ 70.0%。理想節拍越嚴格，效能越低，所以跨產線比較時必須用相同的節拍定義。</p></details></li><li><p>效能 P 有可能超過 100% 嗎？如果出現，代表什麼？</p><details><summary>看解答</summary><p>計算上可能，但通常代表理想節拍設得太寬鬆、產出計數重複，或運轉時間少算（例如 unknown 期間其實在生產）。應檢查資料而不是接受超過 100% 的結果。</p></details></li><li><p>修改 EVENTS，讓 14:05 的故障停機改為 14:05–14:20 故障、14:20–14:50 待料，結果哪些數字會變？</p><details><summary>看解答</summary><p>只有狀態分類變了（stop_fault 15 分鐘、新增 30 分鐘待料），運轉時間不變，所以 A、P、Q 與 OEE 都不變。差別在停機原因分析：故障與待料的改善對象完全不同。</p></details></li><li><p>為什麼 durations() 要把 PLANNED 的結束時間加到時間清單最後？</p><details><summary>看解答</summary><p>最後一筆事件（14:50 run）沒有下一筆事件可以當結束時間，必須用計畫結束時間 16:00 截斷，否則最後一段運轉時間會漏算。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>
