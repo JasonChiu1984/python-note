@@ -634,7 +634,62 @@ os.replace(staging, target)</code></pre>
           <p>官方參考：<a href="https://docs.python.org/3/library/argparse.html">argparse</a>、<a href="https://docs.python.org/3/library/tempfile.html">tempfile</a>、<a href="https://docs.python.org/3/library/os.html#os.replace">os.replace</a>、<a href="https://docs.python.org/3/library/subprocess.html">subprocess</a>。</p>
         </article>
       </section>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明 CLI 的契約。本節示範一個批次設定工具的完整介面：子命令、預設為模擬（dry-run）、明確區分的結束碼，以及給其他程式讀取的 JSON 摘要。</p><h3>可實跑範例：dry-run 預設、結束碼與 JSON 摘要</h3><p>結束碼語意：0 全部成功、1 部分成功、2 用法錯誤、3 全部失敗。--apply 才會實際寫入；缺少必要參數時 argparse 會印出用法並以 2 結束。範例把多個指令的執行結果集中印出。</p><p><a class="button" download href="extensions/python_cli_automation_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;CLI 契約：argparse 子命令、--dry-run 預設、結束碼語意、機器可讀的 JSON 摘要（標準函式庫）。&quot;&quot;&quot;
+import argparse
+import json
+import sys
+
+EXIT_OK, EXIT_PARTIAL, EXIT_USAGE, EXIT_FAILED = 0, 1, 2, 3
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog=&quot;bmsctl&quot;, description=&quot;批次設定點工具&quot;)
+    sub = p.add_subparsers(dest=&quot;cmd&quot;, required=True)
+    s = sub.add_parser(&quot;set&quot;, help=&quot;設定冰機出水溫度&quot;)
+    s.add_argument(&quot;devices&quot;, nargs=&quot;+&quot;)
+    s.add_argument(&quot;--value&quot;, type=float, required=True)
+    s.add_argument(&quot;--apply&quot;, action=&quot;store_true&quot;, help=&quot;實際寫入；預設只模擬&quot;)
+    s.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;, help=&quot;輸出 JSON 摘要&quot;)
+    return p
+
+
+def run(argv, offline=(&quot;CH-03&quot;,)):
+    try:
+        args = build_parser().parse_args(argv)
+    except SystemExit as e:
+        return EXIT_USAGE if e.code else EXIT_OK, None
+    if not 5.0 &lt;= args.value &lt;= 15.0:
+        return EXIT_USAGE, {&quot;error&quot;: f&quot;value {args.value} 超出 5–15&quot;}
+    done, failed = [], []
+    for d in args.devices:
+        (failed if d in offline else done).append(d)
+    summary = {&quot;mode&quot;: &quot;apply&quot; if args.apply else &quot;dry-run&quot;, &quot;value&quot;: args.value, &quot;ok&quot;: done, &quot;failed&quot;: failed}
+    code = EXIT_OK if not failed else (EXIT_PARTIAL if done else EXIT_FAILED)
+    return code, summary
+
+
+if __name__ == &quot;__main__&quot;:
+    sys.stderr = sys.stdout                          # 讓 argparse 的錯誤訊息也出現在範例輸出
+    for argv in ([&quot;set&quot;, &quot;CH-01&quot;, &quot;CH-02&quot;, &quot;--value&quot;, &quot;7.5&quot;],
+                 [&quot;set&quot;, &quot;CH-01&quot;, &quot;CH-03&quot;, &quot;--value&quot;, &quot;7.5&quot;, &quot;--apply&quot;, &quot;--json&quot;],
+                 [&quot;set&quot;, &quot;CH-03&quot;, &quot;--value&quot;, &quot;7.5&quot;, &quot;--apply&quot;],
+                 [&quot;set&quot;, &quot;CH-01&quot;, &quot;--value&quot;, &quot;20&quot;],
+                 [&quot;set&quot;, &quot;CH-01&quot;]):
+        code, summary = run(argv)
+        print(f&quot;$ bmsctl {&#x27; &#x27;.join(argv)}\n  結束碼 {code}；{json.dumps(summary, ensure_ascii=False) if summary else &#x27;&#x27;}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>$ bmsctl set CH-01 CH-02 --value 7.5
+  結束碼 0；{&quot;mode&quot;: &quot;dry-run&quot;, &quot;value&quot;: 7.5, &quot;ok&quot;: [&quot;CH-01&quot;, &quot;CH-02&quot;], &quot;failed&quot;: []}
+$ bmsctl set CH-01 CH-03 --value 7.5 --apply --json
+  結束碼 1；{&quot;mode&quot;: &quot;apply&quot;, &quot;value&quot;: 7.5, &quot;ok&quot;: [&quot;CH-01&quot;], &quot;failed&quot;: [&quot;CH-03&quot;]}
+$ bmsctl set CH-03 --value 7.5 --apply
+  結束碼 3；{&quot;mode&quot;: &quot;apply&quot;, &quot;value&quot;: 7.5, &quot;ok&quot;: [], &quot;failed&quot;: [&quot;CH-03&quot;]}
+$ bmsctl set CH-01 --value 20
+  結束碼 2；{&quot;error&quot;: &quot;value 20.0 超出 5–15&quot;}
+usage: bmsctl set [-h] --value VALUE [--apply] [--json] devices [devices ...]
+bmsctl set: error: the following arguments are required: --value
+$ bmsctl set CH-01
+  結束碼 2；</code></pre><h3>工程現場案例：排程腳本誤把部分失敗當成成功</h3><p>某夜間排程呼叫批次工具調整三台冰機設定點。工具只要沒有丟出例外就回傳 0，即使其中一台離線、寫入失敗，排程系統仍顯示成功。早上值班人員才發現冰機設定不一致。</p><p>範例把「部分成功」定義成獨立的結束碼 1，排程可以據此重試失敗的設備或發出告警；--json 摘要列出成功與失敗的設備清單，供下一步自動處理。預設 dry-run 則讓新手先看到會做什麼，再加 --apply 實際執行。</p><ol><li>寫入類工具預設為模擬，必須明確加上 --apply 才寫入。</li><li>定義並記錄結束碼語意，至少區分成功、部分成功、用法錯誤與失敗。</li><li>提供 --json 輸出供程式讀取，人看的訊息寫到 stderr 或一般輸出。</li><li>參數驗證放在執行任何動作之前，錯誤時不做任何寫入。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>argparse 在 Python 3.14 起支援彩色說明輸出（可用 color 參數或 NO_COLOR 環境變數關閉）。需要更完整 CLI 功能時常用 Typer 或 Click。 <a href="https://docs.python.org/3/library/argparse.html">來源：Python 文件：argparse</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>第二個指令有 --json，但輸出和第一個沒有差別。在真實工具中 --json 應該改變什麼？</p><details><summary>看解答</summary><p>範例為了比較，所有情況都印出摘要。真實工具中，沒有 --json 時應印出給人看的表格或訊息；有 --json 時只輸出一個 JSON 物件到 stdout，其他訊息寫到 stderr，方便管線處理。</p></details></li><li><p>為什麼值超出範圍的檢查要在處理任何設備之前？</p><details><summary>看解答</summary><p>若邊處理邊檢查，可能已經寫入部分設備才發現參數錯誤，造成不一致。先完整驗證，再執行，是批次工具的基本原則。</p></details></li><li><p>argparse 遇到錯誤時會呼叫 sys.exit(2)。範例為什麼要攔截 SystemExit？</p><details><summary>看解答</summary><p>為了在同一支程式中連續示範多個指令。真實的 CLI 不需要攔截，讓 argparse 直接以 2 結束即可；在測試中攔截 SystemExit 則是驗證用法錯誤的常見方式。</p></details></li><li><p>若排程系統只認得 0 與非 0，結束碼 1 與 3 的區分還有意義嗎？</p><details><summary>看解答</summary><p>有。即使排程只判斷成敗，包裝腳本或告警規則可以依結束碼決定動作：1 重試失敗的設備，3 可能代表網路整體中斷要通知人員。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "requires": [
+  "fastapi",
+  "httpx"
+ ],
+ "intro": "本頁說明 FastAPI 的工程化。本節把四個上線前必須處理的項目寫成一支可執行的程式：用 lifespan 管理連線資源、健康檢查、把設備離線轉成 RFC 9457 的錯誤格式，並附 Retry-After。",
+ "example_title": "lifespan、健康檢查與 Problem Details 錯誤",
+ "example_desc": "lifespan 取代已不建議使用的 on_event；TestClient 用 with 進入時觸發 startup、離開時觸發 shutdown。自訂例外處理器回傳 application/problem+json，欄位依 RFC 9457。",
+ "run_note": "需先 pip install fastapi httpx",
+ "case": {
+  "title": "設備離線時 API 回 500，前端只顯示「系統錯誤」",
+  "paragraphs": [
+   "某 BAS 查詢 API 在設備沒有回應時直接讓例外往外拋，FastAPI 回 500 Internal Server Error。前端無法區分是程式錯誤還是設備離線，值班人員看到「系統錯誤」就打電話給開發者。",
+   "把設備離線定義成專用例外，轉成 503 加上 Retry-After 與結構化的錯誤內容後，前端可以顯示「AHU-03 無回應，30 秒後重試」，監控也能把設備問題與程式錯誤分開統計。"
+  ],
+  "steps": [
+   "連線池、模型載入等資源在 lifespan 建立與釋放，不在每個請求中建立。",
+   "把可預期的失敗（設備離線、權限不足）定義成例外並對應適當的狀態碼。",
+   "錯誤內容使用 RFC 9457 格式，type 指向說明文件。",
+   "健康檢查區分程序存活（liveness）與依賴可用（readiness），部署平台依此決定重啟或移出負載。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 FastAPI 最新版為 0.165.0、Uvicorn 0.54.0。@app.on_event('startup') 已被 lifespan 取代，新程式應使用 lifespan。",
+   "sources": [
+    {
+     "title": "PyPI：fastapi",
+     "url": "https://pypi.org/project/fastapi/"
+    },
+    {
+     "title": "RFC 9457",
+     "url": "https://www.rfc-editor.org/rfc/rfc9457"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 TestClient 要用 with 區塊？不用會怎樣？",
+   "a": "<p>只有在 with 區塊中，TestClient 才會執行 lifespan 的 startup 與 shutdown。不用 with 時 app.state.pool 不存在，健康檢查會丟出 AttributeError。</p>"
+  },
+  {
+   "q": "設備離線為什麼用 503 而不是 404 或 500？",
+   "a": "<p>404 代表資源不存在，但設備是存在的；500 代表伺服器程式錯誤。503 Service Unavailable 表示暫時無法提供服務，搭配 Retry-After 告訴用戶端何時再試。</p>"
+  },
+  {
+   "q": "健康檢查若每次都真的去讀一台設備，有什麼問題？",
+   "a": "<p>部署平台可能每幾秒呼叫一次，會對設備造成額外負載；任一設備離線也會讓整個服務被判定不健康並重啟。readiness 應檢查自身依賴（連線池、資料庫），設備狀態另外監控。</p>"
+  },
+  {
+   "q": "Problem Details 的 type 欄位應該填什麼？",
+   "a": "<p>指向說明該錯誤類型的 URI，最好是可開啟的文件頁面，說明原因與處理方式。同一類錯誤使用固定的 type，用戶端可依此分類處理。</p>"
+  }
+ ]
+}

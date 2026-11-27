@@ -639,7 +639,48 @@ if __name__ == "__main__":
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明可觀測性維運。本節從結構化日誌直接算出服務層級指標（SLI）：成功率、P95 延遲與錯誤預算消耗速率，並找出拖累整體的那一台設備。</p><h3>可實跑範例：從 NDJSON 日誌計算 SLI 與錯誤預算</h3><p>每行一個 JSON 事件，非輪詢事件（config_reload）先過濾。P95 用 statistics.quantiles 計算，只看成功的請求；錯誤預算消耗速率 = 實際錯誤率 ÷ 允許錯誤率。</p><p><a class="button" download href="extensions/python_observability_operations_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;從結構化日誌計算 SLI：成功率、P95 延遲、錯誤預算消耗（標準函式庫）。&quot;&quot;&quot;
+import json
+from statistics import quantiles
+
+LOG = &quot;&quot;&quot;\
+{&quot;ts&quot;:&quot;10:00:01&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M01&quot;,&quot;ok&quot;:true,&quot;ms&quot;:42}
+{&quot;ts&quot;:&quot;10:00:01&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M02&quot;,&quot;ok&quot;:true,&quot;ms&quot;:51}
+{&quot;ts&quot;:&quot;10:00:02&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M03&quot;,&quot;ok&quot;:false,&quot;ms&quot;:1000,&quot;err&quot;:&quot;timeout&quot;}
+{&quot;ts&quot;:&quot;10:00:06&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M01&quot;,&quot;ok&quot;:true,&quot;ms&quot;:39}
+{&quot;ts&quot;:&quot;10:00:06&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M02&quot;,&quot;ok&quot;:true,&quot;ms&quot;:47}
+{&quot;ts&quot;:&quot;10:00:07&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M03&quot;,&quot;ok&quot;:false,&quot;ms&quot;:1000,&quot;err&quot;:&quot;timeout&quot;}
+{&quot;ts&quot;:&quot;10:00:11&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M01&quot;,&quot;ok&quot;:true,&quot;ms&quot;:44}
+{&quot;ts&quot;:&quot;10:00:11&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M02&quot;,&quot;ok&quot;:true,&quot;ms&quot;:180}
+{&quot;ts&quot;:&quot;10:00:12&quot;,&quot;event&quot;:&quot;poll&quot;,&quot;device&quot;:&quot;M03&quot;,&quot;ok&quot;:true,&quot;ms&quot;:61}
+{&quot;ts&quot;:&quot;10:00:12&quot;,&quot;event&quot;:&quot;config_reload&quot;,&quot;by&quot;:&quot;ops&quot;}
+&quot;&quot;&quot;
+SLO_SUCCESS = 0.99                       # 目標：99% 輪詢成功
+
+
+if __name__ == &quot;__main__&quot;:
+    polls = [r for r in map(json.loads, LOG.splitlines()) if r[&quot;event&quot;] == &quot;poll&quot;]
+    ok = sum(r[&quot;ok&quot;] for r in polls)
+    rate = ok / len(polls)
+    lat = [r[&quot;ms&quot;] for r in polls if r[&quot;ok&quot;]]
+    p95 = quantiles(lat, n=20, method=&quot;inclusive&quot;)[-1]
+    budget = 1 - SLO_SUCCESS
+    burn = (1 - rate) / budget
+    print(f&quot;輪詢 {len(polls)} 次，成功率 {rate:.1%}（SLO {SLO_SUCCESS:.0%}）&quot;)
+    print(f&quot;成功請求延遲 P95 = {p95:.0f} ms，最大 {max(lat)} ms&quot;)
+    print(f&quot;錯誤預算消耗速率 {burn:.1f} 倍（&gt; 1 代表照此速度會在期限前耗盡）&quot;)
+    by_dev = {}
+    for r in polls:
+        by_dev.setdefault(r[&quot;device&quot;], []).append(r[&quot;ok&quot;])
+    print(&quot;各設備成功率：&quot;, {d: f&quot;{sum(v) / len(v):.0%}&quot; for d, v in sorted(by_dev.items())})
+    errs = [(r[&quot;ts&quot;], r[&quot;device&quot;], r[&quot;err&quot;]) for r in polls if not r[&quot;ok&quot;]]
+    print(&quot;錯誤事件：&quot;, errs)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>輪詢 9 次，成功率 77.8%（SLO 99%）
+成功請求延遲 P95 = 144 ms，最大 180 ms
+錯誤預算消耗速率 22.2 倍（&gt; 1 代表照此速度會在期限前耗盡）
+各設備成功率： {&#x27;M01&#x27;: &#x27;100%&#x27;, &#x27;M02&#x27;: &#x27;100%&#x27;, &#x27;M03&#x27;: &#x27;33%&#x27;}
+錯誤事件： [(&#x27;10:00:02&#x27;, &#x27;M03&#x27;, &#x27;timeout&#x27;), (&#x27;10:00:07&#x27;, &#x27;M03&#x27;, &#x27;timeout&#x27;)]</code></pre><h3>工程現場案例：整體成功率 78%，其實只有一台電表有問題</h3><p>值班儀表板顯示輪詢成功率只有 77.8%，錯誤預算以 22 倍的速度消耗，看起來整個系統都有問題。依設備拆開後發現 M01、M02 都是 100%，只有 M03 一直逾時，是那台電表的通訊線鬆脫。</p><p>結構化日誌的價值在於能事後以不同維度重新切分。若日誌只寫「poll failed」的自由文字，就很難這樣快速定位。延遲也一樣：M02 有一次 180 ms，P95 被拉到 144 ms，若 SLO 是 P95 &lt; 100 ms 就要查原因。</p><ol><li>日誌每筆事件包含固定欄位：時間、事件名稱、設備、結果、耗時、錯誤類型。</li><li>先定義 SLO（例如 99% 輪詢成功、P95 &lt; 100 ms），再從日誌計算 SLI。</li><li>告警以錯誤預算消耗速率為準，短時間高倍率與長時間中倍率各設一條規則。</li><li>整體指標異常時，依設備、地點、版本等維度拆解，找出集中的來源。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 OpenTelemetry Python SDK 最新版為 1.45.2、structlog 26.1.0。結構化日誌欄位若採 OpenTelemetry 語意慣例命名，之後接入追蹤與指標系統會比較容易。 <a href="https://pypi.org/project/opentelemetry-sdk/">來源：PyPI：opentelemetry-sdk</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 P95 只用成功請求的延遲計算？</p><details><summary>看解答</summary><p>逾時請求的 1,000 ms 是逾時設定值，不是真實延遲，混在一起會讓 P95 反映逾時設定而不是系統表現。成功率與延遲分開看，各自代表可用性與效能。</p></details></li><li><p>若 SLO 是 99%，30 天內允許失敗的比例是多少？以每 5 秒輪詢 3 台設備計，大約是多少次？</p><details><summary>看解答</summary><p>1%。30 天 × 86,400 秒 ÷ 5 × 3 台 = 1,555,200 次，允許約 15,552 次失敗。</p></details></li><li><p>錯誤預算消耗速率 22.2 倍代表什麼？</p><details><summary>看解答</summary><p>照目前的錯誤率，30 天的錯誤預算約 30 ÷ 22.2 ≈ 1.35 天就會用完。速率越高，越需要立即處理。</p></details></li><li><p>日誌最後一行 config_reload 為什麼要保留，而不是只記錄輪詢？</p><details><summary>看解答</summary><p>變更事件是排查的重要線索：若錯誤在設定重新載入後開始增加，就能快速找到原因。計算 SLI 時過濾掉，但保留在同一個日誌流中以便對照時間。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

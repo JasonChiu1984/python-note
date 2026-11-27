@@ -1097,6 +1097,41 @@ python pandas_graduate_lab.py bench</code></pre>
 
 
 
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明 pandas 的工程化做法。本節聚焦兩個最容易悄悄出錯的操作：merge 時點位表有重複鍵導致資料列被複製，以及把不同時間戳的讀值與設定點對齊。</p><h3>可實跑範例：merge 驗證與 merge_asof 時間對齊</h3><p>validate='many_to_one' 讓 pandas 在右表鍵重複時直接報錯，而不是默默產生多出來的列；merge_asof 以 direction='backward' 讓每筆讀值配上當時已生效的設定點。範例需要 pandas 3.x。</p><p><a class="button" download href="extensions/python_pandas_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;pandas 工程化：merge 驗證關聯、對齊時間戳（merge_asof）、檢查合併前後筆數（需 pandas 3.x）。&quot;&quot;&quot;
+import pandas as pd
+
+readings = pd.DataFrame({
+    &quot;ts&quot;: pd.to_datetime([&quot;2026-11-20 08:00:03&quot;, &quot;2026-11-20 08:00:07&quot;, &quot;2026-11-20 08:00:12&quot;,
+                          &quot;2026-11-20 08:00:03&quot;, &quot;2026-11-20 08:00:09&quot;]),
+    &quot;point&quot;: [&quot;SAT&quot;, &quot;SAT&quot;, &quot;SAT&quot;, &quot;KW&quot;, &quot;KW&quot;],
+    &quot;value&quot;: [22.4, 22.5, 22.7, 128.0, 131.5],
+})
+points = pd.DataFrame({&quot;point&quot;: [&quot;SAT&quot;, &quot;KW&quot;, &quot;KW&quot;], &quot;unit&quot;: [&quot;degC&quot;, &quot;kW&quot;, &quot;kW&quot;],
+                       &quot;ahu&quot;: [&quot;AHU-01&quot;, &quot;AHU-01&quot;, &quot;AHU-02&quot;]})          # 點位表中 KW 重複了
+setpoints = pd.DataFrame({&quot;ts&quot;: pd.to_datetime([&quot;2026-11-20 08:00:00&quot;, &quot;2026-11-20 08:00:10&quot;]),
+                          &quot;sat_sp&quot;: [22.0, 23.0]})
+
+if __name__ == &quot;__main__&quot;:
+    try:
+        readings.merge(points, on=&quot;point&quot;, how=&quot;left&quot;, validate=&quot;many_to_one&quot;)
+    except pd.errors.MergeError as e:
+        print(&quot;merge 驗證失敗：&quot;, str(e).splitlines()[0])
+    dup = points[points.duplicated(&quot;point&quot;, keep=False)]
+    print(&quot;點位表重複鍵：&quot;, dup.to_dict(&quot;records&quot;))
+    clean = points.drop_duplicates(&quot;point&quot;, keep=&quot;first&quot;)
+    merged = readings.merge(clean, on=&quot;point&quot;, how=&quot;left&quot;, validate=&quot;many_to_one&quot;)
+    print(f&quot;合併前 {len(readings)} 筆、合併後 {len(merged)} 筆（必須相同）&quot;)
+    sat = readings[readings[&quot;point&quot;] == &quot;SAT&quot;].sort_values(&quot;ts&quot;)
+    aligned = pd.merge_asof(sat, setpoints.sort_values(&quot;ts&quot;), on=&quot;ts&quot;, direction=&quot;backward&quot;)
+    aligned[&quot;error&quot;] = (aligned[&quot;value&quot;] - aligned[&quot;sat_sp&quot;]).round(2)
+    print(aligned[[&quot;ts&quot;, &quot;value&quot;, &quot;sat_sp&quot;, &quot;error&quot;]].to_string(index=False))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需先 pip install pandas</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>merge 驗證失敗： Merge keys are not unique in right dataset; not a many-to-one merge
+點位表重複鍵： [{&#x27;point&#x27;: &#x27;KW&#x27;, &#x27;unit&#x27;: &#x27;kW&#x27;, &#x27;ahu&#x27;: &#x27;AHU-01&#x27;}, {&#x27;point&#x27;: &#x27;KW&#x27;, &#x27;unit&#x27;: &#x27;kW&#x27;, &#x27;ahu&#x27;: &#x27;AHU-02&#x27;}]
+合併前 5 筆、合併後 5 筆（必須相同）
+                 ts  value  sat_sp  error
+2026-11-20 08:00:03   22.4    22.0    0.4
+2026-11-20 08:00:07   22.5    22.0    0.5
+2026-11-20 08:00:12   22.7    23.0   -0.3</code></pre><h3>工程現場案例：合併點位表後，用電量多算了一倍</h3><p>某報表把電表讀值與點位表合併以取得單位與所屬空調箱。點位表中 KW 這個點位不小心出現兩次（同時對應 AHU-01 與 AHU-02），一般的 merge 會把每筆 KW 讀值複製成兩列，加總後用電量多了一倍，而且不會有任何錯誤訊息。</p><p>加上 validate 參數後，重複鍵會立即被發現；合併後再檢查筆數與合併前相同，是另一道防線。設定點對齊則不能用一般 merge（時間戳不會剛好相等），要用 merge_asof 找出每筆讀值當下有效的設定點。</p><ol><li>每次 merge 都加上 validate，明確宣告預期的關聯（one_to_one、many_to_one 等）。</li><li>合併前後檢查筆數，左合併時兩者應相同。</li><li>時間序列對齊用 merge_asof，兩邊都先依時間排序，並視需要設定 tolerance 上限。</li><li>點位表本身在載入時就檢查鍵的唯一性。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pandas 最新版為 3.1.1。pandas 3 全面採用 Copy-on-Write，對切片的修改不再影響原表；依賴舊行為的鏈式賦值會失效，應改用 .loc 一次指定。 <a href="https://pypi.org/project/pandas/">來源：PyPI：pandas</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>不加 validate 直接 merge，合併後會有幾筆？</p><details><summary>看解答</summary><p>SAT 3 筆各配 1 列，KW 2 筆各配 2 列，共 3 + 4 = 7 筆，比原本多 2 筆。若對 value 加總，KW 的用電量會被重複計算。</p></details></li><li><p>merge_asof 的 direction='backward' 是什麼意思？為什麼適合設定點？</p><details><summary>看解答</summary><p>每筆讀值配上時間早於或等於它的最近一筆設定點，也就是「當時已生效的設定」。用 forward 會配到未來才生效的設定，邏輯上錯誤。</p></details></li><li><p>若某筆讀值比所有設定點都早（例如 07:59），merge_asof 會給什麼？</p><details><summary>看解答</summary><p>sat_sp 為缺值。這代表沒有可用的設定點，應該在報表中標示，而不是用其他值填補。</p></details></li><li><p>drop_duplicates('point', keep='first') 真的是正確的處理嗎？</p><details><summary>看解答</summary><p>不一定。範例為了示範後續步驟直接保留第一筆，但實際上 KW 對應兩台空調箱代表點位命名有問題，正確做法是修正點位表（例如改成 AHU1_KW、AHU2_KW），而不是任意丟掉一筆。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
 
