@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 容器深度研究：架構、生命週期與資安</title>
+<style>
+:root{color-scheme:light;--ink:#122a41;--muted:#425971;--line:#c3d3df;--soft:#edf5fb;--green:#13716a;font-family:system-ui,"PingFang TC","Microsoft JhengHei",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#f2f6fa;color:var(--ink);line-height:1.72}main{width:min(100% - 1.5rem,80rem);margin:1rem auto 3rem}section,header{background:#fff;border:1px solid var(--line);border-radius:1rem;margin:1rem 0;padding:clamp(.85rem,3vw,2rem);min-width:0}header{background:linear-gradient(126deg,#102d49,#145e65);color:white}header a{color:#fff}h1{font-size:clamp(1.75rem,4.5vw,3rem);line-height:1.2;margin:.45rem 0}h2,h3{line-height:1.3}a{color:#115479;text-underline-offset:.19em}a:focus-visible{outline:3px solid #a95a15}nav{display:flex;flex-wrap:wrap;gap:.42rem}nav a{border:1px solid var(--line);background:#fff;padding:.3rem .55rem;border-radius:.42rem}p,li,dd,.box{overflow-wrap:anywhere}.board,.grid{display:grid;gap:.75rem}.board{grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))}.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}.box,.card{border:1px solid #a6bfce;border-radius:.65rem;background:var(--soft);padding:.65rem .85rem;min-width:0}.card h3{margin:.25rem 0}.hub{color:white;background:#164c64;text-align:center;margin:0 auto .55rem;max-width:24rem}.graph{border:1px solid var(--line);border-radius:.8rem;padding:.7rem;margin:.8rem 0}.arrow{color:var(--green);font-size:1.15rem;font-weight:800;text-align:center;line-height:1.2;padding:.1rem}.stack{display:grid;gap:.2rem;max-width:48rem;margin:auto}.stack strong,.card strong{display:block}.decision-grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}.notice{border-left:.25rem solid #b66c19;padding:.45rem .7rem;background:#fff5e6}dt{font-weight:780}dd{margin:0 0 .65rem;color:var(--muted)}pre{padding:.7rem .85rem;border-radius:.5rem;background:#15283d;color:#fff;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font-size:.86rem}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}[id]{scroll-margin-top:.6rem}figcaption{font-size:.92rem;color:var(--muted);margin-top:.55rem}ul{padding-left:1.25rem}
+</style>
+</head>
+<body><main>
+<header><a href="python_docker_interop_tutorial.html">回 Docker 與 Python 互動操作</a> · <a href="index.html">教材入口</a>
+<h1>Docker 容器深度研究</h1><p>從 OCI 映像到 Linux 程序，再用工控 Gateway 的部署情境驗證網路、資料、資源與資安邊界。</p><a href="assets/docker_container_research.drawio" download>下載可編輯 draw.io：心智圖、架構圖、流程圖</a></header>
+<nav aria-label="章節"><a href="#mindmap">心智圖</a><a href="#architecture">架構圖</a><a href="#lifecycle">流程圖</a><a href="#mechanisms">核心機制</a><a href="#security">資安分析</a><a href="#lab">實作驗收</a><a href="#sources">官方來源</a></nav>
+<section id="mindmap"><h2>心智圖：Docker 容器的六條主線</h2>
+<figure class="graph" aria-label="Docker 容器的心智圖">
+<div class="hub box"><strong>Docker 容器</strong></div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="board">
+<div class="box"><strong>映像</strong><br>Dockerfile、OCI、Tag／Digest</div><div class="box"><strong>執行</strong><br>Engine、containerd、runtime、PID 1</div><div class="box"><strong>隔離</strong><br>Namespace、cgroups、權限</div><div class="box"><strong>網路</strong><br>Bridge、DNS、發布連接埠</div><div class="box"><strong>儲存</strong><br>映像層、可寫層、Volume、Bind</div><div class="box"><strong>維運與資安</strong><br>健康、收尾、供應鏈、信任邊界</div>
+</div><figcaption>六個分支是查問題的索引，不是執行順序。容器健康只是維運的一部分，不能替代網路或業務資料驗收。</figcaption></figure>
+</section>
+<section id="architecture"><h2>架構圖：哪些工作由誰負責？</h2>
+<figure class="graph" aria-label="Docker Engine Linux 容器架構">
+<div class="stack">
+<div class="box"><strong>客戶端：docker CLI／Compose／Python SDK</strong>送管理請求至目前選定的 Engine。這條路不是應用程式 HTTP 請求。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>Docker Engine：dockerd／Engine API</strong>管理映像、容器、網路和 Volume；由 Engine 管理作業與組態。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>典型 Linux 執行鏈：containerd 與 shim → OCI runtime（例如 runc）</strong>依設定準備與啟動容器程序；shim 協助管理執行期間的 I/O 和退出狀態。替代 runtime 或不同平台可能不同。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>Linux 核心與隔離環境</strong>核心為應用程序提供 namespace 的可見範圍、cgroups 的資源控制、檔案系統掛載和網路介面；Python 在這裡執行，不是跑在 Docker API 內。</div>
+</div><figcaption>原生 Linux 容器共享執行主機的 Linux 核心；macOS 的 Docker Desktop 則由 Linux VM 供應這顆核心。OCI Image 與 OCI Runtime 是兩份不同規格。</figcaption></figure>
+<div class="grid"><p class="card"><strong>映像輸入</strong>Registry 提供 manifest、config 和 layers。多平台 index 對應各平台 manifest；Apple Silicon 常見是 arm64，生產映像要核對預期架構。</p><p class="card"><strong>資料路徑</strong>外部程式走主機發布的連接埠；同 Compose 網路可用服務名稱與容器埠。容器寫入規劃則走可寫層、Volume 或 bind，不經 Engine API 傳一般業務資料。</p></div>
+</section>
+<section id="lifecycle"><h2>流程圖：從 docker run 到退出</h2>
+<figure class="graph" aria-label="容器建立、啟動、健康、停止與刪除流程">
+<div class="stack">
+<div class="box"><strong>1. 解析映像與組態</strong><code>docker run</code> 會建立再啟動；依本地是否有映像與 pull policy 決定是否拉取，也會核對目標平台及配置。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>2. 建立與啟動</strong>準備 rootfs、可寫層或掛載、網路及 cgroups，再啟動主程序（容器內通常為 PID 1）。若建立或啟動失敗，不會進入穩定服務。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>3. Running 不是 Ready</strong>有配置 healthcheck 才有健康狀態。外部讀值還必須驗證服務就緒、資料格式和來源品質。</div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>4. 收到停止請求，送應用停止訊號</strong>預設通常是 SIGTERM；映像的 STOPSIGNAL 或停止設定可改變它。應用在預算內完成清理才算正常收尾。</div>
+<div class="decision-grid"><div class="box"><strong>預算內退出 → Exited</strong>記錄應用的退出碼及收尾證據。</div><div class="box"><strong>未退出 → 強制停止 → Exited</strong>通常為 SIGKILL，不應假設工作已送完。也應從事件、日誌和 OOM 欄位區分其他停止原因。</div></div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="box"><strong>5. Exited 與 Removed 不同</strong>停止保留容器物件和可寫層；容器刪除後可寫層消失。Volume 的保留與刪除另有生命週期，不能把它當備份。</div>
+</div><figcaption>主程序也能自行退出，並不一定經過停止請求。一般 restart policy 關注容器退出，不應把 unhealthy 當成它一定會自動重啟的條件。</figcaption></figure>
+</section>
+<section id="mechanisms"><h2>深入拆解：隔離、儲存、資源與網路</h2>
+<dl>
+<dt>Namespace：程序看得到什麼？</dt><dd>PID、網路、mount、IPC、UTS 等隔離各自的視圖；user namespace 處理 UID/GID 的映射，是否啟用依模式而定。namespace 不是 CPU 或記憶體配額，也不是獨立核心。</dd>
+<dt>cgroups：程序能使用多少？</dt><dd><code>--cpus=0.5</code> 型態的設定限制 CPU 時間，不固定在半顆特定核心。記憶體上限加上囤積的快取會影響服務；以 <code>docker stats</code>、OOMKilled、重啟與應用延遲合併判斷。cgroup v1/v2 的檔案名稱不同，先辨認執行環境。</dd>
+<dt>Overlay 與資料壽命：資料寫到哪？</dt><dd>典型 OverlayFS 讓映像層唯讀，上層承接寫入；既有下層檔案首次修改可能發生 copy-up。實際儲存後端可能是 containerd snapshotter 或其他 Docker 儲存驅動，不應假設每台都用 <code>overlay2</code>。Volume 的持久化不等於跨主機複寫或備份；bind mount 還依賴 Engine 主機路徑及權限。</dd>
+<dt>Tag、Digest 與跨平台</dt><dd>Tag 可變；部署用已驗證的 digest 避免悄悄換版，搭配安全更新與重建。Digest 是內容識別，不等於簽章、來源授權或沒有漏洞；多平台要分清 index digest 與單一平台 manifest digest。</dd>
+<dt>Bridge、服務 DNS 及防火牆</dt><dd>同網路服務用服務名稱和容器埠。主機發布連接埠是另一條路，<code>EXPOSE</code> 不等於發布或防火牆放行。採集跨 VLAN 的 BACnet/IP 之類廣播發現時，要在目標平台核對廣播、路由與 ACL，不能假設 Docker Desktop VM 的通用連接埠映射會轉送它。</dd>
+<dt>PID 1、轉送與收尾</dt><dd>用 exec-form <code>CMD</code> 或在包裝腳本用 <code>exec</code>，避免訊號卡在外層 shell。主程序需實作停止邏輯；子程序多時考慮 init 轉送與回收。停止預算必須由應用與部署平台分別驗證。</dd>
+</dl></section>
+<section id="security"><h2>資安分析：先辨識信任邊界，再決定怎麼驗</h2>
+<div class="grid">
+<article class="card"><h3>映像與依賴：內容正確嗎？</h3><p>風險：可變 Tag、未授權映像、過時基底或把連線密碼做進 image layer。控制：可信 Registry、digest 固定、SBOM、弱點掃描與簽章驗證；建置用 secrets 機制，執行期用授權祕密來源，不寫在 Dockerfile 或日誌。</p><p><strong>驗收：</strong>核對發行 digest、發行來源、掃描／簽章結果與更新期限；掃描無告警不代表安全。</p></article>
+<article class="card"><h3>Engine 管理面：誰能控制主機？</h3><p>風險：服務或腳本持有 Docker socket、共享管理帳密。控制：不把 socket 掛進採集容器；限制 Docker 使用者與遠端管理，分離資料面和管理面。適用時用 rootless 或獨立 VM，仍要管好權限、憑證與主機更新。</p><p><strong>驗收：</strong>以匯出的服務設定核對沒有 socket 掛載、沒有不必要管理埠，日誌可追溯管理變更。</p></article>
+<article class="card"><h3>執行隔離：最低權限與影響範圍</h3><p>風險：root、過多 capabilities、任意主機掛載、資源競爭。控制：非 root、唯讀根檔案系統、<code>cap_drop: [ALL]</code>、禁止取得額外權限，保留適用的 seccomp／AppArmor／SELinux 防護。只開必要可寫目錄，設定合理 CPU／記憶體／程序限制。</p><p><strong>驗收：</strong>查有效 UID、實際掛載、資源上限及設定是否生效；不因程式失敗就改成 privileged。</p></article>
+<article class="card"><h3>OT 資料面：隔離不等於安全控制</h3><p>風險：採集容器能碰到無關的 PLC、寫入設備、送出錯誤或過時的點值。控制：依工區分區；出口依目的端、埠與協定需求審查，採集預設唯讀。維護點位／單位／品質／來源時間，限制重試與輪詢負載。</p><p><strong>驗收：</strong>分開測本地程序、Gateway 至平台、點位對應、斷線／來源過期；PLC 安全連鎖仍由已驗證的本地控制邏輯負責。</p></article>
+</div>
+<h3>最小權限設定範例：獨立覆寫檔</h3>
+<p>可儲存為 <code>compose.hardening.yaml</code>，和上一章的 <code>compose.yaml</code> 疊加。數值只供實驗；實際上限先量測尖峰、延遲和記憶體再定。覆寫不替代 OT 分區、防火牆或 Engine 管理權限控管。</p>
+<pre><code>services:
+  telemetry:
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - "no-new-privileges:true"
+    cpus: 0.50
+    mem_limit: 128m
+    pids_limit: 64</code></pre>
+<pre><code>docker --context "$ctx" compose -p python-interop-lab \
+  -f compose.yaml -f compose.hardening.yaml config</code></pre>
+<p><code>config</code> 只解析合併的設定，不代表核心已套用限制。上線前再從容器組態、執行中的資源指標及應用程式延遲各自驗收。</p>
+<p class="notice"><strong>邊界提醒：</strong>容器共享核心，rootless、唯讀、網路分段都是不同防線，不能互相替代。容器不應被描述為可安全承載任意不受信任程式的通用沙箱。</p></section>
+<section id="lab"><h2>架構實作：以唯讀合成遙測核對四個層級</h2>
+<p>沿用 <a href="python_docker_interop_tutorial.html#lab">Docker × Python 的 telemetry 實驗</a>。先在已確認的<strong>本機測試</strong>情境啟動，不連真實設備。在上一章實驗的資料夾執行。以下只查該實驗的狀態，並在容器中短暫執行 Python 印出 UID；不變更設備或服務組態。若未啟動，先照原章建置。</p>
+<pre><code>ctx="$(docker context show)"     # 先確認指向隔離的本機測試 Engine
+docker --context "$ctx" compose -p python-interop-lab ps
+cid="$(docker --context "$ctx" compose -p python-interop-lab ps -q telemetry)"
+test -n "$cid" || { echo "請先啟動 telemetry"; exit 1; }
+docker --context "$ctx" inspect --format '{{.State.Status}} {{json .State.Health}}' "$cid"
+docker --context "$ctx" inspect --format 'user={{.Config.User}} ro={{.HostConfig.ReadonlyRootfs}} mounts={{json .Mounts}}' "$cid"
+docker --context "$ctx" compose -p python-interop-lab port telemetry 8080
+docker --context "$ctx" compose -p python-interop-lab exec -T telemetry python -c 'import os; print(os.getuid())'
+docker --context "$ctx" stats --no-stream "$cid"
+python3 host.py sample</code></pre>
+<ol><li><strong>平台層：</strong>確認容器存在、健康檢查可回應。</li><li><strong>隔離層：</strong>預期 UID 為 10001、根檔案系統唯讀。檢查沒有額外主機掛載；讀實際輸出，不把教材預期值當測量。</li><li><strong>網路層：</strong>發布應為主機 loopback 的 18080 對容器 8080。主機從 HTTP 讀樣本，不經 Docker socket。</li><li><strong>應用層：</strong>核對 <code>schema=1</code>、<code>point=supply_temp</code>、<code>unit=degC</code>、<code>quality=synthetic</code>。真實 Gateway 還要驗收逾時、過期、重複 ID 和目的端資料一致性。</li></ol>
+<p>取得服務設定、公開埠、容器狀態與實際 HTTP 結果後，才有完整的對照。這個小實驗不宣稱已通過 OT 網路驗收或實際 Docker Engine 壓測。</p></section>
+<section id="sources"><h2>官方來源</h2>
+<ul><li><a href="https://docs.docker.com/get-started/docker-overview/">Docker 概覽</a>、<a href="https://docs.docker.com/engine/">Engine</a>、<a href="https://github.com/containerd/containerd/blob/main/core/runtime/v2/README.md">containerd Runtime v2</a></li>
+<li><a href="https://github.com/opencontainers/image-spec/blob/main/spec.md">OCI Image Spec</a>、<a href="https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md">OCI Runtime Linux 設定</a>、<a href="https://docs.docker.com/engine/storage/">儲存</a>、<a href="https://docs.docker.com/engine/containers/resource_constraints/">資源限制</a></li>
+<li><a href="https://docs.docker.com/compose/how-tos/networking/">Compose 網路</a>、<a href="https://docs.docker.com/reference/cli/docker/container/stop/">容器 stop</a>、<a href="https://docs.docker.com/engine/security/">Engine 資安</a>、<a href="https://docs.docker.com/engine/security/rootless/">Rootless</a>、<a href="https://docs.docker.com/engine/security/seccomp/">seccomp</a>、<a href="https://csrc.nist.gov/pubs/sp/800/190/final">NIST SP 800-190：容器資安指南</a></li></ul></section>
+</main></body></html>
