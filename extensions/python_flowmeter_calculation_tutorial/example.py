@@ -16,8 +16,12 @@ def ma_to_flow_linear(ma, span):
     return pct * span
 
 
-def ma_to_flow_dp(ma, span, cutoff_pct=0.05):
-    """差壓式未線性化：流量 ∝ √差壓。低於切除點直接歸零，避免零點雜訊被開方放大。"""
+def ma_to_flow_dp(ma, span, cutoff_pct=0.06):
+    """差壓式未線性化：流量 ∝ √差壓。低於切除點直接歸零，避免零點雜訊被開方放大。
+
+    切除點要比零點漂移開方後的值（4.04 mA → 5%）留一點餘裕；剛好設 5% 時，
+    浮點數 (4.04 - 4) / 16 開方後略大於 0.05，比較結果不穩定。cutoff_pct=0 表示不切除。
+    """
     check_ma(ma)
     dp_pct = max(0.0, (ma - 4) / 16)
     flow_pct = math.sqrt(dp_pct)
@@ -33,9 +37,10 @@ def pulse_delta(prev, curr, rollover=65_536):
 
 if __name__ == "__main__":
     span = 100.0                                   # m3/h
-    print(" mA    線性 m3/h   差壓開方 m3/h")
+    print(" mA    線性 m3/h   開方（無切除）  開方（切除 6%）")
     for ma in (4.0, 4.04, 4.16, 8.0, 12.0, 20.0):
-        print(f"{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f} {ma_to_flow_dp(ma, span):12.2f}")
+        print(f"{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f}"
+              f" {ma_to_flow_dp(ma, span, cutoff_pct=0):14.2f} {ma_to_flow_dp(ma, span):15.2f}")
     for bad in (2.1, 20.8):
         try:
             ma_to_flow_linear(bad, span)

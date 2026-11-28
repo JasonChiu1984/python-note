@@ -185,7 +185,126 @@ assert decode_ma(21, mode="linear_flow", max_flow_m3_h=100).quality == "over_ran
 </ul>
 <p>官方資料查核：2026-11-25。頁面所有例值與圖表皆為合成，不宣稱完成任何現場量測、校正或驗收。</p>
 </section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節補上三個現場最常踩的雷：4–20 mA 斷線與飽和怎麼判斷、差壓式流量計為什麼要設小流量切除，以及 16 位元脈衝累計器溢位時怎麼算增量。</p><h3>可實跑範例：mA 訊號判讀、開方切除與脈衝溢位</h3><p>check_ma() 依 NAMUR NE43 把電流分成正常、超出量測範圍與故障三類；ma_to_flow_dp() 示範差壓訊號開方後零點附近被放大的現象；pulse_delta() 處理 65535 → 0 的計數器回捲。</p><p><a class="button" download href="extensions/python_flowmeter_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;流量計訊號換算：4–20 mA（線性與差壓開方）、小流量切除、脈衝累計器溢位處理（標準函式庫）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節補上三個現場最常踩的雷：4–20 mA 斷線與飽和怎麼判斷、差壓式流量計為什麼要設小流量切除，以及 16 位元脈衝累計器溢位時怎麼算增量。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 600" role="img" aria-labelledby="dg-fmf-title dg-fmf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-fmf-title">4–20 mA 訊號判讀、差壓開方與小流量切除流程圖</title>
+  <desc id="dg-fmf-desc">對應延伸範例的 check_ma()、ma_to_flow_linear() 與 ma_to_flow_dp()。讀到電流後先依 NAMUR NE43 分區：小於或等於 3.6 mA、或大於或等於 21.0 mA 是故障訊號，拋出 ValueError，例如 2.1 mA；小於 3.8 或大於 20.5 mA 是超出量測範圍，同樣拋出 ValueError，例如 20.8 mA 不顯示成 100%。通過後看訊號代表什麼：已線性化的流量直接用 (I − 4) ÷ 16 × 量程，8 mA 得 25 m³/h；原始差壓則開方一次，8 mA 得 50%。開方後低於 6% 的小流量切除回傳 0，例如零點漂移 4.04 mA 開方後是 5%，切除後為 0；否則乘上量程，12 mA 得 70.71 m³/h。開方只能在一個地方做。</desc>
+  <defs>
+    <marker id="dg-fmf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,118 220,152 40,118"/>
+    <polygon class="dg-box" points="220,176 400,210 220,244 40,210"/>
+    <polygon class="dg-box" points="220,268 400,302 220,336 40,302"/>
+    <rect class="dg-box" x="30" y="360" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,436 400,470 220,504 40,470"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="92" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="184" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-blue" x="460" y="276" width="285" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-orange" x="460" y="444" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="30" y="528" width="380" height="56" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-fmf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="400" y1="118" x2="458" y2="118"/>
+    <line x1="220" y1="152" x2="220" y2="174"/>
+    <line x1="400" y1="210" x2="458" y2="210"/>
+    <line x1="220" y1="244" x2="220" y2="266"/>
+    <line x1="400" y1="302" x2="458" y2="302"/>
+    <line x1="220" y1="336" x2="220" y2="358"/>
+    <line x1="220" y1="412" x2="220" y2="434"/>
+    <line x1="400" y1="470" x2="458" y2="470"/>
+    <line x1="220" y1="504" x2="220" y2="526"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">讀取 AI：電流、時間、點位設定</text>
+    <text x="220" y="51" font-size="12">check_ma() 先判斷 NAMUR NE43 分區</text>
+    <text x="220" y="123">≤ 3.6 或 ≥ 21.0 mA？</text>
+    <text x="220" y="215">&lt; 3.8 或 &gt; 20.5 mA？</text>
+    <text x="220" y="307">訊號是已線性化的流量？</text>
+    <text x="220" y="381" font-weight="700">原始差壓：只開方一次</text>
+    <text x="220" y="400" font-size="12">flow_pct = √((I − 4) ÷ 16)；8 mA → 50%</text>
+    <text x="220" y="475">flow_pct &lt; 6%？</text>
+    <text x="220" y="550" font-weight="700">回傳 flow_pct × 量程</text>
+    <text x="220" y="570" font-size="12">12 mA → 70.71 m³/h；20 mA → 100 m³/h</text>
+    <text x="602" y="114" font-weight="700">故障訊號：拋出 ValueError</text>
+    <text x="602" y="133" font-size="12">例：2.1 mA（斷線、短路或自診斷）</text>
+    <text x="602" y="206" font-weight="700">超出量測範圍：拋出 ValueError</text>
+    <text x="602" y="225" font-size="12">例：20.8 mA 飽和，不顯示成 100%</text>
+    <text x="602" y="298" font-weight="700">ma_to_flow_linear()</text>
+    <text x="602" y="317" font-size="12">(I − 4) ÷ 16 × 量程；8 mA → 25 m³/h</text>
+    <text x="602" y="466" font-weight="700">小流量切除：回傳 0.0</text>
+    <text x="602" y="485" font-size="12">零點 4.04 mA 開方是 5% → 0 m³/h</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="110">是</text>
+    <text x="228" y="168">否</text>
+    <text x="414" y="202">是</text>
+    <text x="228" y="260">否</text>
+    <text x="414" y="294">是</text>
+    <text x="228" y="352">否</text>
+    <text x="414" y="462">是</text>
+    <text x="228" y="520">否</text>
+  </g>
+</svg><figcaption><strong>流程圖｜4–20 mA 判讀、差壓開方與小流量切除</strong>：對應延伸範例的 check_ma()、ma_to_flow_linear() 與 ma_to_flow_dp()：先判斷故障與飽和，再依點位表決定是否開方，開方後低於 6% 才切除。圖中數字都是範例實際輸出。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="architecture"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-labelledby="dg-fma-title dg-fma-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-fma-title">類比與脈衝兩條流量訊號路徑的架構圖</title>
+  <desc id="dg-fma-desc">上方是類比路徑：差壓變送器輸出 4–20 mA，可能是原始差壓或已在變送器內開方；DDC 或閘道器的 AI 點先用 check_ma() 判斷故障與飽和，再依點位表決定是否開方，並做 6% 小流量切除，結果與原始 mA、換算模式、品質一起寫入歷史庫，供冷凍噸計算使用。紅色虛線框是常見錯誤：變送器已開方、DDC 又開一次，8 mA 會從 50 m³/h 變成 70.7 m³/h。下方是脈衝路徑：流量計每立方公尺 10 個脈衝，計入 16 位元累計器（Modbus 單一暫存器，0 到 65535），Python 每 5 分鐘讀一次，用 pulse_delta() 算增量，目前值小於前值時加 65,536。範例讀值 65,210、65,480、65,530、120、410，增量 270、50、126、290，共 736 脈衝，等於 73.6 m³。以 100 m³/h 計約 65.5 小時回捲一次，兩次讀取之間回捲兩次以上就無法判斷。</desc>
+  <defs>
+    <marker id="dg-fma-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="20" y="40" width="190" height="72" rx="6"/>
+    <rect class="dg-box dg-blue" x="270" y="30" width="230" height="92" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-green" x="560" y="30" width="180" height="92" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="20" y="268" width="190" height="72" rx="6"/>
+    <rect class="dg-box" x="270" y="268" width="230" height="72" rx="6"/>
+    <rect class="dg-box dg-blue" x="560" y="268" width="180" height="72" rx="6" stroke="#3b82f6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="20" y="150" width="480" height="64" rx="6" stroke="#d64545" stroke-dasharray="6 4"/>
+    <rect class="dg-orange" x="20" y="384" width="720" height="110" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-fma-arrow)">
+    <line x1="210" y1="76" x2="268" y2="76"/>
+    <line x1="500" y1="76" x2="558" y2="76"/>
+    <line x1="210" y1="304" x2="268" y2="304"/>
+    <line x1="500" y1="304" x2="558" y2="304"/>
+    <line x1="650" y1="268" x2="650" y2="124"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="239" y="68" font-size="12">4–20 mA</text>
+    <text x="529" y="68" font-size="12">工程值</text>
+    <text x="239" y="296" font-size="12">脈衝</text>
+    <text x="529" y="296" font-size="12">暫存器</text>
+    <text x="115" y="70" font-weight="700">差壓變送器</text>
+    <text x="115" y="90" font-size="12">輸出：原始 ΔP 或已開方</text>
+    <text x="385" y="54" font-weight="700">DDC／閘道器 AI 點</text>
+    <text x="385" y="74" font-size="12">check_ma()：故障、飽和</text>
+    <text x="385" y="92" font-size="12">依點位表決定是否開方</text>
+    <text x="385" y="110" font-size="12">小流量切除 6%</text>
+    <text x="650" y="58" font-weight="700">歷史庫</text>
+    <text x="650" y="78" font-size="12">存原始 mA、換算模式</text>
+    <text x="650" y="96" font-size="12">與品質；冷凍噸計算</text>
+    <text x="260" y="176" font-weight="700">錯誤：變送器已開方，DDC 又開一次</text>
+    <text x="260" y="198" font-size="12">8 mA：50 m³/h 變成 70.7 m³/h；開方只能在一處做</text>
+    <text x="115" y="298" font-weight="700">脈衝輸出流量計</text>
+    <text x="115" y="318" font-size="12">K = 10 pulse/m³</text>
+    <text x="385" y="298" font-weight="700">16 位元累計器</text>
+    <text x="385" y="318" font-size="12">Modbus 單一暫存器 0–65,535</text>
+    <text x="650" y="298" font-weight="700">pulse_delta()</text>
+    <text x="650" y="318" font-size="12">目前 &lt; 前值時 +65,536</text>
+    <text x="380" y="410" font-weight="700">範例：每 5 分鐘讀一次，第 4 筆跨過 65,535 → 0</text>
+    <text x="380" y="434" font-size="12">65,210 → 65,480 → 65,530 → 120 → 410</text>
+    <text x="380" y="454" font-size="12">增量 +270、+50、+126、+290 ＝ 736 脈衝 ＝ 73.6 m³（20 分鐘）</text>
+    <text x="380" y="478" font-size="12">100 m³/h 時約 65.5 小時回捲一次；兩次讀取間回捲兩次以上就無法判斷</text>
+  </g>
+</svg><figcaption><strong>架構圖｜類比與脈衝兩條流量訊號路徑</strong>：上方是 4–20 mA 路徑與「重複開方」的常見錯誤，下方是 16 位元脈衝累計器與 pulse_delta() 的回捲處理；兩條路徑都要把原始值、換算模式與品質一起寫入歷史庫，對應正文第 01 節的資料契約。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：mA 訊號判讀、開方切除與脈衝溢位</h3><p>check_ma() 依 NAMUR NE43 把電流分成正常、超出量測範圍與故障三類；ma_to_flow_dp() 示範差壓訊號開方後零點附近被放大的現象，並把「無切除」與「切除 6%」並列；pulse_delta() 處理 65535 → 0 的計數器回捲。</p><p><a class="button" download href="extensions/python_flowmeter_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;流量計訊號換算：4–20 mA（線性與差壓開方）、小流量切除、脈衝累計器溢位處理（標準函式庫）。&quot;&quot;&quot;
 import math
 
 
@@ -203,8 +322,12 @@ def ma_to_flow_linear(ma, span):
     return pct * span
 
 
-def ma_to_flow_dp(ma, span, cutoff_pct=0.05):
-    &quot;&quot;&quot;差壓式未線性化：流量 ∝ √差壓。低於切除點直接歸零，避免零點雜訊被開方放大。&quot;&quot;&quot;
+def ma_to_flow_dp(ma, span, cutoff_pct=0.06):
+    &quot;&quot;&quot;差壓式未線性化：流量 ∝ √差壓。低於切除點直接歸零，避免零點雜訊被開方放大。
+
+    切除點要比零點漂移開方後的值（4.04 mA → 5%）留一點餘裕；剛好設 5% 時，
+    浮點數 (4.04 - 4) / 16 開方後略大於 0.05，比較結果不穩定。cutoff_pct=0 表示不切除。
+    &quot;&quot;&quot;
     check_ma(ma)
     dp_pct = max(0.0, (ma - 4) / 16)
     flow_pct = math.sqrt(dp_pct)
@@ -220,9 +343,10 @@ def pulse_delta(prev, curr, rollover=65_536):
 
 if __name__ == &quot;__main__&quot;:
     span = 100.0                                   # m3/h
-    print(&quot; mA    線性 m3/h   差壓開方 m3/h&quot;)
+    print(&quot; mA    線性 m3/h   開方（無切除）  開方（切除 6%）&quot;)
     for ma in (4.0, 4.04, 4.16, 8.0, 12.0, 20.0):
-        print(f&quot;{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f} {ma_to_flow_dp(ma, span):12.2f}&quot;)
+        print(f&quot;{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f}&quot;
+              f&quot; {ma_to_flow_dp(ma, span, cutoff_pct=0):14.2f} {ma_to_flow_dp(ma, span):15.2f}&quot;)
     for bad in (2.1, 20.8):
         try:
             ma_to_flow_linear(bad, span)
@@ -237,20 +361,20 @@ if __name__ == &quot;__main__&quot;:
         total += d
         print(f&quot;{a:&gt;6} → {b:&gt;6}：+{d:&gt;4} 脈衝 = {d / k_factor:5.1f} m3&quot;)
     print(f&quot;20 分鐘累計 {total} 脈衝 = {total / k_factor:.1f} m3，平均 {total / k_factor * 3:.1f} m3/h&quot;)
-</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code> mA    線性 m3/h   差壓開方 m3/h
- 4.00      0.00         0.00
- 4.04      0.25         5.00
- 4.16      1.00        10.00
- 8.00     25.00        50.00
-12.00     50.00        70.71
-20.00    100.00       100.00
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code> mA    線性 m3/h   開方（無切除）  開方（切除 6%）
+ 4.00      0.00           0.00            0.00
+ 4.04      0.25           5.00            0.00
+ 4.16      1.00          10.00           10.00
+ 8.00     25.00          50.00           50.00
+12.00     50.00          70.71           70.71
+20.00    100.00         100.00          100.00
 2.1 mA： 2.1 mA 為故障訊號（斷線、短路或變送器自診斷告警）
 20.8 mA： 20.8 mA 超出量測範圍（飽和），數值不可信
  65210 →  65480：+ 270 脈衝 =  27.0 m3
  65480 →  65530：+  50 脈衝 =   5.0 m3
  65530 →    120：+ 126 脈衝 =  12.6 m3
    120 →    410：+ 290 脈衝 =  29.0 m3
-20 分鐘累計 736 脈衝 = 73.6 m3，平均 220.8 m3/h</code></pre><h3>工程現場案例：夜間無流量，冰水流量卻顯示 5 m³/h</h3><p>某冰水系統使用差壓式流量計，DDC 端自行開方換算。夜間泵浦停止後，變送器零點輸出 4.04 mA（只有 0.25% 的差壓），開方後變成 5% 流量，也就是 5 m³/h。以每晚停機 12 小時計，一個月累計多出約 1,800 m³ 的虛假冰水量，冷凍噸計算也跟著失真。</p><p>對照範例輸出：4.04 mA 線性換算只有 0.25 m³/h，開方後是 5.00 m³/h。解法是設定小流量切除（本例 5%），並確認開方只在一個地方做：變送器已開方就不要在 DDC 再開一次，否則 8 mA 會從 50 m³/h 變成 70.7 m³/h。</p><ol><li>查變送器設定與銘牌，確認輸出是線性流量還是原始差壓，記錄在點位表的備註欄。</li><li>DDC 或閘道器只在一處做開方，並設定小流量切除與 NAMUR 故障判斷。</li><li>脈衝累計器確認位元數（16 或 32 位元）與倍率，程式用 pulse_delta() 的方式處理回捲。</li><li>以泵浦停機時段驗證零點：流量應為 0，累計值不應增加。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>NAMUR NE43 的電流分區是業界通用建議：3.8–20.5 mA 為量測資訊（其中 3.8–4 mA 與 20–20.5 mA 代表飽和），≤3.6 mA 或 ≥21.0 mA 為故障資訊。實際切換點以變送器手冊為準，部分廠牌可設定故障時輸出高或低電流。 <a href="https://infosys.beckhoff.com/content/1033/el31xx/4009211275.html">來源：Beckhoff：NAMUR NE43 邊界值</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>8 mA 對應的流量，線性與差壓開方分別是多少？為什麼差這麼多？</p><details><summary>看解答</summary><p>線性 25 m³/h、差壓開方 50 m³/h。8 mA 代表 25% 的差壓，而流量與差壓的平方根成正比，√0.25 = 0.5，所以是 50%。</p></details></li><li><p>若累計器是 32 位元，pulse_delta() 的 rollover 要改成多少？</p><details><summary>看解答</summary><p>2³² = 4,294,967,296。32 位元計數器通常放在兩個 Modbus 暫存器，還要確認高低字組順序。</p></details></li><li><p>兩次讀值間隔 5 分鐘，如果其中一次讀取失敗、下一次才成功，pulse_delta() 還能算出正確的累計量嗎？</p><details><summary>看解答</summary><p>可以，只要間隔內計數器回捲不超過一次。累計器保存的是總數，跳過一次讀取只是把兩段增量合併。但若間隔太長、可能回捲兩次以上，就無法判斷，要縮短輪詢週期或改用 32 位元計數器。</p></details></li><li><p>為什麼 20.8 mA 不應該直接當成 100% 流量顯示？</p><details><summary>看解答</summary><p>超過 20.5 mA 代表變送器已飽和，實際流量可能遠超量程，只顯示 100% 會低估。應標示為超量程並告警，必要時重新選定量程。</p></details></li></ol></section><!-- extension:end -->
+20 分鐘累計 736 脈衝 = 73.6 m3，平均 220.8 m3/h</code></pre><h3>工程現場案例：夜間無流量，冰水流量卻顯示 5 m³/h</h3><p>某冰水系統使用差壓式流量計，DDC 端自行開方換算。夜間泵浦停止後，變送器零點輸出 4.04 mA（只有 0.25% 的差壓），開方後變成 5% 流量，也就是 5 m³/h。以每晚停機 12 小時計，一個月累計多出約 1,800 m³ 的虛假冰水量，冷凍噸計算也跟著失真。</p><p>對照範例輸出：4.04 mA 線性換算只有 0.25 m³/h，開方後是 5.00 m³/h。解法是設定小流量切除，並確認開方只在一個地方做：變送器已開方就不要在 DDC 再開一次，否則 8 mA 會從 50 m³/h 變成 70.7 m³/h。切除點要比零點漂移開方後的 5% 高一點（本例 6%）：剛好設 5% 時，(4.04 − 4) ÷ 16 開方後的浮點數是 0.050000000000000024，「小於 5%」不成立，虛假流量仍會留下。</p><ol><li>查變送器設定與銘牌，確認輸出是線性流量還是原始差壓，記錄在點位表的備註欄。</li><li>DDC 或閘道器只在一處做開方，小流量切除點高於停機時實測的零點漂移並留餘裕，同時做 NAMUR 故障判斷。</li><li>脈衝累計器確認位元數（16 或 32 位元）與倍率，程式用 pulse_delta() 的方式處理回捲。</li><li>以泵浦停機時段驗證零點：流量應為 0，累計值不應增加。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>NAMUR NE43 的電流分區是業界通用建議：3.8–20.5 mA 為量測資訊（其中 3.8–4 mA 與 20–20.5 mA 代表飽和），≤3.6 mA 或 ≥21.0 mA 為故障資訊。實際切換點以變送器手冊為準，部分廠牌可設定故障時輸出高或低電流。 <a href="https://infosys.beckhoff.com/content/1033/el31xx/4009211275.html">來源：Beckhoff：NAMUR NE43 邊界值</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>8 mA 對應的流量，線性與差壓開方分別是多少？為什麼差這麼多？</p><details><summary>看解答</summary><p>線性 25 m³/h、差壓開方 50 m³/h。8 mA 代表 25% 的差壓，而流量與差壓的平方根成正比，√0.25 = 0.5，所以是 50%。</p></details></li><li><p>若累計器是 32 位元，pulse_delta() 的 rollover 要改成多少？</p><details><summary>看解答</summary><p>2³² = 4,294,967,296。32 位元計數器通常放在兩個 Modbus 暫存器，還要確認高低字組順序。</p></details></li><li><p>兩次讀值間隔 5 分鐘，如果其中一次讀取失敗、下一次才成功，pulse_delta() 還能算出正確的累計量嗎？</p><details><summary>看解答</summary><p>可以，只要間隔內計數器回捲不超過一次。累計器保存的是總數，跳過一次讀取只是把兩段增量合併。但若間隔太長、可能回捲兩次以上，就無法判斷，要縮短輪詢週期或改用 32 位元計數器。</p></details></li><li><p>為什麼 20.8 mA 不應該直接當成 100% 流量顯示？</p><details><summary>看解答</summary><p>超過 20.5 mA 代表變送器已飽和，實際流量可能遠超量程，只顯示 100% 會低估。應標示為超量程並告警，必要時重新選定量程。</p></details></li><li><p>把 ma_to_flow_dp() 的 cutoff_pct 改回 0.05，4.04 mA 的開方結果會是多少？為什麼「切除點等於零點漂移」不可靠？</p><details><summary>看解答</summary><p>實際執行結果仍是 5.00 m³/h。(4.04 − 4) ÷ 16 在浮點數是 0.0025000000000000022，開方後 0.050000000000000024，比 0.05 略大，<code>flow_pct &lt; cutoff_pct</code> 不成立，所以沒有被切除。</p><p>現場的零點漂移本來就會在幾個 μA 內浮動，切除點剛好落在漂移值上，等於一半時間切、一半時間不切，累計量仍會慢慢長出虛假流量。應以停機時段的實測漂移再加餘裕訂切除點，並在切除點上下設回差，避免流量在門檻附近反覆跳 0。</p></details></li><li><p>流量計 K = 10 pulse/m³、穩定 100 m³/h，16 位元累計器多久回捲一次？若改成每 3 天才讀一次，pulse_delta() 還能用嗎？</p><details><summary>看解答</summary><p>每小時 1,000 脈衝，65,536 ÷ 1,000 ≈ 65.5 小時回捲一次（實際執行計算）。3 天是 72 小時、共 72,000 脈衝，超過 65,536，期間至少回捲一次、可能剛好看起來沒回捲：例如前值 0、72 小時後讀到 72,000 − 65,536 = 6,464，pulse_delta() 只會算出 6,464 脈衝（646.4 m³），少了整整一圈 6,553.6 m³。</p><p>原則是兩次讀取之間的最大可能脈衝數必須小於 65,536，並留安全係數；做不到就縮短輪詢、改用 32 位元累計器，或以最大流量 × 間隔做合理性檢查。</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <script>
