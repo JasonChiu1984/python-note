@@ -31,7 +31,82 @@
 <li id="src-tx">德州立法機關｜<a href="https://tcss.legis.texas.gov/resources/bc/htm/bc.521.htm#521.053">Bus. &amp; Com. Code §521.053</a>。</li>
 <li id="src-nist">NIST｜<a href="https://csrc.nist.gov/pubs/cswp/29/the-nist-cybersecurity-framework-csf-20/final">Cybersecurity Framework 2.0</a>。</li></ul>
 <p><time datetime="2026-11-25">2026-11-25</time>｜初版。核對 CIRCIA 送審狀態，並列 SEC、醫療、金融及兩州的通知條件與證據。後續改版應分別記錄<strong>查核日、官方公布日、法定生效或適用日</strong>；若官方未確認，維持待定。FTC Safeguards Rule 的事件通知修正已於 <time datetime="2024-05-13">2024-05-13</time> <a href="https://www.ftc.gov/business-guidance/blog/2024/05/safeguards-rule-notification-requirement-now-effect">生效</a>，與仍待確認日期的 CIRCIA 有別。</p><p class="box">本頁為台灣繁體中文工程教育整理，不是法律意見、合規認證或完整法域清單。真實事件請讓有管轄地經驗的法遵／法律顧問確認法源、州別、資料範圍、例外與期限；不要以本頁當成唯一事件應變依據。</p></section>
-<footer><a href="index.html">返回 Python 教材首頁</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>美國的通報期限分散在不同制度，而且單位不同：SEC 用營業日、HIPAA 用日曆日、州法各有起算點。本節把本頁整理的時限寫成計算工具，並自動排除聯邦假日。</p><h3>可實跑範例：多軌通報期限與營業日計算</h3><p>程式依規則產生 2026–2027 年聯邦假日（遇週末依 observed 規則前後移），用來計算 SEC 8-K 的 4 個營業日。其他期限以日曆日計算。只算日期，是否適用各制度、何時構成「發現」或「認定重大」仍需逐項判斷。</p><p><a class="button" download href="extensions/python_us_cybersecurity_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;美國多軌通報時鐘：SEC 8-K（4 個營業日）、HIPAA（60 日曆日）、FTC Safeguards（30 日）、
+<footer><a href="index.html">返回 Python 教材首頁</a></footer><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>美國的通報期限分散在不同制度，而且單位不同：SEC 用營業日、HIPAA 用日曆日、州法各有起算點。本節把本頁整理的時限寫成計算工具，並自動排除聯邦假日。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-labelledby="dg-usc-title dg-usc-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-usc-title">美國多軌通報時鐘：同一事件、不同起算點</title>
+  <desc id="dg-usc-desc">對應延伸範例與現場案例。一起 OT 網路勒索事件，先逐項判斷各制度是否適用；不適用就不建立該時鐘，並記錄判斷依據。適用的時鐘依起算點分成三組。第一組從 2026-11-24（週二）認定具重大性起算：SEC 8-K Item 1.05 為 4 個營業日，add_business_days() 跳過週末與聯邦假日（含 observed 日），11/26 感恩節不計，期限 2026-12-01（週二）。第二組從 2026-11-20 發現事件起算，以日曆日計算：FTC Safeguards（500 人以上）30 日與紐約 GBL 第 899-aa 條 30 日都是 2026-12-20，HIPAA 個人通知上限 60 日為 2027-01-19。第三組從 2026-11-22 認定外洩起算：德州州檢察長 30 日為 2026-12-22，受影響個人 60 日為 2027-01-21。CIRCIA 的 72 小時事件通報與贖金支付 24 小時，最終規則尚未刊登生效，時鐘尚未啟動，生效後再依最終規則的起算條件加入。日期都是範例實際輸出；範例只算日期，不判斷是否適用，「發現」與「認定」的時點由法務認定。上限不是目標，HIPAA 另要求無不合理延遲。</desc>
+  <defs>
+    <marker id="dg-usc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="150" y="12" width="460" height="48" rx="24"/>
+    <polygon class="dg-box" points="380,84 560,118 380,152 200,118"/>
+    <rect class="dg-box dg-blue" x="20" y="192" width="230" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-blue" x="265" y="192" width="230" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-blue" x="510" y="192" width="230" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="20" y="268" width="230" height="116" rx="6"/>
+    <rect class="dg-box" x="265" y="268" width="230" height="116" rx="6"/>
+    <rect class="dg-box" x="510" y="268" width="230" height="116" rx="6"/>
+  </g>
+  <rect class="dg-red" x="600" y="94" width="145" height="48" rx="6" stroke="#d64545" stroke-width="1.5" fill="none"/>
+  <rect class="dg-orange dg-dash" x="20" y="408" width="720" height="48" rx="6" stroke="#e07b1f" stroke-width="1.5" stroke-dasharray="6 4" fill="none"/>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <line x1="380" y1="152" x2="380" y2="172"/>
+    <line x1="135" y1="172" x2="625" y2="172"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-usc-arrow)">
+    <line x1="380" y1="60" x2="380" y2="82"/>
+    <line x1="560" y1="118" x2="598" y2="118"/>
+    <line x1="135" y1="172" x2="135" y2="190"/>
+    <line x1="380" y1="172" x2="380" y2="190"/>
+    <line x1="625" y1="172" x2="625" y2="190"/>
+    <line x1="135" y1="244" x2="135" y2="266"/>
+    <line x1="380" y1="244" x2="380" y2="266"/>
+    <line x1="625" y1="244" x2="625" y2="266"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="380" y="33" font-weight="700">OT 網路勒索事件：同一事件、多條時鐘</text>
+    <text x="380" y="51" font-size="12">各時鐘的起算點不同，不能用同一個日期套全部</text>
+    <text x="380" y="123">這個制度適用嗎？</text>
+    <text x="672" y="114" font-weight="700">否：不建立</text>
+    <text x="672" y="132" font-size="12">記錄判斷依據</text>
+    <text x="135" y="214" font-weight="700">認定具重大性</text>
+    <text x="135" y="234" font-size="12">2026-11-24（週二）</text>
+    <text x="380" y="214" font-weight="700">發現事件</text>
+    <text x="380" y="234" font-size="12">2026-11-20</text>
+    <text x="625" y="214" font-weight="700">認定外洩（德州）</text>
+    <text x="625" y="234" font-size="12">2026-11-22</text>
+    <text x="135" y="290" font-weight="700">SEC 8-K Item 1.05</text>
+    <text x="380" y="290" font-weight="700">日曆日：發現日起算</text>
+    <text x="625" y="290" font-weight="700">日曆日：認定日起算</text>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-size="12">
+    <text x="135" y="312">4 個營業日：跳過週末與</text>
+    <text x="135" y="330">聯邦假日（含 observed 日）</text>
+    <text x="135" y="348">11/26 感恩節不計</text>
+    <text x="380" y="312">FTC Safeguards（≥500 人）30 日</text>
+    <text x="380" y="330">紐約 GBL §899-aa 30 日</text>
+    <text x="380" y="348">HIPAA 個人通知上限 60 日</text>
+    <text x="625" y="312">州檢察長 30 日</text>
+    <text x="625" y="330">受影響個人 60 日</text>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-size="12" font-weight="700">
+    <text x="135" y="372">→ 2026-12-01（週二）</text>
+    <text x="380" y="372">→ 12-20、12-20、2027-01-19</text>
+    <text x="625" y="372">→ 2026-12-22、2027-01-21</text>
+    <text x="388" y="167" font-weight="400" text-anchor="start">是</text>
+    <text x="578" y="111" font-weight="400">否</text>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="380" y="428" font-weight="700">CIRCIA：72 小時事件通報、贖金支付 24 小時</text>
+    <text x="380" y="446" font-size="12">最終規則尚未刊登生效，時鐘尚未啟動；生效後再依最終規則的起算條件加入</text>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-size="12">
+    <text x="380" y="484">日期都是範例實際輸出。範例只算日期，不判斷是否適用；「發現」「認定」的時點由法務認定。</text>
+    <text x="380" y="504">上限不是目標：HIPAA 另要求無不合理延遲；各機關的受件方式與內容要求另行確認。</text>
+  </g>
+</svg><figcaption><strong>流程圖｜多軌通報時鐘：同一事件、不同起算點</strong>：對應延伸範例與現場案例：先逐項判斷制度是否適用，再依起算點（認定重大、發現、認定外洩）分開計算。圖中日期都是範例實際輸出；CIRCIA 時鐘待最終規則生效後再加入。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：多軌通報期限與營業日計算</h3><p>程式依規則產生 2026–2027 年聯邦假日（遇週末依 observed 規則前後移），用來計算 SEC 8-K 的 4 個營業日。其他期限以日曆日計算。只算日期，是否適用各制度、何時構成「發現」或「認定重大」仍需逐項判斷。</p><p><a class="button" download href="extensions/python_us_cybersecurity_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;美國多軌通報時鐘：SEC 8-K（4 個營業日）、HIPAA（60 日曆日）、FTC Safeguards（30 日）、
 州法（NY 30 日、TX 個人 60 日／州檢察長 30 日）。只算日期，不判斷是否適用。
 
 營業日排除週末與聯邦假日；假日以 2026–2027 年的聯邦假日（含週末遞延的 observed 日）計算。
@@ -92,5 +167,5 @@ HIPAA 個人通知上限：發現後 60 日曆日 → 2027-01-19
 FTC Safeguards（≥500 人）：發現後最遲 30 日 → 2026-12-20
 紐約 GBL §899-aa：原則發現後 30 日內 → 2026-12-20
 德州（認定外洩 2026-11-22）：州檢察長 30 日 → 2026-12-22；個人 60 日 → 2027-01-21
-2026 年聯邦假日： 01-01, 01-19, 02-16, 05-25, 06-19, 07-03, 09-07, 10-12, 11-11, 11-26, 12-25</code></pre><h3>工程現場案例：感恩節前一天認定重大，8-K 期限比預期晚一天</h3><p>某上市公司的工廠 OT 網路遭勒索軟體入侵，11 月 20 日發現，11 月 24 日（週二）揭露委員會認定具重大性。法務原本以「4 天」估算期限為 11 月 28 日，但 SEC 用的是營業日，且 11 月 26 日是感恩節，實際期限是 12 月 1 日。反過來，若有人把期限算得太寬鬆，風險就更大。</p><p>同一事件若涉及員工健康資料（例如廠內診所系統）與紐約、德州居民資料，HIPAA、州法的期限從「發現」或「認定外洩」起算，和 SEC 從「認定重大」起算不同。範例把每一條時鐘的起點分開列出，避免用同一個日期套全部。</p><ol><li>事件紀錄表為每個制度各設一欄起算日（發現、認定重大、認定外洩、付款等）。</li><li>營業日計算使用與公司法務一致的假日表，並保存計算當時的版本。</li><li>每條時鐘的承辦人與受件機關分開指定，避免以為通知一個機關就完成全部義務。</li><li>CIRCIA 最終規則公布後，再加上 72 小時與 24 小時的時鐘與起算條件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>CIRCIA 最終規則仍在白宮 OMB 審查，尚未刊登《Federal Register》。依國會審查法的規定，主要規則至少在刊登後 60 天才生效，因此 72 小時與勒索付款 24 小時的強制時鐘尚未啟動；本頁 11-25 的判讀仍成立。 <a href="https://www.legal500.com/intelligence/united-states/government-public-sector/looming-incident-reporting-mandates-who-needs-to-care">來源：Legal 500：CIRCIA 生效時間說明</a> <a href="https://www.govinfosecurity.com/cisa-sends-final-circia-rule-to-white-house-for-review-a-33008">來源：GovInfoSecurity：CISA 將最終規則送 OMB 審查</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若重大性在 2026 年 12 月 23 日（週三）認定，8-K 的期限是哪一天？</p><details><summary>看解答</summary><p>12/24（1）、12/25 聖誕節不計、12/28（2）、12/29（3）、12/30（4），期限為 2026-12-30。可呼叫 add_business_days(date(2026, 12, 23), 4) 驗證。</p></details></li><li><p>為什麼 observed() 把週六的假日移到週五、週日的移到週一？</p><details><summary>看解答</summary><p>這是美國聯邦假日的慣例（5 U.S.C. 6103 與 OPM 規則）。例如 2026 年 7 月 4 日是週六，聯邦機關在 7 月 3 日（週五）放假。營業日計算若不考慮 observed 日，會多算一天。</p></details></li><li><p>HIPAA 的 60 日是「最遲」期限。若在第 10 天就完成調查卻拖到第 59 天才通知，有什麼問題？</p><details><summary>看解答</summary><p>HIPAA 要求「無不合理延遲」，60 日只是上限。已具備通知所需資訊卻刻意拖延，仍可能被認定違規。工具算出的日期是外部上限，內部目標應更早。</p></details></li><li><p>程式的假日表只產生 2026–2027 年。若事件跨到 2028 年會怎樣？怎麼改比較穩健？</p><details><summary>看解答</summary><p>2028 年的假日不在集合內，會被當成營業日，期限可能算早（較保守）但也可能和法務的計算不一致。可以改成依日期動態呼叫 federal_holidays(d.year) 並快取，或改用維護中的假日資料套件，並在輸出標示假日資料來源。</p></details></li></ol></section><!-- extension:end -->
+2026 年聯邦假日： 01-01, 01-19, 02-16, 05-25, 06-19, 07-03, 09-07, 10-12, 11-11, 11-26, 12-25</code></pre><h3>工程現場案例：感恩節前一天認定重大，8-K 期限比預期晚一天</h3><p>某上市公司的工廠 OT 網路遭勒索軟體入侵，11 月 20 日發現，11 月 24 日（週二）揭露委員會認定具重大性。法務原本以「4 天」估算期限為 11 月 28 日，但 SEC 用的是營業日，且 11 月 26 日是感恩節，實際期限是 12 月 1 日。反過來，若有人把期限算得太寬鬆，風險就更大。</p><p>同一事件若涉及員工健康資料（例如廠內診所系統）與紐約、德州居民資料，HIPAA、州法的期限從「發現」或「認定外洩」起算，和 SEC 從「認定重大」起算不同。範例把每一條時鐘的起點分開列出，避免用同一個日期套全部。</p><ol><li>事件紀錄表為每個制度各設一欄起算日（發現、認定重大、認定外洩、付款等）。</li><li>營業日計算使用與公司法務一致的假日表，並保存計算當時的版本。</li><li>每條時鐘的承辦人與受件機關分開指定，避免以為通知一個機關就完成全部義務。</li><li>CIRCIA 最終規則公布後，再加上 72 小時與 24 小時的時鐘與起算條件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>CIRCIA 最終規則仍在白宮 OMB 審查，尚未刊登《Federal Register》。依國會審查法的規定，主要規則至少在刊登後 60 天才生效，因此 72 小時與勒索付款 24 小時的強制時鐘尚未啟動；本頁 11-25 的判讀仍成立。 <a href="https://www.legal500.com/intelligence/united-states/government-public-sector/looming-incident-reporting-mandates-who-needs-to-care">來源：Legal 500：CIRCIA 生效時間說明</a> <a href="https://www.govinfosecurity.com/cisa-sends-final-circia-rule-to-white-house-for-review-a-33008">來源：GovInfoSecurity：CISA 將最終規則送 OMB 審查</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若重大性在 2026 年 12 月 23 日（週三）認定，8-K 的期限是哪一天？</p><details><summary>看解答</summary><p>12/24（1）、12/25 聖誕節不計、12/28（2）、12/29（3）、12/30（4），期限為 2026-12-30。可呼叫 add_business_days(date(2026, 12, 23), 4) 驗證。</p></details></li><li><p>為什麼 observed() 把週六的假日移到週五、週日的移到週一？</p><details><summary>看解答</summary><p>這是美國聯邦假日的慣例（5 U.S.C. 6103 與 OPM 規則）。例如 2026 年 7 月 4 日是週六，聯邦機關在 7 月 3 日（週五）放假。營業日計算若不考慮 observed 日，會多算一天。</p></details></li><li><p>HIPAA 的 60 日是「最遲」期限。若在第 10 天就完成調查卻拖到第 59 天才通知，有什麼問題？</p><details><summary>看解答</summary><p>HIPAA 要求「無不合理延遲」，60 日只是上限。已具備通知所需資訊卻刻意拖延，仍可能被認定違規。工具算出的日期是外部上限，內部目標應更早。</p></details></li><li><p>程式的假日表只產生 2026–2027 年。若事件跨到 2028 年會怎樣？怎麼改比較穩健？</p><details><summary>看解答</summary><p>2028 年的假日不在集合內，會被當成營業日，期限可能算早（較保守）但也可能和法務的計算不一致。可以改成依日期動態呼叫 federal_holidays(d.year) 並快取，或改用維護中的假日資料套件，並在輸出標示假日資料來源。</p></details></li><li><p>若重大性在 2026 年 12 月 31 日（週四）認定，8-K 的期限是哪一天？</p><details><summary>看解答</summary><p>2027 年 1 月 1 日（週五）是元旦，1/2、1/3 是週末，所以第 1 個營業日是 1/4（週一），依序 1/5（2）、1/6（3）、1/7（4），期限為 2027-01-07（週四）。可呼叫 add_business_days(date(2026, 12, 31), 4) 驗證，已實際執行。</p><p>跨年時要確認假日表已包含下一年；本例 HOLIDAYS 含 2027 年，所以結果正確。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

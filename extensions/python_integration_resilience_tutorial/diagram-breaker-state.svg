@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 450" role="img" aria-labelledby="dg-cbs-title dg-cbs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-cbs-title">斷路器狀態機：closed、open、half_open</title>
+  <desc id="dg-cbs-desc">對應延伸範例的 CircuitBreaker.call()，門檻 3 次、冷卻 30 秒。起始為 closed：呼叫失敗且未達 3 次時 failures 加 1 並維持 closed，成功時 failures 歸零。連續第 3 次失敗（t=10）轉為 open，並記錄 opened_at。open 期間若冷卻未滿 30 秒，直接略過、不發請求（t=15、t=25）。下次呼叫時冷卻已滿 30 秒就轉為 half_open，只放行這一次呼叫：試探失敗立即回到 open 並重算冷卻（t=41），試探成功則 failures 歸零並回到 closed（t=75）。half_open 只存在於單次 call() 內，所以範例印出的「之後」只會看到 closed 或 open；多執行緒共用同一個斷路器時要加鎖，否則可能同時發出多次試探。</desc>
+  <defs>
+    <marker id="dg-cbs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <circle cx="26" cy="182" r="8" fill="currentColor"/>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="70" y="150" width="180" height="64" rx="24" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="510" y="150" width="180" height="64" rx="24" stroke="#d64545"/>
+    <rect class="dg-orange" x="290" y="300" width="180" height="64" rx="24" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-cbs-arrow)">
+    <line x1="34" y1="182" x2="68" y2="182"/>
+    <path d="M125,150 C125,96 195,96 195,148"/>
+    <path d="M565,150 C565,96 635,96 635,148"/>
+    <line x1="250" y1="176" x2="508" y2="176"/>
+    <polyline points="600,214 600,316 472,316"/>
+    <polyline points="472,348 660,348 660,216"/>
+    <polyline points="288,332 160,332 160,216"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="160" y="178" font-weight="700">closed 正常</text>
+    <text x="160" y="198" font-size="12">照常呼叫外部系統</text>
+    <text x="600" y="178" font-weight="700">open 斷路</text>
+    <text x="600" y="198" font-size="12">不發請求，直接略過</text>
+    <text x="380" y="328" font-weight="700">half_open 試探</text>
+    <text x="380" y="348" font-size="12">只放行這一次呼叫</text>
+  </g>
+  <g fill="currentColor" font-size="12" text-anchor="middle">
+    <text x="160" y="62">失敗且未達 3 次：failures + 1</text>
+    <text x="160" y="80">成功：failures 歸零</text>
+    <text x="600" y="62">冷卻未滿 30 s：略過</text>
+    <text x="600" y="80">不發請求（t=15、t=25）</text>
+    <text x="380" y="168">連續第 3 次失敗（t=10）</text>
+    <text x="380" y="194">記錄 opened_at = now</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="590" y="250" text-anchor="end">下次呼叫時冷卻已滿 30 s</text>
+    <text x="590" y="266" text-anchor="end">（t=41、t=75）</text>
+    <text x="484" y="340">試探失敗：立即重開</text>
+    <text x="484" y="366">重算冷卻（t=41）</text>
+    <text x="170" y="262">試探成功：failures = 0</text>
+    <text x="170" y="278">恢復正常（t=75）</text>
+  </g>
+  <rect class="dg-box dg-blue" x="40" y="390" width="680" height="48" rx="6" stroke="#3b82f6" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" text-anchor="middle" font-size="12">
+    <text x="380" y="410">half_open 只存在於單次 call() 內，範例印出的「之後」只會是 closed 或 open。</text>
+    <text x="380" y="428">多執行緒共用同一個斷路器時要加鎖，否則可能同時發出多次試探。</text>
+  </g>
+</svg>
