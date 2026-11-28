@@ -382,7 +382,125 @@ if __name__ == &quot;__main__&quot;:
 <li><a href="https://www.w3.org/TR/2001/NOTE-wsdl-20010315/">WSDL 1.1</a>；<a href="https://www.w3.org/TR/xmlschema-1/">XML Schema 結構</a>；<a href="https://www.w3.org/TR/xmlschema-2/#decimal">XML Schema decimal 資料型別</a>。</li>
 <li><a href="https://www.w3.org/TR/ws-addr-core/">W3C WS-Addressing Core</a>：Action 屬性的訊息語意。</li>
 <li><a href="https://docs.oasis-open.org/wss-m/wss/v1.1.1/os/wss-SOAPMessageSecurity-v1.1.1-os.html">OASIS WS-Security 1.1.1</a>：SOAP 訊息安全；<a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">Python XML 安全說明</a>：解析器及版本注意事項。</li></ul></section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。</p><h3>可實跑範例：SOAP 1.1／1.2 請求、版本辨識與 Fault 解析</h3><p>SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。</p><p><a class="button" download href="extensions/python_soap_communication_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出 SOAP 1.1 與 1.2 請求、辨識版本，並解析回應與 Fault（標準函式庫 xml.etree）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-labelledby="dg-sps-title dg-sps-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-sps-title">整合程式呼叫只支援 SOAP 1.1 的舊型能源管理系統：版本不符、成功與 Fault 的序列圖</title>
+  <desc id="dg-sps-desc">對應延伸學習的現場案例與範例的 headers() 與 parse_response()。第一步，整合程式送出 SOAP 1.2 Envelope，Content-Type 為 application/soap+xml 並在參數帶 action；只支援 SOAP 1.1 的伺服器常見回應是 HTTP 415，或 HTTP 500 加 VersionMismatch Fault。第二步，改送 SOAP 1.1 Envelope，Content-Type 為 text/xml，另加帶雙引號的 SOAPAction 標頭 urn:example:bms#GetPoint，伺服器回 200 與 GetPointResponse，值 22.5、單位 degC。第三步，查詢不存在的點位，SOAP 1.1 伺服器回 HTTP 500 與 Fault，faultcode 為 soap:Client。parse_response() 從根元素命名空間判斷版本，統一回傳 ('OK', 22.5, 'degC') 或 ('Fault', 'soap:Client', 'Unknown point')。SOAP 1.1 的 Fault 一律用 HTTP 500；SOAP 1.2 的 env:Sender 用 400，其他 Fault 用 500，所以不能只看狀態碼，要剖析 Envelope 內的 Fault。</desc>
+  <defs>
+    <marker id="dg-sps-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="30" y="12" width="200" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="520" y="12" width="210" height="48" rx="6" stroke="currentColor"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="130" y="33" font-weight="700">整合程式</text>
+    <text x="130" y="51" font-size="12">headers()＋parse_response()</text>
+    <text x="625" y="33" font-weight="700">舊型能源管理系統</text>
+    <text x="625" y="51" font-size="12">WSDL 只有 soap:binding（1.1）</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="6 4" class="dg-dash">
+    <line x1="130" y1="60" x2="130" y2="368"/>
+    <line x1="625" y1="60" x2="625" y2="368"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-sps-arrow)">
+    <line x1="130" y1="112" x2="623" y2="112"/>
+    <line x1="130" y1="210" x2="623" y2="210"/>
+    <line x1="130" y1="300" x2="623" y2="300"/>
+  </g>
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-sps-arrow)">
+    <line x1="625" y1="148" x2="132" y2="148"/>
+    <line x1="625" y1="342" x2="132" y2="342"/>
+  </g>
+  <g class="dg-line-green" stroke="#2f9e5b" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-sps-arrow)">
+    <line x1="625" y1="246" x2="132" y2="246"/>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="142" y="86" font-weight="700">① SOAP 1.2 Envelope</text>
+    <text x="142" y="104">Content-Type: application/soap+xml; action="…#GetPoint"</text>
+    <text x="142" y="140">常見：HTTP 415，或 500＋VersionMismatch Fault</text>
+    <text x="142" y="184" font-weight="700">② 改送 SOAP 1.1 Envelope</text>
+    <text x="142" y="202">text/xml＋SOAPAction: "urn:example:bms#GetPoint"</text>
+    <text x="142" y="238">200 OK：GetPointResponse，value 22.5（degC）</text>
+    <text x="142" y="292">③ GetPoint：name＝AHU9_SAT（不存在）</text>
+    <text x="142" y="334">HTTP 500＋Fault：faultcode soap:Client</text>
+  </g>
+  <rect class="dg-green" x="30" y="382" width="700" height="52" rx="8" fill="none" stroke="#2f9e5b" stroke-width="1.5"/>
+  <text x="380" y="404" fill="currentColor" text-anchor="middle" font-weight="700">parse_response() 依根元素命名空間判斷版本，統一回傳</text>
+  <text x="380" y="424" fill="currentColor" text-anchor="middle" font-size="12">('OK', 22.5, 'degC')　或　('Fault', 'soap:Client', 'Unknown point')</text>
+  <rect class="dg-orange" x="30" y="448" width="700" height="56" rx="8" fill="none" stroke="#e07b1f" stroke-width="1.5"/>
+  <text x="380" y="471" fill="currentColor" text-anchor="middle" font-weight="700">SOAP 1.1 的 Fault 一律 HTTP 500；SOAP 1.2 的 env:Sender 用 400，其餘 500</text>
+  <text x="380" y="491" fill="currentColor" text-anchor="middle" font-size="12">只看狀態碼分不出原因，要剖析 Envelope 內的 Fault 代碼與訊息</text>
+</svg><figcaption><strong>序列圖｜呼叫只支援 SOAP 1.1 的舊系統</strong>：對應現場案例與範例的 headers()：1.2 請求被拒、改送 1.1 後成功，以及點位不存在時的 Fault。415 或 500 是此類舊系統的常見反應，實際以伺服器文件與 WSDL 為準。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 610" role="img" aria-labelledby="dg-spf-title dg-spf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-spf-title">parse_response() 判斷流程圖：錯誤、Fault 與正常回應</title>
+  <desc id="dg-spf-desc">對應延伸範例的 parse_response()。收到回應後依序判斷。第一，XML 能否剖析，不能就回傳錯誤「XML 無法剖析」。第二，根元素是否為 SOAP 1.1 或 1.2 命名空間的 Envelope，不是就回傳「不是 SOAP Envelope」，例如沒有命名空間的 Envelope。第三，是否有 Body，沒有就回傳「缺少 Body」。以上三種錯誤都回傳 ('錯誤', None, 原因)，不讓 ParseError 或 AttributeError 外洩給上層。第四，Body 內若有 Fault，依版本取代碼與訊息：SOAP 1.1 的 faultcode 與 faultstring 不帶命名空間，SOAP 1.2 取 Code/Value 與 Reason/Text，回傳 ('Fault', 代碼, 訊息)，例如 soap:Client 或 soap:Sender。第五，沒有 Fault 時取 GetPointResponse/value，缺少就回傳「回應缺少 value」，否則回傳 ('OK', 22.5, 'degC')。</desc>
+  <defs>
+    <marker id="dg-spf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="60" y="14" width="340" height="40" rx="20" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="40,110 230,74 420,110 230,146" stroke="currentColor"/>
+    <polygon class="dg-box" points="40,195 230,159 420,195 230,231" stroke="currentColor"/>
+    <polygon class="dg-box" points="40,280 230,244 420,280 230,316" stroke="currentColor"/>
+    <polygon class="dg-box" points="40,365 230,329 420,365 230,401" stroke="currentColor"/>
+    <polygon class="dg-box" points="40,450 230,414 420,450 230,486" stroke="currentColor"/>
+    <rect class="dg-red" x="470" y="70" width="270" height="250" rx="8" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="330" width="270" height="88" rx="8" stroke="#e07b1f"/>
+    <rect class="dg-red" x="470" y="430" width="270" height="40" rx="8" stroke="#d64545"/>
+    <rect class="dg-green" x="60" y="512" width="340" height="52" rx="8" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-spf-arrow)">
+    <line x1="230" y1="54" x2="230" y2="72"/>
+    <line x1="230" y1="146" x2="230" y2="157"/>
+    <line x1="230" y1="231" x2="230" y2="242"/>
+    <line x1="230" y1="316" x2="230" y2="327"/>
+    <line x1="230" y1="401" x2="230" y2="412"/>
+    <line x1="230" y1="486" x2="230" y2="510"/>
+    <line x1="420" y1="110" x2="468" y2="110"/>
+    <line x1="420" y1="195" x2="468" y2="195"/>
+    <line x1="420" y1="280" x2="468" y2="280"/>
+    <line x1="420" y1="365" x2="468" y2="365"/>
+    <line x1="420" y1="450" x2="468" y2="450"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="39" font-weight="700">收到 HTTP 回應本文（XML 文字）</text>
+    <text x="230" y="115">① ET.fromstring() 能剖析？</text>
+    <text x="230" y="191">② 根元素是 1.1／1.2 的</text>
+    <text x="230" y="208" font-size="12">soap:Envelope？</text>
+    <text x="230" y="285">③ 有 Body？</text>
+    <text x="230" y="370">④ Body 內有 Fault？</text>
+    <text x="230" y="455">⑤ 有 GetPointResponse/value？</text>
+    <text x="230" y="534" font-weight="700">回傳 ('OK', 22.5, 'degC')</text>
+    <text x="230" y="553" font-size="12">float(value.text)，單位取 unit 屬性</text>
+    <text x="605" y="94" font-weight="700">回傳 ('錯誤', None, 原因)</text>
+    <text x="605" y="112" font-size="12">不讓 ParseError／AttributeError 外洩</text>
+    <text x="605" y="142" font-size="12">原因：XML 無法剖析</text>
+    <text x="605" y="200" font-size="12">原因：不是 SOAP Envelope</text>
+    <text x="605" y="218" font-size="12">例：沒有命名空間的 &lt;Envelope&gt;</text>
+    <text x="605" y="285" font-size="12">原因：缺少 Body</text>
+    <text x="605" y="352" font-weight="700">回傳 ('Fault', 代碼, 訊息)</text>
+    <text x="605" y="372" font-size="12">1.1：faultcode、faultstring 不帶命名空間</text>
+    <text x="605" y="390" font-size="12">1.2：Code/Value、Reason/Text</text>
+    <text x="605" y="408" font-size="12">例：soap:Client／soap:Sender</text>
+    <text x="605" y="455" font-size="12">原因：回應缺少 value</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="430" y="104">否</text>
+    <text x="430" y="189">否</text>
+    <text x="430" y="274">否</text>
+    <text x="430" y="359">是</text>
+    <text x="430" y="444">否</text>
+    <text x="238" y="155">是</text>
+    <text x="238" y="240">是</text>
+    <text x="238" y="325">是</text>
+    <text x="238" y="410">否</text>
+    <text x="238" y="503">是</text>
+  </g>
+  <text x="380" y="594" fill="currentColor" text-anchor="middle" font-size="12">先確認是 SOAP、再看 Fault，最後才取業務資料；任何輸入都只回傳判定結果。</text>
+</svg><figcaption><strong>流程圖｜parse_response() 的判斷順序</strong>：對應範例的 parse_response()：先確認是 SOAP Envelope 且有 Body，再依版本取 Fault，最後才取業務資料；結構不符時回傳錯誤原因，不拋例外。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：SOAP 1.1／1.2 請求、版本辨識與 Fault 解析</h3><p>SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。 parse_response() 先確認輸入是 SOAP Envelope 且有 Body，剖析失敗或結構不符時回傳（'錯誤', None, 原因），不讓例外外洩給上層。</p><p><a class="button" download href="extensions/python_soap_communication_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出 SOAP 1.1 與 1.2 請求、辨識版本，並解析回應與 Fault（標準函式庫 xml.etree）。&quot;&quot;&quot;
 import xml.etree.ElementTree as ET
 
 SOAP11 = &quot;http://schemas.xmlsoap.org/soap/envelope/&quot;
@@ -407,9 +525,17 @@ def detect(xml_text):
 
 
 def parse_response(xml_text):
-    root = ET.fromstring(xml_text)
-    ns = root.tag[1:].split(&quot;}&quot;)[0]
+    &quot;&quot;&quot;回傳（狀態, 代碼, 訊息或值）；任何輸入都只回傳判定結果，不讓例外外洩。&quot;&quot;&quot;
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return &quot;錯誤&quot;, None, &quot;XML 無法剖析&quot;
+    ns = root.tag[1:].split(&quot;}&quot;)[0] if root.tag.startswith(&quot;{&quot;) else &quot;&quot;
+    if ns not in (SOAP11, SOAP12) or root.tag != f&quot;{{{ns}}}Envelope&quot;:
+        return &quot;錯誤&quot;, None, &quot;不是 SOAP Envelope&quot;
     body = root.find(f&quot;{{{ns}}}Body&quot;)
+    if body is None:
+        return &quot;錯誤&quot;, None, &quot;缺少 Body&quot;
     fault = body.find(f&quot;{{{ns}}}Fault&quot;)
     if fault is not None:
         if ns == SOAP11:
@@ -417,6 +543,8 @@ def parse_response(xml_text):
         return (&quot;Fault&quot;, fault.findtext(f&quot;{{{ns}}}Code/{{{ns}}}Value&quot;),
                 fault.findtext(f&quot;{{{ns}}}Reason/{{{ns}}}Text&quot;))
     v = body.find(f&quot;{{{APP}}}GetPointResponse/{{{APP}}}value&quot;)
+    if v is None or v.text is None:
+        return &quot;錯誤&quot;, None, &quot;回應缺少 value&quot;
     return &quot;OK&quot;, float(v.text), v.get(&quot;unit&quot;)
 
 
@@ -433,11 +561,15 @@ if __name__ == &quot;__main__&quot;:
     fault12 = envelope(&quot;1.2&quot;, f&#x27;&lt;soap:Fault&gt;&lt;soap:Code&gt;&lt;soap:Value&gt;soap:Sender&lt;/soap:Value&gt;&lt;/soap:Code&gt;&#x27;
                        f&#x27;&lt;soap:Reason&gt;&lt;soap:Text xml:lang=&quot;en&quot;&gt;Unknown point&lt;/soap:Text&gt;&lt;/soap:Reason&gt;&lt;/soap:Fault&gt;&#x27;)
     print(&quot;1.2 Fault：&quot;, parse_response(fault12))
+    print(&quot;無命名空間：&quot;, parse_response(&quot;&lt;Envelope&gt;&lt;Body/&gt;&lt;/Envelope&gt;&quot;))
+    print(&quot;缺少 Body：&quot;, parse_response(f&#x27;&lt;soap:Envelope xmlns:soap=&quot;{SOAP11}&quot;/&gt;&#x27;))
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不會連線</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>SOAP 1.1 標頭：{&#x27;Content-Type&#x27;: &#x27;text/xml; charset=utf-8&#x27;, &#x27;SOAPAction&#x27;: &#x27;&quot;urn:example:bms#GetPoint&quot;&#x27;}
   辨識：SOAP 1.1
 SOAP 1.2 標頭：{&#x27;Content-Type&#x27;: &#x27;application/soap+xml; charset=utf-8; action=&quot;urn:example:bms#GetPoint&quot;&#x27;}
   辨識：SOAP 1.2
 回應： (&#x27;OK&#x27;, 22.5, &#x27;degC&#x27;)
 1.1 Fault： (&#x27;Fault&#x27;, &#x27;soap:Client&#x27;, &#x27;Unknown point&#x27;)
-1.2 Fault： (&#x27;Fault&#x27;, &#x27;soap:Sender&#x27;, &#x27;Unknown point&#x27;)</code></pre><h3>工程現場案例：舊型能源管理系統只接受 SOAP 1.1</h3><p>某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。</p><p>解析回應時也要依版本處理 Fault。範例的 parse_response() 從根元素的命名空間自動判斷，統一回傳（狀態, 代碼, 訊息），上層程式不需要關心版本差異。</p><ol><li>從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。</li><li>用 curl 或 Postman 先送一個最小請求，確認 Content-Type 與 SOAPAction 正確。</li><li>解析回應時先檢查 Fault，再取業務資料；Fault 的代碼與訊息寫進日誌。</li><li>處理外部 XML 時注意 XML 外部實體（XXE）風險，不信任的輸入可用 defusedxml 剖析。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 的 xml.etree.ElementTree 文件提醒：處理不受信任的 XML 時要留意各種 XML 攻擊。常用的 SOAP 用戶端套件 zeep 本頁核對時最新版為 4.3.3。 <a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">來源：Python 文件：XML 弱點</a> <a href="https://pypi.org/project/zeep/">來源：PyPI：zeep</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>SOAP 1.1 的 SOAPAction 標頭值為什麼要加雙引號？</p><details><summary>看解答</summary><p>SOAP 1.1 規格把 SOAPAction 定義為帶引號的 URI 字串；部分伺服器會嚴格檢查。值為空字串時也要寫成 ""。</p></details></li><li><p>detect() 收到一個根元素為 Envelope 但命名空間不同的 XML，會怎麼判斷？</p><details><summary>看解答</summary><p>回傳「不是 SOAP Envelope」。ElementTree 的標籤包含命名空間，只比對本地名稱 Envelope 是不夠的，命名空間才是版本的依據。</p></details></li><li><p>SOAP 1.1 的 faultcode 為什麼用 findtext('faultcode') 而不是加命名空間？</p><details><summary>看解答</summary><p>SOAP 1.1 規定 Fault 的子元素 faultcode、faultstring 不帶命名空間（unqualified），1.2 的 Code、Reason 則在 SOAP 命名空間內。這是兩個版本最容易寫錯的地方。</p></details></li><li><p>範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？</p><details><summary>看解答</summary><p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p></details></li></ol></section><!-- extension:end -->
+1.2 Fault： (&#x27;Fault&#x27;, &#x27;soap:Sender&#x27;, &#x27;Unknown point&#x27;)
+無命名空間： (&#x27;錯誤&#x27;, None, &#x27;不是 SOAP Envelope&#x27;)
+缺少 Body： (&#x27;錯誤&#x27;, None, &#x27;缺少 Body&#x27;)</code></pre><h3>工程現場案例：舊型能源管理系統只接受 SOAP 1.1</h3><p>某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。</p><p>解析回應時也要依版本處理 Fault。範例的 parse_response() 從根元素的命名空間自動判斷，統一回傳（狀態, 代碼, 訊息），上層程式不需要關心版本差異。</p><ol><li>從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。</li><li>用 curl 或 Postman 先送一個最小請求，確認 Content-Type 與 SOAPAction 正確。</li><li>解析回應時先檢查 Fault，再取業務資料；Fault 的代碼與訊息寫進日誌。</li><li>處理外部 XML 時注意 XML 外部實體（XXE）風險，不信任的輸入可用 defusedxml 剖析。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 的 xml.etree.ElementTree 文件提醒：處理不受信任的 XML 時要留意各種 XML 攻擊。常用的 SOAP 用戶端套件 zeep 本頁核對時最新版為 4.3.3。 <a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">來源：Python 文件：XML 弱點</a> <a href="https://pypi.org/project/zeep/">來源：PyPI：zeep</a> <a href="https://www.w3.org/TR/soap12-part2/">來源：W3C：SOAP 1.2 Part 2（Table 20：SOAP Fault 與 HTTP 狀態碼）</a> <a href="https://www.w3.org/TR/2000/NOTE-SOAP-20000508/">來源：W3C：SOAP 1.1 Note（第 6.2 節：SOAP HTTP Response）</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>SOAP 1.1 的 SOAPAction 標頭值為什麼要加雙引號？</p><details><summary>看解答</summary><p>SOAP 1.1 規格把 SOAPAction 定義為帶引號的 URI 字串；部分伺服器會嚴格檢查。值為空字串時也要寫成 ""。</p></details></li><li><p>detect() 收到一個根元素為 Envelope 但命名空間不同的 XML，會怎麼判斷？</p><details><summary>看解答</summary><p>回傳「不是 SOAP Envelope」。ElementTree 的標籤包含命名空間，只比對本地名稱 Envelope 是不夠的，命名空間才是版本的依據。</p></details></li><li><p>SOAP 1.1 的 faultcode 為什麼用 findtext('faultcode') 而不是加命名空間？</p><details><summary>看解答</summary><p>SOAP 1.1 規定 Fault 的子元素 faultcode、faultstring 不帶命名空間（unqualified），1.2 的 Code、Reason 則在 SOAP 命名空間內。這是兩個版本最容易寫錯的地方。</p></details></li><li><p>範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？</p><details><summary>看解答</summary><p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p></details></li><li><p>修正前的 parse_response() 收到沒有命名空間的 &lt;Envelope&gt;&lt;Body/&gt;&lt;/Envelope&gt;，或只有 SOAP 1.1 Envelope、沒有 Body 的回應，會發生什麼？</p><details><summary>看解答</summary><p>實際執行修正前的程式，兩種輸入都拋出 AttributeError: 'NoneType' object has no attribute 'find'。前者把標籤 "Envelope" 切成命名空間 "nvelope"，找不到 Body；後者 body 是 None，接著呼叫 body.find() 就失敗。</p><p>舊系統在維護模式或代理錯誤時，常回傳 HTML 錯誤頁或殘缺的 XML。現在的範例依序檢查剖析、命名空間、Body，分別回傳（'錯誤', None, 'XML 無法剖析'）、（'錯誤', None, '不是 SOAP Envelope'）、（'錯誤', None, '缺少 Body'），上層可以記錄原因並決定重試，而不是讓整個輪詢迴圈中斷。</p></details></li><li><p>伺服器回應 HTTP 500。能不能只憑狀態碼判斷是用戶端送錯（例如點位不存在）還是伺服器故障？SOAP 1.2 有什麼不同？</p><details><summary>看解答</summary><p>SOAP 1.1 的 HTTP 綁定規定處理請求發生 SOAP 錯誤時一律回 500，所以「點位不存在」的 soap:Client 與伺服器內部故障都是 500，只能看 Fault 內的 faultcode 區分。SOAP 1.2 第 2 部分的 Table 20 把 env:Sender 對應到 400，其他 Fault（Receiver、VersionMismatch、MustUnderstand、DataEncodingUnknown）對應到 500。</p><p>實務上兩種版本都應剖析 Fault：Client／Sender 類錯誤重送也不會成功，應修正請求並告警；Server／Receiver 類才考慮退避重試。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

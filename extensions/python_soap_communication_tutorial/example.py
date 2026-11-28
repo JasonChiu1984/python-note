@@ -23,9 +23,17 @@ def detect(xml_text):
 
 
 def parse_response(xml_text):
-    root = ET.fromstring(xml_text)
-    ns = root.tag[1:].split("}")[0]
+    """回傳（狀態, 代碼, 訊息或值）；任何輸入都只回傳判定結果，不讓例外外洩。"""
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return "錯誤", None, "XML 無法剖析"
+    ns = root.tag[1:].split("}")[0] if root.tag.startswith("{") else ""
+    if ns not in (SOAP11, SOAP12) or root.tag != f"{{{ns}}}Envelope":
+        return "錯誤", None, "不是 SOAP Envelope"
     body = root.find(f"{{{ns}}}Body")
+    if body is None:
+        return "錯誤", None, "缺少 Body"
     fault = body.find(f"{{{ns}}}Fault")
     if fault is not None:
         if ns == SOAP11:
@@ -33,6 +41,8 @@ def parse_response(xml_text):
         return ("Fault", fault.findtext(f"{{{ns}}}Code/{{{ns}}}Value"),
                 fault.findtext(f"{{{ns}}}Reason/{{{ns}}}Text"))
     v = body.find(f"{{{APP}}}GetPointResponse/{{{APP}}}value")
+    if v is None or v.text is None:
+        return "錯誤", None, "回應缺少 value"
     return "OK", float(v.text), v.get("unit")
 
 
@@ -49,3 +59,5 @@ if __name__ == "__main__":
     fault12 = envelope("1.2", f'<soap:Fault><soap:Code><soap:Value>soap:Sender</soap:Value></soap:Code>'
                        f'<soap:Reason><soap:Text xml:lang="en">Unknown point</soap:Text></soap:Reason></soap:Fault>')
     print("1.2 Fault：", parse_response(fault12))
+    print("無命名空間：", parse_response("<Envelope><Body/></Envelope>"))
+    print("缺少 Body：", parse_response(f'<soap:Envelope xmlns:soap="{SOAP11}"/>'))

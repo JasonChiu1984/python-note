@@ -8,7 +8,7 @@ def char_time_ms(baud):
 
 
 def silent_ms(baud):
-    """3.5 字元靜默；Modbus 規範在 19200 bps 以上建議固定 1.75 ms。"""
+    """3.5 字元靜默；鮑率高於 19200 bps 時，Modbus 規範建議固定 1.75 ms。"""
     return 1.75 if baud > 19200 else 3.5 * char_time_ms(baud)
 
 
