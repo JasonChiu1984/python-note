@@ -22,7 +22,10 @@ def milestones(aware: datetime, level: int):
 def report_status(aware, reported, level):
     deadline = aware + timedelta(hours=1)
     late = reported - deadline
-    return "如期" if late <= timedelta(0) else f"逾時 {int(late.total_seconds() // 60)} 分鐘"
+    if late <= timedelta(0):
+        return "如期"
+    minutes = -(-late // timedelta(minutes=1))    # 無條件進位：晚 59 秒也算逾時 1 分鐘
+    return f"逾時 {minutes} 分鐘"
 
 
 if __name__ == "__main__":

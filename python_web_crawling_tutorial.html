@@ -84,7 +84,74 @@ python3 python_web_crawling_lab.py quality</code></pre>
         rows.append(row)  # 保留候選，交由 quality_report 比對衝突</code></pre>
 <p>本教材沒有可輸入的外部 URL、深度擴張、登入或反封鎖功能。要處理站方授權的正式資料，另行設計分頁上限、版本化欄位、結果對帳、重複或格式異常告警，不把資料中的文字或網址當成指令。</p>
 <ul><li><a href="https://www.rfc-editor.org/rfc/rfc9309.html">RFC 9309：Robots Exclusion Protocol</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after">RFC 9110：Retry-After</a>、<a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-if-none-match">If-None-Match</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc6585.html#section-4">RFC 6585：429</a></li><li><a href="https://docs.python.org/3/library/html.parser.html">Python 官方：html.parser</a></li><li><a href="https://docs.python.org/3/library/urllib.robotparser.html">Python 官方：urllib.robotparser</a></li></ul></section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節完全離線，示範一個「好鄰居」爬蟲的三個習慣：先讀 robots.txt、對同一主機限速，以及用 ETag 條件請求避免重複下載沒有變更的頁面。</p><h3>可實跑範例：robots.txt、速率限制與條件請求快取</h3><p>用 urllib.robotparser 解析一份內嵌的 robots.txt，針對特定 User-Agent 判斷能否擷取；用模擬時鐘實作 Crawl-delay；FakeServer 在 ETag 相同時回 304，統計可省下多少傳輸量。</p><p><a class="button" download href="extensions/python_web_crawling_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;離線示範：robots.txt 判讀、每主機速率限制、ETag 條件請求快取（標準函式庫）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節完全離線，示範一個「好鄰居」爬蟲的三個習慣：先讀 robots.txt、對同一主機限速，以及用 ETag 條件請求避免重複下載沒有變更的頁面。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-wcf-title dg-wcf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wcf-title">好鄰居爬蟲：Crawler.fetch() 的判斷流程</title>
+  <desc id="dg-wcf-desc">對應延伸範例的 Crawler.fetch()。先以 robots.txt 判斷 can_fetch(UA, path)：不允許就跳過，不發請求，例如 /admin/users 與 /search?q=kwh。允許時取 delay 等於 crawl_delay(UA) 或 1：bms-report-bot 群組寫了 10 秒；若專屬群組沒有 Crawl-delay，會回傳 None 而改用 1 秒，不會沿用星號群組的 5 秒。接著看模擬時鐘：早於 next_allowed 就先等到該時刻，然後把 next_allowed 設為現在加 delay，所以請求依序發在 t=0、10、20、30 秒。快取中有該網址的 ETag 就帶 If-None-Match。伺服器回 304 時只傳標頭約 120 位元組並沿用快取；回 200 時下載約 48 KB 並更新快取的 ETag 與內容。範例共傳輸 144.5 KB，每次完整下載則是 192.5 KB。</desc>
+  <defs>
+    <marker id="dg-wcf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="40" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,86 400,118 230,150 60,118"/>
+    <rect class="dg-box" x="40" y="174" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,248 400,280 230,312 60,280"/>
+    <rect class="dg-box" x="40" y="336" width="380" height="50" rx="6"/>
+    <rect class="dg-box" x="40" y="410" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,484 380,516 230,548 80,516"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="470" y="90" width="270" height="56" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="252" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="470" y="488" width="270" height="56" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="40" y="572" width="380" height="50" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wcf-arrow)">
+    <line x1="230" y1="62" x2="230" y2="84"/>
+    <line x1="400" y1="118" x2="468" y2="118"/>
+    <line x1="230" y1="150" x2="230" y2="172"/>
+    <line x1="230" y1="224" x2="230" y2="246"/>
+    <line x1="400" y1="280" x2="468" y2="280"/>
+    <line x1="230" y1="312" x2="230" y2="334"/>
+    <line x1="230" y1="386" x2="230" y2="408"/>
+    <line x1="230" y1="460" x2="230" y2="482"/>
+    <line x1="380" y1="516" x2="468" y2="516"/>
+    <line x1="230" y1="548" x2="230" y2="570"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-wcf-arrow)">
+    <polyline points="605,308 605,361 422,361"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="33" font-weight="700">fetch(path)</text>
+    <text x="230" y="52" font-size="12">UA ＝ bms-report-bot</text>
+    <text x="230" y="123">can_fetch(UA, path)？</text>
+    <text x="605" y="113" font-weight="700">跳過，不發請求</text>
+    <text x="605" y="133" font-size="12">/admin/users、/search?q=kwh</text>
+    <text x="230" y="195" font-weight="700">delay ＝ crawl_delay(UA) or 1</text>
+    <text x="230" y="214" font-size="12">專屬群組 10 s；沒寫時是 1 s，不沿用 * 的 5 s</text>
+    <text x="230" y="285">clock &lt; next_allowed？</text>
+    <text x="605" y="275" font-weight="700">等到 next_allowed</text>
+    <text x="605" y="295" font-size="12">模擬時鐘直接跳過去</text>
+    <text x="230" y="357" font-weight="700">next_allowed ＝ clock ＋ delay</text>
+    <text x="230" y="376" font-size="12">請求依序在 t ＝ 0、10、20、30 s</text>
+    <text x="230" y="431" font-weight="700">快取有 ETag → 帶 If-None-Match</text>
+    <text x="230" y="450" font-size="12">server.get(path, etag)</text>
+    <text x="230" y="521">回 304？</text>
+    <text x="605" y="511" font-weight="700">沿用快取</text>
+    <text x="605" y="531" font-size="12">只傳標頭約 120 B</text>
+    <text x="230" y="593" font-weight="700">200：更新快取（ETag、內容）</text>
+    <text x="230" y="612" font-size="12">約 48 KB；範例合計 144.5 KB，全下載 192.5 KB</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="410" y="110">否</text>
+    <text x="238" y="166">是</text>
+    <text x="410" y="272">是</text>
+    <text x="238" y="328">否</text>
+    <text x="390" y="508">是</text>
+    <text x="238" y="564">否</text>
+  </g>
+</svg><figcaption><strong>流程圖｜Crawler.fetch() 的判斷流程</strong>：對應 Crawler.fetch()：先問 robots.txt，再依 Crawl-delay 排隊，最後用 ETag 條件請求。圖中時間與傳輸量都是範例實際輸出；專屬群組沒寫 Crawl-delay 時，程式改用 1 秒，不會沿用 * 群組的設定。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：robots.txt、速率限制與條件請求快取</h3><p>用 urllib.robotparser 解析一份內嵌的 robots.txt，針對特定 User-Agent 判斷能否擷取；用模擬時鐘實作 Crawl-delay；FakeServer 在 ETag 相同時回 304，統計可省下多少傳輸量。</p><p><a class="button" download href="extensions/python_web_crawling_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;離線示範：robots.txt 判讀、每主機速率限制、ETag 條件請求快取（標準函式庫）。&quot;&quot;&quot;
 import urllib.robotparser
 
 ROBOTS = &quot;&quot;&quot;
@@ -158,7 +225,7 @@ t=  20s /public/energy/2026-10: 200
 /search?q=kwh: robots.txt 不允許，跳過
 t=  30s /public/energy/2026-11: 200
 總傳輸量約 144.5 KB；若每次都完整下載約 192.5 KB
-請求時建議帶 User-Agent 與聯絡方式，例如： bms-report-bot/1.0 (+mailto:ops@example.com)</code></pre><h3>工程現場案例：每天抓公開能源資料，被對方封鎖 IP</h3><p>某整合商每天從公用事業網站抓公開的月用電統計，程式每次都重新下載所有歷史月份，也沒有限速。對方網站把這種流量視為異常並封鎖了來源 IP，導致整批報表中斷。</p><p>改成條件請求後，未變更的月份只回 304，範例中傳輸量從 192.5 KB 降到 144.5 KB；在真實情境中，歷史月份幾乎不變，節省比例會更高。再加上 User-Agent 聯絡資訊與固定間隔，對方也能在有疑慮時聯絡，而不是直接封鎖。</p><ol><li>先確認資料是否有官方 API 或開放資料下載，有就不要爬網頁。</li><li>每次執行先讀 robots.txt，並遵守對方的使用條款；robots.txt 允許不等於授權。</li><li>保存每個 URL 的 ETag／Last-Modified，下次帶 If-None-Match／If-Modified-Since。</li><li>設定每主機的請求間隔與每日上限，User-Agent 帶聯絡方式。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Robots Exclusion Protocol 已在 2022 年標準化為 RFC 9309，規定同時符合多條規則時以最長（最具體）的規則為準。實測 Python 3.13.18、3.14.10、3.15.2 的 urllib.robotparser 已採最長匹配；仍在用的 3.12（實測 3.12.16）則依出現順序採第一條符合的規則，規則順序混雜時兩者結果不同。Crawl-delay 不在 RFC 9309 內，是部分網站的延伸用法。 <a href="https://www.rfc-editor.org/rfc/rfc9309">來源：RFC 9309</a> <a href="https://docs.python.org/3/library/urllib.robotparser.html">來源：Python 文件：urllib.robotparser</a></li><li>本頁核對時常用套件版本：requests 2.34.2、httpx 0.29.0、beautifulsoup4 4.15.0、lxml 6.2.0。 <a href="https://pypi.org/project/beautifulsoup4/">來源：PyPI：beautifulsoup4</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 bms-report-bot 群組的 Allow 與 Disallow 兩行對調（Disallow: / 在前），/public/energy/2026-11 還能擷取嗎？請分別用 Python 3.12 與 3.13 以上驗證。</p><details><summary>看解答</summary><p>Python 3.13 以上（實測 3.13.18）依 RFC 9309 採最長匹配，Allow: /public/energy/ 比 Disallow: / 更具體，判定允許。Python 3.12.13 依出現順序先遇到 Disallow: /，判定不允許。撰寫 robots.txt 時把較具體的 Allow 放在前面，兩種實作的結果才會一致；爬蟲程式也應在部署環境實測，不要假設行為。</p></details></li><li><p>為什麼 /admin/users 被拒絕，即使 * 群組也寫了 Disallow: /admin/？</p><details><summary>看解答</summary><p>爬蟲只採用最符合自己 User-Agent 的那一組規則。bms-report-bot 有專屬群組，所以 * 群組的規則不適用；被拒絕是因為專屬群組的 Disallow: /。</p></details></li><li><p>伺服器沒有提供 ETag，只有 Last-Modified，Crawler 要怎麼改？</p><details><summary>看解答</summary><p>快取改存 Last-Modified 的值，請求時帶 If-Modified-Since。注意 Last-Modified 只有秒級精度，同一秒內多次更新可能漏判；若頁面很重要，可再比對內容雜湊。</p></details></li><li><p>若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？</p><details><summary>看解答</summary><p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p></details></li></ol></section><!-- extension:end -->
+請求時建議帶 User-Agent 與聯絡方式，例如： bms-report-bot/1.0 (+mailto:ops@example.com)</code></pre><h3>工程現場案例：每天抓公開能源資料，被對方封鎖 IP</h3><p>某整合商每天從公用事業網站抓公開的月用電統計，程式每次都重新下載所有歷史月份，也沒有限速。對方網站把這種流量視為異常並封鎖了來源 IP，導致整批報表中斷。</p><p>改成條件請求後，未變更的月份只回 304，範例中傳輸量從 192.5 KB 降到 144.5 KB；在真實情境中，歷史月份幾乎不變，節省比例會更高。再加上 User-Agent 聯絡資訊與固定間隔，對方也能在有疑慮時聯絡，而不是直接封鎖。</p><ol><li>先確認資料是否有官方 API 或開放資料下載，有就不要爬網頁。</li><li>每次執行先讀 robots.txt，並遵守對方的使用條款；robots.txt 允許不等於授權。</li><li>保存每個 URL 的 ETag／Last-Modified，下次帶 If-None-Match／If-Modified-Since。</li><li>設定每主機的請求間隔與每日上限，User-Agent 帶聯絡方式。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Robots Exclusion Protocol 已在 2022 年標準化為 RFC 9309，規定同時符合多條規則時以最長（最具體）的規則為準。實測 Python 3.13.18、3.14.10、3.15.2 的 urllib.robotparser 已採最長匹配；仍在用的 3.12（實測 3.12.16）則依出現順序採第一條符合的規則，規則順序混雜時兩者結果不同。Crawl-delay 不在 RFC 9309 內，是部分網站的延伸用法。 <a href="https://www.rfc-editor.org/rfc/rfc9309">來源：RFC 9309</a> <a href="https://docs.python.org/3/library/urllib.robotparser.html">來源：Python 文件：urllib.robotparser</a></li><li>本頁核對時常用套件版本：requests 2.34.2、httpx 0.29.0、beautifulsoup4 4.15.0、lxml 6.2.0。 <a href="https://pypi.org/project/beautifulsoup4/">來源：PyPI：beautifulsoup4</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 bms-report-bot 群組的 Allow 與 Disallow 兩行對調（Disallow: / 在前），/public/energy/2026-11 還能擷取嗎？請分別用 Python 3.12 與 3.13 以上驗證。</p><details><summary>看解答</summary><p>Python 3.13 以上（實測 3.13.18）依 RFC 9309 採最長匹配，Allow: /public/energy/ 比 Disallow: / 更具體，判定允許。Python 3.12.13 依出現順序先遇到 Disallow: /，判定不允許。撰寫 robots.txt 時把較具體的 Allow 放在前面，兩種實作的結果才會一致；爬蟲程式也應在部署環境實測，不要假設行為。</p></details></li><li><p>為什麼 /admin/users 被拒絕，即使 * 群組也寫了 Disallow: /admin/？</p><details><summary>看解答</summary><p>爬蟲只採用最符合自己 User-Agent 的那一組規則。bms-report-bot 有專屬群組，所以 * 群組的規則不適用；被拒絕是因為專屬群組的 Disallow: /。</p></details></li><li><p>伺服器沒有提供 ETag，只有 Last-Modified，Crawler 要怎麼改？</p><details><summary>看解答</summary><p>快取改存 Last-Modified 的值，請求時帶 If-Modified-Since。注意 Last-Modified 只有秒級精度，同一秒內多次更新可能漏判；若頁面很重要，可再比對內容雜湊。</p></details></li><li><p>若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？</p><details><summary>看解答</summary><p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p></details></li><li><p>刪掉 bms-report-bot 群組的 Crawl-delay: 10，再依序抓 /public/energy/2026-11、2026-11、2026-10、2026-09，四次請求各在幾秒？會改用 * 群組的 Crawl-delay: 5 嗎？</p><details><summary>看解答</summary><p>請求在 t = 0、1、2、3 秒；第二次仍回 304。爬蟲只採用最符合自己 User-Agent 的群組，專屬群組沒寫 Crawl-delay 時，crawl_delay() 回傳 None（實測 Python 3.13.18、3.14.6、3.15.2），程式的 or 1 讓間隔變成 1 秒，而不是 * 群組的 5 秒。</p><p>這個預設值太激進。沒有 Crawl-delay 時，應改用自己訂的保守間隔（例如 10 秒）並設每日上限；Crawl-delay 不在 RFC 9309 內，沒寫不代表對方歡迎高頻請求。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頁首</a></footer><script>
 document.querySelector('[data-copy]').addEventListener('click', async (evt)=>{
   const block=document.getElementById(evt.currentTarget.dataset.copy);

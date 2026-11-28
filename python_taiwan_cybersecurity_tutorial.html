@@ -52,7 +52,75 @@
 <li id="s-pdparules"><a href="https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=I0050022">全國法規資料庫：個人資料保護法施行細則</a></li>
 <li id="s-fsc"><a href="https://law.fsc.gov.tw/LawContent.aspx?id=GL000933">金管會指定非公務機關個人資料檔案安全維護辦法</a></li></ol>
 <p><time datetime="2026-11-25">2026-11-25</time>：初版查核母法、子法施行日期、分級通報、個資第 12 條新舊文與機房案例。維護時需重新比對生效令、官方修正及相關行業主管機關，不用網頁載入時間假裝已查核。</p>
-</section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>法規頁最容易在實際事件中出錯的，是時間：誰在什麼時候「知悉」、時限從哪一刻起算、各里程碑何時到期。本節提供一個只算時間的小工具，並示範告警時間、知悉時間與 UTC 紀錄的差異。</p><h3>可實跑範例：資安事件通報時鐘</h3><p>依本頁整理的辦法時限：知悉起 1 小時通報；第 1、2 級 72 小時、第 3、4 級 36 小時內完成損害控制或復原。程式使用 zoneinfo 固定台北時區，避免伺服器時區設定不同造成誤差。是否構成事件、等級與適用身分仍要依法規與納管文件判斷。</p><p><a class="button" download href="extensions/python_taiwan_cybersecurity_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;資安事件通報時鐘：依《資通安全事件通報應變及演練辦法》的時限，從知悉時間算出各里程碑（教學工具）。
+</section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>法規頁最容易在實際事件中出錯的，是時間：誰在什麼時候「知悉」、時限從哪一刻起算、各里程碑何時到期。本節提供一個只算時間的小工具，並示範告警時間、知悉時間與 UTC 紀錄的差異。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 672" role="img" aria-labelledby="dg-twc-title dg-twc-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-twc-title">資安事件通報時鐘：從告警、知悉到各期限</title>
+  <desc id="dg-twc-desc">對應延伸範例的 milestones() 與 report_status()。第一筆告警（例 02:40）要記錄，但不是時限起點。研判是否為資安事件：否則依設備故障處理並保留紀錄；是則記下知悉時間（例 03:15）、判定人與依據，所有時限從知悉起算。通報期限是知悉加 1 小時，例 04:15。report_status() 比較實際通報時間與期限：未超過為如期，例 04:05；超過則顯示逾時分鐘數，未滿 1 分鐘以 1 分鐘計，若誤把 02:40 當知悉時間，04:05 通報就是逾時 25 分鐘。損害控制或復原期限依等級：第 3、4 級知悉起 36 小時，例 11-29 15:15；第 1、2 級 72 小時，例 12-01 03:15。是否構成事件、事件等級與適用身分要依法規與納管文件判斷，工具只算時間。</desc>
+  <defs>
+    <marker id="dg-twc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="40" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,86 400,118 230,150 60,118"/>
+    <rect class="dg-box" x="40" y="174" width="380" height="50" rx="6"/>
+    <rect class="dg-box" x="40" y="248" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,322 400,354 230,386 60,354"/>
+    <polygon class="dg-box" points="230,434 380,466 230,498 80,466"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="470" y="90" width="270" height="56" rx="6" stroke="currentColor"/>
+    <rect class="dg-red" x="470" y="326" width="270" height="56" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="438" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="40" y="522" width="380" height="50" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-blue" x="40" y="602" width="700" height="56" rx="6" stroke="#3b82f6"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-twc-arrow)">
+    <line x1="230" y1="62" x2="230" y2="84"/>
+    <line x1="400" y1="118" x2="468" y2="118"/>
+    <line x1="230" y1="150" x2="230" y2="172"/>
+    <line x1="230" y1="224" x2="230" y2="246"/>
+    <line x1="230" y1="298" x2="230" y2="320"/>
+    <line x1="400" y1="354" x2="468" y2="354"/>
+    <line x1="230" y1="386" x2="230" y2="432"/>
+    <line x1="380" y1="466" x2="468" y2="466"/>
+    <line x1="230" y1="498" x2="230" y2="520"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-twc-arrow)">
+    <polyline points="605,382 605,418 234,418"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="33" font-weight="700">第一筆告警（例 02:40）</text>
+    <text x="230" y="52" font-size="12">要記錄，但不是時限起點</text>
+    <text x="230" y="123">研判：是資安事件嗎？</text>
+    <text x="605" y="113" font-weight="700">依設備故障處理</text>
+    <text x="605" y="133" font-size="12">保留紀錄，日後檢討時比對</text>
+    <text x="230" y="195" font-weight="700">知悉時間 aware（例 03:15）</text>
+    <text x="230" y="214" font-size="12">記錄判定人與依據，台北時間並附 UTC</text>
+    <text x="230" y="269" font-weight="700">milestones()：通報期限 ＝ aware ＋ 1 h</text>
+    <text x="230" y="288" font-size="12">例 11-28 04:15</text>
+    <text x="230" y="351">report_status()</text>
+    <text x="230" y="368" font-size="12">實際通報 ≤ 期限？</text>
+    <text x="605" y="349" font-weight="700">逾時 N 分鐘（仍要通報）</text>
+    <text x="605" y="369" font-size="12">未滿 1 分鐘以 1 分鐘計</text>
+    <text x="230" y="471">等級 ≥ 3？</text>
+    <text x="605" y="461" font-weight="700">損害控制或復原：36 h</text>
+    <text x="605" y="481" font-size="12">例 11-29 15:15</text>
+    <text x="230" y="543" font-weight="700">損害控制或復原：72 h（第 1、2 級）</text>
+    <text x="230" y="562" font-size="12">例 12-01 03:15</text>
+    <text x="390" y="625" font-weight="700">工具只算時間</text>
+    <text x="390" y="645" font-size="12">是否構成事件、事件等級與適用身分，要依法規與實際納管文件判斷。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="440" y="411">兩條路徑都繼續倒數</text>
+    <text x="410" y="110">否</text>
+    <text x="238" y="166">是</text>
+    <text x="410" y="346">否</text>
+    <text x="238" y="404">是：如期（例 04:05）</text>
+    <text x="390" y="458">是</text>
+    <text x="238" y="514">否</text>
+  </g>
+</svg><figcaption><strong>流程圖｜資安事件通報時鐘：告警、知悉與各期限</strong>：對應 milestones() 與 report_status()：時限從知悉起算，不是第一筆告警。通報期限 1 小時；損害控制或復原依等級 36 或 72 小時。圖中時間是範例實際輸出；是否構成事件與等級判定不在工具範圍內。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：資安事件通報時鐘</h3><p>依本頁整理的辦法時限：知悉起 1 小時通報；第 1、2 級 72 小時、第 3、4 級 36 小時內完成損害控制或復原。程式使用 zoneinfo 固定台北時區，避免伺服器時區設定不同造成誤差。是否構成事件、等級與適用身分仍要依法規與納管文件判斷。 逾時分鐘數無條件進位，晚 1 秒也顯示逾時 1 分鐘。</p><p><a class="button" download href="extensions/python_taiwan_cybersecurity_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;資安事件通報時鐘：依《資通安全事件通報應變及演練辦法》的時限，從知悉時間算出各里程碑（教學工具）。
 
 時限依本頁整理：知悉起 1 小時通報；第 1、2 級知悉起 72 小時、第 3、4 級（重大）36 小時內完成損害控制或復原。
 本工具只算時間，不判斷是否構成事件、事件等級或適用身分；那些要依實際納管文件與法規判斷。
@@ -76,7 +144,10 @@ def milestones(aware: datetime, level: int):
 def report_status(aware, reported, level):
     deadline = aware + timedelta(hours=1)
     late = reported - deadline
-    return &quot;如期&quot; if late &lt;= timedelta(0) else f&quot;逾時 {int(late.total_seconds() // 60)} 分鐘&quot;
+    if late &lt;= timedelta(0):
+        return &quot;如期&quot;
+    minutes = -(-late // timedelta(minutes=1))    # 無條件進位：晚 59 秒也算逾時 1 分鐘
+    return f&quot;逾時 {minutes} 分鐘&quot;
 
 
 if __name__ == &quot;__main__&quot;:
@@ -102,5 +173,5 @@ if __name__ == &quot;__main__&quot;:
    通報（知悉起 1 小時）：11-28 04:15
    完成損害控制或復原（知悉起 36 小時）：11-29 15:15
 實際通報 04:05：如期
-跨國母公司若用 UTC 記錄，知悉時間是 2026-11-27 19:15 UTC，日期不同要特別注意</code></pre><h3>工程現場案例：夜間冰水站遠端登入異常，通報時間差點逾時</h3><p>某已核定的關鍵基礎設施提供者，機房冰水站監控系統在 02:40 出現異常告警。值班人員先當成設備故障處理，03:15 資安人員看到可疑的遠端登入紀錄才確認為資安事件。若把 02:40 當成知悉時間，通報期限是 03:40；以 03:15 起算則是 04:15。兩個時間都要記錄，並寫明判定知悉的依據。</p><p>另一個常見問題是時區：集團 SOC 若以 UTC 記錄，同一事件的知悉日期是 11 月 27 日，台灣端是 11 月 28 日，報告上的日期不一致會引來追問。範例最後一行就是提醒這一點。</p><ol><li>事件紀錄表固定欄位：第一筆告警時間、確認為資安事件的時間（知悉）、判定人、判定依據，全部以台北時間並附 UTC。</li><li>值班手冊寫明誰有權判定「知悉」，避免設施與資安團隊互相等待。</li><li>通報後依等級設定損害控制倒數，並在 BAS／SOC 儀表板顯示剩餘時間。</li><li>事後檢討時比較告警與知悉的時間差，作為改善監控與交接流程的指標。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>個資法 2025-11-11 修正公布的第 12 條（事故通報應變及紀錄保存）施行日期仍待定；依個人資料保護委員會籌備處的說明，個資會組織法尚在立法院審議，相關子法仍在研擬。事件發生時要再查全國法規資料庫的施行狀態，不要提前套用新版義務。 <a href="https://isms.thu.edu.tw/upload/isms/news_upload/個人資料保護法修正重點.pdf">來源：個資會籌備處：114 年個資法修正重點</a> <a href="https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=I0050021">來源：全國法規資料庫：個人資料保護法</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若事件在 23:30 知悉並判定為第 4 級，損害控制或復原的期限是哪一天幾點？</p><details><summary>看解答</summary><p>知悉起 36 小時，也就是後天的 11:30。可把範例的 aware 改成 23:30、level 改成 4 驗證。</p></details></li><li><p>為什麼範例要把告警時間與知悉時間分開記錄？</p><details><summary>看解答</summary><p>時限從「知悉」起算，而告警可能只是設備故障或誤報。分開記錄才能說明判定過程；若事後發現告警當時就足以判斷是資安事件，兩者差距也會成為檢討重點。</p></details></li><li><p>report_status() 用 timedelta 比較而不是比較字串時間，原因是什麼？</p><details><summary>看解答</summary><p>字串比較在跨日、跨時區時會出錯（例如 23:50 與 00:10）。帶時區的 datetime 相減能得到正確的時間差，也能正確處理 UTC 與台北時間混用的紀錄。</p></details></li><li><p>一般 HVAC 維護廠商承攬關鍵基礎設施的業務，自己需要直接向主管機關通報嗎？</p><details><summary>看解答</summary><p>依本頁整理，受託者不因承攬就自動成為法定通報主體，但必須依契約與受託安排，即時通知委託機關並協助處理。工具裡的時限是委託機關的義務，廠商要做的是確保自己的通知時間能讓委託機關趕上。</p></details></li></ol></section><!-- extension:end -->
+跨國母公司若用 UTC 記錄，知悉時間是 2026-11-27 19:15 UTC，日期不同要特別注意</code></pre><h3>工程現場案例：夜間冰水站遠端登入異常，通報時間差點逾時</h3><p>某已核定的關鍵基礎設施提供者，機房冰水站監控系統在 02:40 出現異常告警。值班人員先當成設備故障處理，03:15 資安人員看到可疑的遠端登入紀錄才確認為資安事件。若把 02:40 當成知悉時間，通報期限是 03:40；以 03:15 起算則是 04:15。兩個時間都要記錄，並寫明判定知悉的依據。</p><p>另一個常見問題是時區：集團 SOC 若以 UTC 記錄，同一事件的知悉日期是 11 月 27 日，台灣端是 11 月 28 日，報告上的日期不一致會引來追問。範例最後一行就是提醒這一點。</p><ol><li>事件紀錄表固定欄位：第一筆告警時間、確認為資安事件的時間（知悉）、判定人、判定依據，全部以台北時間並附 UTC。</li><li>值班手冊寫明誰有權判定「知悉」，避免設施與資安團隊互相等待。</li><li>通報後依等級設定損害控制倒數，並在 BAS／SOC 儀表板顯示剩餘時間。</li><li>事後檢討時比較告警與知悉的時間差，作為改善監控與交接流程的指標。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>個資法 2025-11-11 修正公布的第 12 條（事故通報應變及紀錄保存）施行日期仍待定；依個人資料保護委員會籌備處的說明，個資會組織法尚在立法院審議，相關子法仍在研擬。事件發生時要再查全國法規資料庫的施行狀態，不要提前套用新版義務。 <a href="https://isms.thu.edu.tw/upload/isms/news_upload/個人資料保護法修正重點.pdf">來源：個資會籌備處：114 年個資法修正重點</a> <a href="https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=I0050021">來源：全國法規資料庫：個人資料保護法</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若事件在 23:30 知悉並判定為第 4 級，損害控制或復原的期限是哪一天幾點？</p><details><summary>看解答</summary><p>知悉起 36 小時，也就是後天的 11:30。可把範例的 aware 改成 23:30、level 改成 4 驗證。</p></details></li><li><p>為什麼範例要把告警時間與知悉時間分開記錄？</p><details><summary>看解答</summary><p>時限從「知悉」起算，而告警可能只是設備故障或誤報。分開記錄才能說明判定過程；若事後發現告警當時就足以判斷是資安事件，兩者差距也會成為檢討重點。</p></details></li><li><p>report_status() 用 timedelta 比較而不是比較字串時間，原因是什麼？</p><details><summary>看解答</summary><p>字串比較在跨日、跨時區時會出錯（例如 23:50 與 00:10）。帶時區的 datetime 相減能得到正確的時間差，也能正確處理 UTC 與台北時間混用的紀錄。</p></details></li><li><p>一般 HVAC 維護廠商承攬關鍵基礎設施的業務，自己需要直接向主管機關通報嗎？</p><details><summary>看解答</summary><p>依本頁整理，受託者不因承攬就自動成為法定通報主體，但必須依契約與受託安排，即時通知委託機關並協助處理。工具裡的時限是委託機關的義務，廠商要做的是確保自己的通知時間能讓委託機關趕上。</p></details></li><li><p>值班若把 02:40 的告警當成知悉時間、04:05 才通報，report_status() 會回傳什麼？若知悉是 03:15、實際通報在 04:15:59 呢？為什麼範例改成無條件進位？</p><details><summary>看解答</summary><p>以 02:40 起算，期限是 03:40，04:05 通報回傳「逾時 25 分鐘」；以 03:15 起算則是「如期」。知悉 03:15、04:15:59 通報時晚了 59 秒，回傳「逾時 1 分鐘」。已用範例函式實際執行驗證。</p><p>舊寫法用 // 60 無條件捨去，晚 59 秒會顯示「逾時 0 分鐘」，讀起來像沒有逾時。期限判斷要保守：只要超過期限就至少算 1 分鐘，紀錄上同時保留精確到秒的通報時間。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頁首</a></footer></body></html>

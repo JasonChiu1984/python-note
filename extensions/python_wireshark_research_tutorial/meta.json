@@ -49,6 +49,24 @@
   {
    "q": "範例的 IHL 為 20、TCP 標頭為 20 bytes。若 TCP 帶了選項（例如時間戳記），解析程式哪裡會出錯？",
    "a": "<p>不會出錯，因為程式依 data offset 欄位計算 TCP 標頭長度（(doff &gt;&gt; 4) × 4），帶選項時會自動往後跳。若寫死 20 bytes，MBAP 就會從錯誤位置開始解析。</p>"
+  },
+  {
+   "q": "若 TCP 帶 12 bytes 選項（NOP、NOP、時間戳記，資料位移 8），訊框與 pcap 檔各多長？MBAP 從檔案第幾個位元組開始？若程式把 TCP 標頭寫死成 20 bytes，會解出什麼？",
+   "a": "<p>TCP 標頭 32 bytes，IPv4 總長度 64，訊框 78 bytes，整個檔案 24 + 16 + 78 = 118 bytes；MBAP 從檔案位移 106 開始（40 + 14 + 20 + 32）。parse() 依資料位移計算，仍正確解出交易 42、FC03 起始 0 數量 10。已實際組出封包並執行驗證。</p><p>若寫死 20 bytes，會把選項當成 MBAP，解出交易 257、協定 2058 這類無意義的值。協定識別碼不是 0 就表示位置錯了；批次分析時可把「協定識別碼 = 0、長度欄位與剩餘位元組相符」當成健全性檢查。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "architecture",
+   "title": "擷取點架構：交換器鏡像埠看得到什麼",
+   "file": "diagram-capture-architecture.svg",
+   "caption": "對應現場案例與範例封包的位址、埠與 Unit ID。鏡像埠只看得到乙太網路上的 Modbus TCP；若 192.168.10.20 是閘道器，RS-485 後端的 RTU 交易要另用序列監聽。"
+  },
+  {
+   "kind": "flow",
+   "title": "parse() 逐層解析的位元組位置",
+   "file": "diagram-parse-layers-flow.svg",
+   "caption": "對應 build_pcap() 產生的 106 bytes 檔案：pcap 標頭用 little-endian，乙太網路以上用 big-endian；IPv4 與 TCP 的長度從 IHL 與資料位移讀出，不寫死。"
   }
  ]
 }

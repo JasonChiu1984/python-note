@@ -86,7 +86,119 @@ tshark -n -r wireshark_http_reassembly_sample.pcap -q -z follow,tcp,ascii,0</cod
 trimmed_frames += captured &lt; original</code></pre></details>
  <p>一手資料：<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChAdvTCPAnalysis.html">Wireshark TCP Analysis</a> · <a href="https://wiki.wireshark.org/CaptureSetup/Offloading">Wireshark CaptureSetup／Offloading</a> · <a href="https://datatracker.ietf.org/doc/draft-ietf-opsawg-pcap/">IETF OPSAWG：PCAP Capture File Format</a></p>
  </section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁介紹以 Wireshark 與 TShark 觀察封包。本節反過來，用 Python 手動組出一個含 Modbus TCP 請求的 pcap 檔，再逐層解析，練習把 Wireshark 畫面上每一層欄位對應回原始位元組。</p><h3>可實跑範例：手動組出並解析 pcap 中的 Modbus TCP 封包</h3><p>pcap 全域標頭與記錄標頭是 little-endian，乙太網路以上的協定欄位是 big-endian（網路位元組順序）。程式依序解析 Ethernet、IPv4、TCP 與 MBAP，輸出可與 Wireshark 的封包詳細窗格對照。</p><p><a class="button" download href="extensions/python_wireshark_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;不用 Wireshark 也能讀 pcap：產生一個含 Modbus TCP 請求的 pcap，再逐層解析（標準函式庫 struct）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁介紹以 Wireshark 與 TShark 觀察封包。本節反過來，用 Python 手動組出一個含 Modbus TCP 請求的 pcap 檔，再逐層解析，練習把 Wireshark 畫面上每一層欄位對應回原始位元組。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="architecture"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" role="img" aria-labelledby="dg-wsa-title dg-wsa-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wsa-title">擷取點架構：交換器鏡像埠看得到什麼</title>
+  <desc id="dg-wsa-desc">對應延伸學習的現場案例與範例封包。BAS 主機 192.168.10.5 從埠 50123 以 Modbus TCP 連到 192.168.10.20 的 502 埠，Unit ID 1。兩者之間經過一台交換器，交換器設定鏡像埠（SPAN）把流量複製到擷取電腦。擷取電腦用 Wireshark 或 TShark 存成 pcap，再由 Python 的 struct 逐層解析，或用 tshark 匯出 CSV 統計回應時間與例外碼。若 192.168.10.20 是 Modbus 閘道器，後端 RS-485 上的 RTU 交易不在鏡像範圍內，需要另用序列監聽工具。</desc>
+  <defs>
+    <marker id="dg-wsa-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="20" y="40" width="190" height="60" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="285" y="40" width="190" height="60" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="550" y="40" width="190" height="60" rx="6" stroke="currentColor"/>
+    <rect class="dg-box dg-dash" x="550" y="170" width="190" height="60" rx="6" stroke="currentColor" stroke-dasharray="6 4"/>
+    <rect class="dg-orange" x="285" y="170" width="190" height="60" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="160" y="300" width="200" height="60" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-green" x="410" y="300" width="200" height="60" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wsa-arrow)">
+    <line x1="210" y1="70" x2="283" y2="70"/>
+    <line x1="475" y1="70" x2="548" y2="70"/>
+    <line x1="380" y1="100" x2="380" y2="168"/>
+    <line x1="340" y1="230" x2="270" y2="298"/>
+    <line x1="420" y1="230" x2="500" y2="298"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none">
+    <line x1="645" y1="100" x2="645" y2="170"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="115" y="65" font-weight="700">BAS 主機</text>
+    <text x="115" y="85" font-size="12">192.168.10.5:50123</text>
+    <text x="380" y="65" font-weight="700">交換器</text>
+    <text x="380" y="85" font-size="12">設定鏡像埠（SPAN）</text>
+    <text x="645" y="65" font-weight="700">電表或閘道器</text>
+    <text x="645" y="85" font-size="12">192.168.10.20:502，Unit 1</text>
+    <text x="645" y="195" font-weight="700">RS-485 後端</text>
+    <text x="645" y="215" font-size="12">不在鏡像範圍，需序列監聽</text>
+    <text x="380" y="195" font-weight="700">擷取電腦</text>
+    <text x="380" y="215" font-size="12">Wireshark／TShark → pcap</text>
+    <text x="260" y="325" font-weight="700">Python struct 逐層解析</text>
+    <text x="260" y="345" font-size="12">範例的 parse()</text>
+    <text x="510" y="325" font-weight="700">tshark 匯出 CSV</text>
+    <text x="510" y="345" font-size="12">統計回應時間與例外碼</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="247" y="60" text-anchor="middle" font-size="11">Modbus TCP</text>
+    <text x="511" y="60" text-anchor="middle" font-size="11">FC03 請求</text>
+    <text x="388" y="140">複製流量</text>
+    <text x="653" y="140">若是閘道器</text>
+  </g>
+  <text x="380" y="400" fill="currentColor" text-anchor="middle" font-size="12">記錄擷取點、時間同步方式與篩選條件；擷取檔可能含帳密或個資，分享前先確認權限。</text>
+</svg><figcaption><strong>架構圖｜擷取點架構：交換器鏡像埠看得到什麼</strong>：對應現場案例與範例封包的位址、埠與 Unit ID。鏡像埠只看得到乙太網路上的 Modbus TCP；若 192.168.10.20 是閘道器，RS-485 後端的 RTU 交易要另用序列監聽。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 600" role="img" aria-labelledby="dg-wsp-title dg-wsp-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wsp-title">parse() 逐層解析：每層的位元組位置與位元組順序</title>
+  <desc id="dg-wsp-desc">對應延伸範例 build_pcap() 產生的 106 位元組 pcap 檔與 parse()。檔案位移 0 到 24 是全域標頭，little-endian，magic 0xA1B2C3D4，linktype 1。24 到 40 是記錄標頭，little-endian，記錄長度 66。40 起是 66 位元組的乙太網路訊框，以下都是 big-endian：40 到 54 是 Ethernet 14 位元組，EtherType 0x0800；54 到 74 是 IPv4，長度由 IHL 乘 4 得到 20 位元組，協定 6；74 到 94 是 TCP，長度由資料位移乘 4 得到 20 位元組，目的埠 502；94 到 101 是 MBAP 7 位元組，交易 42、長度 6、Unit 1；101 到 106 是 PDU 5 位元組，FC03 起始 0 數量 10。IP 與 TCP 標頭長度必須從欄位讀出，不能寫死。</desc>
+  <defs>
+    <marker id="dg-wsp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="130" y="20" width="400" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-blue" x="130" y="94" width="400" height="52" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="130" y="168" width="400" height="52" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="130" y="242" width="400" height="52" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="130" y="316" width="400" height="52" rx="6" stroke="currentColor"/>
+    <rect class="dg-green" x="130" y="390" width="400" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-green" x="130" y="464" width="400" height="52" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wsp-arrow)">
+    <line x1="330" y1="72" x2="330" y2="92"/>
+    <line x1="330" y1="146" x2="330" y2="166"/>
+    <line x1="330" y1="220" x2="330" y2="240"/>
+    <line x1="330" y1="294" x2="330" y2="314"/>
+    <line x1="330" y1="368" x2="330" y2="388"/>
+    <line x1="330" y1="442" x2="330" y2="462"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" fill="none">
+    <line x1="560" y1="20" x2="560" y2="146"/>
+    <line x1="560" y1="168" x2="560" y2="516"/>
+  </g>
+  <g fill="currentColor" text-anchor="end" font-size="12">
+    <text x="115" y="51">0–24</text>
+    <text x="115" y="125">24–40</text>
+    <text x="115" y="199">40–54</text>
+    <text x="115" y="273">54–74</text>
+    <text x="115" y="347">74–94</text>
+    <text x="115" y="421">94–101</text>
+    <text x="115" y="495">101–106</text>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="330" y="42" font-weight="700">pcap 全域標頭 24 B</text>
+    <text x="330" y="61" font-size="12">magic 0xA1B2C3D4，linktype 1（Ethernet）</text>
+    <text x="330" y="116" font-weight="700">記錄標頭 16 B</text>
+    <text x="330" y="135" font-size="12">時間戳、incl_len ＝ orig_len ＝ 66</text>
+    <text x="330" y="190" font-weight="700">Ethernet 14 B</text>
+    <text x="330" y="209" font-size="12">目的 MAC、來源 MAC、EtherType 0x0800</text>
+    <text x="330" y="264" font-weight="700">IPv4：IHL × 4 ＝ 20 B</text>
+    <text x="330" y="283" font-size="12">協定 6（TCP），.5 → .20</text>
+    <text x="330" y="338" font-weight="700">TCP：資料位移 × 4 ＝ 20 B</text>
+    <text x="330" y="357" font-size="12">50123 → 502；長度要從欄位讀，不可寫死</text>
+    <text x="330" y="412" font-weight="700">MBAP 7 B</text>
+    <text x="330" y="431" font-size="12">交易 42、協定 0、長度 6、Unit 1</text>
+    <text x="330" y="486" font-weight="700">PDU 5 B</text>
+    <text x="330" y="505" font-size="12">FC03，起始 0，數量 10</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="570" y="78">little-endian</text>
+    <text x="570" y="94">struct 用 "&lt;"</text>
+    <text x="570" y="336">big-endian</text>
+    <text x="570" y="352">（網路位元組順序）</text>
+    <text x="570" y="368">struct 用 "&gt;"</text>
+  </g>
+  <text x="380" y="560" fill="currentColor" text-anchor="middle" font-size="12">左側是檔案中的位元組位移；整個檔案 24 ＋ 16 ＋ 66 ＝ 106 B，與範例輸出一致。</text>
+</svg><figcaption><strong>流程圖｜parse() 逐層解析的位元組位置</strong>：對應 build_pcap() 產生的 106 bytes 檔案：pcap 標頭用 little-endian，乙太網路以上用 big-endian；IPv4 與 TCP 的長度從 IHL 與資料位移讀出，不寫死。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：手動組出並解析 pcap 中的 Modbus TCP 封包</h3><p>pcap 全域標頭與記錄標頭是 little-endian，乙太網路以上的協定欄位是 big-endian（網路位元組順序）。程式依序解析 Ethernet、IPv4、TCP 與 MBAP，輸出可與 Wireshark 的封包詳細窗格對照。</p><p><a class="button" download href="extensions/python_wireshark_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;不用 Wireshark 也能讀 pcap：產生一個含 Modbus TCP 請求的 pcap，再逐層解析（標準函式庫 struct）。&quot;&quot;&quot;
 import struct
 
 
@@ -138,5 +250,5 @@ pcap v2.4，snaplen 65535，linktype 1（1 = Ethernet）
 IPv4 192.168.10.5 → 192.168.10.20，協定 6（6 = TCP），IHL 20
 TCP 50123 → 502，seq 1000，標頭 20 bytes
 Modbus TCP：交易 42，協定 0，長度 6，Unit 1，FC03 起始 0 數量 10
-等效 Wireshark 顯示篩選： modbus.func_code == 3 &amp;&amp; ip.dst == 192.168.10.20</code></pre><h3>工程現場案例：BAS 說讀不到電表，電表廠商說沒收到請求</h3><p>整合時常見雙方各執一詞。在閘道器與電表之間的交換器設定鏡像埠擷取封包，用顯示篩選 modbus 過濾，就能確認請求是否真的送出、Unit ID 與起始位址是否正確、電表有沒有回應或回了例外碼。</p><p>擷取檔要能重跑分析：保存原始 pcap、擷取點、時間與篩選條件。範例示範的逐層解析，也可以寫成腳本批次檢查大量擷取檔，例如統計每台電表的平均回應時間與例外碼次數。</p><ol><li>確認擷取點：交換器鏡像埠或閘道器本機，記錄位置與時間同步方式。</li><li>先用 tcp.port == 502 篩選，再用 modbus.func_code、modbus.exception_code 細分。</li><li>把同一個觀測寫成 tshark 指令，結果輸出成 CSV 方便比對。</li><li>擷取檔可能含帳密或個資，保存與分享前要確認權限並視需要遮蔽。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Wireshark 預設以 pcapng 格式儲存擷取檔；本範例使用結構較簡單的傳統 libpcap 格式，Wireshark 與 TShark 都能讀寫（另存時選 pcap）。Python 端常用套件版本：scapy 2.8.0、pyshark 0.6（pyshark 需要本機安裝 TShark）。 <a href="https://wiki.wireshark.org/Development/LibpcapFileFormat">來源：Wireshark 文件：檔案格式</a> <a href="https://pypi.org/project/scapy/">來源：PyPI：scapy</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>MBAP 的長度欄位是 6，代表哪幾個位元組？</p><details><summary>看解答</summary><p>長度欄位計算的是其後的位元組數：Unit ID 1 + 功能碼 1 + 起始位址 2 + 數量 2 = 6。不含交易識別碼、協定識別碼與長度欄位本身。</p></details></li><li><p>為什麼 pcap 全域標頭用 "<"，而 IP 與 TCP 欄位用 ">"？</p><details><summary>看解答</summary><p>pcap 標頭以寫檔主機的位元組順序儲存，魔術數字 0xA1B2C3D4 讀出來的順序可判斷 endian；本例為 little-endian。乙太網路以上的協定欄位依標準一律採網路位元組順序（big-endian）。</p></details></li><li><p>如果要讓 parse() 也能讀 big-endian 的 pcap，怎麼改？</p><details><summary>看解答</summary><p>先讀前 4 bytes：若 "&lt;I" 解出 0xA1B2C3D4 為 little-endian；若 "&gt;I" 解出才是 big-endian。依此決定後續標頭的 endian 前綴。另有 0xA1B23C4D 表示奈秒精度的時間戳。</p></details></li><li><p>範例的 IHL 為 20、TCP 標頭為 20 bytes。若 TCP 帶了選項（例如時間戳記），解析程式哪裡會出錯？</p><details><summary>看解答</summary><p>不會出錯，因為程式依 data offset 欄位計算 TCP 標頭長度（(doff &gt;&gt; 4) × 4），帶選項時會自動往後跳。若寫死 20 bytes，MBAP 就會從錯誤位置開始解析。</p></details></li></ol></section><!-- extension:end -->
+等效 Wireshark 顯示篩選： modbus.func_code == 3 &amp;&amp; ip.dst == 192.168.10.20</code></pre><h3>工程現場案例：BAS 說讀不到電表，電表廠商說沒收到請求</h3><p>整合時常見雙方各執一詞。在閘道器與電表之間的交換器設定鏡像埠擷取封包，用顯示篩選 modbus 過濾，就能確認請求是否真的送出、Unit ID 與起始位址是否正確、電表有沒有回應或回了例外碼。</p><p>擷取檔要能重跑分析：保存原始 pcap、擷取點、時間與篩選條件。範例示範的逐層解析，也可以寫成腳本批次檢查大量擷取檔，例如統計每台電表的平均回應時間與例外碼次數。</p><ol><li>確認擷取點：交換器鏡像埠或閘道器本機，記錄位置與時間同步方式。</li><li>先用 tcp.port == 502 篩選，再用 modbus.func_code、modbus.exception_code 細分。</li><li>把同一個觀測寫成 tshark 指令，結果輸出成 CSV 方便比對。</li><li>擷取檔可能含帳密或個資，保存與分享前要確認權限並視需要遮蔽。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Wireshark 預設以 pcapng 格式儲存擷取檔；本範例使用結構較簡單的傳統 libpcap 格式，Wireshark 與 TShark 都能讀寫（另存時選 pcap）。Python 端常用套件版本：scapy 2.8.0、pyshark 0.6（pyshark 需要本機安裝 TShark）。 <a href="https://wiki.wireshark.org/Development/LibpcapFileFormat">來源：Wireshark 文件：檔案格式</a> <a href="https://pypi.org/project/scapy/">來源：PyPI：scapy</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>MBAP 的長度欄位是 6，代表哪幾個位元組？</p><details><summary>看解答</summary><p>長度欄位計算的是其後的位元組數：Unit ID 1 + 功能碼 1 + 起始位址 2 + 數量 2 = 6。不含交易識別碼、協定識別碼與長度欄位本身。</p></details></li><li><p>為什麼 pcap 全域標頭用 "<"，而 IP 與 TCP 欄位用 ">"？</p><details><summary>看解答</summary><p>pcap 標頭以寫檔主機的位元組順序儲存，魔術數字 0xA1B2C3D4 讀出來的順序可判斷 endian；本例為 little-endian。乙太網路以上的協定欄位依標準一律採網路位元組順序（big-endian）。</p></details></li><li><p>如果要讓 parse() 也能讀 big-endian 的 pcap，怎麼改？</p><details><summary>看解答</summary><p>先讀前 4 bytes：若 "&lt;I" 解出 0xA1B2C3D4 為 little-endian；若 "&gt;I" 解出才是 big-endian。依此決定後續標頭的 endian 前綴。另有 0xA1B23C4D 表示奈秒精度的時間戳。</p></details></li><li><p>範例的 IHL 為 20、TCP 標頭為 20 bytes。若 TCP 帶了選項（例如時間戳記），解析程式哪裡會出錯？</p><details><summary>看解答</summary><p>不會出錯，因為程式依 data offset 欄位計算 TCP 標頭長度（(doff &gt;&gt; 4) × 4），帶選項時會自動往後跳。若寫死 20 bytes，MBAP 就會從錯誤位置開始解析。</p></details></li><li><p>若 TCP 帶 12 bytes 選項（NOP、NOP、時間戳記，資料位移 8），訊框與 pcap 檔各多長？MBAP 從檔案第幾個位元組開始？若程式把 TCP 標頭寫死成 20 bytes，會解出什麼？</p><details><summary>看解答</summary><p>TCP 標頭 32 bytes，IPv4 總長度 64，訊框 78 bytes，整個檔案 24 + 16 + 78 = 118 bytes；MBAP 從檔案位移 106 開始（40 + 14 + 20 + 32）。parse() 依資料位移計算，仍正確解出交易 42、FC03 起始 0 數量 10。已實際組出封包並執行驗證。</p><p>若寫死 20 bytes，會把選項當成 MBAP，解出交易 257、協定 2058 這類無意義的值。協定識別碼不是 0 就表示位置錯了；批次分析時可把「協定識別碼 = 0、長度欄位與剩餘位元組相符」當成健全性檢查。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

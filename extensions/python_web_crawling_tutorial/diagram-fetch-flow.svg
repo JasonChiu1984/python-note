@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-wcf-title dg-wcf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wcf-title">好鄰居爬蟲：Crawler.fetch() 的判斷流程</title>
+  <desc id="dg-wcf-desc">對應延伸範例的 Crawler.fetch()。先以 robots.txt 判斷 can_fetch(UA, path)：不允許就跳過，不發請求，例如 /admin/users 與 /search?q=kwh。允許時取 delay 等於 crawl_delay(UA) 或 1：bms-report-bot 群組寫了 10 秒；若專屬群組沒有 Crawl-delay，會回傳 None 而改用 1 秒，不會沿用星號群組的 5 秒。接著看模擬時鐘：早於 next_allowed 就先等到該時刻，然後把 next_allowed 設為現在加 delay，所以請求依序發在 t=0、10、20、30 秒。快取中有該網址的 ETag 就帶 If-None-Match。伺服器回 304 時只傳標頭約 120 位元組並沿用快取；回 200 時下載約 48 KB 並更新快取的 ETag 與內容。範例共傳輸 144.5 KB，每次完整下載則是 192.5 KB。</desc>
+  <defs>
+    <marker id="dg-wcf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="40" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,86 400,118 230,150 60,118"/>
+    <rect class="dg-box" x="40" y="174" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,248 400,280 230,312 60,280"/>
+    <rect class="dg-box" x="40" y="336" width="380" height="50" rx="6"/>
+    <rect class="dg-box" x="40" y="410" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,484 380,516 230,548 80,516"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="470" y="90" width="270" height="56" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="252" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="470" y="488" width="270" height="56" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="40" y="572" width="380" height="50" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wcf-arrow)">
+    <line x1="230" y1="62" x2="230" y2="84"/>
+    <line x1="400" y1="118" x2="468" y2="118"/>
+    <line x1="230" y1="150" x2="230" y2="172"/>
+    <line x1="230" y1="224" x2="230" y2="246"/>
+    <line x1="400" y1="280" x2="468" y2="280"/>
+    <line x1="230" y1="312" x2="230" y2="334"/>
+    <line x1="230" y1="386" x2="230" y2="408"/>
+    <line x1="230" y1="460" x2="230" y2="482"/>
+    <line x1="380" y1="516" x2="468" y2="516"/>
+    <line x1="230" y1="548" x2="230" y2="570"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-wcf-arrow)">
+    <polyline points="605,308 605,361 422,361"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="33" font-weight="700">fetch(path)</text>
+    <text x="230" y="52" font-size="12">UA ＝ bms-report-bot</text>
+    <text x="230" y="123">can_fetch(UA, path)？</text>
+    <text x="605" y="113" font-weight="700">跳過，不發請求</text>
+    <text x="605" y="133" font-size="12">/admin/users、/search?q=kwh</text>
+    <text x="230" y="195" font-weight="700">delay ＝ crawl_delay(UA) or 1</text>
+    <text x="230" y="214" font-size="12">專屬群組 10 s；沒寫時是 1 s，不沿用 * 的 5 s</text>
+    <text x="230" y="285">clock &lt; next_allowed？</text>
+    <text x="605" y="275" font-weight="700">等到 next_allowed</text>
+    <text x="605" y="295" font-size="12">模擬時鐘直接跳過去</text>
+    <text x="230" y="357" font-weight="700">next_allowed ＝ clock ＋ delay</text>
+    <text x="230" y="376" font-size="12">請求依序在 t ＝ 0、10、20、30 s</text>
+    <text x="230" y="431" font-weight="700">快取有 ETag → 帶 If-None-Match</text>
+    <text x="230" y="450" font-size="12">server.get(path, etag)</text>
+    <text x="230" y="521">回 304？</text>
+    <text x="605" y="511" font-weight="700">沿用快取</text>
+    <text x="605" y="531" font-size="12">只傳標頭約 120 B</text>
+    <text x="230" y="593" font-weight="700">200：更新快取（ETag、內容）</text>
+    <text x="230" y="612" font-size="12">約 48 KB；範例合計 144.5 KB，全下載 192.5 KB</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="410" y="110">否</text>
+    <text x="238" y="166">是</text>
+    <text x="410" y="272">是</text>
+    <text x="238" y="328">否</text>
+    <text x="390" y="508">是</text>
+    <text x="238" y="564">否</text>
+  </g>
+</svg>

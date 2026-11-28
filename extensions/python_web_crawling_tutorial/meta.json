@@ -59,6 +59,18 @@
   {
    "q": "若一天要抓 2,000 個頁面、Crawl-delay 為 10 秒，至少需要多少時間？可以開多執行緒加速嗎？",
    "a": "<p>2,000 × 10 = 20,000 秒，約 5.6 小時。對同一主機開多執行緒會違反對方的速率要求，不應該這樣做。應減少需要抓的頁面（條件請求、增量抓取），或洽詢對方是否提供批次下載。</p>"
+  },
+  {
+   "q": "刪掉 bms-report-bot 群組的 Crawl-delay: 10，再依序抓 /public/energy/2026-11、2026-11、2026-10、2026-09，四次請求各在幾秒？會改用 * 群組的 Crawl-delay: 5 嗎？",
+   "a": "<p>請求在 t = 0、1、2、3 秒；第二次仍回 304。爬蟲只採用最符合自己 User-Agent 的群組，專屬群組沒寫 Crawl-delay 時，crawl_delay() 回傳 None（實測 Python 3.13.18、3.14.6、3.15.2），程式的 or 1 讓間隔變成 1 秒，而不是 * 群組的 5 秒。</p><p>這個預設值太激進。沒有 Crawl-delay 時，應改用自己訂的保守間隔（例如 10 秒）並設每日上限；Crawl-delay 不在 RFC 9309 內，沒寫不代表對方歡迎高頻請求。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "flow",
+   "title": "Crawler.fetch() 的判斷流程",
+   "file": "diagram-fetch-flow.svg",
+   "caption": "對應 Crawler.fetch()：先問 robots.txt，再依 Crawl-delay 排隊，最後用 ETag 條件請求。圖中時間與傳輸量都是範例實際輸出；專屬群組沒寫 Crawl-delay 時，程式改用 1 秒，不會沿用 * 群組的設定。"
   }
  ]
 }
