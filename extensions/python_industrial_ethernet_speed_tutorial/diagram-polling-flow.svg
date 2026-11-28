@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-epf-title dg-epf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-epf-title">Modbus TCP 輪詢太慢時的排查流程圖</title>
+  <desc id="dg-epf-desc">對應延伸章節的現場案例與 Modbus TCP 交易預算。先量測一輪實際時間與交易數：60 台電表、每台 5 個區塊共 300 次交易，一輪 3 秒。每筆實際時間等於一輪除以交易數，3 秒除以 300 是 10 毫秒，而交易預算只有 4.03 毫秒。若實際遠大於預算，先查輪詢程式與閘道：交易之間的固定等待、每次重建 TCP 連線、閘道排隊，修正後再往下。接著依點位表合併相鄰位址，單次 FC03 最多 125 個暫存器，每台 5 次交易降為 1 到 2 次。再判斷後端是否為 TCP 轉 RS-485 閘道：若是，序列匯流排一次只能處理一筆，平行連線無效，要改成分迴路或減少點數。否則依設備允許的連線數平行輪詢，例如每筆仍約 10 毫秒時，120 次交易分 2 組並行約 0.6 秒。最後把點位分成快慢群組，需量相關點每秒更新，電能累計與諧波改慢速群組，並重新量測驗收。換成 Gigabit 交換器不在這條路徑上。</desc>
+  <defs>
+    <marker id="dg-epf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <rect class="dg-box" x="30" y="86" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,162 400,196 220,230 40,196"/>
+    <rect class="dg-box" x="30" y="254" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,330 400,364 220,398 40,364"/>
+    <rect class="dg-box" x="30" y="422" width="380" height="66" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="30" y="512" width="380" height="66" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="460" y="150" width="285" height="92" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-red" x="460" y="326" width="285" height="76" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-epf-arrow)">
+    <line x1="220" y1="62" x2="220" y2="84"/>
+    <line x1="220" y1="138" x2="220" y2="160"/>
+    <line x1="400" y1="196" x2="458" y2="196"/>
+    <line x1="220" y1="230" x2="220" y2="252"/>
+    <line x1="220" y1="306" x2="220" y2="328"/>
+    <line x1="400" y1="364" x2="458" y2="364"/>
+    <line x1="220" y1="398" x2="220" y2="420"/>
+    <line x1="220" y1="488" x2="220" y2="510"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">量測一輪實際時間與交易數</text>
+    <text x="220" y="52" font-size="12">例：60 台 × 5 區塊 = 300 次交易，一輪 3 s</text>
+    <text x="220" y="108" font-weight="700">每筆實際時間 = 一輪 ÷ 交易數</text>
+    <text x="220" y="127" font-size="12">3 s ÷ 300 = 10 ms；交易預算只有 4.03 ms</text>
+    <text x="220" y="201">實際遠大於預算？</text>
+    <text x="220" y="276" font-weight="700">依點位表合併相鄰位址</text>
+    <text x="220" y="295" font-size="12">單次 FC03 最多 125 個暫存器；每台 5 次 → 1～2 次</text>
+    <text x="220" y="369">後端是 TCP→RS-485 閘道？</text>
+    <text x="220" y="444" font-weight="700">依設備允許的連線數平行輪詢</text>
+    <text x="220" y="464" font-size="12">每筆仍約 10 ms 時：60 台 × 2 次 = 120 次</text>
+    <text x="220" y="480" font-size="12">分 2 組並行 → 約 0.6 s</text>
+    <text x="220" y="535" font-weight="700">快慢分組，重新量測驗收</text>
+    <text x="220" y="554" font-size="12">需量相關點每秒更新；電能累計、諧波改慢速群組</text>
+    <text x="220" y="570" font-size="12">換 Gigabit 交換器不在這條路徑上</text>
+    <text x="602" y="174" font-weight="700">先查輪詢程式與閘道</text>
+    <text x="602" y="196" font-size="12">交易之間的固定等待</text>
+    <text x="602" y="214" font-size="12">每次輪詢都重建 TCP 連線、閘道排隊</text>
+    <text x="602" y="232" font-size="12">修正後再往下</text>
+    <text x="602" y="350" font-weight="700">平行連線無效</text>
+    <text x="602" y="372" font-size="12">序列匯流排一次只能處理一筆</text>
+    <text x="602" y="390" font-size="12">改分 RS-485 迴路，或減少點數</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="188">是</text>
+    <text x="228" y="246">否</text>
+    <text x="414" y="356">是</text>
+    <text x="228" y="414">否</text>
+  </g>
+  <text x="380" y="616" fill="currentColor" text-anchor="middle" font-size="12">交易預算、10 ms 與 0.6 s 皆由範例常數與案例數字推算；現場以封包時間戳或閘道日誌為準。</text>
+</svg>
