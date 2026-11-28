@@ -20,7 +20,7 @@ main section :is(.flow,.bars,.segments,.bar-row){max-inline-size:none}
 <p class="fig-label">觀測回授：0–20 運轉、20–35 停止、35–45 未知、45–60 運轉</p><div class="bar" aria-hidden="true"><span class="run" style="width:33.3333%"></span><span class="stop" style="width:25%"></span><span class="unknown" style="width:16.6667%"></span><span class="run" style="width:25%"></span></div>
 <p class="fig-label">聯集排程：5–50 分鐘</p><div class="bar" aria-hidden="true"><span class="scope" style="margin-left:8.3333%;width:75%"></span></div><p class="legend"><span><b class="run"></b> 運轉</span><span><b class="stop"></b> 停止</span><span><b class="unknown"></b> 未知</span><span><b class="scope"></b> 排程</span></p></figure>
 <div class="scroll" tabindex="0" role="region" aria-label="稼動率算例"><table class="metrics"><thead><tr><th>範圍</th><th>運轉／停止／未知</th><th>覆蓋率</th><th>已知運轉占比</th><th>全窗可能範圍</th></tr></thead><tbody><tr><td>日曆 60 分鐘</td><td>35／15／10 分</td><td>83.3%</td><td>70.0%</td><td>58.3–75.0%</td></tr><tr><td>排程 45 分鐘</td><td>20／15／10 分</td><td>77.8%</td><td>57.1%</td><td>44.4–66.7%</td></tr></tbody></table></div><p>跨設備總覽應視場景決定是加總設備分鐘，還是只算「至少一台可服務」的系統時間聯集；兩者分母不同。</p></section>
-<section id="lab"><h2>04｜Python 獨立實作</h2><p><a href="python_equipment_utilization_lab.py" download>下載完整 Python</a>。只用標準庫，輸出時間片、分鐘數與精確分數。三組測試涵蓋排程重疊、窗前狀態與右端點、失效、重複衝突、無排程。</p><pre><code>python python_equipment_utilization_lab.py
+<section id="lab"><h2>04｜Python 獨立實作</h2><p><a href="python_equipment_utilization_lab.py" download>下載完整 Python</a>。只用標準庫，輸出時間片、分鐘數與精確分數。五組測試涵蓋排程重疊、窗前狀態與右端點、失效、重複衝突、無排程。</p><p id="utilization-point-decoding"><strong>先解碼，再計算。</strong>只接受 <code>True</code>（運轉）、<code>False</code>（停止）或 <code>None</code>（品質不良或未知）。PLC／閘道的數字 <code>0</code>、<code>1</code> 應先依點表確認極性與品質，再轉成布林值；不要用 <code>bool(raw)</code> 猜測點位語意。未解碼輸入會明確拒絕，不會把整段誤計為未知。</p><pre><code>python python_equipment_utilization_lab.py
 python python_equipment_utilization_lab.py --test</code></pre><details><summary>展開 Python 原始碼</summary><pre><code>&quot;&quot;&quot;合成運轉回授範例。時間以同一時間基準的整數分鐘表示，不連設備。&quot;&quot;&quot;
 from dataclasses import dataclass
 from fractions import Fraction
@@ -33,6 +33,10 @@ from bisect import bisect_right
 class Event:
     minute: int
     running: bool | None
+
+    def __post_init__(self):
+        if self.running is not True and self.running is not False and self.running is not None:
+            raise TypeError(&quot;運轉回授必須是 True、False 或 None；請先解碼原始點位&quot;)
 
 
 def merge_schedule(spans, start, end):
@@ -106,6 +110,16 @@ SCHEDULE = [(5, 25), (20, 50)]
 
 
 class LabTests(unittest.TestCase):
+    def test_reject_raw_point_values(self):
+        for raw in (0, 1, &quot;0&quot;, &quot;1&quot;, 1.0, [], object()):
+            with self.subTest(raw=raw), self.assertRaises(TypeError):
+                Event(0, raw)
+
+    def test_decoded_bit_yields_complete_coverage(self):
+        sums, _ = utilization([Event(0, True), Event(5, False)], [(0, 10)], 0, 10, 10)
+        self.assertEqual(sums[&quot;schedule&quot;], {&quot;run&quot;: 5, &quot;stop&quot;: 5, &quot;unknown&quot;: 0})
+        self.assertEqual(fractions(sums[&quot;schedule&quot;])[&quot;coverage&quot;], Fraction(1))
+
     def test_aggregate_and_half_open(self):
         sums, trace = utilization(FIXTURE, SCHEDULE, 0, 60, 15)
         self.assertEqual(sums[&quot;calendar&quot;], {&quot;run&quot;: 35, &quot;stop&quot;: 15, &quot;unknown&quot;: 10})
@@ -133,7 +147,8 @@ if __name__ == &quot;__main__&quot;:
         result = {scope: dict(minutes=value, fractions=fractions(value))
                   for scope, value in counts.items()}
         print(json.dumps(dict(result=result, trace=trace), default=str,
-                         ensure_ascii=False, indent=2))</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到完整的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段對結果的影響。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown，不放進分母。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
+                         ensure_ascii=False, indent=2))
+</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到完整的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段對結果的影響。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown，不放進分母。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
 from datetime import datetime, timedelta
 
 PLANNED = (datetime(2026, 11, 20, 8, 0), datetime(2026, 11, 20, 16, 0))   # 計畫生產 8 小時
