@@ -220,7 +220,138 @@ if __name__ == "__main__":
 <li>S10 <a href="https://www.rfc-editor.org/rfc/rfc3418.html">RFC 3418：基本 SNMP MIB 與 sysUpTime</a></li>
 <li>S11 <a href="https://www.rfc-editor.org/rfc/rfc1901.html">RFC 1901：community-based SNMPv2</a></li>
 <li>S12 <a href="https://www.rfc-editor.org/rfc/rfc5591.html">RFC 5591：Transport Security Model</a>、<a href="https://www.rfc-editor.org/rfc/rfc6353.html">RFC 6353：TLS／DTLS Transport Model</a></li>
-</ul></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁研究 SNMP 的量測與安全。本節把 SNMPv2c GetRequest 用 BER 手動編碼一次，讓你看到 community 字串確實以明文出現在封包裡；並示範 Counter32 回捲時怎麼正確計算流量。</p><h3>可實跑範例：BER 編碼 GetRequest 與 Counter32 回捲</h3><p>tlv() 實作 BER 的標籤—長度—值，oid() 處理物件識別碼的特殊編碼（前兩個數字合併、大數以 7 bits 分段）。編碼結果可以與 Wireshark 的 SNMP 解析對照。</p><p><a class="button" download href="extensions/python_snmp_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;手動以 BER 編碼 SNMPv2c GetRequest，並示範 Counter32 回捲時的速率計算（標準函式庫）。
+</ul></section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁研究 SNMP 的量測與安全。本節把 SNMPv2c GetRequest 用 BER 手動編碼一次，讓你看到 community 字串確實以明文出現在封包裡；並示範 Counter32 回捲時怎麼正確計算流量。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 500" role="img" aria-labelledby="dg-sns-title dg-sns-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-sns-title">SNMP 輪詢與通知序列圖</title>
+  <desc id="dg-sns-desc">上半段是輪詢：收集器送 GetBulkRequest 到 Agent 的 UDP 161，收到 Response 後連同 RTT 與品質分級入庫；另一次請求逾時並重試一次仍無回覆，標記為 timeout，不補 0。下半段是通知：Agent 送出 Trap，不會收到應用層確認；改送 InformRequest 時接收器回 Response，但 Response 只代表協定對端已回覆，接收器仍需去重並確認寫入資料庫。</desc>
+  <defs>
+    <marker id="dg-sns-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-green" x="20" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="230" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="450" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="660" y="16" width="140" height="44" rx="8"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-weight="700">
+    <text x="90" y="43">時序資料庫</text>
+    <text x="300" y="43">Python 收集器</text>
+    <text x="520" y="43">SNMP Agent</text>
+    <text x="730" y="43">通知接收器</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity="0.55">
+    <line x1="90" y1="60" x2="90" y2="485"/>
+    <line x1="300" y1="60" x2="300" y2="485"/>
+    <line x1="520" y1="60" x2="520" y2="485"/>
+    <line x1="730" y1="60" x2="730" y2="485"/>
+  </g>
+  <!-- 區段標示 -->
+  <g fill="currentColor" font-size="12" font-weight="700" opacity="0.8">
+    <text x="100" y="84">輪詢（UDP 161）</text>
+    <text x="100" y="304">通知（UDP 162）</text>
+  </g>
+  <line x1="10" y1="282" x2="810" y2="282" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-sns-arrow)">
+    <line x1="300" y1="104" x2="516" y2="104"/>
+    <line x1="520" y1="142" x2="304" y2="142" stroke-dasharray="6 4"/>
+    <line x1="300" y1="180" x2="94" y2="180"/>
+    <line x1="520" y1="330" x2="726" y2="330"/>
+    <line x1="520" y1="378" x2="726" y2="378"/>
+    <line x1="730" y1="416" x2="524" y2="416" stroke-dasharray="6 4"/>
+    <line x1="730" y1="460" x2="94" y2="460"/>
+  </g>
+  <!-- 逾時：請求與重試都沒有回覆 -->
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none">
+    <line x1="300" y1="222" x2="420" y2="222"/>
+    <path d="M422,214 L438,230 M438,214 L422,230" stroke-width="2.5"/>
+    <line x1="300" y1="258" x2="420" y2="258"/>
+    <path d="M422,250 L438,266 M438,250 L422,266" stroke-width="2.5"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="408" y="97">GetBulkRequest</text>
+    <text x="412" y="135">Response（varbinds）</text>
+    <text x="197" y="173">入庫：值＋品質＋RTT</text>
+    <text x="625" y="323">Trap（無應用層確認）</text>
+    <text x="625" y="371">InformRequest</text>
+    <text x="627" y="409">Response</text>
+    <text x="410" y="453">去重後寫入；Response ≠ 已入庫</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="310" y="215">GetRequest 逾時</text>
+    <text x="310" y="251">重試 1 次仍逾時</text>
+    <text x="530" y="244" font-weight="700">→ 標記 timeout，不補 0</text>
+  </g>
+</svg><figcaption><strong>序列圖｜輪詢與通知兩條資料流</strong>：上半段是收集器主動輪詢 Agent（慣例 UDP 161）：Response 與 RTT、品質一起入庫；逾時並重試 1 次（正文算例每次等 0.8 秒）仍無回覆時標記 timeout，不補 0。下半段是 Agent 主動發通知（慣例 UDP 162）：Trap 沒有應用層確認；Inform 會收到 Response，但那只代表接收器已回覆，接收器仍要去重並確認寫入成功。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 640" role="img" aria-labelledby="dg-snf-title dg-snf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-snf-title">計數器速率的品質判斷流程圖</title>
+  <desc id="dg-snf-desc">兩筆 IF-MIB octets 樣本依序檢查：樣本型別與範圍、是否同一 agent 與 ifIndex、時間差是否在 0 到 90 秒之間、continuity epoch 與兩次 discontinuity 標記是否一致，以及模數差值是否不超過容量且只有一個候選。任何一關不通過就輸出對應的品質狀態而不是速率；全部通過才輸出 bps 與使用率。</desc>
+  <defs>
+    <marker id="dg-snf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="130" y="12" width="260" height="42" rx="21"/>
+    <polygon class="dg-box" points="260,84 420,120 260,156 100,120"/>
+    <polygon class="dg-box" points="260,186 420,222 260,258 100,222"/>
+    <polygon class="dg-box" points="260,288 420,324 260,360 100,324"/>
+    <polygon class="dg-box" points="260,390 430,430 260,470 90,430"/>
+    <polygon class="dg-box" points="260,500 430,540 260,580 90,540"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="480" y="100" width="280" height="40" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="480" y="202" width="280" height="40" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="480" y="304" width="280" height="40" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="480" y="400" width="280" height="60" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="480" y="515" width="280" height="50" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="130" y="600" width="260" height="34" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-snf-arrow)">
+    <line x1="260" y1="54" x2="260" y2="82"/>
+    <line x1="260" y1="156" x2="260" y2="184"/>
+    <line x1="260" y1="258" x2="260" y2="286"/>
+    <line x1="260" y1="360" x2="260" y2="388"/>
+    <line x1="260" y1="470" x2="260" y2="498"/>
+    <line x1="260" y1="580" x2="260" y2="598"/>
+    <line x1="420" y1="120" x2="478" y2="120"/>
+    <line x1="420" y1="222" x2="478" y2="222"/>
+    <line x1="420" y1="324" x2="478" y2="324"/>
+    <line x1="430" y1="430" x2="478" y2="430"/>
+    <line x1="430" y1="540" x2="478" y2="540"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="38" font-weight="700">兩筆樣本 a、b＋容量、位寬</text>
+    <text x="260" y="125">型別與範圍有效？</text>
+    <text x="260" y="218">同一序列？</text>
+    <text x="260" y="236" font-size="12">（agent, ifIndex）</text>
+    <text x="260" y="320">0 &lt; Δt ≤ 90 秒？</text>
+    <text x="260" y="338" font-size="12">（採集器單調時鐘）</text>
+    <text x="260" y="425">連續性證據一致？</text>
+    <text x="260" y="443" font-size="12">epoch 相同、兩次標記都回傳且相等</text>
+    <text x="260" y="535">d = (C₂ − C₁) mod M</text>
+    <text x="260" y="553" font-size="12">d ≤ 容量上限，且 d + M 超過上限？</text>
+    <text x="260" y="622" font-weight="700">ok：輸出 bps 與名目使用率</text>
+    <text x="620" y="125" font-weight="700">invalid-sample</text>
+    <text x="620" y="227" font-weight="700">different-series</text>
+    <text x="620" y="329" font-weight="700">time-order／stale-gap</text>
+    <text x="620" y="424" font-weight="700">discontinuity</text>
+    <text x="620" y="444" font-size="12">invalid-／missing-discontinuity-marker</text>
+    <text x="620" y="536" font-weight="700">capacity-exceeded</text>
+    <text x="620" y="554" font-weight="700">ambiguous-wrap</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="430" y="112">否</text>
+    <text x="430" y="214">否</text>
+    <text x="430" y="316">否</text>
+    <text x="440" y="422">否</text>
+    <text x="440" y="532">否</text>
+    <text x="268" y="176">是</text>
+    <text x="268" y="278">是</text>
+    <text x="268" y="380">是</text>
+    <text x="268" y="490">是</text>
+    <text x="268" y="594">是</text>
+  </g>
+</svg><figcaption><strong>流程圖｜計數器速率的品質判斷</strong>：對應正文 snmp_offline_lab.py 的 evaluate()：五道關卡依序檢查樣本、序列身分、時間差、連續性證據與模數候選，任何一關不通過都輸出品質狀態而不是速率。最後一關要求 d 不超過容量上限、且 d + M 已超過上限，才代表只有一個合理候選。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：BER 編碼 GetRequest 與 Counter32 回捲</h3><p>tlv() 實作 BER 的標籤—長度—值，oid() 處理物件識別碼的特殊編碼（前兩個數字合併、大數以 7 bits 分段）。編碼結果可以與 Wireshark 的 SNMP 解析對照。</p><p><a class="button" download href="extensions/python_snmp_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;手動以 BER 編碼 SNMPv2c GetRequest，並示範 Counter32 回捲時的速率計算（標準函式庫）。
 
 SNMPv1/v2c 的 community 以明文傳送，只適合隔離的管理網段；需要認證與加密時用 SNMPv3（authPriv）。
 &quot;&quot;&quot;
@@ -273,5 +404,5 @@ if __name__ == &quot;__main__&quot;:
 sysUpTime.0 OID 編碼： 06 08 2b 06 01 02 01 01 03 00
 community &#x27;public&#x27; 以明文出現在封包中： True
 Counter32 回捲：4,294,000,000 → 1,500,000，60 秒平均 0.33 Mbps
-同樣流量若用 1 Gbps 滿載，Counter32 約 34 秒就回捲一次；高速介面請改讀 ifHCInOctets（Counter64）</code></pre><h3>工程現場案例：UPS 與 PDU 的 SNMP community 都是 public</h3><p>某機房的 UPS、PDU 與交換器都開著 SNMPv2c，community 為預設的 public，而且和辦公網路同一個 VLAN。任何人用免費工具就能讀取設備資訊；若 write community 也是預設值，甚至能修改設定。範例顯示 community 字串直接以明文出現在封包中，網路上任何能看到流量的人都能取得。</p><p>改善方式是改用 SNMPv3 authPriv（帳號、認證與加密），把管理介面移到獨立管理網段，關閉不需要的 write 權限。流量監控則要改讀 64 位元計數器：1 Gbps 介面滿載時，32 位元計數器約 34 秒就回捲一次，輪詢週期稍長就會算錯。</p><ol><li>盤點所有開啟 SNMP 的設備、版本與 community／帳號。</li><li>改用 SNMPv3 authPriv，停用 v1／v2c；短期無法停用時至少更換 community 並限制來源 IP。</li><li>管理介面放在獨立 VLAN，只允許監控主機存取 UDP 161。</li><li>流量計算一律使用 ifHCInOctets／ifHCOutOctets（Counter64），並處理回捲。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pysnmp 最新版為 7.1.34。pysnmp 7.x 以 asyncio 為主要介面，舊版同步範例需要改寫。 <a href="https://pypi.org/project/pysnmp/">來源：PyPI：pysnmp</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>OID 1.3.6.1 的前兩個數字為什麼編碼成單一位元組 0x2B？</p><details><summary>看解答</summary><p>BER 規定前兩個數字合併為 40 × X + Y：40 × 1 + 3 = 43 = 0x2B。這是為了節省一個位元組，也是手動解析 OID 時最常出錯的地方。</p></details></li><li><p>若 OID 中有一個數字是 300，會被編成哪些位元組？</p><details><summary>看解答</summary><p>300 = 0b1_0010_1100，以 7 bits 分段為 0000010 與 0101100，前段加上續傳位元得到 0x82 0x2C。可呼叫 oid('1.3.300') 驗證。</p></details></li><li><p>rate() 能處理一次輪詢間隔內回捲兩次的情況嗎？</p><details><summary>看解答</summary><p>不能。程式只能偵測「現值小於前值」，回捲兩次以上時差值會被低估且無法察覺。對策是縮短輪詢週期，或改用 Counter64。</p></details></li><li><p>設備重開機後計數器歸零，rate() 會誤判成回捲嗎？如何區分？</p><details><summary>看解答</summary><p>會，因為現值小於前值。可同時讀 sysUpTime：若 sysUpTime 變小，代表設備重開機，該區間的速率應標示為無效，而不是當成回捲計算。</p></details></li></ol></section><!-- extension:end -->
+同樣流量若用 1 Gbps 滿載，Counter32 約 34 秒就回捲一次；高速介面請改讀 ifHCInOctets（Counter64）</code></pre><h3>工程現場案例：UPS 與 PDU 的 SNMP community 都是 public</h3><p>某機房的 UPS、PDU 與交換器都開著 SNMPv2c，community 為預設的 public，而且和辦公網路同一個 VLAN。任何人用免費工具就能讀取設備資訊；若 write community 也是預設值，甚至能修改設定。範例顯示 community 字串直接以明文出現在封包中，網路上任何能看到流量的人都能取得。</p><p>改善方式是改用 SNMPv3 authPriv（帳號、認證與加密），把管理介面移到獨立管理網段，關閉不需要的 write 權限。流量監控則要改讀 64 位元計數器：1 Gbps 介面滿載時，32 位元計數器約 34 秒就回捲一次，輪詢週期稍長就會算錯。</p><ol><li>盤點所有開啟 SNMP 的設備、版本與 community／帳號。</li><li>改用 SNMPv3 authPriv，停用 v1／v2c；短期無法停用時至少更換 community 並限制來源 IP。</li><li>管理介面放在獨立 VLAN，只允許監控主機存取 UDP 161。</li><li>流量計算一律使用 ifHCInOctets／ifHCOutOctets（Counter64），並處理回捲。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pysnmp 最新版為 7.1.34。pysnmp 7.x 以 asyncio 為主要介面，舊版同步範例需要改寫。 <a href="https://pypi.org/project/pysnmp/">來源：PyPI：pysnmp</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>OID 1.3.6.1 的前兩個數字為什麼編碼成單一位元組 0x2B？</p><details><summary>看解答</summary><p>BER 規定前兩個數字合併為 40 × X + Y：40 × 1 + 3 = 43 = 0x2B。這是為了節省一個位元組，也是手動解析 OID 時最常出錯的地方。</p></details></li><li><p>若 OID 中有一個數字是 300，會被編成哪些位元組？</p><details><summary>看解答</summary><p>300 = 0b1_0010_1100，以 7 bits 分段為 0000010 與 0101100，前段加上續傳位元得到 0x82 0x2C。可呼叫 oid('1.3.300') 驗證。</p></details></li><li><p>rate() 能處理一次輪詢間隔內回捲兩次的情況嗎？</p><details><summary>看解答</summary><p>不能。程式只能偵測「現值小於前值」，回捲兩次以上時差值會被低估且無法察覺。對策是縮短輪詢週期，或改用 Counter64。</p></details></li><li><p>依流程圖最後一關：同一介面 60 秒內 octets 增加 1,000,000,000，容量 1 Gbit/s，兩次 discontinuity 標記都回傳 0。用 Counter32 與 Counter64 各會得到什麼結果？</p><details><summary>看解答</summary><p>容量上限是 1,000,000,000 × 60 ÷ 8 = 7,500,000,000 octets。Counter32 的 M = 4,294,967,296，d + M = 5,294,967,296 仍不超過上限，代表「少算一圈」也合理，evaluate() 回傳 ambiguous-wrap，不產出速率。Counter64 的 M 遠大於上限，候選唯一，回傳 ok：約 133.33 Mbit/s，使用率約 13.33%。若任一次標記未回傳，則先停在第四關，回傳 missing-discontinuity-marker。</p></details></li><li><p>設備重開機後計數器歸零，rate() 會誤判成回捲嗎？如何區分？</p><details><summary>看解答</summary><p>會，因為現值小於前值。可同時讀 sysUpTime：若 sysUpTime 變小，代表設備重開機，該區間的速率應標示為無效，而不是當成回捲計算。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

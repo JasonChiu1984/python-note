@@ -5,6 +5,12 @@
  "example_title": "BER 編碼 GetRequest 與 Counter32 回捲",
  "example_desc": "tlv() 實作 BER 的標籤—長度—值，oid() 處理物件識別碼的特殊編碼（前兩個數字合併、大數以 7 bits 分段）。編碼結果可以與 Wireshark 的 SNMP 解析對照。",
  "run_note": "只需 Python 3.10 以上，無第三方套件；不會送出任何封包",
+ "diagrams": [
+  {"kind": "sequence", "title": "輪詢與通知兩條資料流", "file": "diagram-poll-and-notify.svg",
+   "caption": "上半段是收集器主動輪詢 Agent（慣例 UDP 161）：Response 與 RTT、品質一起入庫；逾時並重試 1 次（正文算例每次等 0.8 秒）仍無回覆時標記 timeout，不補 0。下半段是 Agent 主動發通知（慣例 UDP 162）：Trap 沒有應用層確認；Inform 會收到 Response，但那只代表接收器已回覆，接收器仍要去重並確認寫入成功。"},
+  {"kind": "flow", "title": "計數器速率的品質判斷", "file": "diagram-counter-quality.svg",
+   "caption": "對應正文 snmp_offline_lab.py 的 evaluate()：五道關卡依序檢查樣本、序列身分、時間差、連續性證據與模數候選，任何一關不通過都輸出品質狀態而不是速率。最後一關要求 d 不超過容量上限、且 d + M 已超過上限，才代表只有一個合理候選。"}
+ ],
  "case": {
   "title": "UPS 與 PDU 的 SNMP community 都是 public",
   "paragraphs": [
@@ -41,6 +47,10 @@
   {
    "q": "rate() 能處理一次輪詢間隔內回捲兩次的情況嗎？",
    "a": "<p>不能。程式只能偵測「現值小於前值」，回捲兩次以上時差值會被低估且無法察覺。對策是縮短輪詢週期，或改用 Counter64。</p>"
+  },
+  {
+   "q": "依流程圖最後一關：同一介面 60 秒內 octets 增加 1,000,000,000，容量 1 Gbit/s，兩次 discontinuity 標記都回傳 0。用 Counter32 與 Counter64 各會得到什麼結果？",
+   "a": "<p>容量上限是 1,000,000,000 × 60 ÷ 8 = 7,500,000,000 octets。Counter32 的 M = 4,294,967,296，d + M = 5,294,967,296 仍不超過上限，代表「少算一圈」也合理，evaluate() 回傳 ambiguous-wrap，不產出速率。Counter64 的 M 遠大於上限，候選唯一，回傳 ok：約 133.33 Mbit/s，使用率約 13.33%。若任一次標記未回傳，則先停在第四關，回傳 missing-discontinuity-marker。</p>"
   },
   {
    "q": "設備重開機後計數器歸零，rate() 會誤判成回捲嗎？如何區分？",

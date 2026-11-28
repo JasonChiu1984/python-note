@@ -6,6 +6,12 @@
   "example_title": "主題比對、Remaining Length 與冪等落地",
   "example_desc": "不需要 broker，直接執行即可看到結果。topic_matches() 依 MQTT 規格處理 +、# 與 $ 開頭的系統主題；encode_remaining_length() 可對照規格的編碼表；IdempotentSink 以（裝置, 序號）去重，並檢查序號缺口。",
   "run_note": "只需 Python 3.10 以上，無第三方套件",
+  "diagrams": [
+    {"kind": "sequence", "title": "QoS 1 斷線重送與冪等落地", "file": "diagram-qos1-redelivery.svg",
+     "caption": "歷史服務已寫入資料庫，但回給 Broker 的 PUBACK 在斷線時遺失；重連後 CONNACK 的 Session Present=1，Broker 以 DUP=1、同一 Packet Identifier 重送。DUP 與 PID 都不是業務事件鍵，真正判定重複的是（source, epoch, seq）唯一鍵：第二次 INSERT 的 rowcount 為 0，回報 duplicate 後再回 PUBACK。"},
+    {"kind": "flow", "title": "store() 落地判斷", "file": "diagram-store-decision.svg",
+     "caption": "對應正文第 04 節的 store()：先驗身分與序號，再以「now − measured_at」判斷 −5～30 秒時效，最後才交給唯一鍵。時效檢查排在查重之前，所以過期的重送事件回報 expired，不會被當成 duplicate 或 identity-conflict。"}
+  ],
   "case": {
     "title": "閘道器重連後，趨勢圖出現重複點與跳點",
     "paragraphs": [
@@ -30,6 +36,8 @@
      "a": "<p>Remaining Length 包含可變標頭與 payload，總長度介於 128 到 16,383 之間，需要 2 個位元組。可以用 encode_remaining_length() 代入實際長度確認。</p>"},
     {"q": "IdempotentSink 把已見過的鍵全部放在記憶體的 set 裡。長時間運作會有什麼問題？怎麼改？",
      "a": "<p>set 會無限成長。實務上應由資料庫唯一索引負責去重；若要在記憶體快取，只保留每台裝置最近 N 個序號或最近一段時間的鍵，並在程序重啟後以資料庫為準。</p>"},
+    {"q": "序列圖中，若歷史服務改成「先回 PUBACK、再 INSERT」，程序剛好在兩步之間當機，會發生什麼事？為什麼本頁堅持在提交後才確認？",
+     "a": "<p>Broker 收到 PUBACK 就認定這則訊息已交付，從 Session 狀態刪除，不會再重送；資料庫卻沒有這筆，結果等同「至多一次」，而且沒有任何協定訊號提醒遺失，只能靠序號缺口檢查發現。先提交、後確認時，最壞情況是提交後尚未送出 PUBACK 就斷線，Broker 重送一次，由唯一鍵擋成 duplicate，可被安全吸收。</p>"},
     {"q": "為什麼 # 開頭的訂閱不應該收到 $SYS/broker/uptime？",
      "a": "<p>MQTT 規格規定以 $ 開頭的主題保留給 broker 內部使用，開頭為萬用字元的過濾不可匹配它們。要訂閱系統主題必須明確寫出 $SYS/…。</p>"}
   ]

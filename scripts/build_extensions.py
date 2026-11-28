@@ -7,6 +7,8 @@ inserted just before ``</main>`` (or ``</body>``), between the markers
 Directory contents:
   meta.json   lang, case, updates, exercises (see README in extensions/)
   example.py  standard-library example; its real stdout becomes "預期輸出"
+  diagram-*.svg  optional hand-written diagrams listed in meta.json "diagrams";
+              inlined between <!-- diagram:start --> and <!-- diagram:end -->
 
 Usage:
   python scripts/build_extensions.py           # rebuild all pages
@@ -17,9 +19,11 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,11 +34,14 @@ TEXT = {
     "zh": dict(title="延伸學習：實作、現場案例與自我檢查", example="可實跑範例", run="執行方式",
                output="預期輸出（以 Python {ver} 實際執行產生）", case="工程現場案例",
                updates="版本與法規更新（核對日期 {date}）", source="來源", exercises="練習題與自我檢查",
-               answer="看解答", download="下載範例"),
+               answer="看解答", download="下載範例", diagrams="架構圖與流程圖",
+               kinds=dict(architecture="架構圖", flow="流程圖", sequence="序列圖", state="狀態圖")),
     "en": dict(title="Further practice: runnable example, field case and self-check", example="Runnable example",
                run="How to run", output="Expected output (captured from a real run on Python {ver})",
                case="Field case", updates="Version and regulation updates (checked {date})", source="Source",
-               exercises="Exercises and self-check", answer="Show answer", download="Download example"),
+               exercises="Exercises and self-check", answer="Show answer", download="Download example",
+               diagrams="Diagrams", kinds=dict(architecture="Architecture", flow="Flow", sequence="Sequence",
+                                               state="State machine")),
 }
 STYLE = (
     "<style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}"
@@ -42,6 +49,76 @@ STYLE = (
     "border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}"
     ".ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style>"
 )
+# 只在有圖的頁面輸出。圖內文字與線條用 currentColor 跟隨頁面文字色；強調色選中間亮度，
+# 在白底與深底都維持 3:1 以上的圖形對比，填色只用半透明色調。
+DIAGRAM_STYLE = (
+    "<style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;"
+    "background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}"
+    ".ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}"
+    ".ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}"
+    ".ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}"
+    ".ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}"
+    ".ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}"
+    ".ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}"
+    ".ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}"
+    ".ext-diagram .dg-dash{stroke-dasharray:6 4}</style>"
+)
+DIAGRAM_START, DIAGRAM_END = "<!-- diagram:start -->", "<!-- diagram:end -->"
+SVG_NS = "{http://www.w3.org/2000/svg}"
+FORBIDDEN_TAGS = {"script", "foreignObject", "image", "iframe", "use", "a"}
+
+
+def load_diagram(folder: Path, spec: dict, kinds: dict) -> tuple[str, set[str]]:
+    """Validate one hand-written SVG and return (inline markup, ids). Errors raise ValueError."""
+    for key in ("kind", "title", "file", "caption"):
+        if not isinstance(spec.get(key), str) or not spec[key].strip():
+            raise ValueError(f"{folder.name}: diagram field {key!r} is required")
+    if spec["kind"] not in kinds:
+        raise ValueError(f"{folder.name}: unknown diagram kind {spec['kind']!r}")
+    if not re.fullmatch(r"diagram-[a-z0-9-]+\.svg", spec["file"]):
+        raise ValueError(f"{folder.name}: diagram file must be named diagram-<name>.svg")
+    path = folder / spec["file"]
+    if not path.is_file():
+        raise ValueError(f"{folder.name}: missing {spec['file']}")
+    text = path.read_text(encoding="utf-8")
+    text = re.sub(r"\A\s*<\?xml[^>]*\?>\s*", "", text).strip()
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as exc:
+        raise ValueError(f"{path.name}: not well-formed XML ({exc})") from None
+    where = f"{folder.name}/{path.name}"
+    if root.tag != SVG_NS + "svg":
+        raise ValueError(f"{where}: root element must be <svg> in the SVG namespace")
+    if not root.get("viewBox") or root.get("width") or root.get("height"):
+        raise ValueError(f"{where}: needs viewBox and no fixed width/height (CSS scales it)")
+    children = [c.tag for c in root][:2]
+    if children != [SVG_NS + "title", SVG_NS + "desc"]:
+        raise ValueError(f"{where}: first children must be <title> then <desc>")
+    if root.get("role") != "img":
+        raise ValueError(f"{where}: root needs role=\"img\"")
+    ids = set()
+    for el in root.iter():
+        name = el.tag.removeprefix(SVG_NS)
+        if name in FORBIDDEN_TAGS or not el.tag.startswith(SVG_NS):
+            raise ValueError(f"{where}: element <{name}> is not allowed (offline, no scripts or links)")
+        for attr, value in el.attrib.items():
+            if attr.lower().startswith("on") or "url(" in value and not value.startswith("url(#"):
+                raise ValueError(f"{where}: attribute {attr} is not allowed")
+            if "http:" in value or "https:" in value or "//" in value:
+                raise ValueError(f"{where}: external reference in {attr}")
+        if el.get("id"):
+            if not el.get("id").startswith("dg-") or el.get("id") in ids:
+                raise ValueError(f"{where}: ids must be unique and start with dg- ({el.get('id')})")
+            ids.add(el.get("id"))
+    for ref in (root.get("aria-labelledby") or "").split():
+        if ref not in ids:
+            raise ValueError(f"{where}: aria-labelledby refers to missing id {ref}")
+    if not root.get("aria-labelledby"):
+        raise ValueError(f"{where}: root needs aria-labelledby pointing to <title> and <desc>")
+    for tag in ("title", "desc"):
+        if not (root.find(SVG_NS + tag).text or "").strip():
+            raise ValueError(f"{where}: <{tag}> must not be empty")
+    return text, ids
 
 
 def runtime(meta: dict) -> tuple[str, str]:
@@ -106,6 +183,19 @@ def render(stem: str, page: Path, exe: str, ver: str) -> tuple[str, tuple[Path, 
     parts = [STYLE, f'<section class="ext-section" id="extension"><h2>{t["title"]}</h2>']
     if meta.get("intro"):
         parts.append(f"<p>{meta['intro']}</p>")
+    if meta.get("diagrams"):
+        parts.insert(0, DIAGRAM_STYLE)
+        parts.append(f'<h3>{t["diagrams"]}</h3>')
+        seen: set[str] = set()
+        for n, spec in enumerate(meta["diagrams"], 1):
+            svg, ids = load_diagram(folder, spec, t["kinds"])
+            if ids & seen:
+                raise ValueError(f"{stem}: duplicate SVG ids across diagrams: {sorted(ids & seen)}")
+            seen |= ids
+            parts.append(f'{DIAGRAM_START}<figure class="ext-diagram" id="diagram-{n}" data-kind="{spec["kind"]}">'
+                         f'{svg}<figcaption><strong>{t["kinds"][spec["kind"]]}｜{spec["title"]}</strong>'
+                         f'{"：" if meta.get("lang", "zh") == "zh" else ": "}{spec["caption"]}</figcaption>'
+                         f'</figure>{DIAGRAM_END}')
     if example.exists():
         code = example.read_text(encoding="utf-8")
         out = run_example(example, exe)
@@ -180,8 +270,13 @@ def main() -> int:
             ap.error(f"{name}: {exc}")
         plan.append((folder, known[name], exe, version))
     stale = {}
+    diagrams = 0
     for folder, page, exe, version in plan:
-        block, copy = render(folder.name, page, exe, version)
+        try:
+            block, copy = render(folder.name, page, exe, version)
+        except ValueError as exc:
+            ap.error(str(exc))
+        diagrams += block.count(DIAGRAM_START)
         new = apply(page, block).encode("utf-8")
         if new != page.read_bytes():
             stale[page] = new
@@ -194,7 +289,8 @@ def main() -> int:
         return 1
     for path, data in stale.items():
         path.write_bytes(data)
-    print(f"{'checked' if args.check else 'built'} {len(plan)} examples; {2 * len(plan)} runs; {len(stale)} file(s) updated")
+    print(f"{'checked' if args.check else 'built'} {len(plan)} examples; {2 * len(plan)} runs; "
+          f"{diagrams} diagram(s); {len(stale)} file(s) updated")
     return 0
 
 
