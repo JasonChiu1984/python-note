@@ -1,5 +1,6 @@
 """流量計訊號換算：4–20 mA（線性與差壓開方）、小流量切除、脈衝累計器溢位處理（標準函式庫）。"""
 import math
+from fractions import Fraction
 
 
 def check_ma(ma):
@@ -17,11 +18,18 @@ def ma_to_flow_linear(ma, span):
 
 
 def ma_to_flow_dp(ma, span, cutoff_pct=0.05):
-    """差壓式未線性化：流量 ∝ √差壓。低於切除點直接歸零，避免零點雜訊被開方放大。"""
+    """差壓式未線性化：流量 ∝ √差壓。等於或低於切除點時歸零，避免零點雜訊被開方放大。"""
     check_ma(ma)
-    dp_pct = max(0.0, (ma - 4) / 16)
-    flow_pct = math.sqrt(dp_pct)
-    return 0.0 if flow_pct < cutoff_pct else flow_pct * span
+    if not math.isfinite(ma) or not math.isfinite(span) or span <= 0:
+        raise ValueError("電流與滿量程須為有限值，且滿量程須大於零")
+    if not 0 <= cutoff_pct <= 1:
+        raise ValueError("切除比例須介於 0 與 1（含端點）")
+    # Compare decimal readings exactly in the DP domain, before taking sqrt.
+    dp_pct = max(Fraction(0), (Fraction(str(ma)) - 4) / 16)
+    cutoff = Fraction(str(cutoff_pct))
+    if dp_pct <= cutoff**2:
+        return 0.0
+    return math.sqrt(dp_pct) * span
 
 
 def pulse_delta(prev, curr, rollover=65_536):
@@ -33,9 +41,10 @@ def pulse_delta(prev, curr, rollover=65_536):
 
 if __name__ == "__main__":
     span = 100.0                                   # m3/h
-    print(" mA    線性 m3/h   差壓開方 m3/h")
+    print(" mA    線性 m3/h   開方未切除   開方含 5% 切除")
     for ma in (4.0, 4.04, 4.16, 8.0, 12.0, 20.0):
-        print(f"{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f} {ma_to_flow_dp(ma, span):12.2f}")
+        print(f"{ma:5.2f} {ma_to_flow_linear(ma, span):9.2f} "
+              f"{ma_to_flow_dp(ma, span, 0):12.2f} {ma_to_flow_dp(ma, span):14.2f}")
     for bad in (2.1, 20.8):
         try:
             ma_to_flow_linear(bad, span)
