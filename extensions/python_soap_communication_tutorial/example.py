@@ -1,4 +1,5 @@
 """組出 SOAP 1.1 與 1.2 請求、辨識版本，並解析回應與 Fault（標準函式庫 xml.etree）。"""
+import math
 import xml.etree.ElementTree as ET
 
 SOAP11 = "http://schemas.xmlsoap.org/soap/envelope/"
@@ -22,18 +23,38 @@ def detect(xml_text):
     return {f"{{{SOAP11}}}Envelope": "SOAP 1.1", f"{{{SOAP12}}}Envelope": "SOAP 1.2"}.get(tag, "不是 SOAP Envelope")
 
 
-def parse_response(xml_text):
-    root = ET.fromstring(xml_text)
-    ns = root.tag[1:].split("}")[0]
-    body = root.find(f"{{{ns}}}Body")
-    fault = body.find(f"{{{ns}}}Fault")
-    if fault is not None:
-        if ns == SOAP11:
-            return "Fault", fault.findtext("faultcode"), fault.findtext("faultstring")
-        return ("Fault", fault.findtext(f"{{{ns}}}Code/{{{ns}}}Value"),
-                fault.findtext(f"{{{ns}}}Reason/{{{ns}}}Text"))
-    v = body.find(f"{{{APP}}}GetPointResponse/{{{APP}}}value")
-    return "OK", float(v.text), v.get("unit")
+def parse_response(xml_text: str):
+    """只解析本教材的單一回應或 Fault；不是通用 SOAP 或 XML 安全驗證器。"""
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return "錯誤", None, "XML 無法剖析"
+    ns = next((n for n in (SOAP11, SOAP12) if root.tag == f"{{{n}}}Envelope"), None)
+    if ns is None:
+        return "錯誤", None, "不是 SOAP Envelope"
+    bodies = root.findall(f"{{{ns}}}Body")
+    if len(bodies) != 1 or len(bodies[0]) != 1:
+        return "錯誤", None, "本算例要求唯一 Body 與單一內容元素"
+    item = bodies[0][0]
+    if item.tag == f"{{{ns}}}Fault":
+        paths = ("faultcode", "faultstring") if ns == SOAP11 else (
+            f"{{{ns}}}Code/{{{ns}}}Value", f"{{{ns}}}Reason/{{{ns}}}Text"
+        )
+        code, reason = (item.findtext(path, "").strip() for path in paths)
+        return ("Fault", code, reason) if code and reason else ("錯誤", None, "Fault 缺少代碼或原因")
+    if item.tag != f"{{{APP}}}GetPointResponse":
+        return "錯誤", None, "不是預期的業務回應"
+    values = item.findall(f"{{{APP}}}value")
+    if len(values) != 1 or values[0].text is None or len(values[0]):
+        return "錯誤", None, "需要一個純文字 value"
+    v = values[0]
+    try:
+        reading = float(v.text)
+    except ValueError:
+        return "錯誤", None, "讀值不是數字"
+    if not math.isfinite(reading):
+        return "錯誤", None, "讀值必須有限"
+    return "OK", reading, v.get("unit")
 
 
 if __name__ == "__main__":

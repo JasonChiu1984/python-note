@@ -382,7 +382,8 @@ if __name__ == &quot;__main__&quot;:
 <li><a href="https://www.w3.org/TR/2001/NOTE-wsdl-20010315/">WSDL 1.1</a>；<a href="https://www.w3.org/TR/xmlschema-1/">XML Schema 結構</a>；<a href="https://www.w3.org/TR/xmlschema-2/#decimal">XML Schema decimal 資料型別</a>。</li>
 <li><a href="https://www.w3.org/TR/ws-addr-core/">W3C WS-Addressing Core</a>：Action 屬性的訊息語意。</li>
 <li><a href="https://docs.oasis-open.org/wss-m/wss/v1.1.1/os/wss-SOAPMessageSecurity-v1.1.1-os.html">OASIS WS-Security 1.1.1</a>：SOAP 訊息安全；<a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">Python XML 安全說明</a>：解析器及版本注意事項。</li></ul></section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。</p><h3>可實跑範例：SOAP 1.1／1.2 請求、版本辨識與 Fault 解析</h3><p>SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。</p><p><a class="button" download href="extensions/python_soap_communication_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出 SOAP 1.1 與 1.2 請求、辨識版本，並解析回應與 Fault（標準函式庫 xml.etree）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。</p><h3>可實跑範例：SOAP 1.1／1.2 請求、版本辨識與 Fault 解析</h3><p>SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。 這個離線算例只接受單一 Body 內容；檢查 Fault 的代碼／原因及讀值為有限數，不是通用 SOAP 驗證器。</p><p><a class="button" download href="extensions/python_soap_communication_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出 SOAP 1.1 與 1.2 請求、辨識版本，並解析回應與 Fault（標準函式庫 xml.etree）。&quot;&quot;&quot;
+import math
 import xml.etree.ElementTree as ET
 
 SOAP11 = &quot;http://schemas.xmlsoap.org/soap/envelope/&quot;
@@ -406,18 +407,38 @@ def detect(xml_text):
     return {f&quot;{{{SOAP11}}}Envelope&quot;: &quot;SOAP 1.1&quot;, f&quot;{{{SOAP12}}}Envelope&quot;: &quot;SOAP 1.2&quot;}.get(tag, &quot;不是 SOAP Envelope&quot;)
 
 
-def parse_response(xml_text):
-    root = ET.fromstring(xml_text)
-    ns = root.tag[1:].split(&quot;}&quot;)[0]
-    body = root.find(f&quot;{{{ns}}}Body&quot;)
-    fault = body.find(f&quot;{{{ns}}}Fault&quot;)
-    if fault is not None:
-        if ns == SOAP11:
-            return &quot;Fault&quot;, fault.findtext(&quot;faultcode&quot;), fault.findtext(&quot;faultstring&quot;)
-        return (&quot;Fault&quot;, fault.findtext(f&quot;{{{ns}}}Code/{{{ns}}}Value&quot;),
-                fault.findtext(f&quot;{{{ns}}}Reason/{{{ns}}}Text&quot;))
-    v = body.find(f&quot;{{{APP}}}GetPointResponse/{{{APP}}}value&quot;)
-    return &quot;OK&quot;, float(v.text), v.get(&quot;unit&quot;)
+def parse_response(xml_text: str):
+    &quot;&quot;&quot;只解析本教材的單一回應或 Fault；不是通用 SOAP 或 XML 安全驗證器。&quot;&quot;&quot;
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return &quot;錯誤&quot;, None, &quot;XML 無法剖析&quot;
+    ns = next((n for n in (SOAP11, SOAP12) if root.tag == f&quot;{{{n}}}Envelope&quot;), None)
+    if ns is None:
+        return &quot;錯誤&quot;, None, &quot;不是 SOAP Envelope&quot;
+    bodies = root.findall(f&quot;{{{ns}}}Body&quot;)
+    if len(bodies) != 1 or len(bodies[0]) != 1:
+        return &quot;錯誤&quot;, None, &quot;本算例要求唯一 Body 與單一內容元素&quot;
+    item = bodies[0][0]
+    if item.tag == f&quot;{{{ns}}}Fault&quot;:
+        paths = (&quot;faultcode&quot;, &quot;faultstring&quot;) if ns == SOAP11 else (
+            f&quot;{{{ns}}}Code/{{{ns}}}Value&quot;, f&quot;{{{ns}}}Reason/{{{ns}}}Text&quot;
+        )
+        code, reason = (item.findtext(path, &quot;&quot;).strip() for path in paths)
+        return (&quot;Fault&quot;, code, reason) if code and reason else (&quot;錯誤&quot;, None, &quot;Fault 缺少代碼或原因&quot;)
+    if item.tag != f&quot;{{{APP}}}GetPointResponse&quot;:
+        return &quot;錯誤&quot;, None, &quot;不是預期的業務回應&quot;
+    values = item.findall(f&quot;{{{APP}}}value&quot;)
+    if len(values) != 1 or values[0].text is None or len(values[0]):
+        return &quot;錯誤&quot;, None, &quot;需要一個純文字 value&quot;
+    v = values[0]
+    try:
+        reading = float(v.text)
+    except ValueError:
+        return &quot;錯誤&quot;, None, &quot;讀值不是數字&quot;
+    if not math.isfinite(reading):
+        return &quot;錯誤&quot;, None, &quot;讀值必須有限&quot;
+    return &quot;OK&quot;, reading, v.get(&quot;unit&quot;)
 
 
 if __name__ == &quot;__main__&quot;:
@@ -439,5 +460,5 @@ SOAP 1.2 標頭：{&#x27;Content-Type&#x27;: &#x27;application/soap+xml; charset
   辨識：SOAP 1.2
 回應： (&#x27;OK&#x27;, 22.5, &#x27;degC&#x27;)
 1.1 Fault： (&#x27;Fault&#x27;, &#x27;soap:Client&#x27;, &#x27;Unknown point&#x27;)
-1.2 Fault： (&#x27;Fault&#x27;, &#x27;soap:Sender&#x27;, &#x27;Unknown point&#x27;)</code></pre><h3>工程現場案例：舊型能源管理系統只接受 SOAP 1.1</h3><p>某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。</p><p>解析回應時也要依版本處理 Fault。範例的 parse_response() 從根元素的命名空間自動判斷，統一回傳（狀態, 代碼, 訊息），上層程式不需要關心版本差異。</p><ol><li>從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。</li><li>用 curl 或 Postman 先送一個最小請求，確認 Content-Type 與 SOAPAction 正確。</li><li>解析回應時先檢查 Fault，再取業務資料；Fault 的代碼與訊息寫進日誌。</li><li>處理外部 XML 時注意 XML 外部實體（XXE）風險，不信任的輸入可用 defusedxml 剖析。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 的 xml.etree.ElementTree 文件提醒：處理不受信任的 XML 時要留意各種 XML 攻擊。常用的 SOAP 用戶端套件 zeep 本頁核對時最新版為 4.3.3。 <a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">來源：Python 文件：XML 弱點</a> <a href="https://pypi.org/project/zeep/">來源：PyPI：zeep</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>SOAP 1.1 的 SOAPAction 標頭值為什麼要加雙引號？</p><details><summary>看解答</summary><p>SOAP 1.1 規格把 SOAPAction 定義為帶引號的 URI 字串；部分伺服器會嚴格檢查。值為空字串時也要寫成 ""。</p></details></li><li><p>detect() 收到一個根元素為 Envelope 但命名空間不同的 XML，會怎麼判斷？</p><details><summary>看解答</summary><p>回傳「不是 SOAP Envelope」。ElementTree 的標籤包含命名空間，只比對本地名稱 Envelope 是不夠的，命名空間才是版本的依據。</p></details></li><li><p>SOAP 1.1 的 faultcode 為什麼用 findtext('faultcode') 而不是加命名空間？</p><details><summary>看解答</summary><p>SOAP 1.1 規定 Fault 的子元素 faultcode、faultstring 不帶命名空間（unqualified），1.2 的 Code、Reason 則在 SOAP 命名空間內。這是兩個版本最容易寫錯的地方。</p></details></li><li><p>範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？</p><details><summary>看解答</summary><p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p></details></li></ol></section><!-- extension:end -->
+1.2 Fault： (&#x27;Fault&#x27;, &#x27;soap:Sender&#x27;, &#x27;Unknown point&#x27;)</code></pre><h3>工程現場案例：舊型能源管理系統只接受 SOAP 1.1</h3><p>某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。</p><p>依 Envelope 命名空間選版本；本算例回傳三種結果：有可顯示代碼與原因的 Fault、含有限數讀值的 OK，或無法剖析／不符本算例結構的錯誤。HTTP 狀態與更完整的業務契約請看本頁完整實驗。</p><ol><li>從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。</li><li>用 curl 或 Postman 先送一個最小請求，確認 Content-Type 與 SOAPAction 正確。</li><li>解析回應時先檢查 Fault，再取業務資料；Fault 的代碼與訊息寫進日誌。</li><li>處理外部 XML 時注意 XML 外部實體（XXE）風險，不信任的輸入可用 defusedxml 剖析。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 的 xml.etree.ElementTree 文件提醒：處理不受信任的 XML 時要留意各種 XML 攻擊。常用的 SOAP 用戶端套件 zeep 本頁核對時最新版為 4.3.3。 <a href="https://docs.python.org/3/library/xml.html#xml-vulnerabilities">來源：Python 文件：XML 弱點</a> <a href="https://pypi.org/project/zeep/">來源：PyPI：zeep</a> <a href="https://www.w3.org/TR/soap12-part1/#soapfault">來源：W3C SOAP 1.2 Part 1 §5.4：Fault</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>SOAP 1.1 的 SOAPAction 標頭值為什麼要加雙引號？</p><details><summary>看解答</summary><p>SOAP 1.1 規格把 SOAPAction 定義為帶引號的 URI 字串；部分伺服器會嚴格檢查。值為空字串時也要寫成 ""。</p></details></li><li><p>detect() 收到一個根元素為 Envelope 但命名空間不同的 XML，會怎麼判斷？</p><details><summary>看解答</summary><p>回傳「不是 SOAP Envelope」。ElementTree 的標籤包含命名空間，只比對本地名稱 Envelope 是不夠的，命名空間才是版本的依據。</p></details></li><li><p>SOAP 1.1 的 faultcode 為什麼用 findtext('faultcode') 而不是加命名空間？</p><details><summary>看解答</summary><p>SOAP 1.1 規定 Fault 的子元素 faultcode、faultstring 不帶命名空間（unqualified），1.2 的 Code、Reason 則在 SOAP 命名空間內。這是兩個版本最容易寫錯的地方。</p></details></li><li><p>範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？</p><details><summary>看解答</summary><p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p></details></li><li><p>SOAP 1.2 Body 同時放 Fault 和成功回應，能照常讀值嗎？</p><details><summary>看解答</summary><p>不能。SOAP 1.2 的 Fault 必須是 Body 唯一的元素子節點，並有 Code 與 Reason。在本算例會回傳結構錯誤，不會把不完整的 Fault 或非有限讀值當成功。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

@@ -3,13 +3,13 @@
  "checked": "2026-11-28",
  "intro": "本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。",
  "example_title": "SOAP 1.1／1.2 請求、版本辨識與 Fault 解析",
- "example_desc": "SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。",
+ "example_desc": "SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。 這個離線算例只接受單一 Body 內容；檢查 Fault 的代碼／原因及讀值為有限數，不是通用 SOAP 驗證器。",
  "run_note": "只需 Python 3.10 以上，無第三方套件；不會連線",
  "case": {
   "title": "舊型能源管理系統只接受 SOAP 1.1",
   "paragraphs": [
    "某舊型能源管理系統提供 SOAP 介面查詢電表資料。新的整合程式用某個預設 SOAP 1.2 的工具產生請求，伺服器一律回 415 或 500，錯誤訊息又含糊，花了很多時間才發現是版本不符。從 WSDL 的 binding 命名空間就能看出伺服器支援哪個版本。",
-   "解析回應時也要依版本處理 Fault。範例的 parse_response() 從根元素的命名空間自動判斷，統一回傳（狀態, 代碼, 訊息），上層程式不需要關心版本差異。"
+   "依 Envelope 命名空間選版本；本算例回傳三種結果：有可顯示代碼與原因的 Fault、含有限數讀值的 OK，或無法剖析／不符本算例結構的錯誤。HTTP 狀態與更完整的業務契約請看本頁完整實驗。"
   ],
   "steps": [
    "從 WSDL 的 soap:binding 或 soap12:binding 判斷伺服器支援的版本。",
@@ -29,6 +29,10 @@
     {
      "title": "PyPI：zeep",
      "url": "https://pypi.org/project/zeep/"
+    },
+    {
+     "title": "W3C SOAP 1.2 Part 1 §5.4：Fault",
+     "url": "https://www.w3.org/TR/soap12-part1/#soapfault"
     }
    ]
   }
@@ -49,6 +53,10 @@
   {
    "q": "範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？",
    "a": "<p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p>"
+  },
+  {
+   "q": "SOAP 1.2 Body 同時放 Fault 和成功回應，能照常讀值嗎？",
+   "a": "<p>不能。SOAP 1.2 的 Fault 必須是 Body 唯一的元素子節點，並有 Code 與 Reason。在本算例會回傳結構錯誤，不會把不完整的 Fault 或非有限讀值當成功。</p>"
   }
  ]
 }
