@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 600" role="img" aria-labelledby="dg-fmf-title dg-fmf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
   <title id="dg-fmf-title">4–20 mA 訊號判讀、差壓開方與小流量切除流程圖</title>
-  <desc id="dg-fmf-desc">對應延伸範例的 check_ma()、ma_to_flow_linear() 與 ma_to_flow_dp()。讀到電流後先依 NAMUR NE43 分區：小於或等於 3.6 mA、或大於或等於 21.0 mA 是故障訊號，拋出 ValueError，例如 2.1 mA；小於 3.8 或大於 20.5 mA 是超出量測範圍，同樣拋出 ValueError，例如 20.8 mA 不顯示成 100%。通過後看訊號代表什麼：已線性化的流量直接用 (I − 4) ÷ 16 × 量程，8 mA 得 25 m³/h；原始差壓則開方一次，8 mA 得 50%。開方後低於 6% 的小流量切除回傳 0，例如零點漂移 4.04 mA 開方後是 5%，切除後為 0；否則乘上量程，12 mA 得 70.71 m³/h。開方只能在一個地方做。</desc>
+  <desc id="dg-fmf-desc">對應延伸範例的 check_ma()、ma_to_flow_linear() 與 ma_to_flow_dp()。讀到電流後先依 NAMUR NE43 分區：小於或等於 3.6 mA、或大於或等於 21.0 mA 是故障訊號，拋出 ValueError，例如 2.1 mA；小於 3.8 或大於 20.5 mA 是超出量測範圍，同樣拋出 ValueError，例如 20.8 mA 不顯示成 100%。通過後看訊號代表什麼：已線性化的流量直接用 (I − 4) ÷ 16 × 量程，8 mA 得 25 m³/h；原始差壓則開方一次，8 mA 得 50%。開方前先用十進位讀值精確比較差壓：差壓比例小於或等於切除點平方（5% 流量 = 0.25% 差壓）時回傳 0，例如零點漂移 4.04 mA 正好落在門檻、切除後為 0；否則乘上量程，12 mA 得 70.71 m³/h。開方只能在一個地方做。</desc>
   <defs>
     <marker id="dg-fmf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -41,7 +41,7 @@
     <text x="220" y="307">訊號是已線性化的流量？</text>
     <text x="220" y="381" font-weight="700">原始差壓：只開方一次</text>
     <text x="220" y="400" font-size="12">flow_pct = √((I − 4) ÷ 16)；8 mA → 50%</text>
-    <text x="220" y="475">flow_pct &lt; 6%？</text>
+    <text x="220" y="475">ΔP% ≤ 5%² = 0.25%？</text>
     <text x="220" y="550" font-weight="700">回傳 flow_pct × 量程</text>
     <text x="220" y="570" font-size="12">12 mA → 70.71 m³/h；20 mA → 100 m³/h</text>
     <text x="602" y="114" font-weight="700">故障訊號：拋出 ValueError</text>
@@ -51,7 +51,7 @@
     <text x="602" y="298" font-weight="700">ma_to_flow_linear()</text>
     <text x="602" y="317" font-size="12">(I − 4) ÷ 16 × 量程；8 mA → 25 m³/h</text>
     <text x="602" y="466" font-weight="700">小流量切除：回傳 0.0</text>
-    <text x="602" y="485" font-size="12">零點 4.04 mA 開方是 5% → 0 m³/h</text>
+    <text x="602" y="485" font-size="12">零點 4.04 mA 正好在門檻 → 0 m³/h</text>
   </g>
   <g fill="currentColor" font-size="12">
     <text x="414" y="110">是</text>
