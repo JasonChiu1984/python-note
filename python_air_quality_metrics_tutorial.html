@@ -125,10 +125,129 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
 </section>
 <p>延伸教材：<a href="python_chiller_efficiency_tutorial.html">冰水主機效率</a>（設備效率與空品分開查證） · <a href="python_datacenter_efficiency_tutorial.html">資料中心能源效率</a>（耗能指標與用能邊界）。</p>
 <p><a href="index.html">回 Python 教材路線</a> · <a href="#top">回頁首</a></p>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節強調先確認資料品質再計算。本節把這個原則套到最常見的室內指標 CO2：八小時移動平均、涵蓋率判定，以及由 CO2 反推外氣量。</p><h3>可實跑範例：CO2 八小時平均與外氣量估算</h3><p>合成一天的會議室 CO2 資料（含 40 分鐘通訊中斷），計算截至不同時間點的八小時平均與涵蓋率，再用穩態質量平衡估算要維持 1,000 ppm 需要多少外氣。CO2 產生率 0.005 L/s/人是常用近似值，活動量不同時要調整。</p><p><a class="button" download href="extensions/python_air_quality_metrics_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;CO2 八小時移動平均、資料涵蓋率與外氣量估算（教學模型）。
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節強調先確認資料品質再計算。本節把這個原則套到最常見的室內指標 CO2：八小時移動平均、涵蓋率判定，以及由 CO2 反推外氣量。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="architecture"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" role="img" aria-labelledby="dg-aqa-title dg-aqa-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-aqa-title">室內遙測與室外官方 AQI 的監測架構圖</title>
+  <desc id="dg-aqa-desc">對應正文第 2 節。室內遙測路徑依序是：感測點位（CO₂、PM、溫濕度、壓差、風門回饋、占用），閘道與驗證（保留量測時間、收到時間、單位、品質與校正版本），時間序列倉儲（保存原值與品質旗標，缺值保留不補 0），儀表板與事件單（顯示平均、涵蓋率、最新有效樣本與資料年齡）。平行的室外來源是環境部空氣品質資料集 AQX_P_432 即時值與 AQX_P_434 日值，經獨立的唯讀匯入保留測站、發布時間與抓取時間，只送到儀表板做時間背景對照，不混入室內平均。儀表板也不直接連到 DDC 外氣控制輸出；修改控制需另行評估與現場核准。底部以正文合成資料為例：CO₂ 六格中四格有效，平均 837.5 ppm；PM2.5 只有三格有效，在 60% 門檻下標示資料不足。</desc>
+  <defs>
+    <marker id="dg-aqa-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g fill="currentColor" font-weight="700" font-size="12">
+    <text x="15" y="44">室內遙測路徑</text>
+    <text x="15" y="234">平行來源：室外官方測站（不混算）</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="15" y="56" width="160" height="90" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="205" y="56" width="160" height="90" rx="6"/>
+    <rect class="dg-box" x="395" y="56" width="160" height="90" rx="6"/>
+    <rect class="dg-box dg-green" x="585" y="56" width="160" height="90" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="15" y="246" width="250" height="70" rx="6"/>
+    <rect class="dg-box" x="300" y="246" width="210" height="70" rx="6"/>
+    <rect class="dg-box" x="15" y="390" width="520" height="66" rx="6"/>
+  </g>
+  <rect class="dg-red" x="575" y="390" width="170" height="66" rx="6" stroke="#d64545" stroke-width="1.5" fill="none"/>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-aqa-arrow)">
+    <line x1="175" y1="101" x2="203" y2="101"/>
+    <line x1="365" y1="101" x2="393" y2="101"/>
+    <line x1="555" y1="101" x2="583" y2="101"/>
+    <line x1="265" y1="281" x2="298" y2="281"/>
+    <polyline points="510,281 640,281 640,148"/>
+  </g>
+  <line class="dg-line-red" x1="720" y1="146" x2="720" y2="388" stroke="#d64545" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="95" y="80" font-weight="700">感測點位</text>
+    <text x="95" y="100" font-size="12">CO₂、PM、溫濕度</text>
+    <text x="95" y="118" font-size="12">壓差、風門回饋、占用</text>
+    <text x="285" y="80" font-weight="700">閘道與驗證</text>
+    <text x="285" y="100" font-size="12">量測時間＋收到時間</text>
+    <text x="285" y="118" font-size="12">單位、品質、校正版本</text>
+    <text x="475" y="80" font-weight="700">時間序列倉儲</text>
+    <text x="475" y="100" font-size="12">原值＋品質旗標</text>
+    <text x="475" y="118" font-size="12">缺值保留，不補 0</text>
+    <text x="665" y="80" font-weight="700">儀表板／事件單</text>
+    <text x="665" y="100" font-size="12">平均＋涵蓋率</text>
+    <text x="665" y="118" font-size="12">最新有效樣本、資料年齡</text>
+    <text x="140" y="273" font-weight="700">環境部 AQX_P_432／434</text>
+    <text x="140" y="295" font-size="12">即時 AQI／日 AQI，含指標污染物</text>
+    <text x="405" y="273" font-weight="700">唯讀匯入</text>
+    <text x="405" y="295" font-size="12">測站、發布時間、抓取時間</text>
+    <text x="660" y="417" font-weight="700">DDC 外氣控制</text>
+    <text x="660" y="437" font-size="12">另行評估、現場核准</text>
+    <text x="275" y="416" font-size="12">正文合成資料：CO₂ 有效 4／6 格 → 837.5 ppm，可顯示；</text>
+    <text x="275" y="436" font-size="12">PM2.5 有效 3／6 格 → 60% 門檻下標示資料不足，不用 0 代替</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="520" y="271">只作時間背景對照</text>
+    <text x="712" y="330" text-anchor="end">✕ 不直接連</text>
+    <text x="712" y="348" text-anchor="end">控制輸出</text>
+  </g>
+</svg><figcaption><strong>架構圖｜室內遙測與室外官方 AQI 的監測架構</strong>：對應正文第 2 節：室內點位經閘道驗證、時間序列倉儲到儀表板，每一層都保留時間戳、單位與品質；環境部 AQI 由獨立唯讀連線匯入，只在畫面上做時間背景對照，不混入室內平均，儀表板也不直接連到外氣控制輸出。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 570" role="img" aria-labelledby="dg-aqf-title dg-aqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-aqf-title">CO₂ 八小時平均判斷流程圖</title>
+  <desc id="dg-aqf-desc">對應延伸範例的 rolling_8h() 與輸出判斷。輸入是每分鐘一筆 CO₂ 讀值，斷線期間沒有資料也不補值。先取窗口起點之後、到結束時間為止的樣本，左開右閉。涵蓋率等於樣本筆數除以 480。涵蓋率低於 75% 時顯示資料不足，不內插、不當成合格。達到門檻才計算八小時平均：範例截至 16:00 為 967 ppm，截至 17:00 為 1,045 ppm，涵蓋率都是 92%。平均不高於 1,000 ppm 標示低於參考值；高於時，用 outdoor_air_lps() 估算需要的外氣量，例如 12 人約 103 L/s，再與空調箱外氣風量計或風門回饋對照。單筆最高 1,330 ppm 不直接觸發判定，因為比較對象是八小時值；單一感測器的移動平均也只是監測線索，不是依標準方法採樣的符合性判定。</desc>
+  <defs>
+    <marker id="dg-aqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="50" y="12" width="360" height="40" rx="20" stroke="#3b82f6"/>
+    <rect class="dg-box" x="50" y="76" width="360" height="52" rx="6"/>
+    <rect class="dg-box" x="50" y="152" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,228 380,262 230,296 80,262"/>
+    <rect class="dg-box" x="50" y="320" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,396 380,430 230,464 80,430"/>
+    <rect class="dg-box" x="470" y="76" width="275" height="128" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-orange" x="470" y="236" width="275" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="470" y="404" width="275" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="50" y="490" width="360" height="66" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-aqf-arrow)">
+    <line x1="230" y1="52" x2="230" y2="74"/>
+    <line x1="230" y1="128" x2="230" y2="150"/>
+    <line x1="230" y1="204" x2="230" y2="226"/>
+    <line x1="230" y1="296" x2="230" y2="318"/>
+    <line x1="230" y1="372" x2="230" y2="394"/>
+    <line x1="230" y1="464" x2="230" y2="488"/>
+    <line x1="380" y1="262" x2="468" y2="262"/>
+    <line x1="380" y1="430" x2="468" y2="430"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="37" font-weight="700">每分鐘 CO₂ (t, ppm)；斷線缺值不補</text>
+    <text x="230" y="98">取窗口內樣本</text>
+    <text x="230" y="117" font-size="12">左開右閉：end − 8 h &lt; t ≤ end</text>
+    <text x="230" y="174">涵蓋率 = 樣本筆數 ÷ 480</text>
+    <text x="230" y="193" font-size="12">範例 16:00：440 ÷ 480 ≈ 92%</text>
+    <text x="230" y="267">涵蓋率 ≥ 75%？</text>
+    <text x="230" y="342">八小時平均 fmean(values)</text>
+    <text x="230" y="361" font-size="12">16:00 → 967 ppm；17:00 → 1,045 ppm</text>
+    <text x="230" y="435">平均 &gt; 1,000 ppm？</text>
+    <text x="230" y="514" font-weight="700">高於參考值：查外氣量</text>
+    <text x="230" y="534" font-size="12">outdoor_air_lps()：12 人約 103 L/s，</text>
+    <text x="230" y="550" font-size="12">對照外氣風量計、風門回饋與 DDC 排程</text>
+    <text x="607" y="258" font-weight="700">資料不足：顯示 —</text>
+    <text x="607" y="277" font-size="12">不內插、不當成合格</text>
+    <text x="607" y="426" font-weight="700">低於 1,000 ppm 參考值</text>
+    <text x="607" y="445" font-size="12">仍並列涵蓋率與缺值時段</text>
+    <text x="607" y="102" font-weight="700">為什麼不看單筆最高？</text>
+    <text x="607" y="126" font-size="12">單筆最高 1,330 ppm（15:12）</text>
+    <text x="607" y="146" font-size="12">比較對象是八小時值；</text>
+    <text x="607" y="166" font-size="12">單點移動平均只是監測線索，</text>
+    <text x="607" y="186" font-size="12">不是標準方法的符合性判定</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="392" y="254">否</text>
+    <text x="238" y="312">是</text>
+    <text x="392" y="422">否</text>
+    <text x="238" y="482">是</text>
+  </g>
+</svg><figcaption><strong>流程圖｜CO₂ 八小時平均判斷</strong>：對應延伸範例的 rolling_8h()：先算涵蓋率，未達 75% 就標示資料不足；達到門檻才算平均，高於 1,000 ppm 時用 outdoor_air_lps() 估算外氣量，再與風量計和風門回饋對照找差異。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：CO2 八小時平均與外氣量估算</h3><p>合成一天的會議室 CO2 資料（含 40 分鐘通訊中斷），計算截至不同時間點的八小時平均與涵蓋率，再用穩態質量平衡估算要維持 1,000 ppm 需要多少外氣。CO2 產生率 0.005 L/s/人是常用近似值，活動量不同時要調整。</p><p><a class="button" download href="extensions/python_air_quality_metrics_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;CO2 八小時移動平均、資料涵蓋率與外氣量估算（教學模型）。
 
 - 室內空氣品質標準：CO2 八小時值 1,000 ppm、PM2.5 二十四小時值 35 μg/m3。
 - 本例規定一個八小時窗至少要有 75% 的分鐘資料才計算平均，這是設計選擇，不是法規。
+- 單一感測器的移動平均只是監測線索，不等於依標準方法採樣的符合性判定，所以輸出寫「參考值」。
 - 外氣量以穩態質量平衡估算：Q = N × G ÷ (Cin − Cout)，G 取成人坐姿約 0.005 L/s/人的近似值。
 &quot;&quot;&quot;
 from datetime import datetime, timedelta
@@ -177,7 +296,7 @@ if __name__ == &quot;__main__&quot;:
     for hh in (16, 17, 18):
         end = datetime(2026, 11, 20, hh, 0) - timedelta(minutes=1) if hh == 18 else datetime(2026, 11, 20, hh, 0)
         avg, cov = rolling_8h(rows, end)
-        verdict = &quot;資料不足&quot; if avg is None else (&quot;超過標準&quot; if avg &gt; LIMIT_CO2_8H else &quot;符合標準&quot;)
+        verdict = &quot;資料不足&quot; if avg is None else (&quot;高於 1,000 ppm 參考值&quot; if avg &gt; LIMIT_CO2_8H else &quot;低於 1,000 ppm 參考值&quot;)
         shown = &quot;—&quot; if avg is None else f&quot;{avg:.0f} ppm&quot;
         print(f&quot;截至 {end:%H:%M} 的八小時平均：{shown}，涵蓋率 {cov:.0%}，{verdict}&quot;)
     for people in (6, 12):
@@ -185,11 +304,11 @@ if __name__ == &quot;__main__&quot;:
         print(f&quot;{people} 人、維持室內 1,000 ppm 所需外氣量：約 {q:.0f} L/s（{q * 3.6:.0f} m3/h）&quot;)
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>取樣筆數：560（應有 600 筆，缺 40 筆）
 單筆最高：1330 ppm @ 15:12
-截至 16:00 的八小時平均：967 ppm，涵蓋率 92%，符合標準
-截至 17:00 的八小時平均：1045 ppm，涵蓋率 92%，超過標準
-截至 17:59 的八小時平均：1020 ppm，涵蓋率 92%，超過標準
+截至 16:00 的八小時平均：967 ppm，涵蓋率 92%，低於 1,000 ppm 參考值
+截至 17:00 的八小時平均：1045 ppm，涵蓋率 92%，高於 1,000 ppm 參考值
+截至 17:59 的八小時平均：1020 ppm，涵蓋率 92%，高於 1,000 ppm 參考值
 6 人、維持室內 1,000 ppm 所需外氣量：約 52 L/s（186 m3/h）
-12 人、維持室內 1,000 ppm 所需外氣量：約 103 L/s（372 m3/h）</code></pre><h3>工程現場案例：會議室下午 CO2 超標，空調箱外氣風門卻顯示全開</h3><p>範例中單筆最高 1,330 ppm 出現在 15:12，但法規看的是八小時值：截至 16:00 的平均仍在 967 ppm，到 17:00 才超過 1,000 ppm。只看單筆最高值會過早告警，只看日平均又會漏掉下午的問題。</p><p>現場常見的原因是外氣風門開度與實際外氣量不一致：風門連桿鬆脫、外氣濾網堵塞，或 DDC 的最小外氣設定在下午被節能排程覆寫。CO2 推估的外氣量（12 人約 103 L/s）可以和空調箱外氣風量計或風門開度對照，找出差異。</p><ol><li>確認 CO2 感測器裝在呼吸帶高度（約 1.1 m）、遠離出風口與門口，並記錄最近一次校正日期。</li><li>從 BAS 匯出 CO2、外氣風門開度、空調箱運轉狀態與室內人數（或門禁、會議預約）資料，時間對齊到分鐘。</li><li>用範例的 rolling_8h() 計算八小時值；涵蓋率不足的窗口標示為資料不足，不要用內插補成合格。</li><li>比對 CO2 推估外氣量與風量量測值，差異超過 20% 時檢查風門、濾網與 DDC 排程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現行「室內空氣品質標準」（101 年 11 月 23 日發布）仍是 9 項：CO2 八小時值 1,000 ppm、CO 八小時值 9 ppm、甲醛一小時值 0.08 ppm、TVOC 一小時值 0.56 ppm、細菌 1,500 CFU/m3、真菌 1,000 CFU/m3、PM10 二十四小時值 75 μg/m3、PM2.5 二十四小時值 35 μg/m3、臭氧八小時值 0.06 ppm。部分地方公告場所另有更嚴格的自主管理值（例如 CO2 800 ppm），要看場所適用的公告。 <a href="https://www.laws.taipei.gov.tw/lawatt/Law/A040300030009600-20121123-2000-001.pdf">來源：臺北市法規：室內空氣品質標準</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MIN_COVERAGE 改成 0.95 後重新執行，三個時間點的結果會怎麼變？這樣的設定合理嗎？</p><details><summary>看解答</summary><p>三個窗口的涵蓋率都是 92%，全部變成「資料不足」。門檻太高會讓一次短暫斷線就失去整天的判定；太低又會讓平均值失去代表性。實務上要依量測計畫或稽核要求決定，並在報表上寫明門檻。</p></details></li><li><p>同一間會議室若要把 CO2 控制在 800 ppm 以下，12 人需要多少外氣？</p><details><summary>看解答</summary><p>Q = 12 × 0.005 ÷ ((800 − 420) × 10⁻⁶) ≈ 158 L/s，約 568 m³/h，比 1,000 ppm 時多 50% 以上。可以用 outdoor_air_lps(12, c_in=800) 驗證。目標值越接近室外濃度，需要的外氣量增加得越快。</p></details></li><li><p>為什麼 outdoor_air_lps() 在室內濃度低於或等於室外時要直接報錯，而不是回傳很大的數字？</p><details><summary>看解答</summary><p>公式的分母變成零或負數，結果沒有物理意義。這通常代表感測器偏移、室外值取錯測站，或空間根本沒人。直接報錯能逼使用者先檢查資料，而不是把錯誤數字送進控制邏輯。</p></details></li><li><p>PM2.5 的標準是二十四小時值。要把 rolling_8h() 改成 PM2.5 用的函式，需要改哪些地方？</p><details><summary>看解答</summary><p>窗口改成 24 小時（timedelta(hours=24)），分母改成 1,440 分鐘（或依實際取樣間隔計算應有筆數），門檻改成 35 μg/m³。若感測器是 5 分鐘一筆，分母要用 288，不能沿用分鐘數。</p></details></li></ol></section><!-- extension:end -->
+12 人、維持室內 1,000 ppm 所需外氣量：約 103 L/s（372 m3/h）</code></pre><h3>工程現場案例：會議室下午 CO2 超標，空調箱外氣風門卻顯示全開</h3><p>範例中單筆最高 1,330 ppm 出現在 15:12，但法規看的是八小時值：截至 16:00 的平均仍在 967 ppm，到 17:00 才超過 1,000 ppm。只看單筆最高值會過早告警，只看日平均又會漏掉下午的問題。</p><p>現場常見的原因是外氣風門開度與實際外氣量不一致：風門連桿鬆脫、外氣濾網堵塞，或 DDC 的最小外氣設定在下午被節能排程覆寫。CO2 推估的外氣量（12 人約 103 L/s）可以和空調箱外氣風量計或風門開度對照，找出差異。</p><ol><li>確認 CO2 感測器裝在呼吸帶高度（約 1.1 m）、遠離出風口與門口，並記錄最近一次校正日期。</li><li>從 BAS 匯出 CO2、外氣風門開度、空調箱運轉狀態與室內人數（或門禁、會議預約）資料，時間對齊到分鐘。</li><li>用範例的 rolling_8h() 計算八小時值；涵蓋率不足的窗口標示為資料不足，不要用內插補成合格。</li><li>比對 CO2 推估外氣量與風量量測值，差異超過 20% 時檢查風門、濾網與 DDC 排程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現行「室內空氣品質標準」（101 年 11 月 23 日發布）仍是 9 項：CO2 八小時值 1,000 ppm、CO 八小時值 9 ppm、甲醛一小時值 0.08 ppm、TVOC 一小時值 0.56 ppm、細菌 1,500 CFU/m3、真菌 1,000 CFU/m3、PM10 二十四小時值 75 μg/m3、PM2.5 二十四小時值 35 μg/m3、臭氧八小時值 0.06 ppm。部分地方公告場所另有更嚴格的自主管理值（例如 CO2 800 ppm），要看場所適用的公告。 <a href="https://www.laws.taipei.gov.tw/lawatt/Law/A040300030009600-20121123-2000-001.pdf">來源：臺北市法規：室內空氣品質標準</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MIN_COVERAGE 改成 0.95 後重新執行，三個時間點的結果會怎麼變？這樣的設定合理嗎？</p><details><summary>看解答</summary><p>三個窗口的涵蓋率都是 92%，全部變成「資料不足」。門檻太高會讓一次短暫斷線就失去整天的判定；太低又會讓平均值失去代表性。實務上要依量測計畫或稽核要求決定，並在報表上寫明門檻。</p></details></li><li><p>同一間會議室若要把 CO2 控制在 800 ppm 以下，12 人需要多少外氣？</p><details><summary>看解答</summary><p>Q = 12 × 0.005 ÷ ((800 − 420) × 10⁻⁶) ≈ 158 L/s，約 568 m³/h，比 1,000 ppm 時多 50% 以上。可以用 outdoor_air_lps(12, c_in=800) 驗證。目標值越接近室外濃度，需要的外氣量增加得越快。</p></details></li><li><p>為什麼 outdoor_air_lps() 在室內濃度低於或等於室外時要直接報錯，而不是回傳很大的數字？</p><details><summary>看解答</summary><p>公式的分母變成零或負數，結果沒有物理意義。這通常代表感測器偏移、室外值取錯測站，或空間根本沒人。直接報錯能逼使用者先檢查資料，而不是把錯誤數字送進控制邏輯。</p></details></li><li><p>PM2.5 的標準是二十四小時值。要把 rolling_8h() 改成 PM2.5 用的函式，需要改哪些地方？</p><details><summary>看解答</summary><p>窗口改成 24 小時（timedelta(hours=24)），分母改成 1,440 分鐘（或依實際取樣間隔計算應有筆數），門檻改成 35 μg/m³。若感測器是 5 分鐘一筆，分母要用 288，不能沿用分鐘數。</p></details></li><li><p>把 synthetic_day() 的缺值條件改成 14:30 ≤ 時間 &lt; 16:00（斷線 90 分鐘）。截至 17:00 的涵蓋率、八小時平均與判定各是多少？和完全不斷線的資料比較，說明了什麼？</p><details><summary>看解答</summary><p>實際執行結果：窗口內 390 筆，涵蓋率 81%，通過 75% 門檻；八小時平均 962 ppm，標示「低於 1,000 ppm 參考值」。同一天若完全沒有斷線，平均是 1,031 ppm，應該高於參考值。斷線剛好落在 12 人開會、CO₂ 最高的時段，平均被拉低，結論因此翻轉。</p><p>反過來，範例原本 12:00–12:40 的缺值落在 6 人的午間，截至 17:00 的平均 1,045 ppm 反而比完整資料高。涵蓋率只說明樣本夠不夠，不說明缺在哪裡；報表要同時列出缺值時段或最長間隔，缺值落在高占用時段時改標「待確認」。</p></details></li></ol></section><!-- extension:end -->
 </main>
 <script>
 "use strict";

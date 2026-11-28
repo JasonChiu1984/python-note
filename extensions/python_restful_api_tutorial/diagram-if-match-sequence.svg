@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 580" role="img" aria-labelledby="dg-rss-title dg-rss-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-rss-title">兩位編輯者從版本 1 開始更新的序列圖</title>
+  <desc id="dg-rss-desc">對應正文第 02、03 節。編輯者 A 與 B 先後 GET /v1/devices/ahu-01，都拿到 ETag "1"。A 以 If-Match "1" 送出 PUT，API 在同一個更新邊界內比對版本，相符就寫入並把 revision 改成 2，回 200 與新表示，不附 ETag。B 隨後也以 If-Match "1" 送出 PUT，版本比對發現目前已是 2，不寫入，回 412 與 application/problem+json。B 必須重新 GET 取得 ETag "2"，看到 A 的修改後再決定是否重送，不能把 412 當暫時錯誤自動重試。缺少 If-Match 回 428，逗號清單或重複的 If-Match 欄位行回 400，兩者都不更新設備。</desc>
+  <defs>
+    <marker id="dg-rss-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 參與者 -->
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="20" y="12" width="140" height="44" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-blue" x="200" y="12" width="140" height="44" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="390" y="12" width="160" height="44" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="590" y="12" width="150" height="44" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="4 4" opacity=".6">
+    <line x1="90" y1="56" x2="90" y2="500"/>
+    <line x1="270" y1="56" x2="270" y2="500"/>
+    <line x1="470" y1="56" x2="470" y2="500"/>
+    <line x1="665" y1="56" x2="665" y2="500"/>
+  </g>
+  <!-- 請求（實線） -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-rss-arrow)">
+    <line x1="90" y1="92" x2="468" y2="92"/>
+    <line x1="270" y1="150" x2="468" y2="150"/>
+    <line x1="90" y1="212" x2="468" y2="212"/>
+    <line x1="470" y1="236" x2="663" y2="236"/>
+    <line x1="270" y1="322" x2="468" y2="322"/>
+    <line x1="470" y1="346" x2="663" y2="346"/>
+    <line x1="270" y1="432" x2="468" y2="432"/>
+  </g>
+  <!-- 回應（虛線） -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-rss-arrow)">
+    <line x1="470" y1="116" x2="92" y2="116"/>
+    <line x1="470" y1="174" x2="272" y2="174"/>
+    <line x1="470" y1="456" x2="272" y2="456"/>
+  </g>
+  <g stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-rss-arrow)">
+    <line class="dg-line-green" x1="665" y1="260" x2="472" y2="260" stroke="#2f9e5b"/>
+    <line class="dg-line-green" x1="470" y1="284" x2="92" y2="284" stroke="#2f9e5b"/>
+    <line class="dg-line-red" x1="665" y1="370" x2="472" y2="370" stroke="#d64545"/>
+    <line class="dg-line-red" x1="470" y1="394" x2="272" y2="394" stroke="#d64545"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="90" y="39" font-weight="700">編輯者 A</text>
+    <text x="270" y="39" font-weight="700">編輯者 B</text>
+    <text x="470" y="31" font-weight="700">API 契約層</text>
+    <text x="470" y="48" font-size="12">If-Match 格式檢查</text>
+    <text x="665" y="31" font-weight="700">版本儲存</text>
+    <text x="665" y="48" font-size="12">比對與提交同一步</text>
+  </g>
+  <g fill="currentColor" font-size="12" text-anchor="middle">
+    <text x="370" y="87">GET /v1/devices/ahu-01</text>
+    <text x="370" y="111">200，ETag: "1"</text>
+    <text x="370" y="145">GET（同一資源）</text>
+    <text x="370" y="169">200，ETag: "1"</text>
+    <text x="370" y="207">PUT，If-Match: "1"</text>
+    <text x="567" y="231">revision == 1？</text>
+    <text x="567" y="255">相符：寫入，revision = 2</text>
+    <text x="370" y="279">200 新表示（不附 ETag）</text>
+    <text x="370" y="317">PUT，If-Match: "1"</text>
+    <text x="567" y="341">revision == 1？</text>
+    <text x="567" y="365">不符（已是 2）：不寫入</text>
+    <text x="370" y="389">412，problem+json</text>
+    <text x="370" y="427">重新 GET</text>
+    <text x="370" y="451">200，ETag: "2"</text>
+  </g>
+  <rect class="dg-box" x="20" y="512" width="720" height="56" rx="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" font-size="12" text-anchor="middle">
+    <text x="380" y="535">缺 If-Match → 428；逗號清單或重複的 If-Match 欄位行 → 400；兩者都不更新設備。</text>
+    <text x="380" y="555">412 不是暫時錯誤：不可自動重試，要比對最新表示後，以新標籤重送。</text>
+  </g>
+</svg>

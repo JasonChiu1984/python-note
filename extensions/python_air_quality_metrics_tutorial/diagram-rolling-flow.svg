@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 570" role="img" aria-labelledby="dg-aqf-title dg-aqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-aqf-title">CO₂ 八小時平均判斷流程圖</title>
+  <desc id="dg-aqf-desc">對應延伸範例的 rolling_8h() 與輸出判斷。輸入是每分鐘一筆 CO₂ 讀值，斷線期間沒有資料也不補值。先取窗口起點之後、到結束時間為止的樣本，左開右閉。涵蓋率等於樣本筆數除以 480。涵蓋率低於 75% 時顯示資料不足，不內插、不當成合格。達到門檻才計算八小時平均：範例截至 16:00 為 967 ppm，截至 17:00 為 1,045 ppm，涵蓋率都是 92%。平均不高於 1,000 ppm 標示低於參考值；高於時，用 outdoor_air_lps() 估算需要的外氣量，例如 12 人約 103 L/s，再與空調箱外氣風量計或風門回饋對照。單筆最高 1,330 ppm 不直接觸發判定，因為比較對象是八小時值；單一感測器的移動平均也只是監測線索，不是依標準方法採樣的符合性判定。</desc>
+  <defs>
+    <marker id="dg-aqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="50" y="12" width="360" height="40" rx="20" stroke="#3b82f6"/>
+    <rect class="dg-box" x="50" y="76" width="360" height="52" rx="6"/>
+    <rect class="dg-box" x="50" y="152" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,228 380,262 230,296 80,262"/>
+    <rect class="dg-box" x="50" y="320" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,396 380,430 230,464 80,430"/>
+    <rect class="dg-box" x="470" y="76" width="275" height="128" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-orange" x="470" y="236" width="275" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="470" y="404" width="275" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="50" y="490" width="360" height="66" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-aqf-arrow)">
+    <line x1="230" y1="52" x2="230" y2="74"/>
+    <line x1="230" y1="128" x2="230" y2="150"/>
+    <line x1="230" y1="204" x2="230" y2="226"/>
+    <line x1="230" y1="296" x2="230" y2="318"/>
+    <line x1="230" y1="372" x2="230" y2="394"/>
+    <line x1="230" y1="464" x2="230" y2="488"/>
+    <line x1="380" y1="262" x2="468" y2="262"/>
+    <line x1="380" y1="430" x2="468" y2="430"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="37" font-weight="700">每分鐘 CO₂ (t, ppm)；斷線缺值不補</text>
+    <text x="230" y="98">取窗口內樣本</text>
+    <text x="230" y="117" font-size="12">左開右閉：end − 8 h &lt; t ≤ end</text>
+    <text x="230" y="174">涵蓋率 = 樣本筆數 ÷ 480</text>
+    <text x="230" y="193" font-size="12">範例 16:00：440 ÷ 480 ≈ 92%</text>
+    <text x="230" y="267">涵蓋率 ≥ 75%？</text>
+    <text x="230" y="342">八小時平均 fmean(values)</text>
+    <text x="230" y="361" font-size="12">16:00 → 967 ppm；17:00 → 1,045 ppm</text>
+    <text x="230" y="435">平均 &gt; 1,000 ppm？</text>
+    <text x="230" y="514" font-weight="700">高於參考值：查外氣量</text>
+    <text x="230" y="534" font-size="12">outdoor_air_lps()：12 人約 103 L/s，</text>
+    <text x="230" y="550" font-size="12">對照外氣風量計、風門回饋與 DDC 排程</text>
+    <text x="607" y="258" font-weight="700">資料不足：顯示 —</text>
+    <text x="607" y="277" font-size="12">不內插、不當成合格</text>
+    <text x="607" y="426" font-weight="700">低於 1,000 ppm 參考值</text>
+    <text x="607" y="445" font-size="12">仍並列涵蓋率與缺值時段</text>
+    <text x="607" y="102" font-weight="700">為什麼不看單筆最高？</text>
+    <text x="607" y="126" font-size="12">單筆最高 1,330 ppm（15:12）</text>
+    <text x="607" y="146" font-size="12">比較對象是八小時值；</text>
+    <text x="607" y="166" font-size="12">單點移動平均只是監測線索，</text>
+    <text x="607" y="186" font-size="12">不是標準方法的符合性判定</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="392" y="254">否</text>
+    <text x="238" y="312">是</text>
+    <text x="392" y="422">否</text>
+    <text x="238" y="482">是</text>
+  </g>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 650" role="img" aria-labelledby="dg-tbf-title dg-tbf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-tbf-title">15 分鐘需量與超約判斷流程圖</title>
+  <desc id="dg-tbf-desc">對應延伸範例的 demand_15min() 與 excess_charge()。每分鐘有效功率依 00、15、30、45 分切齊分桶；任一區間不足 15 筆就拋出 ValueError，要先用累計電能回推或標記缺漏，不能用剩下的筆數平均。區間平均以 Decimal 四捨五入到 0.1 kW 成為需量，取當月最高需量。最高需量不超過契約容量就沒有超約；超過時，超約量先分成契約 10% 以內的部分與超過 10% 的部分，分別乘以單價與 2 倍、3 倍的加收倍數。範例最高需量 1,033.0 kW，契約 900 kW，超約 133.0 kW，其中 90.0 kW 在 10% 以內、43.0 kW 超過，在假設單價下加收 72,986 元。倍數與單價都是參數，正式計算以台電電價表為準。</desc>
+  <defs>
+    <marker id="dg-tbf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 主流程 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="50" y="12" width="360" height="40" rx="20" stroke="#3b82f6"/>
+    <rect class="dg-box" x="50" y="76" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,154 380,190 230,226 80,190"/>
+    <rect class="dg-box" x="50" y="250" width="360" height="52" rx="6"/>
+    <rect class="dg-box" x="50" y="326" width="360" height="52" rx="6"/>
+    <polygon class="dg-box" points="230,404 380,440 230,476 80,440"/>
+    <rect class="dg-box" x="50" y="500" width="360" height="52" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="470" y="164" width="275" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-green" x="470" y="414" width="275" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="50" y="576" width="360" height="62" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-tbf-arrow)">
+    <line x1="230" y1="52" x2="230" y2="74"/>
+    <line x1="230" y1="128" x2="230" y2="152"/>
+    <line x1="230" y1="226" x2="230" y2="248"/>
+    <line x1="230" y1="302" x2="230" y2="324"/>
+    <line x1="230" y1="378" x2="230" y2="402"/>
+    <line x1="230" y1="476" x2="230" y2="498"/>
+    <line x1="230" y1="552" x2="230" y2="574"/>
+    <line x1="380" y1="190" x2="468" y2="190"/>
+    <line x1="380" y1="440" x2="468" y2="440"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="37" font-weight="700">每分鐘有效功率 (t, kW)</text>
+    <text x="230" y="98">依 00／15／30／45 分切齊分桶</text>
+    <text x="230" y="117" font-size="12">key = t 減去 minute mod 15，秒歸零</text>
+    <text x="230" y="195">區間樣本 ≥ 15 筆？</text>
+    <text x="230" y="272">區間平均 = 該區間需量</text>
+    <text x="230" y="291" font-size="12">Decimal，ROUND_HALF_UP 到 0.1 kW</text>
+    <text x="230" y="348">取最高需量 max(demand)</text>
+    <text x="230" y="367" font-size="12">範例：1,033.0 kW（10:30–10:45）</text>
+    <text x="230" y="445">最高需量 &gt; 契約容量？</text>
+    <text x="230" y="522">超約量 = 最高需量 − 契約容量</text>
+    <text x="230" y="541" font-size="12">10% 以內記 tier1，超過 10% 的部分記 tier2</text>
+    <text x="230" y="599" font-weight="700">加收 = tier1 × 單價 × 2 ＋ tier2 × 單價 × 3</text>
+    <text x="230" y="621" font-size="12">範例：133.0 = 90.0 ＋ 43.0 kW → NT$ 72,986（假設單價）</text>
+    <text x="607" y="186" font-weight="700">ValueError：區間缺漏</text>
+    <text x="607" y="205" font-size="12">用 kWh 回推或標記，不用剩餘筆數平均</text>
+    <text x="607" y="436" font-weight="700">未超約</text>
+    <text x="607" y="455" font-size="12">只計流動電費與基本電費</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="392" y="182">否</text>
+    <text x="238" y="242">是</text>
+    <text x="392" y="432">否</text>
+    <text x="238" y="492">是</text>
+  </g>
+</svg>

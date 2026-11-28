@@ -101,7 +101,155 @@ curl -i -X PUT -H 'Content-Type: application/json' -H 'If-Match: "1"' \
 </ul>
 <p>校閱：<time datetime="2026-11-27">2026-11-27</time>。公開教材只有靜態頁面；HTTP 呼叫需自行啟動上面的本機服務。</p>
 </section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節從伺服器端定義契約。本節換到用戶端：BAS 整合程式呼叫別人的 API 時，怎麼處理分頁、限流與維護中的回應，以及哪些請求絕對不能自動重試。</p><h3>可實跑範例：分頁讀取與 Retry-After 退避</h3><p>程式在本機啟動一個模擬設備清冊 API，第 2、3 次呼叫分別回 429 與 503。用戶端依 Retry-After 退避後重試 GET，最後讀完 11 台設備；POST 收到 503 則直接回報，不自動重送。等待時間只記錄不實際等待，讓輸出可重現。</p><p><a class="button" download href="extensions/python_restful_api_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;REST 用戶端：分頁讀取、429／503 依 Retry-After 退避、非冪等請求不自動重試（標準函式庫）。
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節從伺服器端定義契約。本節換到用戶端：BAS 整合程式呼叫別人的 API 時，怎麼處理分頁、限流與維護中的回應，以及哪些請求絕對不能自動重試。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 580" role="img" aria-labelledby="dg-rss-title dg-rss-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-rss-title">兩位編輯者從版本 1 開始更新的序列圖</title>
+  <desc id="dg-rss-desc">對應正文第 02、03 節。編輯者 A 與 B 先後 GET /v1/devices/ahu-01，都拿到 ETag "1"。A 以 If-Match "1" 送出 PUT，API 在同一個更新邊界內比對版本，相符就寫入並把 revision 改成 2，回 200 與新表示，不附 ETag。B 隨後也以 If-Match "1" 送出 PUT，版本比對發現目前已是 2，不寫入，回 412 與 application/problem+json。B 必須重新 GET 取得 ETag "2"，看到 A 的修改後再決定是否重送，不能把 412 當暫時錯誤自動重試。缺少 If-Match 回 428，逗號清單或重複的 If-Match 欄位行回 400，兩者都不更新設備。</desc>
+  <defs>
+    <marker id="dg-rss-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 參與者 -->
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="20" y="12" width="140" height="44" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-blue" x="200" y="12" width="140" height="44" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="390" y="12" width="160" height="44" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="590" y="12" width="150" height="44" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="4 4" opacity=".6">
+    <line x1="90" y1="56" x2="90" y2="500"/>
+    <line x1="270" y1="56" x2="270" y2="500"/>
+    <line x1="470" y1="56" x2="470" y2="500"/>
+    <line x1="665" y1="56" x2="665" y2="500"/>
+  </g>
+  <!-- 請求（實線） -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-rss-arrow)">
+    <line x1="90" y1="92" x2="468" y2="92"/>
+    <line x1="270" y1="150" x2="468" y2="150"/>
+    <line x1="90" y1="212" x2="468" y2="212"/>
+    <line x1="470" y1="236" x2="663" y2="236"/>
+    <line x1="270" y1="322" x2="468" y2="322"/>
+    <line x1="470" y1="346" x2="663" y2="346"/>
+    <line x1="270" y1="432" x2="468" y2="432"/>
+  </g>
+  <!-- 回應（虛線） -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-rss-arrow)">
+    <line x1="470" y1="116" x2="92" y2="116"/>
+    <line x1="470" y1="174" x2="272" y2="174"/>
+    <line x1="470" y1="456" x2="272" y2="456"/>
+  </g>
+  <g stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-rss-arrow)">
+    <line class="dg-line-green" x1="665" y1="260" x2="472" y2="260" stroke="#2f9e5b"/>
+    <line class="dg-line-green" x1="470" y1="284" x2="92" y2="284" stroke="#2f9e5b"/>
+    <line class="dg-line-red" x1="665" y1="370" x2="472" y2="370" stroke="#d64545"/>
+    <line class="dg-line-red" x1="470" y1="394" x2="272" y2="394" stroke="#d64545"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="90" y="39" font-weight="700">編輯者 A</text>
+    <text x="270" y="39" font-weight="700">編輯者 B</text>
+    <text x="470" y="31" font-weight="700">API 契約層</text>
+    <text x="470" y="48" font-size="12">If-Match 格式檢查</text>
+    <text x="665" y="31" font-weight="700">版本儲存</text>
+    <text x="665" y="48" font-size="12">比對與提交同一步</text>
+  </g>
+  <g fill="currentColor" font-size="12" text-anchor="middle">
+    <text x="370" y="87">GET /v1/devices/ahu-01</text>
+    <text x="370" y="111">200，ETag: "1"</text>
+    <text x="370" y="145">GET（同一資源）</text>
+    <text x="370" y="169">200，ETag: "1"</text>
+    <text x="370" y="207">PUT，If-Match: "1"</text>
+    <text x="567" y="231">revision == 1？</text>
+    <text x="567" y="255">相符：寫入，revision = 2</text>
+    <text x="370" y="279">200 新表示（不附 ETag）</text>
+    <text x="370" y="317">PUT，If-Match: "1"</text>
+    <text x="567" y="341">revision == 1？</text>
+    <text x="567" y="365">不符（已是 2）：不寫入</text>
+    <text x="370" y="389">412，problem+json</text>
+    <text x="370" y="427">重新 GET</text>
+    <text x="370" y="451">200，ETag: "2"</text>
+  </g>
+  <rect class="dg-box" x="20" y="512" width="720" height="56" rx="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" font-size="12" text-anchor="middle">
+    <text x="380" y="535">缺 If-Match → 428；逗號清單或重複的 If-Match 欄位行 → 400；兩者都不更新設備。</text>
+    <text x="380" y="555">412 不是暫時錯誤：不可自動重試，要比對最新表示後，以新標籤重送。</text>
+  </g>
+</svg><figcaption><strong>序列圖｜兩人從版本 1 開始更新</strong>：對應正文第 02、03 節：版本比對與提交在同一個更新邊界內完成，先到的 PUT 把 revision 改成 2，後到的 PUT 以舊標籤送出就收到 412，不會蓋掉前一次修改。成功的 PUT 不附 ETag，需要新標籤時再 GET。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 700" role="img" aria-labelledby="dg-rrf-title dg-rrf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-rrf-title">request() 重試決策流程圖</title>
+  <desc id="dg-rrf-desc">對應延伸範例的 request()。每次嘗試送出請求，逾時 5 秒。2xx 直接回傳 JSON。不是 429 或 503 的錯誤，例如 400、401、404，立即拋出 HTTPError。是 429 或 503 但方法不是冪等的 GET、HEAD、PUT、DELETE，例如 POST，也直接拋出，因為伺服器可能已經處理，重送會建立重複資料。已達 max_attempts 時拋出，寧可明確失敗也不產生不完整的報表。否則計算延遲：Retry-After 是秒數就用秒數，是 HTTP 日期就換算與現在的差，過去的日期取 0，缺少或格式無效時退避 2 的 attempt 減 1 次方秒。延遲超過 max_wait 30 秒時拋出，交由排程延後，不截短伺服器要求的等待。其餘情況記錄並等待延遲，attempt 加 1 後回到送出請求。範例中第 2、3 次呼叫分別收到 429 與 503，各等待 2 秒後成功。</desc>
+  <defs>
+    <marker id="dg-rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="60" y="12" width="340" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,88 360,120 230,152 100,120"/>
+    <polygon class="dg-box" points="230,180 360,212 230,244 100,212"/>
+    <polygon class="dg-box" points="230,268 400,304 230,340 60,304"/>
+    <polygon class="dg-box" points="230,364 370,396 230,428 90,396"/>
+    <rect class="dg-box" x="60" y="456" width="340" height="70" rx="6"/>
+    <polygon class="dg-box" points="230,554 370,586 230,618 90,586"/>
+    <rect class="dg-box" x="60" y="646" width="340" height="42" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="450" y="98" width="295" height="44" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="450" y="178" width="295" height="250" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="450" y="562" width="295" height="48" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-rrf-arrow)">
+    <line x1="230" y1="60" x2="230" y2="86"/>
+    <line x1="230" y1="152" x2="230" y2="178"/>
+    <line x1="230" y1="244" x2="230" y2="266"/>
+    <line x1="230" y1="340" x2="230" y2="362"/>
+    <line x1="230" y1="428" x2="230" y2="454"/>
+    <line x1="230" y1="526" x2="230" y2="552"/>
+    <line x1="230" y1="618" x2="230" y2="644"/>
+    <line x1="360" y1="120" x2="448" y2="120"/>
+    <line x1="360" y1="212" x2="448" y2="212"/>
+    <line x1="400" y1="304" x2="448" y2="304"/>
+    <line x1="370" y1="396" x2="448" y2="396"/>
+    <line x1="370" y1="586" x2="448" y2="586"/>
+    <polyline points="60,667 30,667 30,36 58,36"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="33" font-weight="700">送出請求（attempt n）</text>
+    <text x="230" y="50" font-size="12">urllib，逾時 5 秒，不繼承系統代理</text>
+    <text x="230" y="125">回應 2xx？</text>
+    <text x="230" y="217">429 或 503？</text>
+    <text x="230" y="300">冪等方法？</text>
+    <text x="230" y="317" font-size="12">GET／HEAD／PUT／DELETE</text>
+    <text x="230" y="401">attempt = max_attempts？</text>
+    <text x="230" y="478" font-weight="700">計算 delay</text>
+    <text x="230" y="497" font-size="12">Retry-After 秒數，或 HTTP 日期 − 現在（過去取 0）</text>
+    <text x="230" y="515" font-size="12">缺少或格式無效：退避 2^(n−1) 秒</text>
+    <text x="230" y="591">delay &gt; max_wait（30 秒）？</text>
+    <text x="230" y="672">記錄 (狀態碼, delay) 並等待，n + 1</text>
+    <text x="597" y="125" font-weight="700">回傳 JSON</text>
+    <text x="597" y="202" font-weight="700">拋出 HTTPError，不再重送</text>
+    <text x="597" y="583" font-weight="700">拋出：交給排程延後</text>
+    <text x="597" y="601" font-size="12">不截短伺服器要求的等待</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="462" y="232">非 429／503（400、401、404…）：</text>
+    <text x="462" y="250">請求本身有誤，重送也一樣</text>
+    <text x="462" y="324">非冪等（POST、PATCH）：</text>
+    <text x="462" y="342">可能已提交，重送會重複建立</text>
+    <text x="462" y="416">已達上限：明確失敗，不交半套報表</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="372" y="112">是</text>
+    <text x="238" y="170">否</text>
+    <text x="372" y="204">否</text>
+    <text x="238" y="262">是</text>
+    <text x="410" y="296">否</text>
+    <text x="238" y="354">是</text>
+    <text x="382" y="388">是</text>
+    <text x="238" y="446">否</text>
+    <text x="382" y="578">是</text>
+    <text x="238" y="636">否</text>
+    <text x="36" y="350">重試</text>
+  </g>
+</svg><figcaption><strong>流程圖｜request() 重試決策</strong>：對應延伸範例的 request()：只有 429／503 且方法冪等、未達次數上限、等待時間在預算內，才記錄延遲後重試；其餘情況一律拋出，讓呼叫端明確失敗或交由排程延後。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：分頁讀取與 Retry-After 退避</h3><p>程式在本機啟動一個模擬設備清冊 API，第 2、3 次呼叫分別回 429 與 503。用戶端依 Retry-After 退避後重試 GET，最後讀完 11 台設備；POST 收到 503 則直接回報，不自動重送。等待時間只記錄不實際等待，讓輸出可重現。</p><p><a class="button" download href="extensions/python_restful_api_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;REST 用戶端：分頁讀取、429／503 依 Retry-After 退避、非冪等請求不自動重試（標準函式庫）。
 
 程式在本機啟動一個模擬設備清冊 API（127.0.0.1 隨機埠），用 urllib 呼叫它。
 等待時間記錄下來而不是真的 sleep，讓輸出可重現。
@@ -208,7 +356,7 @@ if __name__ == &quot;__main__&quot;:
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；會暫時佔用一個本機埠</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>共讀到 11 台設備，告警中：[&#x27;AHU-04&#x27;, &#x27;AHU-08&#x27;]
 重試紀錄（狀態碼, 等待秒數）：[(429, 2), (503, 2)]
 伺服器實際收到 GET 次數：5
-POST 收到 503，Retry-After=5；非冪等請求不自動重試，交由使用者確認</code></pre><h3>工程現場案例：能源平台 API 限流，夜間報表少了一半設備</h3><p>某專案每晚從雲端能源平台 API 抓所有電表資料產生日報。平台改版後加了每分鐘請求上限，超過時回 429 與 Retry-After。原本的程式遇到非 200 就跳過該頁，於是報表靜悄悄地少了一半電表，持續兩週才被發現。</p><p>修正方式是把錯誤分成三類：可重試（429、503）依 Retry-After 退避；不可重試（400、401、404）立即失敗並告警；結果不明（POST 逾時）不自動重送，改用查詢確認是否已建立。最後再比對抓到的筆數與清冊總數，不一致就讓排程失敗。</p><ol><li>列出整合會用到的每個端點與方法，標註是否冪等（GET、PUT、DELETE 是；POST、PATCH 預設不是）。</li><li>設定重試次數及等待預算；伺服器要求的延遲超出預算就停止或延後排程，不能把延遲截短後提前重送。</li><li>寫入類請求帶冪等鍵（例如 Idempotency-Key 標頭或用戶端產生的 ID），讓伺服器能辨識重送。</li><li>排程結束前驗證完整性：筆數、最後時間戳、各分頁是否都成功，任何一項不符就回非零結束碼。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>錯誤回應格式建議採 RFC 9457 Problem Details（application/problem+json），它在 2023 年取代 RFC 7807，欄位包含 type、title、status、detail、instance。用戶端應先依 HTTP 狀態碼判斷，再讀 detail 給人看。 <a href="https://www.rfc-editor.org/rfc/rfc9457">來源：RFC 9457</a></li><li>冪等方法的定義以 RFC 9110 第 9.2.2 節為準：PUT、DELETE 與安全方法（GET、HEAD、OPTIONS、TRACE）是冪等的。 <a href="https://www.rfc-editor.org/rfc/rfc9110#section-9.2.2">來源：RFC 9110 §9.2.2</a> <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3">來源：RFC 9110 §10.2.3</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>範例的 GET 被呼叫了 5 次，但只有 3 頁資料。多出來的 2 次是哪裡來的？</p><details><summary>看解答</summary><p>第 2 次呼叫收到 429、第 3 次收到 503，都是同一頁（offset=5）的重試。成功的是第 1、4、5 次，分別取得 offset 0、5、10 三頁。</p></details></li><li><p>Retry-After 是 HTTP 日期、已過期或超出等待預算時，各怎麼處理？</p><details><summary>看解答</summary><p>HTTP 日期換算成 UTC 時差；過去日期以零秒計，格式無效才用本地退避策略。若超過等待預算，停止或交給排程延後，不截短伺服器的等待要求。</p></details></li><li><p>為什麼 POST 收到 503 不應自動重試？什麼條件下可以？</p><details><summary>看解答</summary><p>POST 不是冪等的，伺服器可能已經處理但回應失敗，重送會建立重複資料。若 API 支援冪等鍵，用戶端每次重送都帶同一個鍵，伺服器就能辨識並回傳第一次的結果，這時才可以安全重試。</p></details></li><li><p>把 request() 的 max_attempts 改成 2，執行結果會變成什麼？</p><details><summary>看解答</summary><p>offset=5 那頁第一次收到 429，重試一次又收到 503，已達上限，HTTPError 會向外拋出，程式在分頁迴圈中中止。這正是希望的行為：與其產生不完整的報表，不如明確失敗。</p></details></li></ol></section><!-- extension:end -->
+POST 收到 503，Retry-After=5；非冪等請求不自動重試，交由使用者確認</code></pre><h3>工程現場案例：能源平台 API 限流，夜間報表少了一半設備</h3><p>某專案每晚從雲端能源平台 API 抓所有電表資料產生日報。平台改版後加了每分鐘請求上限，超過時回 429 與 Retry-After。原本的程式遇到非 200 就跳過該頁，於是報表靜悄悄地少了一半電表，持續兩週才被發現。</p><p>修正方式是把錯誤分成三類：可重試（429、503）依 Retry-After 退避；不可重試（400、401、404）立即失敗並告警；結果不明（POST 逾時）不自動重送，改用查詢確認是否已建立。最後再比對抓到的筆數與清冊總數，不一致就讓排程失敗。</p><ol><li>列出整合會用到的每個端點與方法，標註是否冪等（GET、PUT、DELETE 是；POST、PATCH 預設不是）。</li><li>設定重試次數及等待預算；伺服器要求的延遲超出預算就停止或延後排程，不能把延遲截短後提前重送。</li><li>寫入類請求帶冪等鍵（例如 Idempotency-Key 標頭或用戶端產生的 ID），讓伺服器能辨識重送。</li><li>排程結束前驗證完整性：筆數、最後時間戳、各分頁是否都成功，任何一項不符就回非零結束碼。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>錯誤回應格式建議採 RFC 9457 Problem Details（application/problem+json），它在 2023 年取代 RFC 7807，欄位包含 type、title、status、detail、instance。用戶端應先依 HTTP 狀態碼判斷，再讀 detail 給人看。 <a href="https://www.rfc-editor.org/rfc/rfc9457">來源：RFC 9457</a></li><li>冪等方法的定義以 RFC 9110 第 9.2.2 節為準：PUT、DELETE 與安全方法（GET、HEAD、OPTIONS、TRACE）是冪等的。 <a href="https://www.rfc-editor.org/rfc/rfc9110#section-9.2.2">來源：RFC 9110 §9.2.2</a> <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3">來源：RFC 9110 §10.2.3</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>範例的 GET 被呼叫了 5 次，但只有 3 頁資料。多出來的 2 次是哪裡來的？</p><details><summary>看解答</summary><p>第 2 次呼叫收到 429、第 3 次收到 503，都是同一頁（offset=5）的重試。成功的是第 1、4、5 次，分別取得 offset 0、5、10 三頁。</p></details></li><li><p>Retry-After 是 HTTP 日期、已過期或超出等待預算時，各怎麼處理？</p><details><summary>看解答</summary><p>HTTP 日期換算成 UTC 時差；過去日期以零秒計，格式無效才用本地退避策略。若超過等待預算，停止或交給排程延後，不截短伺服器的等待要求。</p></details></li><li><p>為什麼 POST 收到 503 不應自動重試？什麼條件下可以？</p><details><summary>看解答</summary><p>POST 不是冪等的，伺服器可能已經處理但回應失敗，重送會建立重複資料。若 API 支援冪等鍵，用戶端每次重送都帶同一個鍵，伺服器就能辨識並回傳第一次的結果，這時才可以安全重試。</p></details></li><li><p>把 request() 的 max_attempts 改成 2，執行結果會變成什麼？</p><details><summary>看解答</summary><p>offset=5 那頁第一次收到 429，重試一次又收到 503，已達上限，HTTPError 會向外拋出，程式在分頁迴圈中中止。這正是希望的行為：與其產生不完整的報表，不如明確失敗。</p></details></li><li><p>若伺服器第 2 次呼叫回 429 並帶 Retry-After: 120，範例的分頁迴圈會怎樣？讀到幾台設備？</p><details><summary>看解答</summary><p>120 秒超過 max_wait（30 秒），request() 不會把等待截短成 30 秒後提前重送，而是直接拋出 HTTPError(429)。實際執行（把第 2 次呼叫改成回 Retry-After: 120）的結果：只讀到第一頁 5 台、waits 是空清單、伺服器收到 2 次 GET。排程應記錄伺服器要求的等待時間並延後整批工作，而不是把 5 台當成完整清冊產生報表。</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <script>

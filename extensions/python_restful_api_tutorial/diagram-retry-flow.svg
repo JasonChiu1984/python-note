@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 700" role="img" aria-labelledby="dg-rrf-title dg-rrf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-rrf-title">request() 重試決策流程圖</title>
+  <desc id="dg-rrf-desc">對應延伸範例的 request()。每次嘗試送出請求，逾時 5 秒。2xx 直接回傳 JSON。不是 429 或 503 的錯誤，例如 400、401、404，立即拋出 HTTPError。是 429 或 503 但方法不是冪等的 GET、HEAD、PUT、DELETE，例如 POST，也直接拋出，因為伺服器可能已經處理，重送會建立重複資料。已達 max_attempts 時拋出，寧可明確失敗也不產生不完整的報表。否則計算延遲：Retry-After 是秒數就用秒數，是 HTTP 日期就換算與現在的差，過去的日期取 0，缺少或格式無效時退避 2 的 attempt 減 1 次方秒。延遲超過 max_wait 30 秒時拋出，交由排程延後，不截短伺服器要求的等待。其餘情況記錄並等待延遲，attempt 加 1 後回到送出請求。範例中第 2、3 次呼叫分別收到 429 與 503，各等待 2 秒後成功。</desc>
+  <defs>
+    <marker id="dg-rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="60" y="12" width="340" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,88 360,120 230,152 100,120"/>
+    <polygon class="dg-box" points="230,180 360,212 230,244 100,212"/>
+    <polygon class="dg-box" points="230,268 400,304 230,340 60,304"/>
+    <polygon class="dg-box" points="230,364 370,396 230,428 90,396"/>
+    <rect class="dg-box" x="60" y="456" width="340" height="70" rx="6"/>
+    <polygon class="dg-box" points="230,554 370,586 230,618 90,586"/>
+    <rect class="dg-box" x="60" y="646" width="340" height="42" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="450" y="98" width="295" height="44" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="450" y="178" width="295" height="250" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="450" y="562" width="295" height="48" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-rrf-arrow)">
+    <line x1="230" y1="60" x2="230" y2="86"/>
+    <line x1="230" y1="152" x2="230" y2="178"/>
+    <line x1="230" y1="244" x2="230" y2="266"/>
+    <line x1="230" y1="340" x2="230" y2="362"/>
+    <line x1="230" y1="428" x2="230" y2="454"/>
+    <line x1="230" y1="526" x2="230" y2="552"/>
+    <line x1="230" y1="618" x2="230" y2="644"/>
+    <line x1="360" y1="120" x2="448" y2="120"/>
+    <line x1="360" y1="212" x2="448" y2="212"/>
+    <line x1="400" y1="304" x2="448" y2="304"/>
+    <line x1="370" y1="396" x2="448" y2="396"/>
+    <line x1="370" y1="586" x2="448" y2="586"/>
+    <polyline points="60,667 30,667 30,36 58,36"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="33" font-weight="700">送出請求（attempt n）</text>
+    <text x="230" y="50" font-size="12">urllib，逾時 5 秒，不繼承系統代理</text>
+    <text x="230" y="125">回應 2xx？</text>
+    <text x="230" y="217">429 或 503？</text>
+    <text x="230" y="300">冪等方法？</text>
+    <text x="230" y="317" font-size="12">GET／HEAD／PUT／DELETE</text>
+    <text x="230" y="401">attempt = max_attempts？</text>
+    <text x="230" y="478" font-weight="700">計算 delay</text>
+    <text x="230" y="497" font-size="12">Retry-After 秒數，或 HTTP 日期 − 現在（過去取 0）</text>
+    <text x="230" y="515" font-size="12">缺少或格式無效：退避 2^(n−1) 秒</text>
+    <text x="230" y="591">delay &gt; max_wait（30 秒）？</text>
+    <text x="230" y="672">記錄 (狀態碼, delay) 並等待，n + 1</text>
+    <text x="597" y="125" font-weight="700">回傳 JSON</text>
+    <text x="597" y="202" font-weight="700">拋出 HTTPError，不再重送</text>
+    <text x="597" y="583" font-weight="700">拋出：交給排程延後</text>
+    <text x="597" y="601" font-size="12">不截短伺服器要求的等待</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="462" y="232">非 429／503（400、401、404…）：</text>
+    <text x="462" y="250">請求本身有誤，重送也一樣</text>
+    <text x="462" y="324">非冪等（POST、PATCH）：</text>
+    <text x="462" y="342">可能已提交，重送會重複建立</text>
+    <text x="462" y="416">已達上限：明確失敗，不交半套報表</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="372" y="112">是</text>
+    <text x="238" y="170">否</text>
+    <text x="372" y="204">否</text>
+    <text x="238" y="262">是</text>
+    <text x="410" y="296">否</text>
+    <text x="238" y="354">是</text>
+    <text x="382" y="388">是</text>
+    <text x="238" y="446">否</text>
+    <text x="382" y="578">是</text>
+    <text x="238" y="636">否</text>
+    <text x="36" y="350">重試</text>
+  </g>
+</svg>
