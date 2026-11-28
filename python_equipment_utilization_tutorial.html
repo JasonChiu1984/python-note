@@ -148,7 +148,7 @@ if __name__ == &quot;__main__&quot;:
                   for scope, value in counts.items()}
         print(json.dumps(dict(result=result, trace=trace), default=str,
                          ensure_ascii=False, indent=2))
-</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到完整的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段對結果的影響。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown，不放進分母。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
+</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節分開狀態資料涵蓋率、全窗可用率區間與全窗 OEE，不把不同時間範圍的資料混在同一個分式。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>由狀態事件計算已知運轉占比與全窗可用率區間。若獨立計數器能證明良品涵蓋整個計畫窗，才用良品數 × 理想節拍 ÷ 全窗計畫秒數計算全窗 OEE。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
 from datetime import datetime, timedelta
 
 PLANNED = (datetime(2026, 11, 20, 8, 0), datetime(2026, 11, 20, 16, 0))   # 計畫生產 8 小時
@@ -158,7 +158,7 @@ EVENTS = [                     # (開始時間, 狀態)；狀態持續到下一�
     (&quot;12:20&quot;, &quot;run&quot;), (&quot;14:05&quot;, &quot;stop_fault&quot;), (&quot;14:50&quot;, &quot;run&quot;),
 ]
 IDEAL_CYCLE_S = 30            # 理想節拍：每件 30 秒
-GOOD, TOTAL = 690, 720        # 良品數、總產出
+GOOD, TOTAL = 690, 720        # 由獨立計數器確認涵蓋整個計畫窗的良品與總產出
 
 
 def durations():
@@ -171,6 +171,15 @@ def durations():
     return acc
 
 
+def full_window_oee(planned_seconds, good, ideal_cycle_s, *, counts_cover_window):
+    &quot;&quot;&quot;只用同一計畫窗內、覆蓋已核實的良品數；無法核實則不報。&quot;&quot;&quot;
+    if planned_seconds &lt;= 0 or ideal_cycle_s &lt;= 0 or good &lt; 0:
+        raise ValueError(&quot;計畫秒數與理想節拍須為正，良品數不得為負&quot;)
+    if not counts_cover_window:
+        return None
+    return good * ideal_cycle_s / planned_seconds
+
+
 if __name__ == &quot;__main__&quot;:
     acc = durations()
     planned = PLANNED[1] - PLANNED[0]
@@ -179,23 +188,25 @@ if __name__ == &quot;__main__&quot;:
     unknown = acc.get(&quot;unknown&quot;, timedelta())
     run = acc.get(&quot;run&quot;, timedelta())
     known = planned - unknown
-    availability = run / known
-    performance = TOTAL * IDEAL_CYCLE_S / run.total_seconds()
-    quality = GOOD / TOTAL
-    print(f&quot;未知時段 {unknown}（占計畫 {unknown / planned:.1%}），不列入分母也不算停機&quot;)
-    print(f&quot;可用率 A = {run} ÷ {known} = {availability:.1%}&quot;)
-    print(f&quot;效能 P = {TOTAL} × {IDEAL_CYCLE_S}s ÷ {run} = {performance:.1%}&quot;)
-    print(f&quot;品質 Q = {GOOD} ÷ {TOTAL} = {quality:.1%}&quot;)
-    print(f&quot;OEE = {availability * performance * quality:.1%}&quot;)
-    print(f&quot;若把未知當停機：A = {run / planned:.1%}，OEE = {run / planned * performance * quality:.1%}&quot;)
+    print(f&quot;未知時段 {unknown}；狀態涵蓋率 {known / planned:.1%}&quot;)
+    if known:
+        print(f&quot;已知時段的運轉占比 = {run} ÷ {known} = {run / known:.1%}&quot;)
+    else:
+        print(&quot;已知時段的運轉占比：無法計算&quot;)
+    print(f&quot;全窗可用率範圍：{run / planned:.1%}～{(run + unknown) / planned:.1%}&quot;)
+    print(f&quot;全窗品質 Q = {GOOD} ÷ {TOTAL} = {GOOD / TOTAL:.1%}&quot;)
+    oee = full_window_oee(planned.total_seconds(), GOOD, IDEAL_CYCLE_S,
+                          counts_cover_window=True)  # 本合成案例的前提，不是由回授推得
+    print(f&quot;全窗 OEE = {GOOD} × {IDEAL_CYCLE_S}s ÷ {planned.total_seconds():.0f}s = {oee:.1%}&quot;)
+    print(&quot;有未知運轉時間，不混用全窗件數與已知運轉時間估算效能 P。&quot;)
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>run               6:25:00
 stop_changeover   0:30:00
 stop_fault        0:45:00
 unknown           0:20:00
-未知時段 0:20:00（占計畫 4.2%），不列入分母也不算停機
-可用率 A = 6:25:00 ÷ 7:40:00 = 83.7%
-效能 P = 720 × 30s ÷ 6:25:00 = 93.5%
-品質 Q = 690 ÷ 720 = 95.8%
-OEE = 75.0%
-若把未知當停機：A = 80.2%，OEE = 71.9%</code></pre><h3>工程現場案例：OEE 因通訊中斷被低估 3 個百分點</h3><p>範例中閘道器在 12:00–12:20 斷線。若把這 20 分鐘當成停機，可用率從 83.7% 降到 80.2%，OEE 從 75.0% 降到 71.9%。這 3 個百分點會讓產線看起來比實際差，也可能讓維修團隊去追一個不存在的故障。</p><p>反過來，若把斷線期間當成運轉，同樣會高估。正確做法是單獨列出 unknown，並在報表上寫明涵蓋率；unknown 比例過高時，先處理資料收集問題，再談改善稼動率。</p><ol><li>確認狀態訊號來源：PLC 的運轉位元、電流門檻，或 MES 的工單狀態，各自的延遲與可靠度不同。</li><li>停機原因代碼要在現場輸入或由 PLC 給出，不要事後在報表上補。</li><li>理想節拍以設備規格或最佳實績為準，並在報表上註明，避免各班別用不同標準。</li><li>unknown 比例超過 2% 時，先檢查閘道器、網路與緩衝設定。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OEE 與可用率、效能、品質的定義可參考 ISO 22400-2（製造營運管理 KPI）。各公司常有自己的口徑，例如計畫停機是否列入分母，報表必須寫明採用哪一種。 <a href="https://www.iso.org/standard/54497.html">來源：ISO 22400-2</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若理想節拍改成 28 秒，效能與 OEE 會變成多少？</p><details><summary>看解答</summary><p>P = 720 × 28 ÷ 23,100 = 87.3%；OEE = 83.7% × 87.3% × 95.8% ≈ 70.0%。理想節拍越嚴格，效能越低，所以跨產線比較時必須用相同的節拍定義。</p></details></li><li><p>效能 P 有可能超過 100% 嗎？如果出現，代表什麼？</p><details><summary>看解答</summary><p>計算上可能，但通常代表理想節拍設得太寬鬆、產出計數重複，或運轉時間少算（例如 unknown 期間其實在生產）。應檢查資料而不是接受超過 100% 的結果。</p></details></li><li><p>修改 EVENTS，讓 14:05 的故障停機改為 14:05–14:20 故障、14:20–14:50 待料，結果哪些數字會變？</p><details><summary>看解答</summary><p>只有狀態分類變了（stop_fault 15 分鐘、新增 30 分鐘待料），運轉時間不變，所以 A、P、Q 與 OEE 都不變。差別在停機原因分析：故障與待料的改善對象完全不同。</p></details></li><li><p>為什麼 durations() 要把 PLANNED 的結束時間加到時間清單最後？</p><details><summary>看解答</summary><p>最後一筆事件（14:50 run）沒有下一筆事件可以當結束時間，必須用計畫結束時間 16:00 截斷，否則最後一段運轉時間會漏算。</p></details></li></ol></section><!-- extension:end -->
+未知時段 0:20:00；狀態涵蓋率 95.8%
+已知時段的運轉占比 = 6:25:00 ÷ 7:40:00 = 83.7%
+全窗可用率範圍：80.2%～84.4%
+全窗品質 Q = 690 ÷ 720 = 95.8%
+全窗 OEE = 690 × 30s ÷ 28800s = 71.9%
+有未知運轉時間，不混用全窗件數與已知運轉時間估算效能 P。</code></pre><h3>工程現場案例：閘道器斷線不代表 OEE 上升或下降</h3><p>範例在 12:00–12:20 斷線。狀態涵蓋率 460 ÷ 480 = 95.8%，已知運轉占比 385 ÷ 460 = 83.7%；全窗可用率可能是 80.2%～84.4%，取決於未知時段實際是否運轉。這不是把未知判成停機或運轉。</p><p>如果獨立計數確認同一個 480 分鐘計畫窗共生產 690 件良品，且單一產品的理想節拍為 30 秒，則合計 OEE = 690 × 30 ÷ 28,800 = 71.875%。這不表示未知時段全停；若不能確認件數涵蓋同一窗，就先不報全窗 OEE。</p><ol><li>確認狀態訊號來源：PLC 的運轉位元、電流門檻，或 MES 的工單狀態，各自的延遲與可靠度不同。</li><li>停機原因代碼要在現場輸入或由 PLC 給出，不要事後在報表上補。</li><li>理想節拍以設備規格或最佳實績為準，並在報表上註明，避免各班別用不同標準。</li><li>依報表用途設定未知比例告警；超過內部門檻先查閘道器、網路與緩衝，不把未確認資料填成 0。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OEE 與可用率、效能、品質的定義可參考 ISO 22400-2（製造營運管理 KPI）。各公司常有自己的口徑，例如計畫停機是否列入分母，報表必須寫明採用哪一種。 <a href="https://www.iso.org/standard/54497.html">來源：ISO 22400-2</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>理想節拍改成 28 秒，或回授缺口從 20 分鐘延長到 60 分鐘，會改變哪些數字？</p><details><summary>看解答</summary><p>節拍改為 28 秒，若其餘條件相同，OEE = 690 × 28 ÷ 28,800 ≈ 67.1%。只延長回授缺口且全窗良品仍經獨立計數核實時，狀態涵蓋率、可用率區間會變，但 30 秒節拍下全窗 OEE 仍為 71.875%；若全窗良品證據也遺失，就不報全窗 OEE。</p></details></li><li><p>效能 P 有可能超過 100% 嗎？如果出現，代表什麼？</p><details><summary>看解答</summary><p>計算上可能，但通常代表理想節拍設得太寬鬆、產出計數重複，或運轉時間少算（例如 unknown 期間其實在生產）。應檢查資料而不是接受超過 100% 的結果。</p></details></li><li><p>修改 EVENTS，讓 14:05 的故障停機改為 14:05–14:20 故障、14:20–14:50 待料，結果哪些數字會變？</p><details><summary>看解答</summary><p>只改停機原因分類，不改已知運轉時間或未知時間，也不改全窗良品與節拍；因此已知運轉占比、可用率區間、品質與全窗 OEE 都不變。</p></details></li><li><p>為什麼 durations() 要把 PLANNED 的結束時間加到時間清單最後？</p><details><summary>看解答</summary><p>最後一筆事件（14:50 run）沒有下一筆事件可以當結束時間，必須用計畫結束時間 16:00 截斷，否則最後一段運轉時間會漏算。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>
