@@ -97,7 +97,124 @@ if __name__ == &quot;__main__&quot;:
         print(&quot;接收後 10 ms:&quot;, quality(sample, .010, 0, .060))
         print(&quot;接收後 80 ms:&quot;, quality(sample, .080, 0, .060))</code></pre></details><p>測試涵蓋正負溫度、錯誤長度、感測無效和恰達過期邊界。此例只檢查相同本機時鐘的接收年齡；未驗證來源時間、序號換屆或實際協定交換。</p></section>
 <section id="acceptance"><h2>07｜工控驗收：先單設備，再擴大</h2><ol><li>記錄機型、韌體、EDS、I/O 實例、位址、尺寸和設備支援的 RPI；保存手冊對照。</li><li>以隔離的試車台核對每一方向的已知輸入與狀態，檢查縮放、空值及品質傳遞。</li><li>增加預期負載，分別觀察 PLC 更新、網路及來源資料年齡；實測丟包、故障及重接前後的行為。</li><li>核准設備端故障行為和控制連續性後再主系統上線；任何安全功能另依對應合規流程驗證。</li></ol>
-<p>原始來源：<a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA EtherNet/IP 技術總覽</a> · <a href="https://www.odva.org/technology-standards/key-technologies/ethernet-ip/">ODVA EtherNet/IP</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf">ODVA EtherNet/IP Quick Start</a> · <a href="https://www.odva.org/publication_download/cip-security-at-a-glance-pub-319/">ODVA CIP Security</a>。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節不連實機，只用 struct 組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應，練習讀懂封包裡的位元組，並注意同一個封包裡 little-endian 與 big-endian 混用的位置。</p><h3>可實跑範例：封裝標頭與 ListIdentity 解析</h3><p>封裝標頭固定 24 位元組、全部 little-endian；Identity 項目中的 Socket Address 沿用 sockaddr_in，是 big-endian。程式也示範長度欄位與實際資料不符時直接拒絕。</p><p><a class="button" download href="extensions/python_ethernetip_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應（離線，標準函式庫 struct）。
+<p>原始來源：<a href="https://www.odva.org/publication_download/ethernet-ip-technology-overview/">ODVA EtherNet/IP 技術總覽</a> · <a href="https://www.odva.org/technology-standards/key-technologies/ethernet-ip/">ODVA EtherNet/IP</a> · <a href="https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf">ODVA EtherNet/IP Quick Start</a> · <a href="https://www.odva.org/publication_download/cip-security-at-a-glance-pub-319/">ODVA CIP Security</a>。</p></section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節不連實機，只用 struct 組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應，練習讀懂封包裡的位元組，並注意同一個封包裡 little-endian 與 big-endian 混用的位置。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 540" role="img" aria-labelledby="dg-eds-title dg-eds-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-eds-title">ListIdentity 唯讀盤點與之後需授權的連線序列圖</title>
+  <desc id="dg-eds-desc">三條生命線：Python 盤點工具、受控網段、EtherNet/IP 通訊模組。第一段是延伸範例示範的唯讀探索：工具以 UDP 44818 送出 24 位元組封裝標頭，命令 0x0063 ListIdentity，長度 0，不需要 session；模組回覆命令 0x0063、長度 51，內含一個 CPF 項目，型別 0x000C、長度 45，帶出 IP、廠商代碼、產品代碼、韌體版本、序號與產品名稱。工具收到後先用 parse_header() 核對 24 加 length 是否等於實際長度，不符就拒絕。第二段不在範例內，只在取得執行許可後進行：TCP 44818 的 RegisterSession，命令 0x0065，取得 session handle 後才能用顯式訊息讀屬性；隱式 I/O 還要經 Forward Open 協商連線與 RPI。</desc>
+  <defs>
+    <marker id="dg-eds-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="30" y="12" width="180" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="290" y="12" width="180" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="550" y="12" width="180" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-orange dg-dash" x="20" y="318" width="720" height="150" rx="8" stroke="#e07b1f" stroke-dasharray="6 4"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" fill="none">
+    <line x1="120" y1="60" x2="120" y2="500"/>
+    <line x1="380" y1="60" x2="380" y2="500"/>
+    <line x1="640" y1="60" x2="640" y2="500"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-eds-arrow)">
+    <line x1="120" y1="112" x2="638" y2="112"/>
+    <line x1="640" y1="182" x2="122" y2="182"/>
+    <polyline points="120,236 170,236 170,262 124,262"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-eds-arrow)">
+    <line x1="120" y1="370" x2="638" y2="370"/>
+    <line x1="120" y1="430" x2="638" y2="430"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="120" y="33" font-weight="700">Python 盤點工具</text>
+    <text x="120" y="51" font-size="12">只讀、不寫入</text>
+    <text x="380" y="33" font-weight="700">受控網段</text>
+    <text x="380" y="51" font-size="12">維護窗口、指定 VLAN</text>
+    <text x="640" y="33" font-weight="700">通訊模組（Target）</text>
+    <text x="640" y="51" font-size="12">範例：1756-EN2T/D</text>
+    <text x="380" y="102" font-size="12">① UDP 44818｜命令 0x0063 ListIdentity，length 0，session 0</text>
+    <text x="380" y="130" font-size="12">24 位元組封裝標頭，全部 little-endian；不需要 RegisterSession</text>
+    <text x="380" y="172" font-size="12">② 回覆 0x0063，length 51 ＝ CPF 前導 6 ＋ Identity 項目 45</text>
+    <text x="380" y="200" font-size="12">項目 0x000C：IP／埠（big-endian）、廠商、產品、韌體 11.002、序號、名稱</text>
+    <text x="380" y="342" font-weight="700">不在範例內：取得現場許可後才進行</text>
+    <text x="380" y="360" font-size="12">③ TCP 44818｜RegisterSession 0x0065 → 取得 session handle</text>
+    <text x="380" y="420" font-size="12">④ 顯式訊息讀屬性；隱式 I/O 另需 Forward Open 協商連線與 RPI</text>
+    <text x="380" y="452" font-size="12">路徑或資料型別錯誤可能影響控制器，盤點階段停在 ①②</text>
+    <text x="380" y="524" font-size="12">廣播可能被防火牆或交換器政策擋下；沒回應不等於沒有設備，要用單播逐台確認。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="182" y="240">自檢 parse_header()</text>
+    <text x="182" y="258">24 ＋ length ≠ 實長即拒絕</text>
+    <text x="182" y="276">截斷 3 B：51 vs 48</text>
+  </g>
+</svg><figcaption><strong>序列圖｜ListIdentity 唯讀盤點，之後的連線需另行授權</strong>：對應延伸範例：① 請求只有 24 位元組封裝標頭、length 0、不需 session；② 回應 length 51 是 CPF 前導 6 位元組加 Identity 項目 45 位元組；工具先自檢長度再解析。③④ 的 RegisterSession、顯式訊息與 Forward Open 不在範例內，取得現場許可後才進行。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-eqf-title dg-eqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-eqf-title">Assembly 資料解碼與接收品質判斷流程圖</title>
+  <desc id="dg-eqf-desc">對應正文第 06 節的 decode() 與 quality()。收到合成的 Assembly 資料後，先檢查長度是否等於教學映射的 8 位元組，不符就拋出 ValueError。接著以小端序 uint16 旗標、int16 的 0.01 °C、uint32 序號解碼。quality() 先檢查時間都是有限值、預算大於 0、接收時間不晚於現在，否則拋出 ValueError，因為必須使用同一個 monotonic 時鐘。現在減接收時間大於或等於 60 ms 預算時回傳 STALE；未過期時，SENSOR_VALID 位元為 0 回傳 BAD_SENSOR，為 1 回傳 GOOD。範例資料為 23.45 °C、風機運轉、序號 42：接收後 10 ms 為 GOOD，80 ms 為 STALE。</desc>
+  <defs>
+    <marker id="dg-eqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,118 220,152 40,118"/>
+    <rect class="dg-box" x="30" y="178" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,254 405,292 220,330 35,292"/>
+    <polygon class="dg-box" points="220,356 400,390 220,424 40,390"/>
+    <polygon class="dg-box" points="220,450 400,484 220,518 40,484"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="92" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="460" y="266" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="364" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="460" y="458" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="30" y="548" width="380" height="56" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-eqf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="400" y1="118" x2="458" y2="118"/>
+    <line x1="220" y1="152" x2="220" y2="176"/>
+    <line x1="220" y1="230" x2="220" y2="252"/>
+    <line x1="405" y1="292" x2="458" y2="292"/>
+    <line x1="220" y1="330" x2="220" y2="354"/>
+    <line x1="400" y1="390" x2="458" y2="390"/>
+    <line x1="220" y1="424" x2="220" y2="448"/>
+    <line x1="400" y1="484" x2="458" y2="484"/>
+    <line x1="220" y1="518" x2="220" y2="546"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">收到 Assembly 資料</text>
+    <text x="220" y="51" font-size="12">0300 2909 2a000000（合成）</text>
+    <text x="220" y="122" font-size="12">長度 ＝ LAYOUT.size（8 B）？</text>
+    <text x="220" y="200" font-weight="700">decode()：Struct("&lt;HhI")</text>
+    <text x="220" y="219" font-size="12">旗標 uint16、溫度 int16 × 0.01 °C、序號 uint32</text>
+    <text x="220" y="288" font-size="12">時間皆有限、預算 ＞ 0、</text>
+    <text x="220" y="305" font-size="12">received_at ≤ now？</text>
+    <text x="220" y="394" font-size="12">now − received_at ≥ 60 ms？</text>
+    <text x="220" y="488" font-size="12">SENSOR_VALID 位元 ＝ 1？</text>
+    <text x="220" y="571" font-weight="700">GOOD</text>
+    <text x="220" y="591" font-size="12">23.45 °C、風機運轉、序號 42（接收後 10 ms）</text>
+    <text x="602" y="114" font-weight="700">ValueError</text>
+    <text x="602" y="133" font-size="12">長度不符映射，不猜測欄位</text>
+    <text x="602" y="288" font-weight="700">ValueError</text>
+    <text x="602" y="307" font-size="12">須用同一個 monotonic 時鐘</text>
+    <text x="602" y="386" font-weight="700">STALE</text>
+    <text x="602" y="405" font-size="12">接收後 80 ms；恰好 60 ms 也算過期</text>
+    <text x="602" y="480" font-weight="700">BAD_SENSOR</text>
+    <text x="602" y="499" font-size="12">溫度回 None，風機狀態仍可用</text>
+    <text x="380" y="630" font-size="12">只量「多久沒收到」；來源值多舊要另看可信的來源時間戳與序號，RPI 不等於資料年齡。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="110">否</text>
+    <text x="228" y="170">是</text>
+    <text x="418" y="284">否</text>
+    <text x="228" y="346">是</text>
+    <text x="414" y="382">是</text>
+    <text x="228" y="440">否</text>
+    <text x="414" y="476">否</text>
+    <text x="228" y="538">是</text>
+  </g>
+</svg><figcaption><strong>流程圖｜Assembly 解碼與接收品質判斷</strong>：對應正文第 06 節的 decode() 與 quality()：長度不符或時間來源不一致都直接拋出例外；接收年齡達 60 ms（含恰好 60 ms）回 STALE，感測無效位元回 BAD_SENSOR，其餘才是 GOOD。這只檢查本機接收年齡，不代表來源值的新舊。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：封裝標頭與 ListIdentity 解析</h3><p>封裝標頭固定 24 位元組、全部 little-endian；Identity 項目中的 Socket Address 沿用 sockaddr_in，是 big-endian。程式也示範長度欄位與實際資料不符時直接拒絕。</p><p><a class="button" download href="extensions/python_ethernetip_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應（離線，標準函式庫 struct）。
 
 封裝標頭固定 24 位元組，全部為 little-endian：
 command(2) length(2) session_handle(4) status(4) sender_context(8) options(4)
@@ -171,5 +288,5 @@ CPF 項目數 1，型別 0x000C，長度 45
   serial        0x00C0FFEE
   product_name  1756-EN2T/D
   state         3
-截斷封包： 長度欄位 51 與實際資料 48 不符</code></pre><h3>工程現場案例：盤點現場 PLC 與通訊模組</h3><p>接手一個舊廠區時，常常沒有完整的 PLC 清冊。ListIdentity 是 EtherNet/IP 的唯讀探索指令（UDP 44818），回應包含廠商代碼、產品代碼、韌體版本、序號與產品名稱，可以在不改變設備狀態的前提下建立清冊，並找出韌體過舊、需要評估資安公告的模組。</p><p>即使是唯讀探索，也要在維護窗口、經現場同意後進行，並限制在指定網段。廣播封包可能被防火牆或交換器政策阻擋，結果不完整時要用單播逐台確認，不要直接當成「沒有設備」。</p><ol><li>取得網段清單與執行許可，確認不會影響控制網路的頻寬。</li><li>以單播或受控廣播送出 ListIdentity，記錄每台回應的 IP、廠商代碼、產品代碼、韌體版本與序號。</li><li>把韌體版本與廠商資安公告比對，列出需要升級或加強網路隔離的設備。</li><li>清冊與網路圖一起納入變更管理，之後每次異動都更新。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 Python 常用的 EtherNet/IP 套件版本：pycomm3 1.2.16、cpppo 5.8.0。存取 PLC 標籤前要確認套件支援的控制器系列與連線方式，並優先使用唯讀標籤。 <a href="https://pypi.org/project/pycomm3/">來源：PyPI：pycomm3</a> <a href="https://pypi.org/project/cpppo/">來源：PyPI：cpppo</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 HEADER 用 "<HHII8sI"，而 Socket Address 要用 ">hH4s"？</p><details><summary>看解答</summary><p>EtherNet/IP 封裝與 CIP 資料採 little-endian；Socket Address 欄位直接沿用 BSD sockaddr_in 結構，依網路慣例採 big-endian（網路位元組順序）。同一個封包裡兩種順序並存，解析時要分段處理。</p></details></li><li><p>回應標頭的 length 是 51，Identity 項目長度是 45。差的 6 位元組是什麼？</p><details><summary>看解答</summary><p>CPF（Common Packet Format）前導：項目數（2 位元組）、項目型別（2 位元組）、項目長度（2 位元組）。</p></details></li><li><p>若產品名稱是 32 個字元，parse_identity_item() 需要修改嗎？</p><details><summary>看解答</summary><p>不需要。名稱是 SHORT_STRING，第一個位元組是長度，程式依長度切片；state 也依名稱長度計算位置。但應加上邊界檢查，避免長度欄位大於實際資料。</p></details></li><li><p>為什麼探索時用 ListIdentity，而不是直接讀寫標籤？</p><details><summary>看解答</summary><p>ListIdentity 不需要建立 session，也不會讀寫控制資料，對設備影響最小。讀寫標籤需要 RegisterSession 與連線，若路徑或資料型別錯誤，可能影響控制器或產生不預期的寫入。</p></details></li></ol></section><!-- extension:end -->
+截斷封包： 長度欄位 51 與實際資料 48 不符</code></pre><h3>工程現場案例：盤點現場 PLC 與通訊模組</h3><p>接手一個舊廠區時，常常沒有完整的 PLC 清冊。ListIdentity 是 EtherNet/IP 的唯讀探索指令（UDP 44818），回應包含廠商代碼、產品代碼、韌體版本、序號與產品名稱，可以在不改變設備狀態的前提下建立清冊，並找出韌體過舊、需要評估資安公告的模組。</p><p>即使是唯讀探索，也要在維護窗口、經現場同意後進行，並限制在指定網段。廣播封包可能被防火牆或交換器政策阻擋，結果不完整時要用單播逐台確認，不要直接當成「沒有設備」。</p><ol><li>取得網段清單與執行許可，確認不會影響控制網路的頻寬。</li><li>以單播或受控廣播送出 ListIdentity，記錄每台回應的 IP、廠商代碼、產品代碼、韌體版本與序號。</li><li>把韌體版本與廠商資安公告比對，列出需要升級或加強網路隔離的設備。</li><li>清冊與網路圖一起納入變更管理，之後每次異動都更新。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 Python 常用的 EtherNet/IP 套件版本：pycomm3 1.2.16、cpppo 5.8.0。存取 PLC 標籤前要確認套件支援的控制器系列與連線方式，並優先使用唯讀標籤。 <a href="https://pypi.org/project/pycomm3/">來源：PyPI：pycomm3</a> <a href="https://pypi.org/project/cpppo/">來源：PyPI：cpppo</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 HEADER 用 "<HHII8sI"，而 Socket Address 要用 ">hH4s"？</p><details><summary>看解答</summary><p>EtherNet/IP 封裝與 CIP 資料採 little-endian；Socket Address 欄位直接沿用 BSD sockaddr_in 結構，依網路慣例採 big-endian（網路位元組順序）。同一個封包裡兩種順序並存，解析時要分段處理。</p></details></li><li><p>回應標頭的 length 是 51，Identity 項目長度是 45。差的 6 位元組是什麼？</p><details><summary>看解答</summary><p>CPF（Common Packet Format）前導：項目數（2 位元組）、項目型別（2 位元組）、項目長度（2 位元組）。</p></details></li><li><p>若產品名稱是 32 個字元，parse_identity_item() 需要修改嗎？</p><details><summary>看解答</summary><p>不需要。名稱是 SHORT_STRING，第一個位元組是長度，程式依長度切片；state 也依名稱長度計算位置。但應加上邊界檢查，避免長度欄位大於實際資料。</p></details></li><li><p>為什麼探索時用 ListIdentity，而不是直接讀寫標籤？</p><details><summary>看解答</summary><p>ListIdentity 不需要建立 session，也不會讀寫控制資料，對設備影響最小。讀寫標籤需要 RegisterSession 與連線，若路徑或資料型別錯誤，可能影響控制器或產生不預期的寫入。</p></details></li><li><p>把 synthetic_response() 的產品名稱改成 b"1769-L33ER"（10 個字元），Identity 項目長度與回應標頭的 length 各是多少？把回應截掉最後 3 位元組時，parse_header() 的錯誤訊息是什麼？</p><details><summary>看解答</summary><p>Identity 項目是 2（版本）＋ 16（Socket Address）＋ 15（廠商到名稱長度）＋ 10（名稱）＋ 1（state）＝ 44 位元組；標頭 length ＝ 6 ＋ 44 ＝ 50。截掉 3 位元組後訊息為「長度欄位 50 與實際資料 47 不符」（已改名稱實際執行驗證）。</p><p>名稱長度改變會連動 state 的位置與兩層長度欄位；parse_identity_item() 依 SHORT_STRING 長度切片，所以不用改，但正式程式仍應檢查 33 ＋ name_len ＋ 1 不超過項目長度。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>
