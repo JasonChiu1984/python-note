@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-labelledby="dg-fma-title dg-fma-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-fma-title">類比與脈衝兩條流量訊號路徑的架構圖</title>
+  <desc id="dg-fma-desc">上方是類比路徑：差壓變送器輸出 4–20 mA，可能是原始差壓或已在變送器內開方；DDC 或閘道器的 AI 點先用 check_ma() 判斷故障與飽和，再依點位表決定是否開方，並做含等號的 5% 小流量切除（開方前以差壓比較），結果與原始 mA、換算模式、品質一起寫入歷史庫，供冷凍噸計算使用。紅色虛線框是常見錯誤：變送器已開方、DDC 又開一次，8 mA 本來是 25 m³/h，卻顯示 50 m³/h。下方是脈衝路徑：流量計每立方公尺 10 個脈衝，計入 16 位元累計器（Modbus 單一暫存器，0 到 65535），Python 每 5 分鐘讀一次，用 pulse_delta() 算增量，目前值小於前值時加 65,536。範例讀值 65,210、65,480、65,530、120、410，增量 270、50、126、290，共 736 脈衝，等於 73.6 m³。以 100 m³/h 計約 65.5 小時回捲一次，兩次讀取之間回捲兩次以上就無法判斷。</desc>
+  <defs>
+    <marker id="dg-fma-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="20" y="40" width="190" height="72" rx="6"/>
+    <rect class="dg-box dg-blue" x="270" y="30" width="230" height="92" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box dg-green" x="560" y="30" width="180" height="92" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="20" y="268" width="190" height="72" rx="6"/>
+    <rect class="dg-box" x="270" y="268" width="230" height="72" rx="6"/>
+    <rect class="dg-box dg-blue" x="560" y="268" width="180" height="72" rx="6" stroke="#3b82f6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="20" y="150" width="480" height="64" rx="6" stroke="#d64545" stroke-dasharray="6 4"/>
+    <rect class="dg-orange" x="20" y="384" width="720" height="110" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-fma-arrow)">
+    <line x1="210" y1="76" x2="268" y2="76"/>
+    <line x1="500" y1="76" x2="558" y2="76"/>
+    <line x1="210" y1="304" x2="268" y2="304"/>
+    <line x1="500" y1="304" x2="558" y2="304"/>
+    <line x1="650" y1="268" x2="650" y2="124"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="239" y="68" font-size="12">4–20 mA</text>
+    <text x="529" y="68" font-size="12">工程值</text>
+    <text x="239" y="296" font-size="12">脈衝</text>
+    <text x="529" y="296" font-size="12">暫存器</text>
+    <text x="115" y="70" font-weight="700">差壓變送器</text>
+    <text x="115" y="90" font-size="12">輸出：原始 ΔP 或已開方</text>
+    <text x="385" y="54" font-weight="700">DDC／閘道器 AI 點</text>
+    <text x="385" y="74" font-size="12">check_ma()：故障、飽和</text>
+    <text x="385" y="92" font-size="12">依點位表決定是否開方</text>
+    <text x="385" y="110" font-size="12">小流量切除 5%（含等號）</text>
+    <text x="650" y="58" font-weight="700">歷史庫</text>
+    <text x="650" y="78" font-size="12">存原始 mA、換算模式</text>
+    <text x="650" y="96" font-size="12">與品質；冷凍噸計算</text>
+    <text x="260" y="176" font-weight="700">錯誤：變送器已開方，DDC 又開一次</text>
+    <text x="260" y="198" font-size="12">8 mA：應為 25 卻顯示 50 m³/h；開方只能在一處做</text>
+    <text x="115" y="298" font-weight="700">脈衝輸出流量計</text>
+    <text x="115" y="318" font-size="12">K = 10 pulse/m³</text>
+    <text x="385" y="298" font-weight="700">16 位元累計器</text>
+    <text x="385" y="318" font-size="12">Modbus 單一暫存器 0–65,535</text>
+    <text x="650" y="298" font-weight="700">pulse_delta()</text>
+    <text x="650" y="318" font-size="12">目前 &lt; 前值時 +65,536</text>
+    <text x="380" y="410" font-weight="700">範例：每 5 分鐘讀一次，第 4 筆跨過 65,535 → 0</text>
+    <text x="380" y="434" font-size="12">65,210 → 65,480 → 65,530 → 120 → 410</text>
+    <text x="380" y="454" font-size="12">增量 +270、+50、+126、+290 ＝ 736 脈衝 ＝ 73.6 m³（20 分鐘）</text>
+    <text x="380" y="478" font-size="12">100 m³/h 時約 65.5 小時回捲一次；兩次讀取間回捲兩次以上就無法判斷</text>
+  </g>
+</svg>

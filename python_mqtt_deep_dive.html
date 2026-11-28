@@ -81,7 +81,132 @@ def main():
 if __name__ == &quot;__main__&quot;:
     main()</code></pre></details><p>範例僅走記憶體 SQLite，沒有連線、密碼或現場資料。它證明事件鍵與保存行為，沒有模擬 MQTT 握手、Broker 訊息過期、客戶端確認時機或程序崩潰後持久性。正式環境另驗證 SQLite／資料庫持久化、交易隔離、次序與訊息 ACK 邊界。</p></section>
 <section id="security"><h2>05｜TLS、ACL 與容量</h2><ul><li>驗證伺服器憑證和名稱；裝置具有獨立可輪替身份，依需要使用 mTLS。TLS 是每段連線的防護，Broker 及可讀資料方仍需納入信任邊界。</li><li>以主題 ACL 分離發布與訂閱：閘道僅寫自己資料與狀態，監看器僅讀必要範圍；不共用帳號，不給監看端控制寫入或全域萬用字元。</li><li>依實際負載設定封包、QoS 1/2 同時在途數、訂閱及離線佇列的上限；收集佇列水位、重送、拒絕、磁碟及新鮮度。安全與控制流各自測試。</li></ul></section>
-<section id="verification"><h2>06｜驗收清單與規格</h2><label class="check"><input type="checkbox">斷線重連時分別驗證 Session 續接、Will 送達與 retained 最新狀態。</label><label class="check"><input type="checkbox">重送、過期、同鍵異內容、序號重開、新舊事件競速皆可觀察。</label><label class="check"><input type="checkbox">越權訂閱及發布在隔離測試台驗證被拒；憑證輪替不降級。</label><label class="check"><input type="checkbox">慢消費者與復線尖峰不侵占本地控制；記錄 p95 資料年齡、缺口與水位。</label><p><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html">OASIS MQTT Version 5.0 規格</a>：§2.2.1 Packet Identifier、§3.1 CONNECT 與 Will、§3.3 PUBLISH 與 Expiry、§4.3 QoS、§4.4 重送、§4.7 Topic、§5 安全。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用純 Python 重現三個常被誤解的 MQTT 細節：主題萬用字元怎麼比對、封包長度怎麼編碼，以及 QoS 1 重送時落地端怎麼去重。</p><h3>可實跑範例：主題比對、Remaining Length 與冪等落地</h3><p>不需要 broker，直接執行即可看到結果。topic_matches() 依 MQTT 規格處理 +、# 與 $ 開頭的系統主題；encode_remaining_length() 可對照規格的編碼表；IdempotentSink 以（裝置, 序號）去重，並檢查序號缺口。</p><p><a class="button" download href="extensions/python_mqtt_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;MQTT 主題過濾、Remaining Length 編碼與 QoS 1 重複投遞的冪等落地（標準函式庫模擬）。&quot;&quot;&quot;
+<section id="verification"><h2>06｜驗收清單與規格</h2><label class="check"><input type="checkbox">斷線重連時分別驗證 Session 續接、Will 送達與 retained 最新狀態。</label><label class="check"><input type="checkbox">重送、過期、同鍵異內容、序號重開、新舊事件競速皆可觀察。</label><label class="check"><input type="checkbox">越權訂閱及發布在隔離測試台驗證被拒；憑證輪替不降級。</label><label class="check"><input type="checkbox">慢消費者與復線尖峰不侵占本地控制；記錄 p95 資料年齡、缺口與水位。</label><p><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html">OASIS MQTT Version 5.0 規格</a>：§2.2.1 Packet Identifier、§3.1 CONNECT 與 Will、§3.3 PUBLISH 與 Expiry、§4.3 QoS、§4.4 重送、§4.7 Topic、§5 安全。</p></section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用純 Python 重現三個常被誤解的 MQTT 細節：主題萬用字元怎麼比對、封包長度怎麼編碼，以及 QoS 1 重送時落地端怎麼去重。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" role="img" aria-labelledby="dg-mqs-title dg-mqs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-mqs-title">QoS 1 斷線重送與冪等落地序列圖</title>
+  <desc id="dg-mqs-desc">閘道以 QoS 1 發布事件 boot-A 序號 3，Broker 回 PUBACK 後轉送給歷史服務。歷史服務寫入資料庫成功，但回給 Broker 的 PUBACK 因斷線遺失。重連且 Session Present 為 1 後，Broker 以 DUP=1 和同一 Packet Identifier 重送；歷史服務以同一事件鍵再次 INSERT，因唯一鍵衝突 rowcount 為 0，判定 duplicate 後再回 PUBACK。</desc>
+  <defs>
+    <marker id="dg-mqs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 參與者 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="20" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="230" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="450" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-green" x="660" y="16" width="140" height="44" rx="8"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-weight="700">
+    <text x="90" y="43">採集閘道 gw01</text>
+    <text x="300" y="43">MQTT Broker</text>
+    <text x="520" y="43">歷史服務</text>
+    <text x="730" y="43">資料庫（唯一鍵）</text>
+  </g>
+  <!-- 生命線 -->
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity="0.55">
+    <line x1="90" y1="60" x2="90" y2="465"/>
+    <line x1="300" y1="60" x2="300" y2="465"/>
+    <line x1="520" y1="60" x2="520" y2="465"/>
+    <line x1="730" y1="60" x2="730" y2="465"/>
+  </g>
+  <!-- 訊息 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-mqs-arrow)">
+    <line x1="90" y1="100" x2="296" y2="100"/>
+    <line x1="300" y1="138" x2="94" y2="138" stroke-dasharray="6 4"/>
+    <line x1="300" y1="180" x2="516" y2="180"/>
+    <line x1="520" y1="220" x2="726" y2="220"/>
+    <line x1="520" y1="378" x2="726" y2="378"/>
+    <line x1="300" y1="338" x2="516" y2="338"/>
+    <line x1="520" y1="438" x2="304" y2="438" stroke-dasharray="6 4"/>
+  </g>
+  <!-- 遺失的 PUBACK：只畫到一半並打叉 -->
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none">
+    <line x1="520" y1="262" x2="420" y2="262" stroke-dasharray="6 4"/>
+    <path d="M404,254 L420,270 M420,254 L404,270" stroke-width="2.5"/>
+  </g>
+  <!-- 重連區段 -->
+  <rect class="dg-orange" x="240" y="281" width="340" height="28" rx="6" fill="none" stroke="#e07b1f" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="193" y="93">PUBLISH QoS1（boot-A, 3）</text>
+    <text x="197" y="131">PUBACK</text>
+    <text x="408" y="173">PUBLISH  PID 17</text>
+    <text x="623" y="213">INSERT … ON CONFLICT</text>
+    <text x="623" y="240" font-size="12" font-weight="700">→ inserted</text>
+    <text x="512" y="247" font-size="12" text-anchor="end">PUBACK 未送達（斷線）</text>
+    <text x="410" y="300">重連：CONNACK Session Present=1</text>
+    <text x="408" y="331">PUBLISH DUP=1  PID 17</text>
+    <text x="623" y="371">同一事件鍵再 INSERT</text>
+    <text x="623" y="398" font-size="12" font-weight="700">rowcount 0 → duplicate</text>
+    <text x="412" y="431">PUBACK</text>
+  </g>
+</svg><figcaption><strong>序列圖｜QoS 1 斷線重送與冪等落地</strong>：歷史服務已寫入資料庫，但回給 Broker 的 PUBACK 在斷線時遺失；重連後 CONNACK 的 Session Present=1，Broker 以 DUP=1、同一 Packet Identifier 重送。DUP 與 PID 都不是業務事件鍵，真正判定重複的是（source, epoch, seq）唯一鍵：第二次 INSERT 的 rowcount 為 0，回報 duplicate 後再回 PUBACK。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 660" role="img" aria-labelledby="dg-mqf-title dg-mqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-mqf-title">store() 落地判斷流程圖</title>
+  <desc id="dg-mqf-desc">收到樣本後依序檢查：身分與序號無效回傳 invalid；資料年齡小於負 5 秒回傳 future-clock-skew，大於 30 秒回傳 expired；時效通過才執行 INSERT ON CONFLICT DO NOTHING。插入一列回傳 inserted；未插入時讀回既存的時間與數值，相同回傳 duplicate，不同回傳 identity-conflict。</desc>
+  <defs>
+    <marker id="dg-mqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 主幹 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="150" y="15" width="220" height="40" rx="20"/>
+    <polygon class="dg-box" points="260,90 400,128 260,166 120,128"/>
+    <polygon class="dg-box" points="260,196 420,236 260,276 100,236"/>
+    <rect class="dg-box dg-blue" x="100" y="310" width="320" height="44" rx="6"/>
+    <polygon class="dg-box" points="260,390 390,428 260,466 130,428"/>
+    <polygon class="dg-box" points="260,500 420,538 260,576 100,538"/>
+  </g>
+  <!-- 結果 -->
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="490" y="108" width="250" height="40" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="490" y="186" width="250" height="40" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="490" y="246" width="250" height="40" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="490" y="408" width="250" height="40" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-green" x="490" y="518" width="250" height="40" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="135" y="606" width="250" height="40" rx="6" stroke="#d64545"/>
+  </g>
+  <!-- 連線 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-mqf-arrow)">
+    <line x1="260" y1="55" x2="260" y2="88"/>
+    <line x1="260" y1="166" x2="260" y2="194"/>
+    <line x1="260" y1="276" x2="260" y2="308"/>
+    <line x1="260" y1="354" x2="260" y2="388"/>
+    <line x1="260" y1="466" x2="260" y2="498"/>
+    <line x1="260" y1="576" x2="260" y2="604"/>
+    <line x1="400" y1="128" x2="488" y2="128"/>
+    <polyline points="420,236 460,236 460,206 488,206"/>
+    <polyline points="460,236 460,266 488,266"/>
+    <line x1="390" y1="428" x2="488" y2="428"/>
+    <line x1="420" y1="538" x2="488" y2="538"/>
+  </g>
+  <!-- 節點文字 -->
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="40" font-weight="700">收到 Sample 與 now</text>
+    <text x="260" y="133">身分與序號有效？</text>
+    <text x="260" y="231" font-size="12">age = now − measured_at</text>
+    <text x="260" y="250">在 −5～30 秒內？</text>
+    <text x="260" y="337" font-family="ui-monospace, monospace" font-size="12">INSERT … ON CONFLICT DO NOTHING</text>
+    <text x="260" y="433">rowcount = 1？</text>
+    <text x="260" y="543">既存 (ts, value) 相同？</text>
+    <text x="615" y="133" font-weight="700">invalid</text>
+    <text x="615" y="211" font-weight="700">future-clock-skew（age &lt; −5）</text>
+    <text x="615" y="271" font-weight="700">expired（age &gt; 30）</text>
+    <text x="615" y="433" font-weight="700">inserted</text>
+    <text x="615" y="543" font-weight="700">duplicate</text>
+    <text x="260" y="631" font-weight="700">identity-conflict</text>
+  </g>
+  <!-- 分支標籤 -->
+  <g fill="currentColor" font-size="12">
+    <text x="410" y="120">否</text>
+    <text x="270" y="184">是</text>
+    <text x="428" y="228">否</text>
+    <text x="270" y="296">是</text>
+    <text x="400" y="420">是</text>
+    <text x="270" y="486">否（同鍵已存在）</text>
+    <text x="430" y="530">是</text>
+    <text x="270" y="596">否</text>
+  </g>
+</svg><figcaption><strong>流程圖｜store() 落地判斷</strong>：對應正文第 04 節的 store()：先驗身分與序號，再以「now − measured_at」判斷 −5～30 秒時效，最後才交給唯一鍵。時效檢查排在查重之前，所以過期的重送事件回報 expired，不會被當成 duplicate 或 identity-conflict。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：主題比對、Remaining Length 與冪等落地</h3><p>不需要 broker，直接執行即可看到結果。topic_matches() 依 MQTT 規格處理 +、# 與 $ 開頭的系統主題；encode_remaining_length() 可對照規格的編碼表；IdempotentSink 以（裝置, 序號）去重，並檢查序號缺口。</p><p><a class="button" download href="extensions/python_mqtt_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;MQTT 主題過濾、Remaining Length 編碼與 QoS 1 重複投遞的冪等落地（標準函式庫模擬）。&quot;&quot;&quot;
 
 
 def topic_matches(topic_filter: str, topic: str) -&gt; bool:
@@ -170,5 +295,5 @@ Remaining Length 2,097,152 -&gt; 80 80 80 01
 收到 (&#x27;AHU-01&#x27;, 1002, 13.4) -&gt; 重複，略過
 收到 (&#x27;AHU-01&#x27;, 1004, 13.9) -&gt; 寫入
 收到 (&#x27;AHU-01&#x27;, 1003, 13.6) -&gt; 寫入
-落地 4 筆，序號缺口：無</code></pre><h3>工程現場案例：閘道器重連後，趨勢圖出現重複點與跳點</h3><p>某棟大樓的 Modbus 轉 MQTT 閘道器以 QoS 1 上傳空調箱送風溫度。4G 線路斷線重連後，broker 重送了未確認的訊息，歷史資料庫因此多出重複點；另一方面，閘道器本機緩衝在重連時又以不同順序補送，趨勢圖出現時間倒退。</p><p>根本原因是落地端把「收到一則訊息」當成「新增一筆資料」。QoS 1 只保證至少送達一次，不保證只送一次，也不保證跨連線的順序。解法是在 payload 帶裝置序號與量測時間戳，落地端以（裝置, 序號）做唯一鍵，排序依量測時間而不是到達時間。</p><ol><li>在閘道器的 payload 加入單調遞增序號與量測時間（UTC），不要用 broker 收到的時間當資料時間。</li><li>資料庫以（device_id, seq）建立唯一索引，寫入採 INSERT … ON CONFLICT DO NOTHING 或等效語法。</li><li>定期檢查序號缺口，缺口代表遺失而不是延遲，要觸發補抓或告警。</li><li>主題設計保留層級語意（site/棟/設備類型/編號/點位），訂閱端用 + 過濾，避免用 # 訂閱整棵樹。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>paho-mqtt 2.x 起建立 Client 時必須指定 callback API 版本（例如 mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)），回呼函式簽名也和 1.x 不同。網路上大量 1.x 範例直接複製會報錯或行為不符；本頁核對時最新版為 2.2.0。 <a href="https://pypi.org/project/paho-mqtt/">來源：PyPI：paho-mqtt</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>site/b1/# 會不會匹配 site/b1？site/+/# 會不會匹配 site？請先判斷再用 topic_matches() 驗證。</p><details><summary>看解答</summary><p>site/b1/# 會匹配 site/b1，因為 # 也代表父層本身。site/+/# 不匹配 site，因為 + 必須對應一個實際存在的層級。</p></details></li><li><p>一則 payload 為 200 bytes 的 PUBLISH 封包，Remaining Length 需要幾個位元組？</p><details><summary>看解答</summary><p>Remaining Length 包含可變標頭與 payload，總長度介於 128 到 16,383 之間，需要 2 個位元組。可以用 encode_remaining_length() 代入實際長度確認。</p></details></li><li><p>IdempotentSink 把已見過的鍵全部放在記憶體的 set 裡。長時間運作會有什麼問題？怎麼改？</p><details><summary>看解答</summary><p>set 會無限成長。實務上應由資料庫唯一索引負責去重；若要在記憶體快取，只保留每台裝置最近 N 個序號或最近一段時間的鍵，並在程序重啟後以資料庫為準。</p></details></li><li><p>為什麼 # 開頭的訂閱不應該收到 $SYS/broker/uptime？</p><details><summary>看解答</summary><p>MQTT 規格規定以 $ 開頭的主題保留給 broker 內部使用，開頭為萬用字元的過濾不可匹配它們。要訂閱系統主題必須明確寫出 $SYS/…。</p></details></li></ol></section><!-- extension:end -->
+落地 4 筆，序號缺口：無</code></pre><h3>工程現場案例：閘道器重連後，趨勢圖出現重複點與跳點</h3><p>某棟大樓的 Modbus 轉 MQTT 閘道器以 QoS 1 上傳空調箱送風溫度。4G 線路斷線重連後，broker 重送了未確認的訊息，歷史資料庫因此多出重複點；另一方面，閘道器本機緩衝在重連時又以不同順序補送，趨勢圖出現時間倒退。</p><p>根本原因是落地端把「收到一則訊息」當成「新增一筆資料」。QoS 1 只保證至少送達一次，不保證只送一次，也不保證跨連線的順序。解法是在 payload 帶裝置序號與量測時間戳，落地端以（裝置, 序號）做唯一鍵，排序依量測時間而不是到達時間。</p><ol><li>在閘道器的 payload 加入單調遞增序號與量測時間（UTC），不要用 broker 收到的時間當資料時間。</li><li>資料庫以（device_id, seq）建立唯一索引，寫入採 INSERT … ON CONFLICT DO NOTHING 或等效語法。</li><li>定期檢查序號缺口，缺口代表遺失而不是延遲，要觸發補抓或告警。</li><li>主題設計保留層級語意（site/棟/設備類型/編號/點位），訂閱端用 + 過濾，避免用 # 訂閱整棵樹。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>paho-mqtt 2.x 起建立 Client 時必須指定 callback API 版本（例如 mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)），回呼函式簽名也和 1.x 不同。網路上大量 1.x 範例直接複製會報錯或行為不符；本頁核對時最新版為 2.2.0。 <a href="https://pypi.org/project/paho-mqtt/">來源：PyPI：paho-mqtt</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>site/b1/# 會不會匹配 site/b1？site/+/# 會不會匹配 site？請先判斷再用 topic_matches() 驗證。</p><details><summary>看解答</summary><p>site/b1/# 會匹配 site/b1，因為 # 也代表父層本身。site/+/# 不匹配 site，因為 + 必須對應一個實際存在的層級。</p></details></li><li><p>一則 payload 為 200 bytes 的 PUBLISH 封包，Remaining Length 需要幾個位元組？</p><details><summary>看解答</summary><p>Remaining Length 包含可變標頭與 payload，總長度介於 128 到 16,383 之間，需要 2 個位元組。可以用 encode_remaining_length() 代入實際長度確認。</p></details></li><li><p>IdempotentSink 把已見過的鍵全部放在記憶體的 set 裡。長時間運作會有什麼問題？怎麼改？</p><details><summary>看解答</summary><p>set 會無限成長。實務上應由資料庫唯一索引負責去重；若要在記憶體快取，只保留每台裝置最近 N 個序號或最近一段時間的鍵，並在程序重啟後以資料庫為準。</p></details></li><li><p>序列圖中，若歷史服務改成「先回 PUBACK、再 INSERT」，程序剛好在兩步之間當機，會發生什麼事？為什麼本頁堅持在提交後才確認？</p><details><summary>看解答</summary><p>Broker 收到 PUBACK 就認定這則訊息已交付，從 Session 狀態刪除，不會再重送；資料庫卻沒有這筆，結果等同「至多一次」，而且沒有任何協定訊號提醒遺失，只能靠序號缺口檢查發現。先提交、後確認時，最壞情況是提交後尚未送出 PUBACK 就斷線，Broker 重送一次，由唯一鍵擋成 duplicate，可被安全吸收。</p></details></li><li><p>為什麼 # 開頭的訂閱不應該收到 $SYS/broker/uptime？</p><details><summary>看解答</summary><p>MQTT 規格規定以 $ 開頭的主題保留給 broker 內部使用，開頭為萬用字元的過濾不可匹配它們。要訂閱系統主題必須明確寫出 $SYS/…。</p></details></li></ol></section><!-- extension:end -->
 </main></div></body></html>

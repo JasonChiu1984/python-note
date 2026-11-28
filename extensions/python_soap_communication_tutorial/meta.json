@@ -3,7 +3,7 @@
  "checked": "2026-11-28",
  "intro": "本頁比較 SOAP 1.1 與 1.2。本節用標準函式庫實際組出兩個版本的請求，示範從根元素的命名空間辨識版本、兩者在 HTTP 標頭上的差異，以及兩種 Fault 結構的解析方式。",
  "example_title": "SOAP 1.1／1.2 請求、版本辨識與 Fault 解析",
- "example_desc": "SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。",
+ "example_desc": "SOAP 1.1 用 text/xml 加 SOAPAction 標頭，1.2 用 application/soap+xml 並把 action 放在 Content-Type 參數。Fault 結構也不同：1.1 是 faultcode／faultstring，1.2 是 Code/Value 與 Reason/Text。 parse_response() 先確認輸入是 SOAP Envelope 且有 Body，剖析失敗或結構不符時回傳（'錯誤', None, 原因），不讓例外外洩給上層。",
  "run_note": "只需 Python 3.10 以上，無第三方套件；不會連線",
  "case": {
   "title": "舊型能源管理系統只接受 SOAP 1.1",
@@ -29,6 +29,14 @@
     {
      "title": "PyPI：zeep",
      "url": "https://pypi.org/project/zeep/"
+    },
+    {
+     "title": "W3C：SOAP 1.2 Part 2（Table 20：SOAP Fault 與 HTTP 狀態碼）",
+     "url": "https://www.w3.org/TR/soap12-part2/"
+    },
+    {
+     "title": "W3C：SOAP 1.1 Note（第 6.2 節：SOAP HTTP Response）",
+     "url": "https://www.w3.org/TR/2000/NOTE-SOAP-20000508/"
     }
    ]
   }
@@ -49,6 +57,28 @@
   {
    "q": "範例用 f-string 組 XML，若點位名稱含有 &lt; 或 &amp; 會怎樣？怎麼修？",
    "a": "<p>會產生不合法的 XML，甚至被注入其他元素。應使用 ElementTree 建立元素並設定文字（自動跳脫），或至少用 xml.sax.saxutils.escape() 處理輸入。</p>"
+  },
+  {
+   "q": "修正前的 parse_response() 收到沒有命名空間的 &lt;Envelope&gt;&lt;Body/&gt;&lt;/Envelope&gt;，或只有 SOAP 1.1 Envelope、沒有 Body 的回應，會發生什麼？",
+   "a": "<p>實際執行修正前的程式，兩種輸入都拋出 AttributeError: 'NoneType' object has no attribute 'find'。前者把標籤 \"Envelope\" 切成命名空間 \"nvelope\"，找不到 Body；後者 body 是 None，接著呼叫 body.find() 就失敗。</p><p>舊系統在維護模式或代理錯誤時，常回傳 HTML 錯誤頁或殘缺的 XML。現在的範例依序檢查剖析、命名空間、Body，分別回傳（'錯誤', None, 'XML 無法剖析'）、（'錯誤', None, '不是 SOAP Envelope'）、（'錯誤', None, '缺少 Body'），上層可以記錄原因並決定重試，而不是讓整個輪詢迴圈中斷。</p>"
+  },
+  {
+   "q": "伺服器回應 HTTP 500。能不能只憑狀態碼判斷是用戶端送錯（例如點位不存在）還是伺服器故障？SOAP 1.2 有什麼不同？",
+   "a": "<p>SOAP 1.1 的 HTTP 綁定規定處理請求發生 SOAP 錯誤時一律回 500，所以「點位不存在」的 soap:Client 與伺服器內部故障都是 500，只能看 Fault 內的 faultcode 區分。SOAP 1.2 第 2 部分的 Table 20 把 env:Sender 對應到 400，其他 Fault（Receiver、VersionMismatch、MustUnderstand、DataEncodingUnknown）對應到 500。</p><p>實務上兩種版本都應剖析 Fault：Client／Sender 類錯誤重送也不會成功，應修正請求並告警；Server／Receiver 類才考慮退避重試。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "sequence",
+   "title": "呼叫只支援 SOAP 1.1 的舊系統",
+   "file": "diagram-version-sequence.svg",
+   "caption": "對應現場案例與範例的 headers()：1.2 請求被拒、改送 1.1 後成功，以及點位不存在時的 Fault。415 或 500 是此類舊系統的常見反應，實際以伺服器文件與 WSDL 為準。"
+  },
+  {
+   "kind": "flow",
+   "title": "parse_response() 的判斷順序",
+   "file": "diagram-parse-flow.svg",
+   "caption": "對應範例的 parse_response()：先確認是 SOAP Envelope 且有 Body，再依版本取 Fault，最後才取業務資料；結構不符時回傳錯誤原因，不拋例外。"
   }
  ]
 }

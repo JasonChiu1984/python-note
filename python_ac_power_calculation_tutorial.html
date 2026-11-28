@@ -177,7 +177,81 @@ if __name__ == &quot;__main__&quot;:
             print(f&quot;{label}: P={x.p_kw:.3f} kW, Q={x.q_kvar:+.3f} kvar, &quot;
                   f&quot;S={x.s_kva:.3f} kVA, PF={x.pf:.4f}, φ={x.phi_deg:+.2f}°&quot;)
         print(&quot;單相示意真實 PF:&quot;, true_pf_1ph(1.84, 230, 10))</code></pre></details>
-<p>依據：<a href="https://www.electrical-installation.org/enwiki/Definition_of_reactive_power">Schneider Electric 電氣安裝指南：有功、無功、視在功率</a> · <a href="https://www.electrical-installation.org/enwiki/Power_factor">Schneider Electric：功率因數</a> · <a href="https://web.mit.edu/6.685/6.685/www/chapter7.pdf">MIT 6.685：同步機模型與功角</a>。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用合成的正弦基波資料，示範各相複功率加總、電壓與電流不平衡率，以及利用帶正負號的基波無效功率估算補償量。</p><h3>可實跑範例：三相功率加總、不平衡率與電容量估算</h3><p>以 cmath 計算各相基波複功率 S₁ = V₁·I₁·e^{jφ}。向量功率比 ΣP₁ ÷ |ΣS₁| 不等同含諧波或不平衡時電表的總功率因數。電容補償以 max(0, Q₁ − P₁·tan(acos(目標落後位移功因))) 估算；Q₁ 感性落後為正、容性超前為負。不可把 PF 幅值或含諧波的總 PF 當作基波 kvar。</p><p><a class="button" download href="extensions/python_ac_power_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;三相電壓不平衡率、各相功率加總與功率因數改善電容量估算（標準函式庫 cmath）。&quot;&quot;&quot;
+<p>依據：<a href="https://www.electrical-installation.org/enwiki/Definition_of_reactive_power">Schneider Electric 電氣安裝指南：有功、無功、視在功率</a> · <a href="https://www.electrical-installation.org/enwiki/Power_factor">Schneider Electric：功率因數</a> · <a href="https://web.mit.edu/6.685/6.685/www/chapter7.pdf">MIT 6.685：同步機模型與功角</a>。</p></section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用合成的正弦基波資料，示範各相複功率加總、電壓與電流不平衡率，以及利用帶正負號的基波無效功率估算補償量。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 770" role="img" aria-labelledby="dg-apf-title dg-apf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-apf-title">三相基波功率加總、不平衡檢查與補償量估算流程圖</title>
+  <desc id="dg-apf-desc">對應延伸範例的 phase_power()、unbalance_pct() 與 capacitor_kvar()。先取同一時間窗、同一量測點的三相相電壓、相電流與落後角。phase_power() 把每相表示成基波複功率，R 相為 33.57 kW 加 24.39 kvar。三相複數加總後再求向量功率比：總和 96.89 kW 加 70.84 kvar，120.02 kVA，比值 0.807，不是各相 PF 的平均，也不等同含諧波時電表的總功率因數。接著判斷不平衡是否偏高：本例線電壓 0.95%、電流 3.80%；偏高時先查接點、三相負載分配與上游供電，不平衡不是電容能解決的。再以帶正負號的基波無效功率估算補償量：max(0, Q1 − P1·tan(acos 目標))，感性 Q1 為正、容性為負；目標落後 0.95 時理論量約 39.0 kvar，不是選型。然後檢查最低負載：夜間 30 kW、感性 Q1 約 +18.6 kvar 時理論上只需 8.7 kvar，固定 39 kvar 會使 Q1 變負而超前；若已超前，範例回傳 0，代表不應加碼。補償級距由合格人員評估。最後檢查後端是否有變頻器或明顯諧波：若有，先量諧波頻譜並評估諧振，由合格人員評估是否需要串聯電抗器或主動式濾波器。都通過後才交由合格人員評估定案，並以量測驗證。</desc>
+  <defs>
+    <marker id="dg-apf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <rect class="dg-box" x="30" y="86" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="162" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,238 400,272 220,306 40,272"/>
+    <rect class="dg-box" x="30" y="330" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,406 400,440 220,474 40,440"/>
+    <polygon class="dg-box" points="220,522 400,556 220,590 40,556"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="30" y="638" width="380" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="460" y="230" width="285" height="84" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="398" width="285" height="84" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-red" x="460" y="514" width="285" height="84" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-apf-arrow)">
+    <line x1="220" y1="62" x2="220" y2="84"/>
+    <line x1="220" y1="138" x2="220" y2="160"/>
+    <line x1="220" y1="214" x2="220" y2="236"/>
+    <line x1="400" y1="272" x2="458" y2="272"/>
+    <line x1="220" y1="306" x2="220" y2="328"/>
+    <line x1="220" y1="382" x2="220" y2="404"/>
+    <line x1="400" y1="440" x2="458" y2="440"/>
+    <line x1="220" y1="474" x2="220" y2="520"/>
+    <line x1="400" y1="556" x2="458" y2="556"/>
+    <line x1="220" y1="590" x2="220" y2="636"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">三相量測：相電壓、相電流、落後角</text>
+    <text x="220" y="52" font-size="12">同一時間窗、同一量測點</text>
+    <text x="220" y="108" font-weight="700">phase_power()：每相基波複功率</text>
+    <text x="220" y="127" font-size="12">S₁ = V₁·I₁·e^(jφ) ÷ 1000；R 相 33.57 kW ＋ j24.39 kvar</text>
+    <text x="220" y="184" font-weight="700">複數加總後再求向量功率比</text>
+    <text x="220" y="203" font-size="12">ΣS₁ = 96.89 ＋ j70.84 → 120.02 kVA，比值 0.807</text>
+    <text x="220" y="277">不平衡偏高？</text>
+    <text x="220" y="352" font-weight="700">capacitor_kvar()：以帶號基波 Q₁ 估算</text>
+    <text x="220" y="371" font-size="12">max(0, Q₁ − P₁·tan(acos 0.95)) ≈ 39.0 kvar（理論量）</text>
+    <text x="220" y="445">最低負載會過度補償？</text>
+    <text x="220" y="561">後端有變頻器或明顯諧波？</text>
+    <text x="220" y="660" font-weight="700">交由合格人員評估，再以量測驗證</text>
+    <text x="220" y="679" font-size="12">帶號基波 kvar、總 PF、THD 分開記錄</text>
+    <text x="602" y="254" font-weight="700">先處理不平衡，電容解決不了</text>
+    <text x="602" y="276" font-size="12">本例線電壓 0.95%、電流 3.80%</text>
+    <text x="602" y="296" font-size="12">查接點鬆脫、負載分配與上游供電</text>
+    <text x="602" y="422" font-weight="700">固定容量會讓 Q₁ 變負（超前）</text>
+    <text x="602" y="444" font-size="12">夜間 30 kW、Q₁ +18.6 kvar 只需 8.7 kvar</text>
+    <text x="602" y="464" font-size="12">補償級距交由合格人員評估</text>
+    <text x="602" y="538" font-weight="700">先量諧波頻譜、評估諧振</text>
+    <text x="602" y="560" font-size="12">由合格人員評估是否需要</text>
+    <text x="602" y="580" font-size="12">串聯電抗器或主動式濾波器</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="264">是</text>
+    <text x="228" y="322">否</text>
+    <text x="414" y="432">是</text>
+    <text x="228" y="490">否</text>
+    <text x="414" y="548">是</text>
+    <text x="228" y="606">否</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-apf-arrow)">
+    <path d="M602,314 V356 H412"/>
+    <path d="M602,482 V506 H222"/>
+    <path d="M602,598 V622 H222"/>
+  </g>
+  <text x="380" y="730" fill="currentColor" text-anchor="middle" font-size="12">虛線：處理後回到主流程繼續。圖中數字都是範例實際輸出（合成資料）。</text>
+  <text x="380" y="752" fill="currentColor" text-anchor="middle" font-size="12">台電功率因數電費調整以最新電價表為準；本圖不構成電容選型或現場施工建議。</text>
+</svg><figcaption><strong>流程圖｜三相基波功率加總、不平衡檢查與補償量估算</strong>：對應延伸範例的 phase_power()、unbalance_pct() 與 capacitor_kvar()：先以基波複功率加總求向量功率比，排除不平衡問題後，以帶正負號的基波 Q₁ 估算理論補償量，再檢查最低負載與諧波兩條例外路徑。圖中數字都是範例或測試實際輸出（合成資料），不是選型或投切指令。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：三相功率加總、不平衡率與電容量估算</h3><p>以 cmath 計算各相基波複功率 S₁ = V₁·I₁·e^{jφ}。向量功率比 ΣP₁ ÷ |ΣS₁| 不等同含諧波或不平衡時電表的總功率因數。電容補償以 max(0, Q₁ − P₁·tan(acos(目標落後位移功因))) 估算；Q₁ 感性落後為正、容性超前為負。不可把 PF 幅值或含諧波的總 PF 當作基波 kvar。</p><p><a class="button" download href="extensions/python_ac_power_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;三相電壓不平衡率、各相功率加總與功率因數改善電容量估算（標準函式庫 cmath）。&quot;&quot;&quot;
 import cmath
 import math
 

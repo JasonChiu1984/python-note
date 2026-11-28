@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 500" role="img" aria-labelledby="dg-sns-title dg-sns-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-sns-title">SNMP 輪詢與通知序列圖</title>
+  <desc id="dg-sns-desc">上半段是輪詢：收集器送 GetBulkRequest 到 Agent 的 UDP 161，收到 Response 後連同 RTT 與品質分級入庫；另一次請求逾時並重試一次仍無回覆，標記為 timeout，不補 0。下半段是通知：Agent 送出 Trap，不會收到應用層確認；改送 InformRequest 時接收器回 Response，但 Response 只代表協定對端已回覆，接收器仍需去重並確認寫入資料庫。</desc>
+  <defs>
+    <marker id="dg-sns-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-green" x="20" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="230" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="450" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="660" y="16" width="140" height="44" rx="8"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-weight="700">
+    <text x="90" y="43">時序資料庫</text>
+    <text x="300" y="43">Python 收集器</text>
+    <text x="520" y="43">SNMP Agent</text>
+    <text x="730" y="43">通知接收器</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity="0.55">
+    <line x1="90" y1="60" x2="90" y2="485"/>
+    <line x1="300" y1="60" x2="300" y2="485"/>
+    <line x1="520" y1="60" x2="520" y2="485"/>
+    <line x1="730" y1="60" x2="730" y2="485"/>
+  </g>
+  <!-- 區段標示 -->
+  <g fill="currentColor" font-size="12" font-weight="700" opacity="0.8">
+    <text x="100" y="84">輪詢（UDP 161）</text>
+    <text x="100" y="304">通知（UDP 162）</text>
+  </g>
+  <line x1="10" y1="282" x2="810" y2="282" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-sns-arrow)">
+    <line x1="300" y1="104" x2="516" y2="104"/>
+    <line x1="520" y1="142" x2="304" y2="142" stroke-dasharray="6 4"/>
+    <line x1="300" y1="180" x2="94" y2="180"/>
+    <line x1="520" y1="330" x2="726" y2="330"/>
+    <line x1="520" y1="378" x2="726" y2="378"/>
+    <line x1="730" y1="416" x2="524" y2="416" stroke-dasharray="6 4"/>
+    <line x1="730" y1="460" x2="94" y2="460"/>
+  </g>
+  <!-- 逾時：請求與重試都沒有回覆 -->
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none">
+    <line x1="300" y1="222" x2="420" y2="222"/>
+    <path d="M422,214 L438,230 M438,214 L422,230" stroke-width="2.5"/>
+    <line x1="300" y1="258" x2="420" y2="258"/>
+    <path d="M422,250 L438,266 M438,250 L422,266" stroke-width="2.5"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="408" y="97">GetBulkRequest</text>
+    <text x="412" y="135">Response（varbinds）</text>
+    <text x="197" y="173">入庫：值＋品質＋RTT</text>
+    <text x="625" y="323">Trap（無應用層確認）</text>
+    <text x="625" y="371">InformRequest</text>
+    <text x="627" y="409">Response</text>
+    <text x="410" y="453">去重後寫入；Response ≠ 已入庫</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="310" y="215">GetRequest 逾時</text>
+    <text x="310" y="251">重試 1 次仍逾時</text>
+    <text x="530" y="244" font-weight="700">→ 標記 timeout，不補 0</text>
+  </g>
+</svg>

@@ -79,7 +79,134 @@ python python_logging_persistence_research_lab.py --test</code></pre>
     conn.execute(&quot;UPDATE state SET checkpoint=?&quot;, (event_id,))</code></pre>
 <p>官方資料：<a href="https://docs.python.org/3/library/sqlite3.html#how-to-use-the-connection-context-manager">Python：SQLite 交易與 context manager</a>、<a href="https://sqlite.org/atomiccommit.html">SQLite：原子提交機制</a>。</p>
 </section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>事件與應用程式游標必須一起提交。這個本機 SQLite 範例驗證明確回滾後重新開啟資料庫，事件與游標仍一致；不等同實體斷電驗證。</p><h3>可實跑範例：事件與應用程式游標：回滾與重新開啟示範</h3><p>每 3 筆為一批；正常路徑在同一交易寫入事件並更新 last_seq。模擬分支插入第二批後，未執行該批的游標 UPDATE 就回滾。重新開啟後讀到 last_seq=3，靠這個游標過濾已提交的有序輸入；主鍵只防止重複列，plain INSERT 遇到重複鍵仍會報錯。</p><p><a class="button" download href="extensions/python_logging_persistence_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;SQLite 交易內同時寫入事件與 checkpoint，模擬中途崩潰後重啟不重複、不跳筆（標準函式庫）。&quot;&quot;&quot;
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>事件與應用程式游標必須一起提交。這個本機 SQLite 範例驗證明確回滾後重新開啟資料庫，事件與游標仍一致；不等同實體斷電驗證。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 620" role="img" aria-labelledby="dg-lpc-title dg-lpc-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-lpc-title">同交易寫入讀值與 checkpoint 的崩潰與重啟序列圖</title>
+  <desc id="dg-lpc-desc">對應延伸範例的 process(crash_after=5, batch=3)。第一次執行時，程式讀到應用程式游標 last_seq 為 0，待處理序號 1 到 10。第一批：BEGIN，插入序號 1 到 3，更新 last_seq 為 3，COMMIT 成功。第二批：BEGIN，插入序號 4 到 6；已完成 3 筆加 3 筆等於 6，大於 5，在游標 UPDATE 之前模擬崩潰，執行 ROLLBACK 並拋出「在處理序號 4–6 時崩潰」，序號 4 到 6 不會留下。重新開啟資料庫後查得已寫入 3 筆、last_seq 為 3。第二次執行用游標過濾已提交的輸入，從序號 4 繼續，分成 4 到 6、7 到 9、10 三批，每批在同一交易中插入讀值並更新游標後 COMMIT。最後共 10 筆，重複 0 筆，無缺漏。reading 以序號為主鍵只防止重複列，一般 INSERT 遇到重複鍵會報錯，不會自動略過。last_seq 是應用程式游標，不是 SQLite 的 WAL checkpoint。範例的崩潰是程式內 ROLLBACK，程序終止與主機斷電要另外驗收，WAL 資料庫也不應放在網路檔案系統上。</desc>
+  <defs>
+    <marker id="dg-lpc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="30" y="12" width="200" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="280" y="12" width="200" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-green" x="530" y="12" width="200" height="48" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="6 4" class="dg-dash">
+    <line x1="130" y1="60" x2="130" y2="176"/>
+    <line x1="380" y1="60" x2="380" y2="176"/>
+    <line x1="380" y1="268" x2="380" y2="478"/>
+    <line x1="630" y1="60" x2="630" y2="478"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="130" y="33" font-weight="700">第一次執行</text>
+    <text x="130" y="51" font-size="12">process(crash_after=5)</text>
+    <text x="380" y="33" font-weight="700">state.db（WAL）</text>
+    <text x="380" y="51" font-size="12">reading＋游標 last_seq</text>
+    <text x="630" y="33" font-weight="700">重啟後</text>
+    <text x="630" y="51" font-size="12">open_db()＋process()</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-lpc-arrow)">
+    <line x1="130" y1="96" x2="378" y2="96"/>
+    <line x1="130" y1="156" x2="378" y2="156"/>
+    <line x1="630" y1="330" x2="382" y2="330"/>
+    <line x1="630" y1="400" x2="382" y2="400"/>
+  </g>
+  <g class="dg-line-green" stroke="#2f9e5b" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-lpc-arrow)">
+    <line x1="380" y1="120" x2="132" y2="120"/>
+    <line x1="380" y1="354" x2="628" y2="354"/>
+    <line x1="380" y1="452" x2="628" y2="452"/>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="140" y="89">BEGIN；INSERT 1–3；last_seq=3</text>
+    <text x="140" y="114">COMMIT 成功：第一批落地</text>
+    <text x="140" y="149">BEGIN；INSERT 4–6</text>
+    <text x="390" y="323">SELECT：3 筆，last_seq = 3</text>
+    <text x="390" y="348">從序號 4 繼續（pending 4–10）</text>
+    <text x="390" y="393">每批 BEGIN；INSERT；UPDATE</text>
+    <text x="390" y="414">批次：4–6、7–9、10</text>
+    <text x="390" y="446">每批 COMMIT：資料與進度一起前進</text>
+  </g>
+  <rect class="dg-red" x="20" y="176" width="440" height="92" rx="6" stroke="#d64545" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="240" y="200" font-weight="700">done 3 ＋ 3 ＝ 6 ＞ 5：提交前「崩潰」</text>
+    <text x="240" y="222" font-size="12">ROLLBACK：游標 UPDATE 前回滾，4–6 一起消失</text>
+    <text x="240" y="244" font-size="12">RuntimeError：在處理序號 4–6 時崩潰</text>
+    <text x="240" y="262" font-size="12">last_seq 仍是 3，不會跳筆也不會殘留半批</text>
+  </g>
+  <rect class="dg-green" x="300" y="478" width="440" height="56" rx="6" stroke="#2f9e5b" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="520" y="501" font-weight="700">最後 10 筆，重複 0 筆，缺漏：無</text>
+    <text x="520" y="521" font-size="12">續傳靠游標過濾；主鍵只擋重複列，重複 INSERT 會報錯</text>
+  </g>
+  <rect class="dg-orange" x="20" y="556" width="720" height="48" rx="6" stroke="#e07b1f" stroke-width="1.5" fill="none"/>
+  <text x="380" y="578" fill="currentColor" text-anchor="middle" font-size="12" font-weight="700">範例的崩潰是程式內 ROLLBACK，不是斷電測試</text>
+  <text x="380" y="596" fill="currentColor" text-anchor="middle" font-size="12">程序終止、主機斷電要分開實測；WAL 資料庫不放網路磁碟。</text>
+</svg><figcaption><strong>序列圖｜同交易提交：崩潰回滾與重啟續傳</strong>：對應延伸範例的 process(crash_after=5, batch=3)：第二批插入後、游標 UPDATE 前回滾，序號 4–6 一起消失；重新開啟後讀到 last_seq = 3，從序號 4 繼續，最後 10 筆不重複、不缺漏。last_seq 是應用程式游標，不是 SQLite 的 WAL checkpoint；圖中數字都是範例實際輸出。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="architecture"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" role="img" aria-labelledby="dg-lpa-title dg-lpa-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-lpa-title">日誌路徑與狀態路徑分開的架構圖</title>
+  <desc id="dg-lpa-desc">對應正文第 1 節與第 4 節的離線實驗。上方是日誌路徑：Producer 建立帶固定事件名與 run ID 的紀錄，放進有界佇列 Queue(maxsize=2)，佇列滿時 put_nowait 觸發 Full，丟失計數加一而不阻塞業務執行緒；單一 Writer 消費佇列，以 NDJSON 每筆一行寫檔，再進入保留、輪替與存取控制。實驗中 5 筆輸入只落地 2 筆，主動丟棄 3 筆。下方是狀態路徑：輸入先驗證鍵、版本、單位與型別，再在同一個 SQLite 交易中寫入事件並更新應用程式游標，重新開啟時從已提交的游標繼續，唯一鍵擋下重複列，一致的重送略過、內容衝突則拒絕。兩條路徑只用 run ID 關聯：log 用來診斷發生了什麼，狀態以資料庫為準，不靠 log 重建；log 與資料庫交易之間沒有共同提交。</desc>
+  <defs>
+    <marker id="dg-lpa-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g fill="currentColor" font-size="12" font-weight="700">
+    <text x="20" y="26">日誌路徑｜回答「發生了什麼」，可容許依政策丟棄</text>
+    <text x="20" y="262">狀態路徑｜回答「做到哪裡」，以可復原的方式提交</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="20" y="40" width="160" height="72" rx="6"/>
+    <rect class="dg-box" x="400" y="40" width="160" height="72" rx="6"/>
+    <rect class="dg-box" x="590" y="40" width="150" height="72" rx="6"/>
+    <rect class="dg-box" x="20" y="276" width="190" height="72" rx="6"/>
+    <rect class="dg-box" x="550" y="276" width="190" height="72" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="210" y="40" width="160" height="72" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-red" x="210" y="146" width="160" height="60" rx="6" stroke="#d64545"/>
+    <rect class="dg-green" x="250" y="276" width="260" height="72" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="20" y="384" width="720" height="62" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-lpa-arrow)">
+    <line x1="180" y1="76" x2="208" y2="76"/>
+    <line x1="370" y1="76" x2="398" y2="76"/>
+    <line x1="560" y1="76" x2="588" y2="76"/>
+    <line x1="210" y1="312" x2="248" y2="312"/>
+    <line x1="510" y1="312" x2="548" y2="312"/>
+  </g>
+  <line class="dg-line-red" x1="290" y1="112" x2="290" y2="144" stroke="#d64545" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#dg-lpa-arrow)"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="100" y="66" font-weight="700">Producer</text>
+    <text x="100" y="85" font-size="12">事件名、run ID、結果</text>
+    <text x="100" y="102" font-size="12">實驗：5 筆輸入</text>
+    <text x="290" y="66" font-weight="700">有界佇列</text>
+    <text x="290" y="85" font-size="12">Queue(maxsize=2)</text>
+    <text x="290" y="102" font-size="12">put_nowait()，不阻塞</text>
+    <text x="480" y="66" font-weight="700">單一 Writer</text>
+    <text x="480" y="85" font-size="12">格式化、寫檔</text>
+    <text x="480" y="102" font-size="12">記錄寫失敗</text>
+    <text x="665" y="66" font-weight="700">NDJSON 保留</text>
+    <text x="665" y="85" font-size="12">實驗：落地 2 筆</text>
+    <text x="665" y="102" font-size="12">輪替、ACL、刪除期限</text>
+    <text x="290" y="170" font-weight="700">Full → dropped += 1</text>
+    <text x="290" y="191" font-size="12">實驗：主動丟棄 3 筆</text>
+    <text x="115" y="302" font-weight="700">輸入驗證</text>
+    <text x="115" y="321" font-size="12">鍵、版本、單位、型別</text>
+    <text x="115" y="338" font-size="12">壞 JSON 快照保留原檔</text>
+    <text x="380" y="302" font-weight="700">同一交易提交</text>
+    <text x="380" y="321" font-size="12">INSERT 事件＋UPDATE 游標</text>
+    <text x="380" y="338" font-size="12">唯一鍵：擋下重複列</text>
+    <text x="645" y="302" font-weight="700">重啟重讀</text>
+    <text x="645" y="321" font-size="12">從已提交游標繼續</text>
+    <text x="645" y="338" font-size="12">一致重送略過，衝突拒絕</text>
+    <text x="380" y="408" font-weight="700">兩條路徑只用 run ID 關聯，沒有共同提交</text>
+    <text x="380" y="430" font-size="12">看到「完成」log ≠ 交易已 commit；commit 成功也可能 log 遺失。狀態以資料庫為準，不靠 log 重建。</text>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4">
+    <line x1="530" y1="112" x2="530" y2="382"/>
+  </g>
+  <text x="536" y="230" fill="currentColor" font-size="12">run ID</text>
+</svg><figcaption><strong>架構圖｜日誌路徑與狀態路徑分開</strong>：對應正文第 1 節的兩條路徑與第 4 節離線實驗：有界佇列滿時計數丟棄（5 筆輸入落地 2 筆、丟棄 3 筆），狀態則以同交易提交事件與應用程式游標，重新開啟後從游標續傳；兩者只用 run ID 關聯，沒有共同提交。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：事件與應用程式游標：回滾與重新開啟示範</h3><p>每 3 筆為一批；正常路徑在同一交易寫入事件並更新 last_seq。模擬分支插入第二批後，未執行該批的游標 UPDATE 就回滾。重新開啟後讀到 last_seq=3，靠這個游標過濾已提交的有序輸入；主鍵只防止重複列，plain INSERT 遇到重複鍵仍會報錯。</p><p><a class="button" download href="extensions/python_logging_persistence_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;SQLite 交易內同時寫入事件與 checkpoint，模擬中途崩潰後重啟不重複、不跳筆（標準函式庫）。&quot;&quot;&quot;
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -133,5 +260,5 @@ if __name__ == &quot;__main__&quot;:
         con.close()
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；資料庫建立在暫存目錄</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>第一次執行： 在處理序號 4–6 時崩潰
 重啟時：已寫入 3 筆，checkpoint = 3
-從序號 4 繼續；最後共 10 筆，重複 0 筆，缺漏 無</code></pre><h3>工程現場案例：閘道器斷電重開後，趨勢資料重複一段</h3><p>某閘道器把讀值寫入本機資料庫，另外在一個文字檔記錄「上次處理到第幾筆」。斷電發生在寫完資料、尚未更新文字檔之間，重開機後從舊位置重新處理，趨勢圖出現一段重複資料；反過來的順序則會跳筆。兩者都源於資料和進度不在同一個原子操作裡。</p><p>同交易提交可避免資料和游標一邊提交、另一邊沒有提交。範例在本機測得重新開啟後兩者都停在序號 3，回補後完整保有 1–10；不證明主機斷電時所有已確認的交易都會保留。</p><ol><li>同一交易提交處理結果與應用程式游標；last_seq 是讀取進度，不是 SQLite 把已提交頁面寫回主資料庫的 WAL checkpoint。</li><li>重跑時讀取游標並過濾有序、可重播的輸入。跨來源或亂序資料要另定游標與重複、內容衝突的處理規則。</li><li>SQLite 的一般 WAL 只用本機檔案；不要把資料庫放在網路檔案系統上。部署時讀回 journal_mode 與 synchronous 設定，不以範例預設值推論現場能力。</li><li>把程式層回滾、程序終止與主機斷電分開驗收。需要保留已確認交易時，再以目標儲存媒介、同步設定與容許的資料損失量試驗。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.12 起 sqlite3 模組新增 autocommit 屬性，可明確控制 PEP 249 的交易行為；範例使用 isolation_level=None 搭配手動 BEGIN／COMMIT，在 3.10 以上都能執行。本頁正文提到 Python 3.14 起 QueueListener 支援 with 語法。 <a href="https://docs.python.org/3/library/sqlite3.html#transaction-control">來源：Python 文件：sqlite3 交易控制</a> <a href="https://sqlite.org/wal.html#checkpointing">來源：SQLite：WAL 及 checkpoint</a> <a href="https://sqlite.org/pragma.html#pragma_synchronous">來源：SQLite：PRAGMA synchronous</a> <a href="https://sqlite.org/lang_conflict.html">來源：SQLite：衝突處理</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 batch 改成 1，crash_after 仍是 5，第一次執行會成功提交幾筆？</p><details><summary>看解答</summary><p>每筆一個交易，處理第 6 筆時 done + 1 = 6 &gt; 5 觸發崩潰，前 5 筆已提交，重啟後從序號 6 繼續。批次越小，崩潰時重做的量越少，但交易次數越多。</p></details></li><li><p>如果 reading 表沒有主鍵，而程式在 COMMIT 之後、更新 checkpoint 之前崩潰（兩者分開提交），會發生什麼？</p><details><summary>看解答</summary><p>獨立提交時，事件已落庫但游標未前進，重開後就會再次嘗試寫入。沒有唯一鍵會出現重複列；有主鍵且使用一般 INSERT 時會報錯，不會自動變成成功的冪等重送。</p></details></li><li><p>為什麼 open_db() 用 CHECK(id=1) 限制 checkpoint 表？</p><details><summary>看解答</summary><p>確保 checkpoint 表永遠只有一列，避免程式錯誤插入多列後不知道該讀哪一列。</p></details></li><li><p>範例證明的是交易一致性，還是斷電後保留每一筆已確認交易？</p><details><summary>看解答</summary><p>範例只驗證明確回滾後重新開啟的資料與游標一致。SQLite 文件指出，本機 WAL + NORMAL 即使一致，主機當機或斷電仍可能遺失已提交的整筆交易；FULL 則在每次提交後多做一次 WAL 同步。不要用程序終止結果替代斷電測試。</p></details></li></ol></section><!-- extension:end -->
+從序號 4 繼續；最後共 10 筆，重複 0 筆，缺漏 無</code></pre><h3>工程現場案例：閘道器斷電重開後，趨勢資料重複一段</h3><p>某閘道器把讀值寫入本機資料庫，另外在一個文字檔記錄「上次處理到第幾筆」。斷電發生在寫完資料、尚未更新文字檔之間，重開機後從舊位置重新處理，趨勢圖出現一段重複資料；反過來的順序則會跳筆。兩者都源於資料和進度不在同一個原子操作裡。</p><p>同交易提交可避免資料和游標一邊提交、另一邊沒有提交。範例在本機測得重新開啟後兩者都停在序號 3，回補後完整保有 1–10；不證明主機斷電時所有已確認的交易都會保留。</p><ol><li>同一交易提交處理結果與應用程式游標；last_seq 是讀取進度，不是 SQLite 把已提交頁面寫回主資料庫的 WAL checkpoint。</li><li>重跑時讀取游標並過濾有序、可重播的輸入。跨來源或亂序資料要另定游標與重複、內容衝突的處理規則。</li><li>SQLite 的一般 WAL 只用本機檔案；不要把資料庫放在網路檔案系統上。部署時讀回 journal_mode 與 synchronous 設定，不以範例預設值推論現場能力。</li><li>把程式層回滾、程序終止與主機斷電分開驗收。需要保留已確認交易時，再以目標儲存媒介、同步設定與容許的資料損失量試驗。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.12 起 sqlite3 模組新增 autocommit 屬性，可明確控制 PEP 249 的交易行為；範例使用 isolation_level=None 搭配手動 BEGIN／COMMIT，在 3.10 以上都能執行。本頁正文提到 Python 3.14 起 QueueListener 支援 with 語法。 <a href="https://docs.python.org/3/library/sqlite3.html#transaction-control">來源：Python 文件：sqlite3 交易控制</a> <a href="https://sqlite.org/wal.html#checkpointing">來源：SQLite：WAL 及 checkpoint</a> <a href="https://sqlite.org/pragma.html#pragma_synchronous">來源：SQLite：PRAGMA synchronous</a> <a href="https://sqlite.org/lang_conflict.html">來源：SQLite：衝突處理</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 batch 改成 1，crash_after 仍是 5，第一次執行會成功提交幾筆？</p><details><summary>看解答</summary><p>每筆一個交易，處理第 6 筆時 done + 1 = 6 &gt; 5 觸發崩潰，前 5 筆已提交，重啟後從序號 6 繼續。批次越小，崩潰時重做的量越少，但交易次數越多。</p></details></li><li><p>如果 reading 表沒有主鍵，而程式在 COMMIT 之後、更新 checkpoint 之前崩潰（兩者分開提交），會發生什麼？</p><details><summary>看解答</summary><p>獨立提交時，事件已落庫但游標未前進，重開後就會再次嘗試寫入。沒有唯一鍵會出現重複列；有主鍵且使用一般 INSERT 時會報錯，不會自動變成成功的冪等重送。</p></details></li><li><p>為什麼 open_db() 用 CHECK(id=1) 限制 checkpoint 表？</p><details><summary>看解答</summary><p>確保 checkpoint 表永遠只有一列，避免程式錯誤插入多列後不知道該讀哪一列。</p></details></li><li><p>範例證明的是交易一致性，還是斷電後保留每一筆已確認交易？</p><details><summary>看解答</summary><p>範例只驗證明確回滾後重新開啟的資料與游標一致。SQLite 文件指出，本機 WAL + NORMAL 即使一致，主機當機或斷電仍可能遺失已提交的整筆交易；FULL 則在每次提交後多做一次 WAL 同步。不要用程序終止結果替代斷電測試。</p></details></li><li><p>crash_after 改成 7，batch 分別用 3 與 4，第一次執行各在哪一批崩潰？重啟時游標 last_seq 各是多少？</p><details><summary>看解答</summary><p>實際執行：batch=3 時第一、二批（序號 1–6）已提交，第三批 done 6 + 3 = 9 &gt; 7 觸發模擬崩潰，訊息為「在處理序號 7–9 時崩潰」，重新開啟時 6 筆、last_seq = 6。batch=4 時第一批（1–4）提交後，第二批 4 + 4 = 8 &gt; 7 就回滾，訊息為「在處理序號 5–8 時崩潰」，重新開啟時只有 4 筆、last_seq = 4。</p><p>同一個崩潰點，批次越大，回滾後要重做的量可能越多；但兩種設定重新開啟後都從游標的下一筆繼續，最後一樣是 10 筆、不重複不缺漏。批次大小影響效能與重做量，一致性靠的是「資料與游標同交易」。這仍是程式層回滾的結果，不能代替程序終止或主機斷電的驗收。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

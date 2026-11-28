@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 660" role="img" aria-labelledby="dg-euf-title dg-euf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-euf-title">utilization() 時間切片分類流程圖</title>
+  <desc id="dg-euf-desc">對應正文第 04 節的 utilization()。建立 Event 時，回授不是 True、False 或 None 就拋 TypeError，要求先解碼原始點位。整理事件時，落在右端點以後的事件歸下一窗；同一時戳出現不同值拋 ValueError。接著以觀測窗、排程聯集、事件時刻與事件加 TTL 為切點，切成半開區間。每個區間用 bisect_right 找左端點前最後一筆回授：沒有回授或已超過 TTL 記為未知；回授為 True 記運轉、False 記停止、None 記未知。區間一律加入日曆口徑，若落在排程聯集內也加入排程口徑。</desc>
+  <defs>
+    <marker id="dg-euf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="110" y="12" width="300" height="40" rx="20" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="260,80 420,114 260,148 100,114"/>
+    <rect class="dg-box" x="80" y="176" width="360" height="58" rx="6"/>
+    <rect class="dg-box" x="80" y="262" width="360" height="58" rx="6"/>
+    <polygon class="dg-box" points="260,350 430,390 260,430 90,390"/>
+    <polygon class="dg-box" points="260,462 400,498 260,534 120,498"/>
+    <rect class="dg-box" x="80" y="596" width="360" height="52" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="480" y="94" width="265" height="40" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="480" y="190" width="265" height="30" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="480" y="372" width="265" height="36" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="480" y="440" width="265" height="32" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="480" y="482" width="265" height="32" rx="6" stroke="currentColor"/>
+    <rect class="dg-orange" x="480" y="524" width="265" height="32" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-euf-arrow)">
+    <line x1="260" y1="52" x2="260" y2="78"/>
+    <line x1="260" y1="148" x2="260" y2="174"/>
+    <line x1="260" y1="234" x2="260" y2="260"/>
+    <line x1="260" y1="320" x2="260" y2="348"/>
+    <line x1="260" y1="430" x2="260" y2="460"/>
+    <line x1="420" y1="114" x2="478" y2="114"/>
+    <line x1="440" y1="205" x2="478" y2="205"/>
+    <line x1="430" y1="390" x2="478" y2="390"/>
+    <polyline points="400,498 455,498 455,456 478,456"/>
+    <line x1="455" y1="498" x2="478" y2="498"/>
+    <polyline points="455,498 455,540 478,540"/>
+    <line x1="260" y1="574" x2="260" y2="594"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" opacity=".7">
+    <polyline points="745,390 756,390 756,574 260,574"/>
+    <line x1="745" y1="456" x2="756" y2="456"/>
+    <line x1="745" y1="498" x2="756" y2="498"/>
+    <line x1="745" y1="540" x2="756" y2="540"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="37" font-weight="700">Event(minute, running)</text>
+    <text x="260" y="110">已解碼成</text>
+    <text x="260" y="127" font-size="12">True／False／None？</text>
+    <text x="260" y="200">整理事件</text>
+    <text x="260" y="221" font-size="12">minute ≥ end 歸下一窗；重複同值合併</text>
+    <text x="260" y="286">切成半開區間 [left, right)</text>
+    <text x="260" y="307" font-size="12">切點：窗界、排程界、事件 t、t + ttl</text>
+    <text x="260" y="384" font-size="12">bisect_right 找 left 前最後回授</text>
+    <text x="260" y="402">存在且 left &lt; t + ttl？</text>
+    <text x="260" y="503">回授值？</text>
+    <text x="260" y="618">區間長度加入日曆口徑</text>
+    <text x="260" y="637" font-size="12">落在排程聯集內的區間同時加入排程口徑</text>
+    <text x="612" y="119" font-weight="700">TypeError：先解碼點位</text>
+    <text x="612" y="210" font-size="12" font-weight="700">同時戳異值 → ValueError</text>
+    <text x="612" y="395" font-weight="700">unknown（無回授或已過期）</text>
+    <text x="612" y="461" font-weight="700">True → run</text>
+    <text x="612" y="503" font-weight="700">False → stop</text>
+    <text x="612" y="545" font-weight="700">None → unknown（品質不良）</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="428" y="106">否</text>
+    <text x="268" y="166">是</text>
+    <text x="438" y="382">否</text>
+    <text x="268" y="450">是</text>
+  </g>
+</svg>

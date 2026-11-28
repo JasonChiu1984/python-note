@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" role="img" aria-labelledby="dg-mqs-title dg-mqs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-mqs-title">QoS 1 斷線重送與冪等落地序列圖</title>
+  <desc id="dg-mqs-desc">閘道以 QoS 1 發布事件 boot-A 序號 3，Broker 回 PUBACK 後轉送給歷史服務。歷史服務寫入資料庫成功，但回給 Broker 的 PUBACK 因斷線遺失。重連且 Session Present 為 1 後，Broker 以 DUP=1 和同一 Packet Identifier 重送；歷史服務以同一事件鍵再次 INSERT，因唯一鍵衝突 rowcount 為 0，判定 duplicate 後再回 PUBACK。</desc>
+  <defs>
+    <marker id="dg-mqs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 參與者 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="20" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="230" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-blue" x="450" y="16" width="140" height="44" rx="8"/>
+    <rect class="dg-box dg-green" x="660" y="16" width="140" height="44" rx="8"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-weight="700">
+    <text x="90" y="43">採集閘道 gw01</text>
+    <text x="300" y="43">MQTT Broker</text>
+    <text x="520" y="43">歷史服務</text>
+    <text x="730" y="43">資料庫（唯一鍵）</text>
+  </g>
+  <!-- 生命線 -->
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity="0.55">
+    <line x1="90" y1="60" x2="90" y2="465"/>
+    <line x1="300" y1="60" x2="300" y2="465"/>
+    <line x1="520" y1="60" x2="520" y2="465"/>
+    <line x1="730" y1="60" x2="730" y2="465"/>
+  </g>
+  <!-- 訊息 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-mqs-arrow)">
+    <line x1="90" y1="100" x2="296" y2="100"/>
+    <line x1="300" y1="138" x2="94" y2="138" stroke-dasharray="6 4"/>
+    <line x1="300" y1="180" x2="516" y2="180"/>
+    <line x1="520" y1="220" x2="726" y2="220"/>
+    <line x1="520" y1="378" x2="726" y2="378"/>
+    <line x1="300" y1="338" x2="516" y2="338"/>
+    <line x1="520" y1="438" x2="304" y2="438" stroke-dasharray="6 4"/>
+  </g>
+  <!-- 遺失的 PUBACK：只畫到一半並打叉 -->
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none">
+    <line x1="520" y1="262" x2="420" y2="262" stroke-dasharray="6 4"/>
+    <path d="M404,254 L420,270 M420,254 L404,270" stroke-width="2.5"/>
+  </g>
+  <!-- 重連區段 -->
+  <rect class="dg-orange" x="240" y="281" width="340" height="28" rx="6" fill="none" stroke="#e07b1f" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="193" y="93">PUBLISH QoS1（boot-A, 3）</text>
+    <text x="197" y="131">PUBACK</text>
+    <text x="408" y="173">PUBLISH  PID 17</text>
+    <text x="623" y="213">INSERT … ON CONFLICT</text>
+    <text x="623" y="240" font-size="12" font-weight="700">→ inserted</text>
+    <text x="512" y="247" font-size="12" text-anchor="end">PUBACK 未送達（斷線）</text>
+    <text x="410" y="300">重連：CONNACK Session Present=1</text>
+    <text x="408" y="331">PUBLISH DUP=1  PID 17</text>
+    <text x="623" y="371">同一事件鍵再 INSERT</text>
+    <text x="623" y="398" font-size="12" font-weight="700">rowcount 0 → duplicate</text>
+    <text x="412" y="431">PUBACK</text>
+  </g>
+</svg>

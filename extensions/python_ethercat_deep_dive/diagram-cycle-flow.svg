@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 610" role="img" aria-labelledby="dg-ecf-title dg-ecf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-ecf-title">EtherCAT 週期下限粗估與可行性判斷流程圖</title>
+  <desc id="dg-ecf-desc">對應延伸範例的 frames_for() 與 cycle_estimate()，以 100 台、每台 16 位元組 PDO、線長 300 公尺為例。PDO 合計 1,600 位元組；每個 frame 最多放 1,486 位元組資料（1,498 扣掉 datagram 標頭 10 與 WKC 2），所以拆成 1,518 與 146 位元組兩個 frame。序列化時間為每個 frame 加 20 位元組前導碼與幀間隙後乘 8 除以 100 Mb/s，共 136.3 微秒；傳播延遲為台數乘 0.6 微秒乘 2，加線長乘每公尺 5 奈秒乘 2，共 123.0 微秒；週期下限約 259.3 微秒。下限乘 1.3 的餘裕是 337 微秒，大於目標 250 微秒，所以不可行。改法有三：PDO 精簡到每台 8 位元組時約 191.2 微秒；分成兩個各 50 台的網段時每段約 129.7 微秒；或把週期放寬到 500 微秒。可行時仍要以主站工具量測實際往返時間與 DC 誤差。ESC 延遲與線路參數都是假設值。</desc>
+  <defs>
+    <marker id="dg-ecf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <rect class="dg-box" x="30" y="84" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="160" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="236" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="312" width="380" height="44" rx="6"/>
+    <polygon class="dg-box" points="220,380 400,414 220,448 40,414"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="460" y="388" width="285" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="30" y="472" width="380" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="462" width="285" height="130" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-ecf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="220" y1="136" x2="220" y2="158"/>
+    <line x1="220" y1="212" x2="220" y2="234"/>
+    <line x1="220" y1="288" x2="220" y2="310"/>
+    <line x1="220" y1="356" x2="220" y2="378"/>
+    <line x1="400" y1="414" x2="458" y2="414"/>
+    <line x1="220" y1="448" x2="220" y2="470"/>
+    <line x1="410" y1="498" x2="458" y2="498"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">輸入：台數、每台 PDO、線長</text>
+    <text x="220" y="51" font-size="12">範例：100 台 × 16 B、300 m → 1,600 B</text>
+    <text x="220" y="105" font-weight="700">frames_for()：每 frame 最多 1,486 B 資料</text>
+    <text x="220" y="124" font-size="12">1,600 B → [1,518, 146] B，兩個 frame</text>
+    <text x="220" y="181" font-weight="700">序列化：(frame + 20 B) × 8 ÷ 100 Mb/s</text>
+    <text x="220" y="200" font-size="12">含前導碼與幀間隙 → 136.3 µs</text>
+    <text x="220" y="257" font-weight="700">傳播：台數 × 0.6 µs × 2 ＋ 線長 × 5 ns × 2</text>
+    <text x="220" y="276" font-size="12">120.0 ＋ 3.0 → 123.0 µs（假設值）</text>
+    <text x="220" y="339" font-weight="700">週期下限 ≈ 259.3 µs</text>
+    <text x="220" y="419">下限 × 1.3 ≤ 目標週期？</text>
+    <text x="602" y="410" font-weight="700">可行，但仍要實測</text>
+    <text x="602" y="429" font-size="12">主站量測往返時間與 DC 誤差</text>
+    <text x="220" y="494" font-weight="700">337 µs &gt; 250 µs：不可行</text>
+    <text x="220" y="513" font-size="12">再加主站運算與抖動只會更緊</text>
+    <text x="602" y="486" font-weight="700">三種改法（範例常數重算）</text>
+    <text x="602" y="514" font-size="12">精簡 PDO：100 × 8 B → 191.2 µs</text>
+    <text x="602" y="538" font-size="12">分兩網段：每段 50 × 16 B → 129.7 µs</text>
+    <text x="602" y="562" font-size="12">放寬週期到 500 µs</text>
+    <text x="602" y="582" font-size="12">191.2 × 1.3 ＝ 248.5，餘裕很薄</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="406">是</text>
+    <text x="228" y="464">否</text>
+  </g>
+</svg>

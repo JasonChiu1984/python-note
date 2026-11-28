@@ -83,7 +83,72 @@ assert r["improvement_ratio"] is None</code></pre></details></section>
 saving = adjusted - actual_kwh</code></pre></details>
  <p>一手資料：<a href="https://www.iso.org/standard/69426.html">ISO 50001:2018</a> · <a href="https://www.iso.org/standard/79367.html">ISO 50006:2023</a> · <a href="https://www.energy.gov/cmei/ito/50001-ready-program">DOE 50001 Ready 計畫</a></p>
  </section>
-<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節說明報表欄位與正規化原則。本節用 12 個月資料完整走一次：建立以冷房度日為變數的基線、檢查模型品質、計算報告期正規化節能量，並用 CUSUM 辨識值得追查的績效變動時點。</p><h3>可實跑範例：CDD 基線迴歸、正規化節能量與 CUSUM</h3><p>使用 Python 3.10 起內建的 statistics.linear_regression() 與 correlation()，不需要 NumPy。基線期與報告期都是合成資料，報告期比基線期熱，4 月起冰水系統改善。</p><p><a class="button" download href="extensions/python_iso50001_energy_reporting_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;以冷房度日（CDD）建立能源基線、計算正規化節能量與 CUSUM（標準函式庫）。
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節說明報表欄位與正規化原則。本節用 12 個月資料完整走一次：建立以冷房度日為變數的基線、檢查模型品質、計算報告期正規化節能量，並用 CUSUM 辨識值得追查的績效變動時點。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 680" role="img" aria-labelledby="dg-ibf-title dg-ibf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-ibf-title">CDD 基線、正規化節能量與 CUSUM 的計算與判斷流程圖</title>
+  <desc id="dg-ibf-desc">對應延伸範例的 fit() 與報告期迴圈。先取基線期 12 個月的月用電與冷房度日，涵蓋完整季節且期間沒有重大設備增減。用 statistics.linear_regression() 建模，得到 kWh 等於 174,717 加 606.3 乘 CDD。接著檢查 R 平方、CV(RMSE) 與殘差：本例 0.999 與 0.9%；若殘差有季節型態或單月離群，例如誤植讀值，先查原始資料、補變數或換平衡點溫度，不要直接使用。通過後把報告期實際 CDD 代入模型，實際值減預期值得到每月差值，負值代表少用；7、8 月 CDD 370 與 365 高於基線最大 355，屬輕微外推，需註記。再判斷是否有靜態因素變化，例如新增負載：若有，做非例行調整並記錄依據。然後累計 CUSUM 並標上改善日期：1 到 3 月累計 −1,086，4 月起斜率轉負，12 月為 −222,793。最後報告正規化節能量 222,793 kWh，占預期的 6.6%；直接相減兩年用電只有 4.2%。</desc>
+  <defs>
+    <marker id="dg-ibf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
+    <rect class="dg-box" x="30" y="86" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,162 400,198 220,234 40,198"/>
+    <rect class="dg-box" x="30" y="258" width="380" height="68" rx="6"/>
+    <polygon class="dg-box" points="220,350 400,386 220,422 40,386"/>
+    <rect class="dg-box" x="30" y="446" width="380" height="68" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="30" y="538" width="380" height="68" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="460" y="150" width="285" height="96" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="342" width="285" height="88" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-ibf-arrow)">
+    <line x1="220" y1="62" x2="220" y2="84"/>
+    <line x1="220" y1="138" x2="220" y2="160"/>
+    <line x1="400" y1="198" x2="458" y2="198"/>
+    <line x1="220" y1="234" x2="220" y2="256"/>
+    <line x1="220" y1="326" x2="220" y2="348"/>
+    <line x1="400" y1="386" x2="458" y2="386"/>
+    <line x1="220" y1="422" x2="220" y2="444"/>
+    <line x1="220" y1="514" x2="220" y2="536"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">基線期 12 個月：月用電與 CDD</text>
+    <text x="220" y="52" font-size="12">涵蓋完整季節，期間沒有重大設備增減</text>
+    <text x="220" y="108" font-weight="700">linear_regression() 建模</text>
+    <text x="220" y="127" font-size="12">kWh = 174,717 + 606.3 × CDD</text>
+    <text x="220" y="194">R²、CV(RMSE) 與殘差</text>
+    <text x="220" y="212">都合理？</text>
+    <text x="220" y="280" font-weight="700">報告期實際 CDD 代入模型</text>
+    <text x="220" y="299" font-size="12">每月差值 = 實際 − 預期（負值代表少用）</text>
+    <text x="220" y="316" font-size="12">7、8 月 CDD 370、365 高於基線最大 355：註記外推</text>
+    <text x="220" y="391">有靜態因素變化？</text>
+    <text x="220" y="468" font-weight="700">累計 CUSUM，標上改善日期</text>
+    <text x="220" y="487" font-size="12">1～3 月累計 −1,086，在零附近擺動</text>
+    <text x="220" y="504" font-size="12">4 月起斜率轉負，12 月 −222,793</text>
+    <text x="220" y="560" font-weight="700">報告正規化節能量</text>
+    <text x="220" y="579" font-size="12">222,793 kWh，占預期 6.6%</text>
+    <text x="220" y="596" font-size="12">直接相減兩年用電只有 4.2%：報告期較熱</text>
+    <text x="602" y="174" font-weight="700">不要直接使用模型</text>
+    <text x="602" y="196" font-size="12">殘差有季節型態：補變數或換平衡點溫度</text>
+    <text x="602" y="214" font-size="12">單月離群（例如誤植讀值）：回查原始資料</text>
+    <text x="602" y="234" font-size="12">本例 R² 0.999、CV(RMSE) 0.9%</text>
+    <text x="602" y="366" font-weight="700">非例行調整</text>
+    <text x="602" y="388" font-size="12">例：新增伺服器機櫃、產線擴建</text>
+    <text x="602" y="406" font-size="12">估算後從實際值扣除或加變數</text>
+    <text x="602" y="422" font-size="12">記錄調整依據與版本</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="190">否</text>
+    <text x="228" y="250">是</text>
+    <text x="414" y="378">是</text>
+    <text x="228" y="438">否</text>
+  </g>
+  <text x="380" y="640" fill="currentColor" text-anchor="middle" font-size="12">圖中數字都是範例實際輸出；資料為合成，基線與報告期的 CDD 基準溫度與氣象站須固定。</text>
+  <text x="380" y="662" fill="currentColor" text-anchor="middle" font-size="12">CUSUM 只看出轉折時間點，歸因仍要對照改善工作紀錄與量測邊界。</text>
+</svg><figcaption><strong>流程圖｜CDD 基線、正規化節能量與 CUSUM</strong>：對應延伸範例的 fit() 與報告期迴圈：先檢查模型品質，再代入報告期 CDD、處理外推與非例行調整，最後以 CUSUM 標出值得回查的轉折時點（不單獨證明因果）。圖中數字都是範例實際輸出。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：CDD 基線迴歸、正規化節能量與 CUSUM</h3><p>使用 Python 3.10 起內建的 statistics.linear_regression() 與 correlation()，不需要 NumPy。基線期與報告期都是合成資料，報告期比基線期熱，4 月起冰水系統改善。</p><p><a class="button" download href="extensions/python_iso50001_energy_reporting_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;以冷房度日（CDD）建立能源基線、計算正規化節能量與 CUSUM（標準函式庫）。
 
 基線期 12 個月：月用電 kWh 對 CDD 做線性迴歸。報告期把實際 CDD 代入基線模型，
 得到「如果沒有改善會用多少電」，再與實際用電相減。CUSUM 累計「實際 − 預期」，斜率轉負是回查變動的線索，不單獨證明因果。
@@ -166,5 +231,5 @@ R² = 0.999，CV(RMSE) = 0.9%
 報告期正規化節能量：222,793 kWh（6.6%）
 若直接比較兩年用電：136,700 kWh（4.2%），報告期較熱，低估了改善
 4 月 95% 平均反應信賴區間：254,825–258,307 kWh
-4 月 95% 單月預測區間：250,413–262,718 kWh</code></pre><h3>工程現場案例：報告期天氣比較熱，直接比較用電低估了改善</h3><p>範例中報告期 12 個月的 CDD 合計比基線期多約 7.3%。直接把兩年用電相減，節能只有 4.2%；把報告期的實際 CDD 代入基線模型後，正規化節能量是 6.6%，差了將近 9 萬度。若只看原始用電，改善專案的效益會被天氣吃掉。</p><p>CUSUM 累計的是「實際 − 預期」。本合成例在 4 月改善上線後明顯下降，表示實際用電持續低於模型預期；轉折與上線時間一致，但不能單憑圖排除量測誤差、同期變動或模型偏差。</p><ol><li>基線期至少取 12 個月，涵蓋一個完整季節循環，並確認期間沒有重大設備增減。</li><li>變數選擇要有物理意義：空調用電用 CDD，產線用電用產量，兩者都有時可做多元迴歸。</li><li>檢查 R² 與 CV(RMSE)；殘差若有明顯季節型態，代表少了變數或平衡點溫度選錯。</li><li>每月更新 CUSUM，標注上線、換表與設備調整日期；結合原始讀值、變更紀錄及模型適用性查核。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁前段已涵蓋 ISO 50001:2018/Amd 1:2024 的氣候行動修訂。範例使用的 statistics.linear_regression()、correlation() 自 Python 3.10 起提供；Python 3.10 已於 2026 年 10 月結束支援，建議改用 3.12 以上版本執行報表程式。 <a href="https://devguide.python.org/versions/">來源：Python 版本狀態</a></li><li>平均反應與單次觀測需使用不同的區間；以含截距的簡單線性迴歸估計殘差標準差時，應扣除兩個自由度。 <a href="https://www.itl.nist.gov/div898/handbook/pmd/section4/pmd431.htm">來源：NIST：最小平方法與殘差標準差</a> <a href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd511.htm">來源：NIST：平均反應信賴區間</a> <a href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm">來源：NIST：單一反應預測區間</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 IMPROVEMENT_MONTH 之前三個月的差值加總，結果接近多少？這代表什麼？</p><details><summary>看解答</summary><p>−5,811 + 2,945 + 1,780 = −1,086 kWh，接近零。但正負殘差可能相互抵銷，只有三個月也不足以排除偏差或證明後續變化由改善措施造成。</p></details></li><li><p>CV(RMSE) 是什麼？為什麼不能只看 R²？</p><details><summary>看解答</summary><p>本例 CV(RMSE) 是以 n 為分母的樣本內 RMSE 除以平均用電。它和計算區間所用的 s = √(SSE/(n−2)) 不同，也不是樣本外預測誤差。不宜直接把不同分母的結果套入同一驗收門檻。R² 與殘差圖應一起判讀。</p></details></li><li><p>若報告期中途新增一台 200 kW 的伺服器機櫃，CUSUM 會出現什麼現象？應該怎麼處理？</p><details><summary>看解答</summary><p>新增負載會使「實際 − 預期」偏高，CUSUM 可能下降得較慢或轉為上升。若屬超出既有模型的靜態因子變化，應依預定規則估算並記錄非例行調整。同一筆新增負載不可同時從實際值扣除又加回基線。</p></details></li><li><p>95% 信賴區間和預測區間有何不同？為何不能用 statistics.stdev(殘差)？</p><details><summary>看解答</summary><p>含截距的 CDD 單變量迴歸同時估計截距與斜率，故 s = √(SSE/(n−2))，而不是殘差樣本標準差的 n−1。令 h = 1/n + (x−x̄)²/Sxx，平均用電的信賴區間用 ŷ ± t·s√h，下一筆單月用電的預測區間則用 ŷ ± t·s√(1+h)。本例 n=12，自由度 10，雙尾 95% 的 t 約 2.228。</p><p>經典 t 區間假設線性均值、獨立、等變異且近似常態誤差。先檢查季節殘差與自相關；超出基線 CDD 範圍時不能因有區間就認定外推可靠。單月區間也不能直接相加成年度節能量區間。</p></details></li></ol></section><!-- extension:end -->
+4 月 95% 單月預測區間：250,413–262,718 kWh</code></pre><h3>工程現場案例：報告期天氣比較熱，直接比較用電低估了改善</h3><p>範例中報告期 12 個月的 CDD 合計比基線期多約 7.3%。直接把兩年用電相減，節能只有 4.2%；把報告期的實際 CDD 代入基線模型後，正規化節能量是 6.6%，差了將近 9 萬度。若只看原始用電，改善專案的效益會被天氣吃掉。</p><p>CUSUM 累計的是「實際 − 預期」。本合成例在 4 月改善上線後明顯下降，表示實際用電持續低於模型預期；轉折與上線時間一致，但不能單憑圖排除量測誤差、同期變動或模型偏差。</p><ol><li>基線期至少取 12 個月，涵蓋一個完整季節循環，並確認期間沒有重大設備增減。</li><li>變數選擇要有物理意義：空調用電用 CDD，產線用電用產量，兩者都有時可做多元迴歸。</li><li>檢查 R² 與 CV(RMSE)；殘差若有明顯季節型態，代表少了變數或平衡點溫度選錯。</li><li>每月更新 CUSUM，標注上線、換表與設備調整日期；結合原始讀值、變更紀錄及模型適用性查核。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁前段已涵蓋 ISO 50001:2018/Amd 1:2024 的氣候行動修訂。範例使用的 statistics.linear_regression()、correlation() 自 Python 3.10 起提供；Python 3.10 已於 2026 年 10 月結束支援，建議改用 3.12 以上版本執行報表程式。 <a href="https://devguide.python.org/versions/">來源：Python 版本狀態</a></li><li>平均反應與單次觀測需使用不同的區間；以含截距的簡單線性迴歸估計殘差標準差時，應扣除兩個自由度。 <a href="https://www.itl.nist.gov/div898/handbook/pmd/section4/pmd431.htm">來源：NIST：最小平方法與殘差標準差</a> <a href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd511.htm">來源：NIST：平均反應信賴區間</a> <a href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm">來源：NIST：單一反應預測區間</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 IMPROVEMENT_MONTH 之前三個月的差值加總，結果接近多少？這代表什麼？</p><details><summary>看解答</summary><p>−5,811 + 2,945 + 1,780 = −1,086 kWh，接近零。但正負殘差可能相互抵銷，只有三個月也不足以排除偏差或證明後續變化由改善措施造成。</p></details></li><li><p>CV(RMSE) 是什麼？為什麼不能只看 R²？</p><details><summary>看解答</summary><p>本例 CV(RMSE) 是以 n 為分母的樣本內 RMSE 除以平均用電。它和計算區間所用的 s = √(SSE/(n−2)) 不同，也不是樣本外預測誤差。不宜直接把不同分母的結果套入同一驗收門檻。R² 與殘差圖應一起判讀。</p></details></li><li><p>若報告期中途新增一台 200 kW 的伺服器機櫃，CUSUM 會出現什麼現象？應該怎麼處理？</p><details><summary>看解答</summary><p>新增負載會使「實際 − 預期」偏高，CUSUM 可能下降得較慢或轉為上升。若屬超出既有模型的靜態因子變化，應依預定規則估算並記錄非例行調整。同一筆新增負載不可同時從實際值扣除又加回基線。</p></details></li><li><p>95% 信賴區間和預測區間有何不同？為何不能用 statistics.stdev(殘差)？</p><details><summary>看解答</summary><p>含截距的 CDD 單變量迴歸同時估計截距與斜率，故 s = √(SSE/(n−2))，而不是殘差樣本標準差的 n−1。令 h = 1/n + (x−x̄)²/Sxx，平均用電的信賴區間用 ŷ ± t·s√h，下一筆單月用電的預測區間則用 ŷ ± t·s√(1+h)。本例 n=12，自由度 10，雙尾 95% 的 t 約 2.228。</p><p>經典 t 區間假設線性均值、獨立、等變異且近似常態誤差。先檢查季節殘差與自相關；超出基線 CDD 範圍時不能因有區間就認定外推可靠。單月區間也不能直接相加成年度節能量區間。</p></details></li><li><p>基線期 CDD 介於 12～355，報告期哪幾個月超出這個範圍？只用範圍內的月份計算，正規化節能量是多少？</p><details><summary>看解答</summary><p>7 月 370、8 月 365 高於基線最大值 355，屬模型外推。只用其餘 10 個月計算，節能量 158,438 kWh，占這 10 個月預期用電的 6.2%（實際執行驗證）；全年 12 個月是 222,793 kWh（6.6%）。</p><p>本例只超出約 3～4%，線性關係大致可信，但報告應註記這兩個月是外推，或兩種口徑並列。若明年夏天更熱、超出更多，冰水主機可能進入不同的運轉區間（例如加開一台），線性模型就不再適用，應以更多基線資料重建模型，而不是硬套。</p></details></li><li><p>若基線期 8 月讀值被誤植成 286,900（少了 100,000 kWh），R²、CV(RMSE) 與正規化節能量會變成多少？從哪裡最容易發現？</p><details><summary>看解答</summary><p>實際執行結果：模型變成 kWh ≈ 182,359 + 507.5 × CDD，R² 從 0.999 降到 0.869，CV(RMSE) 從 0.9% 升到 9.4%，正規化節能量從 222,793 kWh（6.6%）掉到 108,761 kWh（3.4%），改善效益少了一半。</p><p>R² 0.869 乍看還能接受，最容易發現的是殘差：8 月單月殘差 −73,073 kWh，遠大於其他月份。發布前逐月列出殘差並回查原始讀值、換表與倍率紀錄，比只看 R² 可靠。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

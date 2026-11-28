@@ -5,6 +5,12 @@
  "example_title": "NodeId 解析、StatusCode 分級與資料時效",
  "example_desc": "NodeId 支援 ns=（命名空間索引）與 nsu=（命名空間 URI）兩種寫法；省略命名空間代表 ns=0。StatusCode 只看最高兩位元就能分出 Good、Uncertain、Bad。時效判斷同時列出來源時間距今與伺服器延遲。",
  "run_note": "只需 Python 3.10 以上，無第三方套件；不需要 OPC UA 伺服器",
+ "diagrams": [
+  {"kind": "sequence", "title": "從連線到第一筆通知", "file": "diagram-session-setup.svg",
+   "caption": "對應正文第 04 節的典型順序。SecureChannel、Session、Subscription 是三層不同的狀態；每次新 Session 都先讀 NamespaceArray，把 Namespace URI 解析成本次索引。CreateSubscription 與 CreateMonitoredItems 送出的是要求值，要記錄伺服器回覆的修訂值。回呼只把完整 DataValue 放進有界佇列，入庫由另一段程式負責。"},
+  {"kind": "flow", "title": "重連與補傳", "file": "diagram-reconnect-recovery.svg",
+   "caption": "對應正文第 06 節：先沿用、再移轉、最後重建。只有沿用或移轉成功的訂閱可以從下一個預期序號 Republish；重建後的訂閱是新的序號範圍，舊通知無從補回，只能 Read 或 ResendData 恢復現值，並把缺口時間窗記錄下來，依伺服器支援補歷史。"}
+ ],
  "case": {
   "title": "伺服器重啟後命名空間索引變了，點位全部對錯",
   "paragraphs": [
@@ -41,6 +47,10 @@
   {
    "q": "若 SourceTimestamp 為空，只有 ServerTimestamp，資料時效該怎麼判斷？",
    "a": "<p>只能以伺服器時間近似，但伺服器時間代表伺服器處理或快取的時間，可能比實際量測晚很多。應在點位表標註此點位缺來源時間，並用較保守的過期門檻或改請設備端提供來源時間。</p>"
+  },
+  {
+   "q": "依重連流程圖，TransferSubscriptions 失敗、只好重建 Subscription 時，為什麼不能對新訂閱 Republish 斷線前的序號？應該怎麼處理？",
+   "a": "<p>Republish 只能向同一個 Subscription 的重傳佇列取回仍保留的 NotificationMessage。重建後是新的 Subscription，序號從頭開始，舊訂閱的重傳佇列已隨之消失，斷線期間的變更不在任何可 Republish 的地方。做法是 Read（或伺服器支援時 ResendData）恢復現值，標記斷線時間窗為缺口，再依 Historical Access 或上游歷史補資料，不要用前一個好值填補。</p>"
   },
   {
    "q": "為什麼 AHU01.SAT（沒有 ns 也沒有 i=／s= 前綴）要拒絕，而不是自動當成 ns=0;s=AHU01.SAT？",

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 600" role="img" aria-labelledby="dg-wkf-title dg-wkf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wkf-title">兩段式停機流程圖</title>
+  <desc id="dg-wkf-desc">收到 SIGTERM 後先讓 /readyz 回 503 停止接收新流量，再呼叫 queue.shutdown()：之後的 put 會拋 QueueShutDown，worker 仍可取完剩餘項目，佇列空了 get 才拋 QueueShutDown。若在寬限秒數內排空，TaskGroup 正常結束並以結束碼 0 離開；若逾時，呼叫 Python 3.15 的 tg.cancel() 取消所有子任務，把佇列剩餘與 worker 手上尚未完成的項目寫回持久化儲存後再結束。</desc>
+  <defs>
+    <marker id="dg-wkf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="140" y="15" width="240" height="40" rx="20" stroke="#3b82f6"/>
+    <rect class="dg-box" x="110" y="90" width="300" height="50" rx="6"/>
+    <rect class="dg-box" x="90" y="175" width="340" height="64" rx="6"/>
+    <rect class="dg-box" x="110" y="274" width="300" height="44" rx="6"/>
+    <polygon class="dg-box" points="260,352 410,392 260,432 110,392"/>
+    <rect class="dg-box dg-orange" x="480" y="372" width="260" height="40" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-box dg-orange" x="480" y="446" width="260" height="58" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="110" y="470" width="300" height="44" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box dg-red" x="480" y="538" width="260" height="44" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wkf-arrow)">
+    <line x1="260" y1="55" x2="260" y2="88"/>
+    <line x1="260" y1="140" x2="260" y2="173"/>
+    <line x1="260" y1="239" x2="260" y2="272"/>
+    <line x1="260" y1="318" x2="260" y2="350"/>
+    <line x1="260" y1="432" x2="260" y2="468"/>
+    <line x1="410" y1="392" x2="478" y2="392"/>
+    <line x1="610" y1="412" x2="610" y2="444"/>
+    <line x1="610" y1="504" x2="610" y2="536"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="40" font-weight="700">收到 SIGTERM</text>
+    <text x="260" y="112" font-weight="700">/readyz 回 503</text>
+    <text x="260" y="130" font-size="12">負載平衡停止派送新工作</text>
+    <text x="260" y="198" font-weight="700" font-family="ui-monospace, monospace" font-size="12">queue.shutdown()</text>
+    <text x="260" y="217" font-size="12">之後 put() 拋 QueueShutDown</text>
+    <text x="260" y="233" font-size="12">get() 取完剩餘項目才拋 QueueShutDown</text>
+    <text x="260" y="301">worker 繼續處理剩餘項目</text>
+    <text x="260" y="397">寬限秒數內排空？</text>
+    <text x="610" y="397" font-weight="700" font-family="ui-monospace, monospace" font-size="12">tg.cancel()（3.15）</text>
+    <text x="610" y="470" font-weight="700">寫回持久化儲存</text>
+    <text x="610" y="490" font-size="12">佇列剩餘＋worker 手上的項目</text>
+    <text x="260" y="497" font-weight="700">TaskGroup 正常結束，exit 0</text>
+    <text x="610" y="560" font-weight="700">記錄未完成筆數後結束</text>
+    <text x="610" y="575" font-size="11">重啟後依序號補做並去重</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="420" y="384">否</text>
+    <text x="270" y="454">是</text>
+  </g>
+</svg>

@@ -119,7 +119,116 @@ if __name__ == &quot;__main__&quot;:
         unittest.main(argv=[&quot;lab&quot;])
     else:
         print(json.dumps(classify(RECORDS, expected=3, freshness_ms=4, require_dc=True),
-                         ensure_ascii=False, indent=2))</code></pre></details><p>練習：指出哪些週期「有正常 WKC」但應標成不可用；再說明為什麼「兩筆壞資料才告警」不應推遲當筆資料失效。</p><h3>官方規格與實作資料</h3><ul><li><a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 EtherCAT Implementation Guide</a> · <a href="https://www.ethercat.org/download/documents/EtherCAT_Device_Protocol_Poster.pdf">ETG EtherCAT Device Protocol Poster</a></li><li><a href="https://infosys.beckhoff.com/content/1033/ek1322/1036980875.html">Beckhoff：EtherCAT State Machine</a> · <a href="https://infosys.beckhoff.com/content/1033/b110_ethercat_optioninterface/1984417163.html">Beckhoff：WcState</a> · <a href="https://infosys.beckhoff.com/content/1033/el4374/1037004555.html">Beckhoff：裝置通訊品質診斷與工程驗收</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回工業協定比較</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用簡化模型估算 EtherCAT 的週期時間下限，並示範 PDO 超過單一乙太網路幀容量時會拆成多個 frame；最後用 WKC 期望值檢查讀寫貢獻的總數是否與組態預期相符。</p><h3>可實跑範例：週期時間粗估、frame 拆分與 WKC 檢查</h3><p>ESC 延遲與線長為假設。LRW 的讀成功加 1、寫成功加 2，兩者都成功加 3；單獨寫入命令及完整資料品質要分開解讀。</p><p><a class="button" download href="extensions/python_ethercat_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;EtherCAT 週期時間粗估與 WKC 期望值檢查（標準函式庫，參數皆為假設值）。
+                         ensure_ascii=False, indent=2))</code></pre></details><p>練習：指出哪些週期「有正常 WKC」但應標成不可用；再說明為什麼「兩筆壞資料才告警」不應推遲當筆資料失效。</p><h3>官方規格與實作資料</h3><ul><li><a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 EtherCAT Implementation Guide</a> · <a href="https://www.ethercat.org/download/documents/EtherCAT_Device_Protocol_Poster.pdf">ETG EtherCAT Device Protocol Poster</a></li><li><a href="https://infosys.beckhoff.com/content/1033/ek1322/1036980875.html">Beckhoff：EtherCAT State Machine</a> · <a href="https://infosys.beckhoff.com/content/1033/b110_ethercat_optioninterface/1984417163.html">Beckhoff：WcState</a> · <a href="https://infosys.beckhoff.com/content/1033/el4374/1037004555.html">Beckhoff：裝置通訊品質診斷與工程驗收</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回工業協定比較</a></footer><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用簡化模型估算 EtherCAT 的週期時間下限，並示範 PDO 超過單一乙太網路幀容量時會拆成多個 frame；最後用 WKC 期望值檢查讀寫貢獻的總數是否與組態預期相符。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 610" role="img" aria-labelledby="dg-ecf-title dg-ecf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-ecf-title">EtherCAT 週期下限粗估與可行性判斷流程圖</title>
+  <desc id="dg-ecf-desc">對應延伸範例的 frames_for() 與 cycle_estimate()，以 100 台、每台 16 位元組 PDO、線長 300 公尺為例。PDO 合計 1,600 位元組；每個 frame 最多放 1,486 位元組資料（1,498 扣掉 datagram 標頭 10 與 WKC 2），所以拆成 1,518 與 146 位元組兩個 frame。序列化時間為每個 frame 加 20 位元組前導碼與幀間隙後乘 8 除以 100 Mb/s，共 136.3 微秒；傳播延遲為台數乘 0.6 微秒乘 2，加線長乘每公尺 5 奈秒乘 2，共 123.0 微秒；週期下限約 259.3 微秒。下限乘 1.3 的餘裕是 337 微秒，大於目標 250 微秒，所以不可行。改法有三：PDO 精簡到每台 8 位元組時約 191.2 微秒；分成兩個各 50 台的網段時每段約 129.7 微秒；或把週期放寬到 500 微秒。可行時仍要以主站工具量測實際往返時間與 DC 誤差。ESC 延遲與線路參數都是假設值。</desc>
+  <defs>
+    <marker id="dg-ecf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <rect class="dg-box" x="30" y="84" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="160" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="236" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="312" width="380" height="44" rx="6"/>
+    <polygon class="dg-box" points="220,380 400,414 220,448 40,414"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="460" y="388" width="285" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="30" y="472" width="380" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="462" width="285" height="130" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-ecf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="220" y1="136" x2="220" y2="158"/>
+    <line x1="220" y1="212" x2="220" y2="234"/>
+    <line x1="220" y1="288" x2="220" y2="310"/>
+    <line x1="220" y1="356" x2="220" y2="378"/>
+    <line x1="400" y1="414" x2="458" y2="414"/>
+    <line x1="220" y1="448" x2="220" y2="470"/>
+    <line x1="410" y1="498" x2="458" y2="498"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">輸入：台數、每台 PDO、線長</text>
+    <text x="220" y="51" font-size="12">範例：100 台 × 16 B、300 m → 1,600 B</text>
+    <text x="220" y="105" font-weight="700">frames_for()：每 frame 最多 1,486 B 資料</text>
+    <text x="220" y="124" font-size="12">1,600 B → [1,518, 146] B，兩個 frame</text>
+    <text x="220" y="181" font-weight="700">序列化：(frame + 20 B) × 8 ÷ 100 Mb/s</text>
+    <text x="220" y="200" font-size="12">含前導碼與幀間隙 → 136.3 µs</text>
+    <text x="220" y="257" font-weight="700">傳播：台數 × 0.6 µs × 2 ＋ 線長 × 5 ns × 2</text>
+    <text x="220" y="276" font-size="12">120.0 ＋ 3.0 → 123.0 µs（假設值）</text>
+    <text x="220" y="339" font-weight="700">週期下限 ≈ 259.3 µs</text>
+    <text x="220" y="419">下限 × 1.3 ≤ 目標週期？</text>
+    <text x="602" y="410" font-weight="700">可行，但仍要實測</text>
+    <text x="602" y="429" font-size="12">主站量測往返時間與 DC 誤差</text>
+    <text x="220" y="494" font-weight="700">337 µs &gt; 250 µs：不可行</text>
+    <text x="220" y="513" font-size="12">再加主站運算與抖動只會更緊</text>
+    <text x="602" y="486" font-weight="700">三種改法（範例常數重算）</text>
+    <text x="602" y="514" font-size="12">精簡 PDO：100 × 8 B → 191.2 µs</text>
+    <text x="602" y="538" font-size="12">分兩網段：每段 50 × 16 B → 129.7 µs</text>
+    <text x="602" y="562" font-size="12">放寬週期到 500 µs</text>
+    <text x="602" y="582" font-size="12">191.2 × 1.3 ＝ 248.5，餘裕很薄</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="406">是</text>
+    <text x="228" y="464">否</text>
+  </g>
+</svg><figcaption><strong>流程圖｜週期下限粗估與可行性判斷</strong>：對應延伸範例的 frames_for() 與 cycle_estimate()，以現場案例的 100 台 × 16 B 為例；三種改法的數字是用同一組假設常數重算的結果（練習 5）。ESC 延遲與線路參數都是假設值，只能用來比較方案，不能代替主站量測。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="sequence"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 540" role="img" aria-labelledby="dg-ews-title dg-ews-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-ews-title">LRW datagram 沿線累加 WKC 與主站比對的序列圖</title>
+  <desc id="dg-ews-desc">對應延伸範例的 expected_wkc() 與 lrw_contribution()。主站送出一個 LRW datagram，WKC 初值 0。為了方便加總，圖中把 SubDevice 依映射類型分組，實際順序依拓樸。4 台只讀站各加 1，WKC 變 4；2 台只寫站各加 2，WKC 變 8；6 台讀寫站各加 3，WKC 變 26，frame 折返主站。主站把收到的 WKC 和依組態算出的期望值 26 比對：等於 26 只代表讀寫貢獻總數相符，不代表每個位元組都已存取、資料新鮮或輸出已動作；收到 23 少 3，可能是一台讀寫站讀寫都沒完成，或一台只讀加一台只寫各少一筆；收到 25 少 1，可能是一台只讀站沒完成讀取，也可能是一台讀寫站讀取失敗但寫入成功。WKC 只給總和，當筆資料要標成不可用，再用 AL 狀態、FMMU／SyncManager 映射與錯誤計數器定位。</desc>
+  <defs>
+    <marker id="dg-ews-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="20" y="12" width="150" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="210" y="12" width="160" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="400" y="12" width="160" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="590" y="12" width="150" height="48" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" fill="none">
+    <line x1="95" y1="60" x2="95" y2="300"/>
+    <line x1="290" y1="60" x2="290" y2="300"/>
+    <line x1="480" y1="60" x2="480" y2="300"/>
+    <line x1="665" y1="60" x2="665" y2="300"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-ews-arrow)">
+    <line x1="95" y1="110" x2="288" y2="110"/>
+    <line x1="290" y1="160" x2="478" y2="160"/>
+    <line x1="480" y1="210" x2="663" y2="210"/>
+    <line x1="665" y1="270" x2="97" y2="270"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="20" y="330" width="720" height="48" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="20" y="392" width="720" height="48" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="20" y="454" width="720" height="48" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="95" y="33" font-weight="700">MainDevice</text>
+    <text x="95" y="51" font-size="12">期望 WKC 26</text>
+    <text x="290" y="33" font-weight="700">只讀站 × 4</text>
+    <text x="290" y="51" font-size="12">各 +1</text>
+    <text x="480" y="33" font-weight="700">只寫站 × 2</text>
+    <text x="480" y="51" font-size="12">各 +2</text>
+    <text x="665" y="33" font-weight="700">讀寫站 × 6</text>
+    <text x="665" y="51" font-size="12">各 +3</text>
+    <text x="192" y="100" font-size="12">LRW，WKC = 0</text>
+    <text x="384" y="150" font-size="12">WKC 0 → 4</text>
+    <text x="572" y="200" font-size="12">WKC 4 → 8</text>
+    <text x="380" y="260" font-size="12">WKC 8 → 26，frame 折返主站</text>
+    <text x="380" y="292" font-size="12">分組只為加總方便；實際依拓樸順序逐台經過</text>
+    <text x="380" y="351" font-weight="700">收到 26 ＝ 期望：讀寫貢獻總數與組態相符</text>
+    <text x="380" y="369" font-size="12">不代表每個位元組都已存取、取樣新鮮或輸出已動作</text>
+    <text x="380" y="413" font-weight="700">收到 23（少 3）：一台讀寫站未處理，或只讀＋只寫各一台失效</text>
+    <text x="380" y="431" font-size="12">WKC 只給總和，用 AL 狀態、映射與錯誤計數器定位</text>
+    <text x="380" y="475" font-weight="700">收到 25（少 1）：只讀站漏讀，或讀寫站讀失敗、寫成功</text>
+    <text x="380" y="493" font-size="12">當筆資料標成不可用，告警可另訂防抖</text>
+    <text x="380" y="528" font-size="12">+1／+2／+3 是 LRW 的計數規則；期望值由主站依實際組態計算，不是設備台數</text>
+  </g>
+</svg><figcaption><strong>序列圖｜LRW datagram 沿線累加 WKC</strong>：對應範例的 expected_wkc() 與 lrw_contribution()：4 台只讀、2 台只寫、6 台讀寫的期望值 26，以及收到 25、23 時可能的解讀。WKC 相符只代表讀寫貢獻總數符合組態，不證明每個位元組都已存取或取樣新鮮，要搭配正文「WKC：命令處理證據，不等於點值新鮮」的其他證據。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：週期時間粗估、frame 拆分與 WKC 檢查</h3><p>ESC 延遲與線長為假設。LRW 的讀成功加 1、寫成功加 2，兩者都成功加 3；單獨寫入命令及完整資料品質要分開解讀。</p><p><a class="button" download href="extensions/python_ethercat_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;EtherCAT 週期時間粗估與 WKC 期望值檢查（標準函式庫，參數皆為假設值）。
 
 frame 依序經過每個 SubDevice 後折返。粗估：
 週期下限 ≈ frame 序列化時間 + 每台 SubDevice 處理延遲 × 台數 × 2（去回）＋ 線路傳播延遲
@@ -194,5 +303,5 @@ if __name__ == &quot;__main__&quot;:
   只讀站未完成讀取 → WKC 25：WKC 不符；當筆資料不可用，不能只靠總數定位
   讀寫站讀失敗、寫成功 → WKC 25：WKC 不符；當筆資料不可用，不能只靠總數定位
   讀寫站讀成功、寫失敗 → WKC 24：WKC 不符；當筆資料不可用，不能只靠總數定位
-  讀寫站讀寫皆失敗 → WKC 23：WKC 不符；當筆資料不可用，不能只靠總數定位</code></pre><h3>工程現場案例：擴充到 100 軸後，週期時間從 250 µs 拉到 1 ms</h3><p>某包裝線從 50 軸擴充到 100 軸，每軸 PDO 從 8 bytes 增加到 16 bytes。原本 250 µs 的週期出現 WKC 錯誤與同步抖動。範例顯示，1,600 bytes 的 PDO 已超過單一乙太網路幀容量，必須拆成 2 個 frame，週期下限約 259 µs，再加上主站處理與抖動餘裕，250 µs 已不可行。</p><p>處理方式包括：精簡 PDO 對應（移除不需要每週期更新的診斷物件，改用 SDO 非同步讀取）、把軸分配到兩個獨立的 EtherCAT 網段，或把週期放寬到 500 µs。決策前要先用主站工具量測實際的 frame 往返時間與 DC 同步誤差。</p><ol><li>從 ESI 檔案與主站設定匯出每台 SubDevice 的 PDO 大小，加總成每週期資料量。</li><li>估算 frame 數與週期下限，預留至少 30% 的時間餘裕給主站運算與抖動。</li><li>監看每個 datagram 的 WKC。不符時將當筆資料標成不可用，記錄週期、AL 狀態及映射線索；告警防抖不延後資料失效。</li><li>相符也不代表每個位元組均已存取或資料新鮮，仍應檢查各軸狀態字、映射與取樣時間。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>EtherCAT 規格由 EtherCAT Technology Group（ETG）維護並標準化於 IEC 61158／61784。Python 端常見做法是透過 pysoem（SOEM 的 Python 綁定）存取，但即時性受作業系統排程限制，週期性控制仍應交給即時主站。 <a href="https://www.ethercat.org/">來源：EtherCAT Technology Group</a></li><li>Beckhoff ESC Technology §2.4 表 5：讀寫命令將讀／寫結果分開加總；單獨寫入命令成功只加 1。多位元組命令即使只成功存取一個位元或位元組，也可能計入 WKC，因此相符不是完整資料的證明。 <a href="https://download.beckhoff.com/download/document/io/ethercat-development-products/ethercat_esc_datasheet_sec1_technology_v2.5.pdf#page=30">來源：Beckhoff ESC Technology §2.4：Working Counter</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 MAX_ECAT_PAYLOAD 是 1,498 bytes？</p><details><summary>看解答</summary><p>標準乙太網路幀的 payload 最多 1,500 bytes，EtherCAT 在 payload 開頭還有 2 bytes 的 EtherCAT 標頭，因此可放 datagram 的空間是 1,498 bytes。每個 datagram 自己還要 10 bytes 標頭與 2 bytes WKC。</p></details></li><li><p>LRW 期望 WKC 為 26，收到 25，能判定哪台設備失效嗎？</p><details><summary>看解答</summary><p>不能。只讀站少掉讀取的 +1，和讀寫站讀取失敗但寫成功（貢獻由 +3 變 +2），總數都為 25。若讀寫站讀成功但寫失敗，則為 24；23 可能是一台讀寫站兩者都沒完成，也可能是只讀站和只寫站各少一筆。先將該 datagram 資料標成不可用，再以組態、AL 狀態、FMMU／SyncManager 映射及主站診斷定位，不能只憑總數推斷輸出結果。</p></details></li><li><p>ESC_DELAY_US 若是 1.0 µs，50 台的週期下限會變多少？</p><details><summary>看解答</summary><p>傳播部分從 50 × 0.6 × 2 = 60 µs 變成 100 µs，加上序列化約 36 µs 與線路約 1.5 µs，下限約 137.7 µs。可改常數重新執行驗證。</p></details></li><li><p>為什麼不建議在一般 Linux 上用 Python 直接跑 250 µs 的 EtherCAT 控制迴圈？</p><details><summary>看解答</summary><p>一般作業系統的排程延遲與 Python 的垃圾回收、直譯器開銷可能造成數百微秒以上的抖動，會導致錯過週期與 WKC 錯誤。Python 適合做設定、診斷與資料收集，即時控制應交給即時核心或專用主站。</p></details></li></ol></section><!-- extension:end -->
+  讀寫站讀寫皆失敗 → WKC 23：WKC 不符；當筆資料不可用，不能只靠總數定位</code></pre><h3>工程現場案例：擴充到 100 軸後，週期時間從 250 µs 拉到 1 ms</h3><p>某包裝線從 50 軸擴充到 100 軸，每軸 PDO 從 8 bytes 增加到 16 bytes。原本 250 µs 的週期出現 WKC 錯誤與同步抖動。範例顯示，1,600 bytes 的 PDO 已超過單一乙太網路幀容量，必須拆成 2 個 frame，週期下限約 259 µs，再加上主站處理與抖動餘裕，250 µs 已不可行。</p><p>處理方式包括：精簡 PDO 對應（移除不需要每週期更新的診斷物件，改用 SDO 非同步讀取）、把軸分配到兩個獨立的 EtherCAT 網段，或把週期放寬到 500 µs。決策前要先用主站工具量測實際的 frame 往返時間與 DC 同步誤差。</p><ol><li>從 ESI 檔案與主站設定匯出每台 SubDevice 的 PDO 大小，加總成每週期資料量。</li><li>估算 frame 數與週期下限，預留至少 30% 的時間餘裕給主站運算與抖動。</li><li>監看每個 datagram 的 WKC。不符時將當筆資料標成不可用，記錄週期、AL 狀態及映射線索；告警防抖不延後資料失效。</li><li>相符也不代表每個位元組均已存取或資料新鮮，仍應檢查各軸狀態字、映射與取樣時間。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>EtherCAT 規格由 EtherCAT Technology Group（ETG）維護並標準化於 IEC 61158／61784。Python 端常見做法是透過 pysoem（SOEM 的 Python 綁定）存取，但即時性受作業系統排程限制，週期性控制仍應交給即時主站。 <a href="https://www.ethercat.org/">來源：EtherCAT Technology Group</a></li><li>Beckhoff ESC Technology §2.4 表 5：讀寫命令將讀／寫結果分開加總；單獨寫入命令成功只加 1。多位元組命令即使只成功存取一個位元或位元組，也可能計入 WKC，因此相符不是完整資料的證明。 <a href="https://download.beckhoff.com/download/document/io/ethercat-development-products/ethercat_esc_datasheet_sec1_technology_v2.5.pdf#page=30">來源：Beckhoff ESC Technology §2.4：Working Counter</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 MAX_ECAT_PAYLOAD 是 1,498 bytes？</p><details><summary>看解答</summary><p>標準乙太網路幀的 payload 最多 1,500 bytes，EtherCAT 在 payload 開頭還有 2 bytes 的 EtherCAT 標頭，因此可放 datagram 的空間是 1,498 bytes。每個 datagram 自己還要 10 bytes 標頭與 2 bytes WKC。</p></details></li><li><p>LRW 期望 WKC 為 26，收到 25，能判定哪台設備失效嗎？</p><details><summary>看解答</summary><p>不能。只讀站少掉讀取的 +1，和讀寫站讀取失敗但寫成功（貢獻由 +3 變 +2），總數都為 25。若讀寫站讀成功但寫失敗，則為 24；23 可能是一台讀寫站兩者都沒完成，也可能是只讀站和只寫站各少一筆。先將該 datagram 資料標成不可用，再以組態、AL 狀態、FMMU／SyncManager 映射及主站診斷定位，不能只憑總數推斷輸出結果。</p></details></li><li><p>ESC_DELAY_US 若是 1.0 µs，50 台的週期下限會變多少？</p><details><summary>看解答</summary><p>傳播部分從 50 × 0.6 × 2 = 60 µs 變成 100 µs，加上序列化約 36 µs 與線路約 1.5 µs，下限約 137.7 µs。可改常數重新執行驗證。</p></details></li><li><p>為什麼不建議在一般 Linux 上用 Python 直接跑 250 µs 的 EtherCAT 控制迴圈？</p><details><summary>看解答</summary><p>一般作業系統的排程延遲與 Python 的垃圾回收、直譯器開銷可能造成數百微秒以上的抖動，會導致錯過週期與 WKC 錯誤。Python 適合做設定、診斷與資料收集，即時控制應交給即時核心或專用主站。</p></details></li><li><p>維持 100 台 × 16 B，但分成兩個各 50 台、各 150 m 的網段；或維持單一網段、把每台 PDO 精簡到 8 B。兩種做法的週期下限各是多少？以 250 µs 目標、30% 餘裕來看，哪一種比較穩？</p><details><summary>看解答</summary><p>實際執行 cycle_estimate()：分兩網段時每段 800 B 只要一個 832 B frame，下限約 129.7 µs，乘 1.3 為 168.6 µs，餘裕充足；單一網段精簡到 8 B 時同樣一個 832 B frame，但傳播延遲仍是 100 台的 120 µs，下限約 191.2 µs，乘 1.3 為 248.5 µs，只比 250 µs 少 1.5 µs。</p><p>精簡 PDO 省下的是序列化時間，台數造成的轉送延遲不會變；分網段同時減少兩者，但要多一個主站埠或網段，且兩段的同步要另外確認。估算後仍要用主站工具量測。</p></details></li><li><p>期望 WKC 26，連續三個週期收到 26、25、26。第二個週期的資料該怎麼處理？要不要立刻發告警？</p><details><summary>看解答</summary><p>第二個週期少 1。依範例的 LRW 規則，可能是一台只讀站沒完成讀取，也可能是一台讀寫站讀取失敗、寫入成功（+3 變 +2），單憑總數分不出來；但兩種情況的輸入資料都不可信，這一筆就應標成不可用，不能因為前後兩筆正常而沿用。</p><p>是否告警是另一個決定：可以像正文的監控範例一樣「連續兩筆壞資料才告警」，避免偶發雜訊洗版，但資料失效不能跟著防抖延後。偶發的 WKC 少 1 仍要記錄週期與時間；反覆出現時，再對照組態、AL 狀態、FMMU／SyncManager 映射與各站錯誤計數器定位。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

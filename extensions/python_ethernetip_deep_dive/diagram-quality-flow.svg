@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-eqf-title dg-eqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-eqf-title">Assembly 資料解碼與接收品質判斷流程圖</title>
+  <desc id="dg-eqf-desc">對應正文第 06 節的 decode() 與 quality()。收到合成的 Assembly 資料後，先檢查長度是否等於教學映射的 8 位元組，不符就拋出 ValueError。接著以小端序 uint16 旗標、int16 的 0.01 °C、uint32 序號解碼。quality() 先檢查時間都是有限值、預算大於 0、接收時間不晚於現在，否則拋出 ValueError，因為必須使用同一個 monotonic 時鐘。現在減接收時間大於或等於 60 ms 預算時回傳 STALE；未過期時，SENSOR_VALID 位元為 0 回傳 BAD_SENSOR，為 1 回傳 GOOD。範例資料為 23.45 °C、風機運轉、序號 42：接收後 10 ms 為 GOOD，80 ms 為 STALE。</desc>
+  <defs>
+    <marker id="dg-eqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,118 220,152 40,118"/>
+    <rect class="dg-box" x="30" y="178" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,254 405,292 220,330 35,292"/>
+    <polygon class="dg-box" points="220,356 400,390 220,424 40,390"/>
+    <polygon class="dg-box" points="220,450 400,484 220,518 40,484"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="92" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="460" y="266" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="364" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="460" y="458" width="285" height="52" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="30" y="548" width="380" height="56" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-eqf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="400" y1="118" x2="458" y2="118"/>
+    <line x1="220" y1="152" x2="220" y2="176"/>
+    <line x1="220" y1="230" x2="220" y2="252"/>
+    <line x1="405" y1="292" x2="458" y2="292"/>
+    <line x1="220" y1="330" x2="220" y2="354"/>
+    <line x1="400" y1="390" x2="458" y2="390"/>
+    <line x1="220" y1="424" x2="220" y2="448"/>
+    <line x1="400" y1="484" x2="458" y2="484"/>
+    <line x1="220" y1="518" x2="220" y2="546"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">收到 Assembly 資料</text>
+    <text x="220" y="51" font-size="12">0300 2909 2a000000（合成）</text>
+    <text x="220" y="122" font-size="12">長度 ＝ LAYOUT.size（8 B）？</text>
+    <text x="220" y="200" font-weight="700">decode()：Struct("&lt;HhI")</text>
+    <text x="220" y="219" font-size="12">旗標 uint16、溫度 int16 × 0.01 °C、序號 uint32</text>
+    <text x="220" y="288" font-size="12">時間皆有限、預算 ＞ 0、</text>
+    <text x="220" y="305" font-size="12">received_at ≤ now？</text>
+    <text x="220" y="394" font-size="12">now − received_at ≥ 60 ms？</text>
+    <text x="220" y="488" font-size="12">SENSOR_VALID 位元 ＝ 1？</text>
+    <text x="220" y="571" font-weight="700">GOOD</text>
+    <text x="220" y="591" font-size="12">23.45 °C、風機運轉、序號 42（接收後 10 ms）</text>
+    <text x="602" y="114" font-weight="700">ValueError</text>
+    <text x="602" y="133" font-size="12">長度不符映射，不猜測欄位</text>
+    <text x="602" y="288" font-weight="700">ValueError</text>
+    <text x="602" y="307" font-size="12">須用同一個 monotonic 時鐘</text>
+    <text x="602" y="386" font-weight="700">STALE</text>
+    <text x="602" y="405" font-size="12">接收後 80 ms；恰好 60 ms 也算過期</text>
+    <text x="602" y="480" font-weight="700">BAD_SENSOR</text>
+    <text x="602" y="499" font-size="12">溫度回 None，風機狀態仍可用</text>
+    <text x="380" y="630" font-size="12">只量「多久沒收到」；來源值多舊要另看可信的來源時間戳與序號，RPI 不等於資料年齡。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="110">否</text>
+    <text x="228" y="170">是</text>
+    <text x="418" y="284">否</text>
+    <text x="228" y="346">是</text>
+    <text x="414" y="382">是</text>
+    <text x="228" y="440">否</text>
+    <text x="414" y="476">否</text>
+    <text x="228" y="538">是</text>
+  </g>
+</svg>

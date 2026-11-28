@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-labelledby="dg-sps-title dg-sps-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-sps-title">整合程式呼叫只支援 SOAP 1.1 的舊型能源管理系統：版本不符、成功與 Fault 的序列圖</title>
+  <desc id="dg-sps-desc">對應延伸學習的現場案例與範例的 headers() 與 parse_response()。第一步，整合程式送出 SOAP 1.2 Envelope，Content-Type 為 application/soap+xml 並在參數帶 action；只支援 SOAP 1.1 的伺服器常見回應是 HTTP 415，或 HTTP 500 加 VersionMismatch Fault。第二步，改送 SOAP 1.1 Envelope，Content-Type 為 text/xml，另加帶雙引號的 SOAPAction 標頭 urn:example:bms#GetPoint，伺服器回 200 與 GetPointResponse，值 22.5、單位 degC。第三步，查詢不存在的點位，SOAP 1.1 伺服器回 HTTP 500 與 Fault，faultcode 為 soap:Client。parse_response() 從根元素命名空間判斷版本，統一回傳 ('OK', 22.5, 'degC') 或 ('Fault', 'soap:Client', 'Unknown point')。SOAP 1.1 的 Fault 一律用 HTTP 500；SOAP 1.2 的 env:Sender 用 400，其他 Fault 用 500，所以不能只看狀態碼，要剖析 Envelope 內的 Fault。</desc>
+  <defs>
+    <marker id="dg-sps-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="30" y="12" width="200" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="520" y="12" width="210" height="48" rx="6" stroke="currentColor"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="130" y="33" font-weight="700">整合程式</text>
+    <text x="130" y="51" font-size="12">headers()＋parse_response()</text>
+    <text x="625" y="33" font-weight="700">舊型能源管理系統</text>
+    <text x="625" y="51" font-size="12">WSDL 只有 soap:binding（1.1）</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="6 4" class="dg-dash">
+    <line x1="130" y1="60" x2="130" y2="368"/>
+    <line x1="625" y1="60" x2="625" y2="368"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-sps-arrow)">
+    <line x1="130" y1="112" x2="623" y2="112"/>
+    <line x1="130" y1="210" x2="623" y2="210"/>
+    <line x1="130" y1="300" x2="623" y2="300"/>
+  </g>
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-sps-arrow)">
+    <line x1="625" y1="148" x2="132" y2="148"/>
+    <line x1="625" y1="342" x2="132" y2="342"/>
+  </g>
+  <g class="dg-line-green" stroke="#2f9e5b" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-sps-arrow)">
+    <line x1="625" y1="246" x2="132" y2="246"/>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="142" y="86" font-weight="700">① SOAP 1.2 Envelope</text>
+    <text x="142" y="104">Content-Type: application/soap+xml; action="…#GetPoint"</text>
+    <text x="142" y="140">常見：HTTP 415，或 500＋VersionMismatch Fault</text>
+    <text x="142" y="184" font-weight="700">② 改送 SOAP 1.1 Envelope</text>
+    <text x="142" y="202">text/xml＋SOAPAction: "urn:example:bms#GetPoint"</text>
+    <text x="142" y="238">200 OK：GetPointResponse，value 22.5（degC）</text>
+    <text x="142" y="292">③ GetPoint：name＝AHU9_SAT（不存在）</text>
+    <text x="142" y="334">HTTP 500＋Fault：faultcode soap:Client</text>
+  </g>
+  <rect class="dg-green" x="30" y="382" width="700" height="52" rx="8" fill="none" stroke="#2f9e5b" stroke-width="1.5"/>
+  <text x="380" y="404" fill="currentColor" text-anchor="middle" font-weight="700">parse_response() 依根元素命名空間判斷版本，統一回傳</text>
+  <text x="380" y="424" fill="currentColor" text-anchor="middle" font-size="12">('OK', 22.5, 'degC')　或　('Fault', 'soap:Client', 'Unknown point')</text>
+  <rect class="dg-orange" x="30" y="448" width="700" height="56" rx="8" fill="none" stroke="#e07b1f" stroke-width="1.5"/>
+  <text x="380" y="471" fill="currentColor" text-anchor="middle" font-weight="700">SOAP 1.1 的 Fault 一律 HTTP 500；SOAP 1.2 的 env:Sender 用 400，其餘 500</text>
+  <text x="380" y="491" fill="currentColor" text-anchor="middle" font-size="12">只看狀態碼分不出原因，要剖析 Envelope 內的 Fault 代碼與訊息</text>
+</svg>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" role="img" aria-labelledby="dg-cmp-title dg-cmp-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-cmp-title">市場法證據待補與重複配置檢查流程圖</title>
+  <desc id="dg-cmp-desc">對應正文 Python 實作的 calculate()。輸入柴油公升、冷媒逸散公斤、外購 kWh 與合格契約 kWh。第一步檢查每個數值都是 0 到十億之間的有限數，空白、NaN、負數一律拋出 ValueError，不轉成 0。第二步，合格契約 kWh 是 None 時，市場法欄位回傳 null、狀態為 pending_evidence，市場法合計也是 null。第三步，契約 kWh 大於外購 kWh 時拋出 ValueError，因為同一度電不可重複配置。通過後市場法分兩段相乘：40,000 kWh 乘 0.05 加 80,000 kWh 乘 0.55，得 46,000 kgCO₂e；所在地法 54,000 kgCO₂e 另列，兩者平行呈現、不加總。</desc>
+  <defs>
+    <marker id="dg-cmp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,120 220,156 40,120"/>
+    <polygon class="dg-box" points="220,184 400,220 220,256 40,220"/>
+    <polygon class="dg-box" points="220,284 400,320 220,356 40,320"/>
+    <rect class="dg-box" x="30" y="384" width="380" height="56" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="94" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="186" width="285" height="68" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-red" x="460" y="294" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-green" x="30" y="468" width="380" height="56" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-cmp-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="400" y1="120" x2="458" y2="120"/>
+    <line x1="220" y1="156" x2="220" y2="182"/>
+    <line x1="400" y1="220" x2="458" y2="220"/>
+    <line x1="220" y1="256" x2="220" y2="282"/>
+    <line x1="400" y1="320" x2="458" y2="320"/>
+    <line x1="220" y1="356" x2="220" y2="382"/>
+    <line x1="220" y1="440" x2="220" y2="466"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">calculate()</text>
+    <text x="220" y="51" font-size="12">柴油 L、冷媒逸散 kg、外購 kWh、合格契約 kWh</text>
+    <text x="220" y="124" font-size="12">每個數值都是 0～十億的有限數？</text>
+    <text x="220" y="224" font-size="12">contracted_kwh 是 None？</text>
+    <text x="220" y="324" font-size="12">契約 kWh ＞ 外購 kWh？</text>
+    <text x="220" y="407" font-weight="700">市場法分兩段相乘</text>
+    <text x="220" y="427" font-size="12">40,000 × 0.05 ＋ 80,000 × 0.55 ＝ 46,000 kgCO₂e</text>
+    <text x="220" y="491" font-weight="700">兩種範疇二平行回報，不加總</text>
+    <text x="220" y="511" font-size="12">所在地法 54,000；市場法 46,000 kgCO₂e</text>
+    <text x="602" y="116" font-weight="700">ValueError</text>
+    <text x="602" y="135" font-size="12">空白、NaN、負數一律拒絕，不轉成 0</text>
+    <text x="602" y="208" font-weight="700">市場法 null</text>
+    <text x="602" y="227" font-size="12">status＝pending_evidence</text>
+    <text x="602" y="244" font-size="12">total_market 也是 null，不估填</text>
+    <text x="602" y="316" font-weight="700">ValueError</text>
+    <text x="602" y="335" font-size="12">同一度電不可重複配置</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="418" y="112">否</text>
+    <text x="228" y="174">是</text>
+    <text x="418" y="212">是</text>
+    <text x="228" y="274">否</text>
+    <text x="418" y="312">是</text>
+    <text x="228" y="374">否</text>
+    <text x="460" y="408">契約 0 kWh 是「已確認全部未覆蓋」，</text>
+    <text x="460" y="426">與 None（證據待補）意義不同：</text>
+    <text x="460" y="444">0 會算出 120,000 × 0.55，None 只回報待補。</text>
+  </g>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" role="img" aria-labelledby="dg-crs-title dg-crs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-crs-title">HMAC 金鑰輪替狀態圖</title>
+  <desc id="dg-crs-desc">對應延伸範例的 ACTIVE_KID 與 ACCEPTED_KIDS。狀態一：單一金鑰期，發布端用 k2025 簽，閘道器只接受 k2025。先把 k2026 驗證金鑰佈到所有閘道器，進入狀態二過渡期：發布端改用 k2026 簽，閘道器接受 k2025 與 k2026，範例程式就從這裡開始，舊檔仍可驗證。把所有仍以 k2025 簽的檔案重簽並清點為 0 後，進入狀態三：執行 ACCEPTED_KIDS.discard("k2025")，只接受 k2026，舊檔會被拒絕。順序不能顛倒：若從單一金鑰期直接改簽、閘道器還沒有 k2026 就收到新檔，verify() 會拒絕並保留現行設定。若在過渡期懷疑 k2025 外洩，不等待重簽，直接移除舊鑰，之後檢查外洩期間載入過的設定。</desc>
+  <defs>
+    <marker id="dg-crs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="20" y="60" width="210" height="96" rx="14" stroke="currentColor"/>
+    <rect class="dg-blue" x="275" y="60" width="210" height="96" rx="14" stroke="#3b82f6"/>
+    <rect class="dg-green" x="530" y="60" width="210" height="96" rx="14" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="20" y="300" width="465" height="70" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-red" x="530" y="300" width="210" height="110" rx="6" stroke="#d64545" stroke-dasharray="6 4"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-crs-arrow)">
+    <line x1="230" y1="108" x2="273" y2="108"/>
+    <line x1="485" y1="108" x2="528" y2="108"/>
+    <line x1="690" y1="156" x2="690" y2="298" stroke-dasharray="6 4"/>
+  </g>
+  <g class="dg-orange" stroke="#e07b1f" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-crs-arrow)">
+    <line x1="125" y1="156" x2="125" y2="298"/>
+  </g>
+  <g stroke="#d64545" class="dg-line-red" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-crs-arrow)">
+    <polyline points="380,156 380,230 600,230 600,158"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="125" y="86" font-weight="700">① 單一金鑰期</text>
+    <text x="125" y="108" font-size="12">簽：k2025</text>
+    <text x="125" y="128" font-size="12">接受：{k2025}</text>
+    <text x="380" y="86" font-weight="700">② 過渡期（範例起點）</text>
+    <text x="380" y="108" font-size="12">簽：k2026（ACTIVE_KID）</text>
+    <text x="380" y="128" font-size="12">接受：{k2025, k2026}</text>
+    <text x="635" y="86" font-weight="700">③ 移除舊鑰</text>
+    <text x="635" y="108" font-size="12">簽：k2026</text>
+    <text x="635" y="128" font-size="12">接受：{k2026}；舊檔被拒</text>
+    <text x="251" y="38" font-size="12">先佈驗證鑰</text>
+    <text x="251" y="52" font-size="12">再切簽章鑰</text>
+    <text x="507" y="38" font-size="12">重簽完、清點 0</text>
+    <text x="507" y="52" font-size="12">discard("k2025")</text>
+    <text x="185" y="222" font-size="12">略過佈鑰、直接改簽</text>
+    <text x="185" y="240" font-size="12">（錯誤順序）</text>
+    <text x="490" y="218" font-size="12">疑似外洩：不等重簽</text>
+    <text x="490" y="252" font-size="12">直接移除舊鑰</text>
+    <text x="252" y="328" font-weight="700">順序顛倒時：閘道器還沒有 k2026 就收到新檔</text>
+    <text x="252" y="350" font-size="12">verify() 拒絕「不接受的金鑰版本：k2026」，保留現行設定</text>
+    <text x="635" y="326" font-weight="700">外洩後要補做</text>
+    <text x="635" y="350" font-size="12">查外洩期間載入過的設定</text>
+    <text x="635" y="372" font-size="12">換鑰不會讓舊檔變可信</text>
+    <text x="635" y="394" font-size="12">記錄 kid 與時間</text>
+    <text x="380" y="448" font-size="12">HMAC 是對稱金鑰：能驗證的一方也能簽，閘道器上的金鑰檔要限制讀取帳號</text>
+  </g>
+</svg>

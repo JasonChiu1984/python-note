@@ -20,7 +20,7 @@
  },
  "updates": [
   {
-   "text": "本頁核對時 Docker SDK for Python（docker 套件）最新版為 7.2.0。透過 SDK 或 CLI 存取 Docker daemon 等同取得主機 root 權限，執行這類工具的帳號與 socket 權限要嚴格限制。",
+   "text": "本頁核對時（2026-11-28 以 PyPI 確認）Docker SDK for Python（docker 套件）最新版為 7.2.0。透過 SDK 或 CLI 存取 Docker daemon 等同取得主機 root 權限，執行這類工具的帳號與 socket 權限要嚴格限制。",
    "sources": [
     {
      "title": "PyPI：docker",
@@ -49,6 +49,24 @@
   {
    "q": "--read-only 搭配 --tmpfs /tmp 的用意是什麼？",
    "a": "<p>根檔案系統唯讀，攻擊者或錯誤程式無法修改容器內的程式檔；但很多程式需要暫存檔，用記憶體中的 tmpfs 提供可寫的 /tmp，重啟後自動清空。</p>"
+  },
+  {
+   "q": "compose ps 顯示 telemetry 為 healthy，但主機執行 python3 host.py sample 得到 ConnectionRefusedError。依分層排錯流程圖，問題最可能落在哪一層？要看哪些證據？",
+   "a": "<p>第 4 層：主機連接埠。healthy 只證明容器內連自己的 8080 成功。依序確認：compose.yaml 的 ports 是否發布到 127.0.0.1:18080（可用 docker compose port telemetry 8080 讀實際對應）；app.py 是否聽 0.0.0.0 而不是只聽容器內的 127.0.0.1；docker context show 指向的 Engine 是否就是這台主機，若是遠端 daemon，埠是發布在遠端主機上，本機 127.0.0.1:18080 當然連不到。不要改用掛 Engine socket 或提高權限來「繞過」。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "architecture",
+   "title": "主機 Python 與容器互動的三條路徑",
+   "file": "diagram-three-planes.svg",
+   "caption": "對應正文「三條路徑，不要混在一起」與可重跑實驗：host.py status 走控制面（Docker CLI 加明確 --context，經 Engine API socket），host.py sample 走資料面（主機 loopback 18080 經埠發布到容器內 8080），compose run --rm -T 走程序面（以 stdout、stderr 與結束碼判定）。只有控制面需要 Engine 權限，而這個權限等同主機等級。"
+  },
+  {
+   "kind": "flow",
+   "title": "用證據分層排錯",
+   "file": "diagram-troubleshoot-flow.svg",
+   "caption": "對應正文「用證據分層排錯」：由 Engine、容器狀態、容器內健康檢查、主機連接埠到資料契約逐層確認，每層失敗只往該層找原因。健康檢查在容器內連 127.0.0.1:8080，所以程序只聽容器內 loopback 時第 3 層會通過、第 4 層才失敗。"
   }
  ]
 }

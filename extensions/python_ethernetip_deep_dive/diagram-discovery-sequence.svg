@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 540" role="img" aria-labelledby="dg-eds-title dg-eds-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-eds-title">ListIdentity 唯讀盤點與之後需授權的連線序列圖</title>
+  <desc id="dg-eds-desc">三條生命線：Python 盤點工具、受控網段、EtherNet/IP 通訊模組。第一段是延伸範例示範的唯讀探索：工具以 UDP 44818 送出 24 位元組封裝標頭，命令 0x0063 ListIdentity，長度 0，不需要 session；模組回覆命令 0x0063、長度 51，內含一個 CPF 項目，型別 0x000C、長度 45，帶出 IP、廠商代碼、產品代碼、韌體版本、序號與產品名稱。工具收到後先用 parse_header() 核對 24 加 length 是否等於實際長度，不符就拒絕。第二段不在範例內，只在取得執行許可後進行：TCP 44818 的 RegisterSession，命令 0x0065，取得 session handle 後才能用顯式訊息讀屬性；隱式 I/O 還要經 Forward Open 協商連線與 RPI。</desc>
+  <defs>
+    <marker id="dg-eds-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="30" y="12" width="180" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-box" x="290" y="12" width="180" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="550" y="12" width="180" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-orange dg-dash" x="20" y="318" width="720" height="150" rx="8" stroke="#e07b1f" stroke-dasharray="6 4"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" fill="none">
+    <line x1="120" y1="60" x2="120" y2="500"/>
+    <line x1="380" y1="60" x2="380" y2="500"/>
+    <line x1="640" y1="60" x2="640" y2="500"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-eds-arrow)">
+    <line x1="120" y1="112" x2="638" y2="112"/>
+    <line x1="640" y1="182" x2="122" y2="182"/>
+    <polyline points="120,236 170,236 170,262 124,262"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-eds-arrow)">
+    <line x1="120" y1="370" x2="638" y2="370"/>
+    <line x1="120" y1="430" x2="638" y2="430"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="120" y="33" font-weight="700">Python 盤點工具</text>
+    <text x="120" y="51" font-size="12">只讀、不寫入</text>
+    <text x="380" y="33" font-weight="700">受控網段</text>
+    <text x="380" y="51" font-size="12">維護窗口、指定 VLAN</text>
+    <text x="640" y="33" font-weight="700">通訊模組（Target）</text>
+    <text x="640" y="51" font-size="12">範例：1756-EN2T/D</text>
+    <text x="380" y="102" font-size="12">① UDP 44818｜命令 0x0063 ListIdentity，length 0，session 0</text>
+    <text x="380" y="130" font-size="12">24 位元組封裝標頭，全部 little-endian；不需要 RegisterSession</text>
+    <text x="380" y="172" font-size="12">② 回覆 0x0063，length 51 ＝ CPF 前導 6 ＋ Identity 項目 45</text>
+    <text x="380" y="200" font-size="12">項目 0x000C：IP／埠（big-endian）、廠商、產品、韌體 11.002、序號、名稱</text>
+    <text x="380" y="342" font-weight="700">不在範例內：取得現場許可後才進行</text>
+    <text x="380" y="360" font-size="12">③ TCP 44818｜RegisterSession 0x0065 → 取得 session handle</text>
+    <text x="380" y="420" font-size="12">④ 顯式訊息讀屬性；隱式 I/O 另需 Forward Open 協商連線與 RPI</text>
+    <text x="380" y="452" font-size="12">路徑或資料型別錯誤可能影響控制器，盤點階段停在 ①②</text>
+    <text x="380" y="524" font-size="12">廣播可能被防火牆或交換器政策擋下；沒回應不等於沒有設備，要用單播逐台確認。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="182" y="240">自檢 parse_header()</text>
+    <text x="182" y="258">24 ＋ length ≠ 實長即拒絕</text>
+    <text x="182" y="276">截斷 3 B：51 vs 48</text>
+  </g>
+</svg>

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" role="img" aria-labelledby="dg-cvf-title dg-cvf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-cvf-title">設定檔 HMAC 簽章驗證流程圖</title>
+  <desc id="dg-cvf-desc">對應延伸範例的 verify()。閘道器下載的封包含 kid、config 與 mac。第一步檢查 kid 是否在 ACCEPTED_KIDS 內，不在就拒絕，例如過渡期結束後的 k2025。接著用 canonical() 把 config 正規化成排序鍵、固定分隔字元的 JSON 位元組，再以 KEYS[kid] 對「kid 加句點加正規化內容」計算 HMAC-SHA256，所以金鑰版本本身也受簽章保護。最後把 Base64 解碼後的 mac 與預期值用 hmac.compare_digest 做常數時間比較：不相等就拒絕，例如有人把送風溫度倍率從 0.1 改成 1.0；相等才回傳 config 並載入。任何拒絕都要告警並保留現行設定，不退回不驗證直接載入。HMAC 只提供完整性與來源驗證，不提供保密。</desc>
+  <defs>
+    <marker id="dg-cvf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,118 220,152 40,118"/>
+    <rect class="dg-box" x="30" y="176" width="380" height="52" rx="6"/>
+    <rect class="dg-box" x="30" y="252" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,328 400,362 220,396 40,362"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="92" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="460" y="336" width="285" height="52" rx="6" stroke="#d64545"/>
+    <rect class="dg-green" x="30" y="420" width="380" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="460" y="420" width="285" height="120" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-cvf-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="400" y1="118" x2="458" y2="118"/>
+    <line x1="220" y1="152" x2="220" y2="174"/>
+    <line x1="220" y1="228" x2="220" y2="250"/>
+    <line x1="220" y1="304" x2="220" y2="326"/>
+    <line x1="400" y1="362" x2="458" y2="362"/>
+    <line x1="220" y1="396" x2="220" y2="418"/>
+    <line x1="602" y1="144" x2="602" y2="334"/>
+    <line x1="602" y1="388" x2="602" y2="418"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">收到封包 {kid, config, mac}</text>
+    <text x="220" y="51" font-size="12">維護主機下載的 Modbus 點位設定檔</text>
+    <text x="220" y="123">kid 在 ACCEPTED_KIDS 內？</text>
+    <text x="220" y="197" font-weight="700">canonical(config)</text>
+    <text x="220" y="216" font-size="12">sort_keys、分隔字元 (",", ":")；3 與 3.0 不同</text>
+    <text x="220" y="273" font-weight="700">HMAC-SHA256(KEYS[kid], kid + "." + 內容)</text>
+    <text x="220" y="292" font-size="12">kid 一起進簽章，不能換版本矇混</text>
+    <text x="220" y="367">compare_digest(預期, mac)？</text>
+    <text x="220" y="442" font-weight="700">回傳 config，載入新設定</text>
+    <text x="220" y="461" font-size="12">只證明未被改且來自持鑰方，不提供保密</text>
+    <text x="602" y="114" font-weight="700">拒絕：不接受的金鑰版本</text>
+    <text x="602" y="133" font-size="12">例：過渡期結束後的 k2025</text>
+    <text x="602" y="358" font-weight="700">拒絕：簽章不符</text>
+    <text x="602" y="377" font-size="12">例：倍率 0.1 被改成 1.0</text>
+    <text x="602" y="444" font-weight="700">任何拒絕的處理</text>
+    <text x="602" y="470" font-size="12">告警並保留現行設定</text>
+    <text x="602" y="494" font-size="12">不退回「不驗證直接載入」</text>
+    <text x="602" y="518" font-size="12">記錄 kid 與時間，不記金鑰</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="414" y="110">否</text>
+    <text x="228" y="168">是</text>
+    <text x="414" y="354">否</text>
+    <text x="228" y="412">是</text>
+  </g>
+</svg>

@@ -1,38 +1,82 @@
 {
-  "lang": "zh",
-  "python": "3.13",
-  "checked": "2026-11-28",
-  "intro": "前面示範 AES-GCM 加密（需要第三方套件 cryptography）。很多現場問題其實不是「保密」而是「確認沒被改過」：本節只用標準函式庫，示範設定檔的完整性簽章、金鑰輪替與密碼雜湊。",
-  "example_title": "HMAC 設定檔簽章、金鑰輪替與 scrypt 密碼雜湊",
-  "example_desc": "sign() 以 HMAC-SHA256 對正規化後的 JSON 簽章並附上金鑰版本 kid；verify() 只接受清單內的版本，並用 hmac.compare_digest 做常數時間比較。hash_password() 用 scrypt 產生可儲存的密碼雜湊字串。範例金鑰與 salt 是固定值，只為了讓輸出可重現。",
-  "run_note": "只需 Python 3.10 以上，無第三方套件",
-  "case": {
-    "title": "點位設定檔的倍率被改成 1.0",
-    "paragraphs": [
-      "某閘道器每天從維護主機下載 Modbus 點位設定檔。一次維修後，送風溫度倍率從 0.1 被誤改成 1.0，BAS 顯示 225 °C，聯動邏輯誤判高溫而關閉空調箱。檔案以 HTTPS 傳輸，但 HTTPS 只保護傳輸途中，無法證明檔案在維護主機上沒被改過。",
-      "加上 HMAC 簽章後，閘道器只載入簽章正確的檔案；未經發布流程修改的檔案會被拒絕並保留現行設定。簽章不提供保密，若設定檔含帳密，仍要另外加密或改用祕密管理服務。"
-    ],
-    "steps": [
-      "把設定檔發布做成固定流程：審核 → 以發布金鑰簽章 → 上傳。閘道器只持有驗證用金鑰（HMAC 是同一把，因此要限制可讀取的帳號）。",
-      "簽章內容先正規化（排序鍵、固定分隔字元），避免縮排或鍵順序不同造成誤判。",
-      "金鑰輪替時先讓閘道器同時接受新舊 kid，所有檔案改用新金鑰重簽後，再移除舊 kid。",
-      "驗證失敗要告警並保留現行設定，不要退回「不驗證直接載入」。"
-    ]
-  },
-  "updates": [
-    {"text": "NIST 於 2026 年 10 月 27 日發布 IR 8547 定稿：所有易受量子攻擊的公開金鑰演算法（RSA、ECDSA、EdDSA、DH 等），不論金鑰長度都在 2030 年後列為 deprecated、2035 年後 disallowed。草案原本只把 112-bit 參數（如 RSA-2048）提前淘汰，定稿連 RSA-3072、P-256、Ed25519 也一併納入。替代方案為 ML-KEM（FIPS 203）與 ML-DSA、SLH-DSA（FIPS 204／205）。",
-     "sources": [{"title": "Cloud Security Alliance：NIST IR 8547 定稿摘要", "url": "https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ir8547-pqc-transition-20261030-csa-st/"}]},
-    {"text": "HMAC-SHA256 與 AES-256 這類對稱式演算法不在上述淘汰範圍內，本節範例的做法仍適用。本頁核對時 cryptography 套件最新版為 50.0.2。",
-     "sources": [{"title": "PyPI：cryptography", "url": "https://pypi.org/project/cryptography/"}]}
+ "lang": "zh",
+ "python": "3.13",
+ "checked": "2026-11-28",
+ "intro": "前面示範 AES-GCM 加密（需要第三方套件 cryptography）。很多現場問題其實不是「保密」而是「確認沒被改過」：本節只用標準函式庫，示範設定檔的完整性簽章、金鑰輪替與密碼雜湊。",
+ "example_title": "HMAC 設定檔簽章、金鑰輪替與 scrypt 密碼雜湊",
+ "example_desc": "sign() 以 HMAC-SHA256 對正規化後的 JSON 簽章並附上金鑰版本 kid；verify() 只接受清單內的版本，並用 hmac.compare_digest 做常數時間比較。hash_password() 用 scrypt 產生可儲存的密碼雜湊字串。範例金鑰與 salt 是固定值，只為了讓輸出可重現。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "點位設定檔的倍率被改成 1.0",
+  "paragraphs": [
+   "某閘道器每天從維護主機下載 Modbus 點位設定檔。一次維修後，送風溫度倍率從 0.1 被誤改成 1.0，BAS 顯示 225 °C，聯動邏輯誤判高溫而關閉空調箱。檔案以 HTTPS 傳輸，但 HTTPS 只保護傳輸途中，無法證明檔案在維護主機上沒被改過。",
+   "加上 HMAC 簽章後，閘道器只載入簽章正確的檔案；未經發布流程修改的檔案會被拒絕並保留現行設定。簽章不提供保密，若設定檔含帳密，仍要另外加密或改用祕密管理服務。"
   ],
-  "exercises": [
-    {"q": "為什麼 verify() 要用 hmac.compare_digest()，而不是 expected == given？",
-     "a": "<p>一般的 == 在第一個不同的位元組就會回傳，比較時間會洩漏「前面有幾個位元組正確」。攻擊者可以逐位元組猜出正確的 MAC。compare_digest() 的執行時間與內容無關。</p>"},
-    {"q": "如果簽章時沒有把 kid 一起放進 HMAC 的輸入，會有什麼風險？",
-     "a": "<p>攻擊者可以把 kid 換成另一個仍被接受的版本，讓驗證端用不同金鑰驗證。雖然 MAC 仍需正確，但把 kid 納入簽章能確保「用哪把鑰匙」本身也受保護，避免版本混淆。</p>"},
-    {"q": "把設定檔的 \"unit_id\": 3 改成 \"unit_id\": 3.0，簽章會通過嗎？為什麼？",
-     "a": "<p>不會。json.dumps 會把 3.0 輸出成 \"3.0\"，正規化後的位元組不同，HMAC 也就不同。這是好事：型別改變可能影響閘道器行為，應該視為修改。</p>"},
-    {"q": "scrypt 的 n=2**14 代表什麼？什麼情況需要調高？",
-     "a": "<p>n 是 CPU／記憶體成本參數，記憶體用量約為 128 × n × r 位元組（此例約 16 MB）。硬體變快或安全需求提高時要調高，但要確認登入伺服器在尖峰時的記憶體足夠。雜湊字串中保存了參數，舊密碼仍可驗證，可在使用者下次登入時重新雜湊。</p>"}
+  "steps": [
+   "把設定檔發布做成固定流程：審核 → 以發布金鑰簽章 → 上傳。閘道器只持有驗證用金鑰（HMAC 是同一把，因此要限制可讀取的帳號）。",
+   "簽章內容先正規化（排序鍵、固定分隔字元），避免縮排或鍵順序不同造成誤判。",
+   "金鑰輪替時先讓閘道器同時接受新舊 kid，所有檔案改用新金鑰重簽後，再移除舊 kid。",
+   "驗證失敗要告警並保留現行設定，不要退回「不驗證直接載入」。"
   ]
+ },
+ "updates": [
+  {
+   "text": "NIST 於 2026 年 10 月 27 日發布 IR 8547 定稿：所有易受量子攻擊的公開金鑰演算法（RSA、ECDSA、EdDSA、DH 等），不論金鑰長度都在 2030 年後列為 deprecated、2035 年後 disallowed。草案原本只把 112-bit 參數（如 RSA-2048）提前淘汰，定稿連 RSA-3072、P-256、Ed25519 也一併納入。替代方案為 ML-KEM（FIPS 203）與 ML-DSA、SLH-DSA（FIPS 204／205）。",
+   "sources": [
+    {
+     "title": "Cloud Security Alliance：NIST IR 8547 定稿摘要",
+     "url": "https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ir8547-pqc-transition-20261030-csa-st/"
+    }
+   ]
+  },
+  {
+   "text": "HMAC-SHA256 與 AES-256 這類對稱式演算法不在上述淘汰範圍內，本節範例的做法仍適用。本頁核對時 cryptography 套件最新版為 50.0.2。",
+   "sources": [
+    {
+     "title": "PyPI：cryptography",
+     "url": "https://pypi.org/project/cryptography/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 verify() 要用 hmac.compare_digest()，而不是 expected == given？",
+   "a": "<p>一般的 == 在第一個不同的位元組就會回傳，比較時間會洩漏「前面有幾個位元組正確」。攻擊者可以逐位元組猜出正確的 MAC。compare_digest() 的執行時間與內容無關。</p>"
+  },
+  {
+   "q": "如果簽章時沒有把 kid 一起放進 HMAC 的輸入，會有什麼風險？",
+   "a": "<p>攻擊者可以把 kid 換成另一個仍被接受的版本，讓驗證端用不同金鑰驗證。雖然 MAC 仍需正確，但把 kid 納入簽章能確保「用哪把鑰匙」本身也受保護，避免版本混淆。</p>"
+  },
+  {
+   "q": "把設定檔的 \"unit_id\": 3 改成 \"unit_id\": 3.0，簽章會通過嗎？為什麼？",
+   "a": "<p>不會。json.dumps 會把 3.0 輸出成 \"3.0\"，正規化後的位元組不同，HMAC 也就不同。這是好事：型別改變可能影響閘道器行為，應該視為修改。</p>"
+  },
+  {
+   "q": "scrypt 的 n=2**14 代表什麼？什麼情況需要調高？",
+   "a": "<p>n 是 CPU／記憶體成本參數，記憶體用量約為 128 × n × r 位元組（此例約 16 MB）。硬體變快或安全需求提高時要調高，但要確認登入伺服器在尖峰時的記憶體足夠。雜湊字串中保存了參數，舊密碼仍可驗證，可在使用者下次登入時重新雜湊。</p>"
+  },
+  {
+   "q": "輪替時若先讓維護主機改用 k2026 簽章，閘道器的 ACCEPTED_KIDS 還只有 {\"k2025\"}，下載到新檔會發生什麼事？正確的順序是什麼？",
+   "a": "<p>實際執行：把 ACCEPTED_KIDS 設成只含 k2025 後驗證新檔，verify() 拋出「不接受的金鑰版本：k2026」。依案例的處理原則，閘道器告警並保留現行設定，所以設備不會壞，但所有新設定都下不去。</p><p>正確順序是先把新驗證金鑰佈到每一台閘道器並確認（過渡期接受新舊兩把），再讓發布端改用新金鑰簽章；所有舊檔重簽、清點為 0 之後才移除舊 kid。這和憑證輪替「先信任、再切換、最後撤銷」是同一個道理。</p>"
+  },
+  {
+   "q": "把 hash_password() 的 n 從 2**14 調高到 2**15（r=8 不變），在本機 Python 3.13.18／OpenSSL 3.5.9 執行會怎樣？要怎麼改？",
+   "a": "<p>實際執行會拋出 <code>ValueError: [digital envelope routines] memory limit exceeded</code>。記憶體需求約 128 × n × r = 32 MiB，已碰到 OpenSSL 預設的 32 MiB 上限（hashlib.scrypt 的 maxmem 為 0 時採用預設值）。</p><p>做法是明確傳入 maxmem，例如 <code>maxmem=64 * 1024 * 1024</code>，並確認登入尖峰時的並行數 × 每次記憶體不會壓垮伺服器。調高成本後，舊雜湊字串裡保存的是舊參數，check_password() 仍能驗證；check_password() 本身也要能帶入足夠的 maxmem，否則高成本的雜湊會驗不過。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "flow",
+   "title": "設定檔 HMAC 簽章驗證",
+   "file": "diagram-verify-flow.svg",
+   "caption": "對應延伸範例的 verify()：先擋不接受的 kid，再以正規化內容與 kid 重算 HMAC，用 compare_digest 比較；兩種拒絕都告警並保留現行設定。它只證明沒被改、來自持鑰方，正文第 01 節表格中機密性那一欄仍是「不提供」。"
+  },
+  {
+   "kind": "state",
+   "title": "HMAC 金鑰輪替",
+   "file": "diagram-rotation-state.svg",
+   "caption": "對應範例的 ACTIVE_KID 與 ACCEPTED_KIDS.discard()。橘色虛線是常見的順序錯誤（練習 5），紅色虛線是疑似外洩時的處置。正文第 02 節的 DEK／KEK 輪替原則相同：新寫用新版本，舊版本只限期讀取。"
+  }
+ ]
 }
