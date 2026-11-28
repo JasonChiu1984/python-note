@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="從 webpack 模組圖與切包，到 Python 同源部署、快取失效與可重現驗證。">
+<title>webpack × Python｜前端打包深度研究與實作</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1725;--surface:#152437;--text:#edf3fa;--muted:#b2c1d4;--line:#395371;--mint:#82e5cb;--gold:#ffc980}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.75 system-ui,"PingFang TC","Microsoft JhengHei",sans-serif;overflow-wrap:anywhere}
+a{color:var(--mint);text-underline-offset:.18em}a:hover{color:white}a:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.shell{max-width:104rem;margin:auto;padding-inline:clamp(.85rem,3vw,3rem)}header{border-bottom:1px solid var(--line);background:radial-gradient(ellipse at 90% 20%,#174750,#111f32 65%);padding-block:clamp(1.5rem,4vw,4rem)}
+.kicker{color:var(--mint);font-weight:800;font-size:.85rem;letter-spacing:.1em}h1,h2,h3{line-height:1.28;text-wrap:balance}h1{font-size:clamp(2rem,4.2vw,4rem);max-width:22ch;margin:.55rem 0}h2{font-size:clamp(1.42rem,2.4vw,2rem)}h1+h2{color:var(--muted);font-weight:600}
+.lead{max-width:76ch;color:var(--muted)}.links{display:flex;flex-wrap:wrap;gap:.55rem}.btn{display:inline-flex;align-items:center;min-height:44px;padding:.43rem .8rem;text-decoration:none;color:var(--text);border:1px solid var(--line);border-radius:.55rem;background:#182d42}.primary{color:#092923;background:var(--mint);border-color:var(--mint);font-weight:800}.primary:hover{color:#092923;background:#b8ffe9}
+.layout{display:grid;grid-template-columns:minmax(12rem,15rem) minmax(0,1fr);gap:clamp(1rem,3vw,2.5rem);padding-block:1.35rem 3rem}
+aside{min-width:0}aside nav{position:sticky;top:1rem}nav ul{list-style:none;padding:0;margin:.5rem 0}nav li a{display:flex;align-items:center;min-height:44px;padding:.25rem .55rem;border-radius:.35rem;color:var(--muted);text-decoration:none}nav li a:hover{background:#213950;color:white}
+main{min-width:0}section{scroll-margin-top:.9rem;background:var(--surface);border:1px solid var(--line);border-radius:.8rem;padding:clamp(.85rem,2.2vw,1.75rem);margin-bottom:1rem;min-width:0}section>h2{margin-top:.35rem}
+figure{margin:1.4rem 0;border:1px solid var(--line);border-radius:.65rem;padding:clamp(.7rem,2vw,1.1rem);container-type:inline-size;background:#0e1e2e}figcaption{margin-bottom:.7rem;font-weight:800}
+.flow{display:grid;grid-template-columns:minmax(0,1fr);gap:1.75rem;list-style:none;padding:0;margin:0}.flow li{position:relative;min-width:0;text-align:center;padding:.6rem .65rem;background:#1c3549;border-radius:.55rem;border:1px solid #527295;display:grid;align-content:center}.flow li small{display:block;color:var(--muted);font-size:.9em}.flow li:not(:last-child)::after{content:"↓";position:absolute;inset-block-start:100%;inset-inline-start:50%;transform:translateX(-50%);display:grid;place-items:center;width:1.75rem;height:1.75rem;line-height:1;color:var(--mint);font-weight:900}
+@container (min-width:49rem){.flow{grid-template-columns:repeat(4,minmax(0,1fr))}.flow li:not(:last-child)::after{content:"→";inset-block-start:50%;inset-inline-start:100%;transform:translateY(-50%)}}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:.8rem}.box{min-width:0;background:#112033;border:1px solid var(--line);border-radius:.65rem;padding:.8rem}.box h3{margin:.2rem 0}
+.note{border-inline-start:4px solid var(--gold);padding:.4rem .75rem;background:#1d2a39}
+.table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}table{border-collapse:collapse;width:100%;min-width:30rem}th,td{border-bottom:1px solid var(--line);padding:.55rem;vertical-align:top;text-align:left}th{color:var(--mint)}
+pre{margin:.5rem 0;max-width:100%;overflow:auto;padding:.8rem .9rem;background:#08121e;border:1px solid #314968;border-radius:.55rem;white-space:pre;overflow-wrap:normal;font:clamp(.81rem, .78rem + .13vw,.92rem)/1.5 ui-monospace,monospace}code{font-family:ui-monospace,monospace;color:#b7f1e3}pre code{color:var(--text)}details{margin:.5rem 0}summary{min-height:44px;cursor:pointer;font-weight:750;padding:.43rem .3rem}select{min-height:44px;width:min(100%,29rem);font:inherit;background:#182d42;color:var(--text);border:1px solid var(--line);border-radius:.4rem;padding:.4rem}
+footer{border-top:1px solid var(--line);padding:1rem 0 2rem;color:var(--muted)}.axis{height:.65rem;border-radius:.35rem;background:#29415a;margin:.4rem 0}.axis span{display:block;height:100%;background:var(--mint);border-radius:.35rem}.axis .later{background:var(--gold)}
+@media(max-width:740px){.layout{grid-template-columns:minmax(0,1fr)}aside nav{position:static}aside nav ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:.35rem}}
+</style>
+</head>
+<body>
+<header><div class="shell">
+<p class="kicker">PYTHON × FRONTEND / BUILD ENGINEERING</p>
+<h1>webpack：從模組圖到可回退的前端發布</h1>
+<p class="lead">用一個冷卻水回路面板，把 JavaScript、CSS 與 SVG 編譯成可部署的靜態檔。從兩個建置結果量出切包代價，再把子路徑、API 同源與版本回退做成可驗收的契約。</p>
+<p>更新：<time datetime="2026-11-28">2026-11-28（台灣時間）</time> · 實驗版本 webpack 5.113.0</p>
+<div class="links"><a class="btn primary" href="#practice">開始實作</a><a class="btn" href="assets/webpack_python_lab_source.zip" download>下載完整範例與 lockfile</a><a class="btn" href="python_web_frontend_dataflow_tutorial.html#webpack-study">回 Python 與前端資料流</a></div>
+</div></header>
+<div class="shell layout">
+<aside><nav aria-label="本頁章節"><div class="kicker">研究路線</div><ul>
+<li><a href="#contract">01 定位與邊界</a></li><li><a href="#compile">02 編譯架構圖</a></li><li><a href="#delivery">03 部署資料流</a></li><li><a href="#practice">04 完整實作</a></li><li><a href="#experiment">05 切包實測</a></li><li><a href="#debug">06 故障判讀</a></li><li><a href="#security">07 安全與回退</a></li><li><a href="#choice">08 工具選型</a></li><li><a href="#references">09 來源與進階研究</a></li>
+</ul></nav></aside>
+<main id="main">
+<section id="contract"><p class="kicker">01 / SYSTEM BOUNDARY</p><h2>webpack 是建置器，不是 Python API 伺服器</h2>
+<div class="cols"><article class="box"><h3>建置端</h3><p>Node.js 執行 webpack，把入口及可解析的依賴轉成瀏覽器資產。建置完交付的是 HTML、JS、CSS、SVG，不是 Node.js 服務。</p></article><article class="box"><h3>部署端</h3><p>靜態服務送出頁面及資產；Python 處理 JSON API、身分驗證、資料品質與設備隔離。瀏覽器不可直接接工控設備。本例只送合成點位。</p></article></div>
+<p><strong>最容易混淆的三條路徑：</strong><code>output.path</code> 是建置機上的目錄；<code>output.publicPath</code> 是瀏覽器抓產物的 URL 前綴；<code>fetch('/api/reading')</code> 則以目前網站的 origin 為準，從網站根路徑請求，跟前者沒有連動。</p>
+<p class="note">只做小型教材、無 npm 依賴時，先用原生 ES Modules。除非需要資產雜湊、轉譯、切包或驗收預算，否則不必為單一靜態頁引入建置鏈。</p>
+</section>
+<section id="compile"><p class="kicker">02 / COMPILATION</p><h2>從 Entry 到 Emit：兩張圖，不是一個壓縮步驟</h2>
+<figure><figcaption>建置架構圖｜來源 → 模組 → chunk → 靜態檔</figcaption><ol class="flow"><li><strong>Entry / Resolver</strong><small>從 dashboard 追蹤 import 與解析規則</small></li><li><strong>ModuleGraph</strong><small>Loader 轉換 CSS；Asset Module 發出 SVG</small></li><li><strong>ChunkGraph</strong><small>入口、runtime、按需趨勢；配置共用模組</small></li><li><strong>Assets / Emit</strong><small>Plugin 產生 HTML 與 CSS；輸出雜湊檔名</small></li></ol></figure>
+<ul>
+<li><strong>resolve：</strong>模組名稱、相對路徑、套件匯出條件與別名決定最後讀哪份檔。同一套件走不同入口或被安裝多份，可能拉出兩套模組；先用 stats/套件樹確認，不先調切包門檻。</li>
+<li><strong>loader 與 plugin：</strong>一般 loader normal chain 由右向左。本例 <code>css-loader</code> 解釋 CSS 依賴，抽取器把 CSS 寫為獨立檔；插件在 compiler/compilation hook 處理資產、最佳化與 HTML。規則 <code>asset/resource</code> 會產生檔案並輸出 URL；<code>asset/inline</code> 把內容嵌進載入它的資產；<code>asset/source</code> 把資產當資料；<code>asset</code> 依條件選擇 resource 或 inline。</li>
+<li><strong>tree shaking ≠ code splitting：</strong>前者移除可證明未使用的程式，通常仰賴靜態 ESM、正確的 <code>sideEffects</code> 以及正式壓縮。<code>import './style.css'</code> 等有副作用的匯入不可被一概標成可刪。後者讓程式切成不同載入時機，模組仍可能存在於輸出。</li>
+<li><strong>Chunk 與檔案不一定一對一：</strong>同一 chunk 可對應 JS 與 CSS；<code>import()</code> 通常形成非同步載入邊界，若該模組已在入口載入，就不應假定一定增加新請求。<code>splitChunks</code> 須達到策略門檻才會抽取共用模組，開啟不等於一定有 vendors 檔。</li>
+<li><strong>快取分兩層：</strong>編譯的 filesystem cache 減少可重用的建置工作；瀏覽器快取依 URL 和 HTTP 標頭重用輸出。<code>runtimeChunk: 'single'</code> 把載入映射移出業務程式；chunk 檔名變動可影響 runtime，不能保證其他所有檔不變。</li>
+</ul>
+<p><a href="assets/webpack_python_architecture.drawio" download>下載 Draw.io 可編輯原圖（建置與部署兩頁）</a></p>
+</section>
+<section id="delivery"><p class="kicker">03 / DELIVERY FLOW</p><h2>同一網站下，HTML、靜態檔與 API 分開處理</h2>
+<figure><figcaption>部署流程圖｜首屏與兩條各自獨立的操作</figcaption><ol class="flow"><li><strong>/field/</strong><small>先取得 release 的 HTML</small></li><li><strong>/field/assets/…</strong><small>解析入口 JS、runtime 與 CSS；圖示另載</small></li><li><strong>選一個操作</strong><small>讀點 → /api/reading；看趨勢 → trend chunk</small></li><li><strong>各自更新畫面</strong><small>唯讀點位或合成摘要；兩條路可獨立失敗</small></li></ol></figure>
+<p>兩種按鈕可以獨立點擊；不要求先成功讀 API 才能開啟合成趨勢。開發時可用本例的 <code>webpack --watch</code>＋Python 同源服務；若另起 webpack-dev-server，可只把 <code>/api</code> 代理給 Python，別把開發代理當正式反向代理或安全邊界。GitHub Pages 可放靜態產物，但不會執行 <code>serve.py</code>。</p>
+<div class="table-scroll" tabindex="0" aria-label="HTTP 快取策略，可左右捲動"><table><thead><tr><th>路徑</th><th>本例標頭</th><th>為什麼</th></tr></thead><tbody>
+<tr><th scope="row">/field/</th><td><code>no-cache</code></td><td>可儲存但不可免驗證地重用；本例沒有 ETag，通常重新取得完整 HTML。正式環境可加條件請求，讓入口指向目前 release。</td></tr>
+<tr><th scope="row">帶雜湊的資產</th><td><code>public, max-age=31536000, immutable</code></td><td>同 URL 不覆寫內容。先部署新檔再切 HTML，保留舊 chunk 供已開啟頁面。</td></tr>
+<tr><th scope="row">/api/reading</th><td><code>no-store</code></td><td>此課的即時合成點位不應由 HTTP 快取重用。正式 API 視資料敏感度與新鮮度另訂。</td></tr>
+</tbody></table></div>
+</section>
+<section id="practice"><p class="kicker">04 / REPRODUCIBLE LAB</p><h2>冷卻水回路面板：建置、啟動、驗收</h2>
+<p>需要已安裝 Node.js 24 系列、npm 和 Python 3.10 以上。範例已固定依賴版本及 lockfile；<code>npm ci</code> 需能連到套件登錄服務。Windows 可把命令中的 <code>python3</code> 換成對應的 Python 啟動命令；監控本身不依賴第三方 Python 套件。</p>
+<pre tabindex="0"><code>npm ci --ignore-scripts
+npm run build
+python3 serve.py
+# 瀏覽 http://127.0.0.1:8787/field/
+# 另開終端：
+npm run stats
+npm run verify</code></pre>
+<details><summary>讀完整 webpack 配置：URL、規則、插件與雜湊</summary><pre tabindex="0"><code>const path = require(&#x27;node:path&#x27;);
+const HtmlWebpackPlugin = require(&#x27;html-webpack-plugin&#x27;);
+const MiniCssExtractPlugin = require(&#x27;mini-css-extract-plugin&#x27;);
+
+module.exports = (env = {}, argv = {}) =&gt; {
+  const production = argv.mode === &#x27;production&#x27;;
+  return {
+    mode: production ? &#x27;production&#x27; : &#x27;development&#x27;,
+    context: __dirname,
+    entry: {dashboard: env.eager === &#x27;1&#x27; ? &#x27;./src/eager.js&#x27; : &#x27;./src/index.js&#x27;},
+    output: {
+      path: path.join(__dirname, &#x27;dist&#x27;),
+      filename: &#x27;assets/[name].[contenthash:16].js&#x27;,
+      chunkFilename: &#x27;assets/[name].[contenthash:16].js&#x27;,
+      assetModuleFilename: &#x27;assets/[name].[contenthash:16][ext]&#x27;,
+      publicPath: &#x27;/field/&#x27;,
+      clean: true, // 本機獨立的 dist；不要指向部署中的共享目錄
+    },
+    module: {
+      rules: [
+        {test: /[.]css$/i, use: [MiniCssExtractPlugin.loader, &#x27;css-loader&#x27;]},
+        {test: /[.]svg$/i, type: &#x27;asset/resource&#x27;},
+      ],
+    },
+    plugins: [
+      new HtmlWebpackPlugin({template: &#x27;./src/index.html&#x27;}),
+      new MiniCssExtractPlugin({filename: &#x27;assets/[name].[contenthash:16].css&#x27;}),
+    ],
+    optimization: {
+      moduleIds: &#x27;deterministic&#x27;,
+      chunkIds: &#x27;deterministic&#x27;,
+      runtimeChunk: &#x27;single&#x27;,
+      splitChunks: {chunks: &#x27;all&#x27;},
+    },
+    devtool: production ? false : &#x27;source-map&#x27;,
+  };
+};
+</code></pre></details>
+<details><summary>讀入口與互動程式：延遲匯入、API 逾時與錯誤</summary><pre tabindex="0"><code>import {mount} from &#x27;./ui.js&#x27;;
+
+mount(() =&gt; import(/* webpackChunkName: &quot;trend&quot; */ &#x27;./trend.js&#x27;));
+
+// src/ui.js
+import &#x27;./style.css&#x27;;
+import icon from &#x27;./droplet.svg&#x27;;
+
+export function mount(loadReport) {
+  document.querySelector(&#x27;#icon&#x27;).src = icon;
+  const read = document.querySelector(&#x27;#read&#x27;);
+  const report = document.querySelector(&#x27;#report&#x27;);
+  const result = document.querySelector(&#x27;#result&#x27;);
+  const detail = document.querySelector(&#x27;#detail&#x27;);
+  let lastValue;
+  read.addEventListener(&#x27;click&#x27;, async () =&gt; {
+    read.disabled = true;
+    try {
+      const response = await fetch(&#x27;/api/reading&#x27;, {
+        headers: {Accept: &#x27;application/json&#x27;},
+        signal: AbortSignal.timeout(3500),
+      });
+      if (!response.ok) throw new Error(&#x27;HTTP &#x27; + response.status);
+      const data = await response.json();
+      if (data.quality !== &#x27;good&#x27; || !Number.isFinite(data.temperature_c)) {
+        throw new Error(&#x27;回傳資料品質或溫度格式無效&#x27;);
+      }
+      lastValue = data.temperature_c;
+      result.textContent = &#x27;合成點位：&#x27; + lastValue.toFixed(1) + &#x27; °C&#x27;;
+    } catch (error) {
+      result.textContent = &#x27;讀取失敗，保留最後一筆有效值：&#x27; +
+        (lastValue === undefined ? &#x27;無&#x27; : lastValue.toFixed(1) + &#x27; °C&#x27;) +
+        &#x27;（&#x27; + error.message + &#x27;）&#x27;;
+    } finally {
+      read.disabled = false;
+    }
+  });
+  report.addEventListener(&#x27;click&#x27;, async () =&gt; {
+    report.disabled = true;
+    detail.textContent = &#x27;載入摘要中&#x27;;
+    try {
+      const {summarize} = await loadReport();
+      detail.textContent = summarize([6.8, 7.1, 7.4]);
+    } catch {
+      detail.textContent = &#x27;摘要載入失敗，請更新頁面後再試。點位讀取不受影響。&#x27;;
+    } finally {
+      report.disabled = false;
+    }
+  });
+}
+</code></pre></details>
+<details><summary>讀完整 Python localhost 伺服器</summary><pre tabindex="0"><code>&quot;&quot;&quot;只供課堂驗證的 localhost HTTP 伺服器，不連工廠或第三方設備。&quot;&quot;&quot;
+import argparse
+import mimetypes
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+DIST = Path(__file__).resolve().parent / &quot;dist&quot;
+
+
+class Handler(BaseHTTPRequestHandler):
+    def reply(self, status, body, content_type, cache):
+        self.send_response(status)
+        self.send_header(&quot;Content-Type&quot;, content_type)
+        self.send_header(&quot;Content-Length&quot;, str(len(body)))
+        self.send_header(&quot;Cache-Control&quot;, cache)
+        self.send_header(&quot;X-Content-Type-Options&quot;, &quot;nosniff&quot;)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        path = unquote(urlsplit(self.path).path)
+        if path == &quot;/api/reading&quot;:
+            self.reply(200, b&#x27;{&quot;temperature_c&quot;:7.1,&quot;quality&quot;:&quot;good&quot;}&#x27;,
+                       &quot;application/json&quot;, &quot;no-store&quot;)
+            return
+        if path == &quot;/field/&quot;:
+            file = DIST / &quot;index.html&quot;
+            cache = &quot;no-cache&quot;
+        elif path.startswith(&quot;/field/assets/&quot;):
+            cached_assets = (DIST / &quot;assets&quot;).resolve()
+            file = (cached_assets / path.removeprefix(&quot;/field/assets/&quot;)).resolve()
+            if file.parent != cached_assets or file.suffix == &quot;.map&quot;:
+                self.send_error(404)
+                return
+            cache = &quot;public, max-age=31536000, immutable&quot;
+        else:
+            self.send_error(404)
+            return
+        if not file.is_file():
+            self.send_error(404)
+            return
+        kind = mimetypes.guess_type(file)[0] or &quot;application/octet-stream&quot;
+        self.reply(200, file.read_bytes(), kind, cache)
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(&quot;--port&quot;, type=int, default=8787)
+    args = parser.parse_args()
+    with ThreadingHTTPServer((&quot;127.0.0.1&quot;, args.port), Handler) as server:
+        server.serve_forever()
+</code></pre></details>
+<p><a href="assets/webpack_python_lab_source.zip" download>下載全部檔案</a>（含 SVG、CSS、HTML 範本、eager 對照入口、鎖定檔及量測指令）。建置後才會得到 <code>dist/</code>，安裝包不預置 <code>node_modules</code>。</p>
+</section>
+<section id="experiment"><p class="kicker">05 / MEASURE</p><h2>按需載入不必然讓首頁更小</h2>
+<p>唯一變因是趨勢模組的載入方式；兩組都使用正式模式、同一套配置與合成內容。入口 JS 以 stats 的 entrypoint 資產為準；按需 JS 用其餘輸出 JS。gzip 採每檔獨立壓縮後加總，不含 CSS、SVG、標頭、實際網路延遲，也不能由此推估 LCP / INP。</p>
+<figure><figcaption>首批 JS gzip 加總（每檔獨立壓縮，條長最大值 2,113 B）</figcaption><p>同步入口：<strong>1,501 B</strong></p><div aria-hidden="true" class="axis"><span class="" style="width:71.03644%"></span></div><p>按需入口：<strong>2,113 B</strong></p><div aria-hidden="true" class="axis"><span class="later" style="width:100.00000%"></span></div></figure>
+<div class="table-scroll" tabindex="0" aria-label="切包測量結果，可左右捲動"><table><thead><tr><th>配置</th><th>入口 JS 原始大小</th><th>入口 JS gzip</th><th>延後 JS gzip</th></tr></thead><tbody><tr><th scope="row">同步匯入（eager）</th><td>2 檔，2,610 B</td><td>1,501 B</td><td>0 檔，0 B</td></tr><tr><th scope="row">按需載入（lazy）</th><td>2 檔，3,825 B</td><td>2,113 B</td><td>1 檔，409 B</td></tr></tbody></table></div>
+<p><strong>這個小面板不值得為趨勢切包。</strong>按需把趨勢移出初始集合，但為了定位、載入及註冊 chunk，增加 runtime 成本；這次反而多了 612 B 首批 JS。不能外推到大型圖表套件。兩次按需正式建置的完整輸出 SHA-256 一致；不代表跨 OS 與工具版本也必然一致。第二組測試只改趨勢標題：產物比對確認 HTML、runtime 和趨勢 JS 改變；入口業務 JS、CSS 與 SVG 內容不變。此結果只代表本次特定改動。</p>
+<p>延伸實驗：① 放大趨勢模組的實際工作量，用同一工具鏈重測；② 只修改趨勢文字，對比入口、runtime、趨勢檔名以及內容 SHA-256，檢查是否因載入映射更新牽動 runtime；③ 在瀏覽器同時量冷快取與暖快取，記錄 request waterfall、傳輸量、評估時間與互動延遲；看 median 與 p95，先訂固定裝置、網路及重複次數。不要拿不同功能的網站比較 bundler 快慢。</p>
+</section>
+<section id="debug"><p class="kicker">06 / DIAGNOSIS</p><h2>從症狀找證據，不先重裝套件</h2>
+<div class="box" id="diagnostic-controls" hidden><label for="diagnostic">選擇現場症狀</label><br><select id="diagnostic"><option value="chunk">Chunk 404／點進才壞</option><option value="api">API 200 卻不是 JSON</option><option value="css">CSS 建置後不見</option><option value="budget">首頁 bundle 變重</option></select></div>
+<article data-case="chunk"><h3>Chunk 404／點進才壞</h3><p>Network 核對完整 chunk URL；若少 <code>/field/</code>，查 <code>publicPath</code>。若路徑正確但只在跨版本舊分頁出錯，查資產保留與 HTML/runtime 版本差；也排除 CSP、MIME、CDN 回源。不要只做無上限 reload。</p></article>
+<article data-case="api"><h3>API 200 卻不是 JSON</h3><p>查 Response 的 <code>Content-Type</code> 和前幾行。反向代理若把 <code>/api</code> 落進 SPA fallback，可能回 HTML 200，JSON 解析才失敗。明確分開 API 路由與前端 fallback。</p></article>
+<article data-case="css"><h3>CSS 建置後不見</h3><p>先看 stats 及 dist 有無 CSS，再查 HTML 連結與 HTTP 狀態；若根本沒產出，查 import、loader 規則及錯把 CSS 宣告無副作用。暫關壓縮只用於縮小診斷範圍，不作永久修正。</p></article>
+<article data-case="budget"><h3>首頁 bundle 變重</h3><p>先拆清楚入口與按需，再比 stats 內 module/chunk 的重複依賴及 gzip 變化。正式部署前守 entry budget；操作路徑也要守完整下載次數、主執行緒成本與錯誤率。</p></article>
+</section>
+<section id="security"><p class="kicker">07 / RELEASE ENGINEERING</p><h2>可追溯建置、相容發布與可回退</h2>
+<ol><li><strong>鎖定：</strong>固定 Node/npm 與 npm 鎖定檔；記錄 clean build 的 Git 提交、版本、檔案摘要與 stats。依賴安裝不任意執行生命週期腳本，但建置仍會執行 loader/plugin：依賴與 config 本身就是程式碼。</li><li><strong>隔離：</strong>CI 建置用最小權限與短期憑證，禁止把 token 或私鑰傳給前端。<code>DefinePlugin</code> 定義值和前端任何環境設定只要進 bundle，就能被瀏覽器取得。正式 source map 若要留給錯誤追蹤，請走私有上傳與存取控管，不當作保密邊界。</li><li><strong>先驗資產再切入口：</strong>把新檔送到獨立 release 位置並做 smoke test；檢查 HTML、JS/CSS MIME、CSP、子路徑與懶載入；之後切換。保留前版資產與相容 API，避免前後端任一方回退後打破契約。檔名雜湊是快取策略，不能替代完整性驗證；SRI 需明確覆蓋相應資產，動態 chunk 不會因 HTML 的 entry script 有 SRI 就自動受到保護。</li><li><strong>出錯回退：</strong>先看 404、ChunkLoadError、讀點失敗比率和版本對應；將入口切回前一版。若安全事件涉及前版檔，不能盲目回退；先隔離並依事件流程撤換。</li></ol>
+</section>
+<section id="choice"><p class="kicker">08 / TRADE-OFFS</p><h2>選型：複雜度要能換到可量的成果</h2>
+<div class="table-scroll" tabindex="0" aria-label="打包工具比較，可左右捲動"><table><thead><tr><th>方案</th><th>適合</th><th>代價與驗證</th></tr></thead><tbody>
+<tr><th scope="row">原生 ESM</th><td>靜態教學或少量同源模組，無專門轉譯需求</td><td>不需要 Node 建置；瀏覽器相容性、import 路徑、快取更新仍要驗。</td></tr>
+<tr><th scope="row">webpack</th><td>維護已有 loader/plugin、複雜多入口、要控制 chunks 或特定資產流程</td><td>設定與診斷成本較高；用同一輸入比較建置冷暖時間、輸出、瀏覽器指標。</td></tr>
+<tr><th scope="row">Vite</th><td>新建現代框架前端、注重開發迭代速度</td><td>開發與正式建置行為必須分開驗；先以選定版本的官方設定查插件、瀏覽器目標與 base path。</td></tr>
+</tbody></table></div>
+</section>
+<section id="references"><p class="kicker">09 / PRIMARY SOURCES</p><h2>官方來源與研究續題</h2>
+<ul><li><a href="https://webpack.js.org/concepts/">webpack 核心概念</a>、<a href="https://webpack.js.org/api/compilation-object/">Compilation API／兩張圖</a></li><li><a href="https://webpack.js.org/concepts/loaders/">Loader 順序</a>、<a href="https://webpack.js.org/guides/asset-modules/">Asset Modules</a>、<a href="https://webpack.js.org/guides/tree-shaking/">Tree Shaking</a></li><li><a href="https://webpack.js.org/guides/code-splitting/">Code Splitting／ChunkLoadError</a>、<a href="https://webpack.js.org/guides/caching/">Caching</a>、<a href="https://webpack.js.org/configuration/output/">Output／publicPath</a></li><li><a href="https://webpack.js.org/configuration/stats/">Stats</a>、<a href="https://webpack.js.org/configuration/dev-server/">開發代理與 DevServer</a>、<a href="https://vite.dev/guide/why.html">Vite 官方選型背景</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9111">HTTP Caching（RFC 9111）</a>、<a href="https://www.rfc-editor.org/rfc/rfc8246">immutable Cache-Control（RFC 8246）</a></li></ul>
+<p><strong>進階：</strong>把這個面板擴成兩個入口，共用校驗模組；從 stats 找出何時分出 shared chunk，再測「舊入口與新資產共存」的部署情境。若部署到 CDN 子路徑，分開測 HTML base、資產前綴與 API origin，不直接把原始 <code>/field/</code> 複製到正式環境。</p>
+</section>
+</main></div>
+<footer><div class="shell"><a href="python_web_frontend_dataflow_tutorial.html#webpack-study">回 Python 與前端資料流</a> · <a href="index.html">回 Python 教材首頁</a></div></footer>
+<script>
+const chooser = document.querySelector('#diagnostic');
+function update() {
+  document.querySelectorAll('[data-case]').forEach(item => { item.hidden = item.dataset.case !== chooser.value; });
+}
+chooser.addEventListener('change', update);
+document.querySelector('#diagnostic-controls').hidden = false;
+update();
+</script>
+</body></html>

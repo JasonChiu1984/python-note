@@ -105,7 +105,7 @@ pre{max-width:100%;overflow:auto;background:#142339;color:#e7f2ff;border-radius:
 </style>
 </head><body><main>
 <header id="top"><p class="eyebrow">PYTHON × BROWSER · 工程教程</p><h1>Python 與網頁前端的資料流</h1><p>從感測資料到瀏覽器圖表。用原生 HTML、CSS、JavaScript 和 Python 標準庫理解 HTTP、JSON、Fetch、資料驗證與即時更新，不需要 Node.js。</p>
-<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#websocket-deep-dive">WebSocket 深度</a><a href="#frontend-auto-refresh">自動刷新</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a><a href="#contract-research">契約研究與實作</a></nav>
+<nav aria-label="教材章節"><a href="index.html">回教材入口</a><a href="#architecture">系統架構</a><a href="#workflow">請求流程</a><a href="#dataflow-diagram">資料流向圖</a><a href="#lab">互動實驗</a><a href="#api">API 契約</a><a href="#code">程式解析</a><a href="#connection-depth">連接深度研究</a><a href="#websocket-deep-dive">WebSocket 深度</a><a href="#frontend-auto-refresh">自動刷新</a><a href="#realtime">即時比較</a><a href="#origin">同源與安全</a><a href="#run">本機執行</a><a href="#contract-research">契約研究與實作</a><a href="#webpack-study">webpack 打包</a></nav>
 </header>
 <section id="architecture"><h2>1. 系統架構：各層只做自己的事</h2>
 <figure class="card"><figcaption>讀取方向：後端準備資料，前端負責呈現</figcaption><ol class="chain">
@@ -571,6 +571,12 @@ def merge(current, incoming, *, snapshot=False):
 <pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_stream</code></pre>
 <p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
 <p>官方參考：<a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG：Server-Sent Events</a> · <a href="https://websockets.spec.whatwg.org/">WHATWG：WebSockets API</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-conditional-requests">RFC 9110：HTTP 條件請求</a>。內容校閱：2026-11-26（台灣）。</p></section>
+<section id="webpack-study" aria-labelledby="webpack-study-title">
+<h2 id="webpack-study-title">9. 延伸研究：webpack × Python 前端建置</h2>
+<div class="card"><p>這一頁的原生前端實驗不需要 Node.js。隨著前端擴大到多入口、共用依賴或按需載入，可用 webpack 在建置階段產出靜態檔，正式運行仍由 Python 或靜態服務供應。</p>
+<p><a href="python_webpack_engineering_tutorial.html">進入 webpack 深度研究與完整實作</a> · <a href="assets/webpack_python_lab_source.zip" download>下載冷卻水回路面板範例</a></p>
+<p>涵蓋模組圖、ChunkGraph、loader／plugin、子路徑、同源 API、切包實測和舊資產保留。正式部署不用常駐 Node.js；GitHub Pages 上的教材不會執行本機 Python API。</p></div>
+</section>
 <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明前端與後端的資料流。本節示範即時趨勢最常用的單向推送格式 Server-Sent Events：事件 ID 讓瀏覽器斷線重連後從中斷處繼續，變化量節流則減少前端不必要的重繪。</p><h3>可實跑範例：SSE 格式、斷線續傳與節流</h3><p>sse() 產生符合 SSE 規格的文字（id、event、data 各一行，空行結束）；stream() 依 Last-Event-ID 略過已送出的事件，並略過變化小於 0.25 的讀值；最後的 retry 告訴瀏覽器重連間隔。</p><p><a class="button" download href="extensions/python_web_frontend_dataflow_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;前端資料流的後端支援：Server-Sent Events（SSE）格式、事件 ID 續傳與節流（標準函式庫）。
 
 瀏覽器以 EventSource 連線，斷線重連時會帶 Last-Event-ID，伺服器從下一筆開始補送。
