@@ -17,7 +17,7 @@ class CircuitBreaker:
         except Exception as e:
             self.failures += 1
             if self.state == "half_open" or self.failures >= self.threshold:
-                self.state, self.opened_at = "open", now
+                self.state, self.opened_at = "open", self.clock()  # 冷卻從失敗結束、開路時開始
             return f"失敗：{e}"
         self.state, self.failures = "closed", 0
         return f"成功：{result}"
