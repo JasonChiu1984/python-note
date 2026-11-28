@@ -30,8 +30,21 @@ def cycle_estimate(devices, pdo_bytes, cable_m):
 
 
 def expected_wkc(n_read, n_write, n_readwrite):
-    """LRW 命令：每台被讀取 +1、被寫入 +2、讀寫皆有則 +3。"""
-    return n_read * 1 + n_write * 2 + n_readwrite * 3
+    """依預期映射加總 LRW 貢獻；不適用於獨立讀取或寫入命令。"""
+    return (n_read * lrw_contribution(True, False)
+            + n_write * lrw_contribution(False, True)
+            + n_readwrite * lrw_contribution(True, True))
+
+
+def lrw_contribution(read_ok: bool, write_ok: bool) -> int:
+    """LRW 中讀成功 +1、寫成功 +2；兩者分開計算。"""
+    return int(read_ok) + 2 * int(write_ok)
+
+
+def compare_wkc(expected: int, received: int) -> str:
+    if received == expected:
+        return "WKC 相符；仍須另驗資料品質"
+    return "WKC 不符；當筆資料不可用，不能只靠總數定位"
 
 
 if __name__ == "__main__":
@@ -41,6 +54,13 @@ if __name__ == "__main__":
         print(f"{devices:>3} 台 × {per_dev:>2} B PDO：{len(sizes)} 個 frame {sizes} B，週期下限約 {us:6.1f} µs")
     exp = expected_wkc(n_read=4, n_write=2, n_readwrite=6)
     print(f"\n4 台只讀、2 台只寫、6 台讀寫的 LRW：期望 WKC = {exp}")
-    for got in (exp, exp - 3, exp - 1):
-        status = "正常" if got == exp else "異常：有 SubDevice 未處理此 datagram"
-        print(f"  收到 WKC {got}：{status}")
+    rw = lrw_contribution(True, True)
+    cases = [
+        ("符合期望", exp),
+        ("只讀站未完成讀取", exp - lrw_contribution(True, False)),
+        ("讀寫站讀失敗、寫成功", exp - rw + lrw_contribution(False, True)),
+        ("讀寫站讀成功、寫失敗", exp - rw + lrw_contribution(True, False)),
+        ("讀寫站讀寫皆失敗", exp - rw),
+    ]
+    for label, got in cases:
+        print(f"  {label} → WKC {got}：{compare_wkc(exp, got)}")

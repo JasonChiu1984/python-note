@@ -5,10 +5,11 @@
 import hashlib
 import hmac
 import json
-import time
+import math
 
 ALLOWED = {"AHU1_SAT": (5.0, 40.0, 2.0), "CHW_SUPPLY": (3.0, 15.0, 1.0)}   # 下限、上限、每分鐘最大變化
 KEY = b"\x07" * 32
+BODY_FIELDS = ("point", "value", "ts", "nonce")
 NOW = 1_795_800_000                                       # 固定「現在」時間，讓輸出可重現
 
 
@@ -21,19 +22,32 @@ class Validator:
         if len(raw) > 512:
             return "拒絕：訊息過大"
         try:
-            msg = json.loads(raw)
-        except json.JSONDecodeError:
-            return "拒絕：不是合法 JSON"
-        body = {k: msg.get(k) for k in ("point", "value", "ts", "nonce")}
-        sig = hmac.new(KEY, json.dumps(body, sort_keys=True).encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, str(msg.get("sig", ""))):
+            msg = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return "拒絕：不是合法 UTF-8 JSON"
+        if not isinstance(msg, dict) or set(msg) != {*BODY_FIELDS, "sig"}:
+            return "拒絕：事件欄位不符"
+        body = {k: msg[k] for k in BODY_FIELDS}
+        if not isinstance(body["point"], str) or not body["point"]:
+            return "拒絕：點位型別錯誤"
+        if not isinstance(body["nonce"], str) or not body["nonce"]:
+            return "拒絕：nonce 型別錯誤"
+        if type(body["ts"]) is not int:
+            return "拒絕：時間戳必須是整數秒"
+        value = body["value"]
+        if type(value) not in (int, float) or (type(value) is float and not math.isfinite(value)):
+            return "拒絕：需要有限數值（不接受 bool）"
+        received = msg["sig"]
+        if not isinstance(received, str) or len(received) != 64 or any(
+            c not in "0123456789abcdef" for c in received
+        ):
+            return "拒絕：簽章格式錯誤"
+        sig = hmac.new(KEY, json.dumps(body, sort_keys=True, allow_nan=False).encode(),
+                       hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, received):
             return "拒絕：簽章錯誤"
-        if not isinstance(body["point"], str) or body["point"] not in ALLOWED:   # list 等不可雜湊型別也拒絕，不讓 in 拋 TypeError
+        if body["point"] not in ALLOWED:
             return f"拒絕：未知點位 {body['point']!r}"
-        if not isinstance(body["value"], (int, float)) or isinstance(body["value"], bool):
-            return "拒絕：數值型別錯誤"
-        if type(body["ts"]) is not int or not isinstance(body["nonce"], str):
-            return "拒絕：時間戳或 nonce 型別錯誤"
         if abs(NOW - body["ts"]) > 300:
             return "拒絕：時間戳超出 ±5 分鐘"
         if body["nonce"] in self.seen_nonce:
@@ -51,7 +65,7 @@ class Validator:
 
 def make(point, value, ts, nonce, key=KEY):
     body = {"point": point, "value": value, "ts": ts, "nonce": nonce}
-    body["sig"] = hmac.new(key, json.dumps(body, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+    body["sig"] = hmac.new(key, json.dumps(body, sort_keys=True, allow_nan=False).encode(), hashlib.sha256).hexdigest()
     return json.dumps(body).encode()
 
 

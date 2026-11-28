@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 620" role="img" aria-labelledby="dg-lpc-title dg-lpc-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
   <title id="dg-lpc-title">同交易寫入讀值與 checkpoint 的崩潰與重啟序列圖</title>
-  <desc id="dg-lpc-desc">對應延伸範例的 process(crash_after=5, batch=3)。第一次執行時，程式讀到 checkpoint 0，待處理序號 1 到 10。第一批：BEGIN，插入序號 1 到 3，更新 last_seq 為 3，COMMIT 成功。第二批：BEGIN，插入序號 4 到 6；已完成 3 筆加 3 筆等於 6，大於 5，模擬提交前崩潰，執行 ROLLBACK 並拋出「在處理序號 4–6 時崩潰」，序號 4 到 6 不會留下。重啟時重新開啟資料庫，查得已寫入 3 筆、checkpoint 3。第二次執行從序號 4 繼續，分成 4 到 6、7 到 9、10 三批，每批在同一交易中插入讀值並更新 checkpoint 後 COMMIT。最後共 10 筆，重複 0 筆，無缺漏。reading 以序號為主鍵，即使重送也不會重複寫入。範例的崩潰是程式內 ROLLBACK，不是斷電測試。</desc>
+  <desc id="dg-lpc-desc">對應延伸範例的 process(crash_after=5, batch=3)。第一次執行時，程式讀到應用程式游標 last_seq 為 0，待處理序號 1 到 10。第一批：BEGIN，插入序號 1 到 3，更新 last_seq 為 3，COMMIT 成功。第二批：BEGIN，插入序號 4 到 6；已完成 3 筆加 3 筆等於 6，大於 5，在游標 UPDATE 之前模擬崩潰，執行 ROLLBACK 並拋出「在處理序號 4–6 時崩潰」，序號 4 到 6 不會留下。重新開啟資料庫後查得已寫入 3 筆、last_seq 為 3。第二次執行用游標過濾已提交的輸入，從序號 4 繼續，分成 4 到 6、7 到 9、10 三批，每批在同一交易中插入讀值並更新游標後 COMMIT。最後共 10 筆，重複 0 筆，無缺漏。reading 以序號為主鍵只防止重複列，一般 INSERT 遇到重複鍵會報錯，不會自動略過。last_seq 是應用程式游標，不是 SQLite 的 WAL checkpoint。範例的崩潰是程式內 ROLLBACK，程序終止與主機斷電要另外驗收，WAL 資料庫也不應放在網路檔案系統上。</desc>
   <defs>
     <marker id="dg-lpc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -21,7 +21,7 @@
     <text x="130" y="33" font-weight="700">第一次執行</text>
     <text x="130" y="51" font-size="12">process(crash_after=5)</text>
     <text x="380" y="33" font-weight="700">state.db（WAL）</text>
-    <text x="380" y="51" font-size="12">reading＋checkpoint</text>
+    <text x="380" y="51" font-size="12">reading＋游標 last_seq</text>
     <text x="630" y="33" font-weight="700">重啟後</text>
     <text x="630" y="51" font-size="12">open_db()＋process()</text>
   </g>
@@ -40,7 +40,7 @@
     <text x="140" y="89">BEGIN；INSERT 1–3；last_seq=3</text>
     <text x="140" y="114">COMMIT 成功：第一批落地</text>
     <text x="140" y="149">BEGIN；INSERT 4–6</text>
-    <text x="390" y="323">SELECT：3 筆，checkpoint = 3</text>
+    <text x="390" y="323">SELECT：3 筆，last_seq = 3</text>
     <text x="390" y="348">從序號 4 繼續（pending 4–10）</text>
     <text x="390" y="393">每批 BEGIN；INSERT；UPDATE</text>
     <text x="390" y="414">批次：4–6、7–9、10</text>
@@ -49,16 +49,16 @@
   <rect class="dg-red" x="20" y="176" width="440" height="92" rx="6" stroke="#d64545" stroke-width="1.5" fill="none"/>
   <g fill="currentColor" text-anchor="middle">
     <text x="240" y="200" font-weight="700">done 3 ＋ 3 ＝ 6 ＞ 5：提交前「崩潰」</text>
-    <text x="240" y="222" font-size="12">ROLLBACK：序號 4–6 與 checkpoint 更新一起消失</text>
+    <text x="240" y="222" font-size="12">ROLLBACK：游標 UPDATE 前回滾，4–6 一起消失</text>
     <text x="240" y="244" font-size="12">RuntimeError：在處理序號 4–6 時崩潰</text>
-    <text x="240" y="262" font-size="12">checkpoint 仍是 3，不會跳筆也不會殘留半批</text>
+    <text x="240" y="262" font-size="12">last_seq 仍是 3，不會跳筆也不會殘留半批</text>
   </g>
   <rect class="dg-green" x="300" y="478" width="440" height="56" rx="6" stroke="#2f9e5b" stroke-width="1.5" fill="none"/>
   <g fill="currentColor" text-anchor="middle">
     <text x="520" y="501" font-weight="700">最後 10 筆，重複 0 筆，缺漏：無</text>
-    <text x="520" y="521" font-size="12">reading 以序號為主鍵：重送也不會多寫</text>
+    <text x="520" y="521" font-size="12">續傳靠游標過濾；主鍵只擋重複列，重複 INSERT 會報錯</text>
   </g>
   <rect class="dg-orange" x="20" y="556" width="720" height="48" rx="6" stroke="#e07b1f" stroke-width="1.5" fill="none"/>
   <text x="380" y="578" fill="currentColor" text-anchor="middle" font-size="12" font-weight="700">範例的崩潰是程式內 ROLLBACK，不是斷電測試</text>
-  <text x="380" y="596" fill="currentColor" text-anchor="middle" font-size="12">SD 卡、網路磁碟要用 kill -9 或拔電實測 fsync 行為。</text>
+  <text x="380" y="596" fill="currentColor" text-anchor="middle" font-size="12">程序終止、主機斷電要分開實測；WAL 資料庫不放網路磁碟。</text>
 </svg>
