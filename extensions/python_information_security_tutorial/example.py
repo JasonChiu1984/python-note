@@ -28,10 +28,12 @@ class Validator:
         sig = hmac.new(KEY, json.dumps(body, sort_keys=True).encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, str(msg.get("sig", ""))):
             return "拒絕：簽章錯誤"
-        if body["point"] not in ALLOWED:
+        if not isinstance(body["point"], str) or body["point"] not in ALLOWED:   # list 等不可雜湊型別也拒絕，不讓 in 拋 TypeError
             return f"拒絕：未知點位 {body['point']!r}"
         if not isinstance(body["value"], (int, float)) or isinstance(body["value"], bool):
             return "拒絕：數值型別錯誤"
+        if type(body["ts"]) is not int or not isinstance(body["nonce"], str):
+            return "拒絕：時間戳或 nonce 型別錯誤"
         if abs(NOW - body["ts"]) > 300:
             return "拒絕：時間戳超出 ±5 分鐘"
         if body["nonce"] in self.seen_nonce:

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 580" role="img" aria-labelledby="dg-isr-title dg-isr-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-isr-title">重放攻擊與時間窗、nonce 防護的序列圖</title>
+  <desc id="dg-isr-desc">對應延伸學習的現場案例與範例的 Validator.check()。參與者有現場閘道器、網路上的攻擊者、平台的驗證器，以及冰水設定點邏輯。第一步，閘道器送出 AHU1_SAT 18.2 度、時間戳、nonce a1 與 HMAC 簽章，驗證器接受後才交給設定點邏輯。第二步，攻擊者在網路上擷取同一封包。第三步，攻擊者在 5 分鐘內原樣重送，驗證器因 nonce 已使用而拒絕。第四步，攻擊者三小時後重送，時間戳超出正負 5 分鐘而被拒絕。第五步，攻擊者把時間戳改成現在再送，因為沒有金鑰，簽章不符而被拒絕。若舊設計只驗簽章，第四步的舊封包會被接受，溫度回到三小時前，設定點跟著錯調。nonce 的保存期限要涵蓋時間窗，而且閘道器或平台重啟後仍須有效。</desc>
+  <defs>
+    <marker id="dg-isr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="20" y="12" width="150" height="48" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-red" x="210" y="12" width="150" height="48" rx="6" stroke="#d64545"/>
+    <rect class="dg-box" x="405" y="12" width="150" height="48" rx="6" stroke="currentColor"/>
+    <rect class="dg-box" x="595" y="12" width="145" height="48" rx="6" stroke="currentColor"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1" fill="none" class="dg-dash" stroke-dasharray="6 4">
+    <line x1="95" y1="60" x2="95" y2="420"/>
+    <line x1="285" y1="60" x2="285" y2="420"/>
+    <line x1="480" y1="60" x2="480" y2="420"/>
+    <line x1="667" y1="60" x2="667" y2="420"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="95" y="33" font-weight="700">現場閘道器</text>
+    <text x="95" y="51" font-size="12">持有 KEY</text>
+    <text x="285" y="33" font-weight="700">攻擊者</text>
+    <text x="285" y="51" font-size="12">能擷取、不能簽章</text>
+    <text x="480" y="33" font-weight="700">Validator</text>
+    <text x="480" y="51" font-size="12">平台端 check()</text>
+    <text x="667" y="33" font-weight="700">設定點邏輯</text>
+    <text x="667" y="51" font-size="12">冰水出水溫度</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-isr-arrow)">
+    <line x1="95" y1="100" x2="478" y2="100"/>
+    <line x1="480" y1="134" x2="665" y2="134"/>
+    <line x1="285" y1="214" x2="478" y2="214"/>
+    <line x1="285" y1="284" x2="478" y2="284"/>
+    <line x1="285" y1="354" x2="478" y2="354"/>
+  </g>
+  <line x1="95" y1="168" x2="283" y2="168" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#dg-isr-arrow)"/>
+  <g class="dg-line-red" stroke="#d64545" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#dg-isr-arrow)">
+    <line x1="480" y1="242" x2="287" y2="242"/>
+    <line x1="480" y1="312" x2="287" y2="312"/>
+    <line x1="480" y1="382" x2="287" y2="382"/>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="104" y="93">① AHU1_SAT 18.2 °C、ts、nonce a1、sig</text>
+    <text x="490" y="127">接受 → 才交給控制</text>
+    <text x="104" y="161">② 擷取同一封包</text>
+    <text x="294" y="207">③ 5 分鐘內原樣重送</text>
+    <text x="294" y="236">拒絕：nonce 已使用</text>
+    <text x="294" y="277">④ 3 小時後原樣重送</text>
+    <text x="294" y="306">拒絕：ts 超出 ±5 分鐘</text>
+    <text x="294" y="347">⑤ 把 ts 改成現在再送</text>
+    <text x="294" y="376">拒絕：簽章錯誤（沒有 KEY）</text>
+  </g>
+  <rect class="dg-orange" x="20" y="440" width="720" height="84" rx="6" stroke="#e07b1f" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="380" y="465" font-weight="700">舊設計只驗簽章：④ 的封包簽章正確，會被接受</text>
+    <text x="380" y="486" font-size="12">溫度「回到」三小時前，設定點跟著錯調；時間窗擋舊封包，nonce 擋窗內重送。</text>
+    <text x="380" y="508" font-size="12">nonce 至少保存到時間窗結束，且閘道器、平台重啟後仍要有效。</text>
+  </g>
+  <text x="380" y="556" fill="currentColor" text-anchor="middle" font-size="12">簽章證明「誰送的、內容沒被改」，不證明「是現在送的」。</text>
+</svg>

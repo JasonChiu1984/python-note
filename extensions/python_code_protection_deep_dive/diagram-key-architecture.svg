@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" role="img" aria-labelledby="dg-cpk-title dg-cpk-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-cpk-title">發行清單的金鑰分工與交付架構圖</title>
+  <desc id="dg-cpk-desc">對應延伸學習的現場案例與正文第 02 節。左側是建置信任域：原始碼倉庫與 CI 建置後，由 build_manifest() 逐檔計算 SHA-256，再在建置主機簽署清單，簽署私鑰只留在這裡。中間是交付的發行物 zip，內含程式檔、manifest 與簽章，不含任何私鑰；每一版的清單另外封存，事故調查時可與現場比對。右側是現場閘道器，安裝與每次開機都執行 verify()，失敗就拒絕啟動。驗證用的公鑰預先經獨立可信管道配置，不隨下載更新。可在現場修改的設定檔 points.json 與程式清單分開，另外簽署或納入變更管理。底部說明：範例用 HMAC，驗證端與簽署端是同一把金鑰，現場一旦取得金鑰就能重算並簽署偽造清單，練習實測 verify() 回傳空清單；所以正式發行要改用 Ed25519 等非對稱簽章，讓現場只有驗證能力。</desc>
+  <defs>
+    <marker id="dg-cpk-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <rect x="20" y="36" width="230" height="300" rx="10" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="6 4" class="dg-dash"/>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="40" y="70" width="190" height="56" rx="6"/>
+    <rect class="dg-box" x="40" y="160" width="190" height="56" rx="6"/>
+    <rect class="dg-box" x="285" y="160" width="190" height="90" rx="6"/>
+    <rect class="dg-box" x="285" y="290" width="190" height="56" rx="6"/>
+    <rect class="dg-box" x="530" y="290" width="210" height="56" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-orange" x="40" y="250" width="190" height="64" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-blue" x="530" y="50" width="210" height="56" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-green" x="530" y="160" width="210" height="90" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="20" y="384" width="720" height="76" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-cpk-arrow)">
+    <line x1="135" y1="126" x2="135" y2="158"/>
+    <line x1="135" y1="216" x2="135" y2="248"/>
+    <line x1="230" y1="276" x2="283" y2="226"/>
+    <line x1="230" y1="300" x2="283" y2="314"/>
+    <line x1="475" y1="205" x2="528" y2="205"/>
+    <line x1="635" y1="106" x2="635" y2="158"/>
+    <line x1="635" y1="290" x2="635" y2="252"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="135" y="56" font-size="12" font-weight="700">建置信任域</text>
+    <text x="135" y="94" font-weight="700">原始碼倉庫與 CI</text>
+    <text x="135" y="113" font-size="12">原始碼不進發行區</text>
+    <text x="135" y="184" font-weight="700">build_manifest()</text>
+    <text x="135" y="203" font-size="12">逐檔 SHA-256，sort_keys</text>
+    <text x="135" y="274" font-weight="700">簽署清單</text>
+    <text x="135" y="294" font-size="12">簽署金鑰只在建置主機</text>
+    <text x="380" y="186" font-weight="700">發行物（zip）</text>
+    <text x="380" y="207" font-size="12">程式檔＋manifest＋簽章</text>
+    <text x="380" y="227" font-size="12">不含任何私鑰</text>
+    <text x="380" y="313" font-weight="700">清單封存</text>
+    <text x="380" y="332" font-size="12">每版保存，事故時比對現場</text>
+    <text x="635" y="74" font-weight="700">預先配置的公鑰</text>
+    <text x="635" y="93" font-size="12">獨立可信管道，不隨下載更新</text>
+    <text x="635" y="186" font-weight="700">現場閘道器</text>
+    <text x="635" y="207" font-size="12">安裝與每次開機 verify()</text>
+    <text x="635" y="227" font-size="12">失敗就拒絕啟動並告警</text>
+    <text x="635" y="313" font-weight="700">設定檔 points.json</text>
+    <text x="635" y="332" font-size="12">與程式清單分開，另簽或變更管理</text>
+    <text x="380" y="408" font-weight="700">範例用 HMAC：簽署與驗證是同一把金鑰</text>
+    <text x="380" y="428" font-size="12">現場取得金鑰就能重算並簽署偽造清單，verify() 回傳 []（練習實測）。</text>
+    <text x="380" y="448" font-size="12">正式發行改用 Ed25519 等非對稱簽章：私鑰留在左側，現場只有公鑰。</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="482" y="196">交付</text>
+    <text x="643" y="138">驗證用</text>
+  </g>
+  <text x="380" y="486" fill="currentColor" text-anchor="middle" font-size="12">完整性驗證回答「這是不是我發行的檔案」，不提供保密；打包或編譯不能取代它。</text>
+</svg>

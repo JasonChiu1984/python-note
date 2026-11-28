@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-cpv-title dg-cpv-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-cpv-title">發行清單驗證 verify() 的判斷流程圖</title>
+  <desc id="dg-cpv-desc">對應延伸範例的 verify()。安裝或服務啟動時，先用 sort_keys 重新序列化清單中的 files，計算簽章並以 compare_digest 比對；不符就只回報「清單簽章錯誤：清單本身被修改」，不再逐檔比對，因為不可信的清單沒有比對意義。簽章正確後，對清單中的每個檔案：檔案不存在就記錄缺少檔案；分塊計算 SHA-256 與清單不同就記錄內容不符。最後列出目錄中有、但清單沒有的檔案，記為多出未列管檔案。problems 為空才通過並允許啟動；不為空就拒絕啟動並告警，保留現行版本。範例輸出：原始發行檔全部通過；現場改 points.json 倍率並加入 debug_shell.py 後，回報內容不符與多出未列管檔案；攻擊者同步改清單中的雜湊時，因沒有簽署金鑰而清單簽章錯誤。</desc>
+  <defs>
+    <marker id="dg-cpv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="30" y="12" width="380" height="48" rx="24" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="220,84 400,118 220,152 40,118"/>
+    <polygon class="dg-box" points="220,190 400,224 220,258 40,224"/>
+    <polygon class="dg-box" points="220,296 400,330 220,364 40,330"/>
+    <rect class="dg-box" x="30" y="392" width="380" height="52" rx="6"/>
+    <polygon class="dg-box" points="220,468 400,502 220,536 40,502"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="460" y="84" width="285" height="68" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="460" y="190" width="285" height="174" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="30" y="560" width="380" height="52" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="460" y="468" width="285" height="68" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-cpv-arrow)">
+    <line x1="220" y1="60" x2="220" y2="82"/>
+    <line x1="220" y1="152" x2="220" y2="188"/>
+    <line x1="220" y1="258" x2="220" y2="294"/>
+    <line x1="220" y1="364" x2="220" y2="390"/>
+    <line x1="220" y1="444" x2="220" y2="466"/>
+    <line x1="220" y1="536" x2="220" y2="558"/>
+    <line x1="400" y1="118" x2="458" y2="118"/>
+    <line x1="400" y1="224" x2="458" y2="224"/>
+    <line x1="400" y1="330" x2="458" y2="330"/>
+    <line x1="400" y1="502" x2="458" y2="502"/>
+    <line x1="410" y1="418" x2="458" y2="350"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="220" y="33" font-weight="700">安裝或服務啟動：verify(root, manifest)</text>
+    <text x="220" y="51" font-size="12">files 以 sort_keys 重新序列化後計算簽章</text>
+    <text x="220" y="115">清單簽章相符？</text>
+    <text x="220" y="132" font-size="12">hmac.compare_digest()</text>
+    <text x="220" y="221">清單列的檔案存在？</text>
+    <text x="220" y="238" font-size="12">逐一檢查每個 name</text>
+    <text x="220" y="327">SHA-256 與清單相同？</text>
+    <text x="220" y="344" font-size="12">64 KiB 分塊讀取</text>
+    <text x="220" y="414" font-weight="700">找出清單外的檔案</text>
+    <text x="220" y="433" font-size="12">實際檔案集合 − 清單 keys</text>
+    <text x="220" y="507">problems 是空的？</text>
+    <text x="220" y="582" font-weight="700">通過：允許啟動</text>
+    <text x="220" y="600" font-size="12">範例：原始發行檔「全部通過」</text>
+    <text x="602" y="110" font-weight="700">清單本身被修改</text>
+    <text x="602" y="130" font-size="12">不再逐檔比對，直接回報</text>
+    <text x="602" y="146" font-size="12">範例：攻擊者同步改清單雜湊</text>
+    <text x="602" y="214" font-weight="700">累積到 problems</text>
+    <text x="602" y="238" font-size="12">缺少檔案：README.txt（練習）</text>
+    <text x="602" y="262" font-size="12">內容不符：app/points.json</text>
+    <text x="602" y="286" font-size="12">倍率 0.1 被改成 1.0</text>
+    <text x="602" y="320" font-size="12">多出未列管檔案：</text>
+    <text x="602" y="340" font-size="12">app/debug_shell.py</text>
+    <text x="602" y="494" font-weight="700">拒絕啟動並告警</text>
+    <text x="602" y="514" font-size="12">保留現行版本，列出全部問題</text>
+    <text x="602" y="530" font-size="12">供變更管理追查</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="410" y="110">否</text>
+    <text x="410" y="216">否</text>
+    <text x="410" y="322">否</text>
+    <text x="410" y="494">否</text>
+    <text x="228" y="174">是</text>
+    <text x="228" y="280">是</text>
+    <text x="228" y="552">是</text>
+  </g>
+  <text x="380" y="634" fill="currentColor" text-anchor="middle" font-size="12">範例用 HMAC 只為了只靠標準函式庫；現場持有同一把金鑰就能偽造清單，正式發行改用非對稱簽章。</text>
+</svg>

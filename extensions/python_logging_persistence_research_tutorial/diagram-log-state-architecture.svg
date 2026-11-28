@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" role="img" aria-labelledby="dg-lpa-title dg-lpa-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-lpa-title">日誌路徑與狀態路徑分開的架構圖</title>
+  <desc id="dg-lpa-desc">對應正文第 1 節與第 4 節的離線實驗。上方是日誌路徑：Producer 建立帶固定事件名與 run ID 的紀錄，放進有界佇列 Queue(maxsize=2)，佇列滿時 put_nowait 觸發 Full，丟失計數加一而不阻塞業務執行緒；單一 Writer 消費佇列，以 NDJSON 每筆一行寫檔，再進入保留、輪替與存取控制。實驗中 5 筆輸入只落地 2 筆，主動丟棄 3 筆。下方是狀態路徑：輸入先驗證鍵、版本、單位與型別，再在同一個 SQLite 交易中寫入事件與 checkpoint，重啟時從已提交的 checkpoint 繼續，唯一鍵讓重送冪等。兩條路徑只用 run ID 關聯：log 用來診斷發生了什麼，狀態以資料庫為準，不靠 log 重建；log 與資料庫交易之間沒有共同提交。</desc>
+  <defs>
+    <marker id="dg-lpa-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g fill="currentColor" font-size="12" font-weight="700">
+    <text x="20" y="26">日誌路徑｜回答「發生了什麼」，可容許依政策丟棄</text>
+    <text x="20" y="262">狀態路徑｜回答「做到哪裡」，以可復原的方式提交</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box" x="20" y="40" width="160" height="72" rx="6"/>
+    <rect class="dg-box" x="400" y="40" width="160" height="72" rx="6"/>
+    <rect class="dg-box" x="590" y="40" width="150" height="72" rx="6"/>
+    <rect class="dg-box" x="20" y="276" width="190" height="72" rx="6"/>
+    <rect class="dg-box" x="550" y="276" width="190" height="72" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-blue" x="210" y="40" width="160" height="72" rx="6" stroke="#3b82f6"/>
+    <rect class="dg-red" x="210" y="146" width="160" height="60" rx="6" stroke="#d64545"/>
+    <rect class="dg-green" x="250" y="276" width="260" height="72" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-orange" x="20" y="384" width="720" height="62" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-lpa-arrow)">
+    <line x1="180" y1="76" x2="208" y2="76"/>
+    <line x1="370" y1="76" x2="398" y2="76"/>
+    <line x1="560" y1="76" x2="588" y2="76"/>
+    <line x1="210" y1="312" x2="248" y2="312"/>
+    <line x1="510" y1="312" x2="548" y2="312"/>
+  </g>
+  <line class="dg-line-red" x1="290" y1="112" x2="290" y2="144" stroke="#d64545" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#dg-lpa-arrow)"/>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="100" y="66" font-weight="700">Producer</text>
+    <text x="100" y="85" font-size="12">事件名、run ID、結果</text>
+    <text x="100" y="102" font-size="12">實驗：5 筆輸入</text>
+    <text x="290" y="66" font-weight="700">有界佇列</text>
+    <text x="290" y="85" font-size="12">Queue(maxsize=2)</text>
+    <text x="290" y="102" font-size="12">put_nowait()，不阻塞</text>
+    <text x="480" y="66" font-weight="700">單一 Writer</text>
+    <text x="480" y="85" font-size="12">格式化、寫檔</text>
+    <text x="480" y="102" font-size="12">記錄寫失敗</text>
+    <text x="665" y="66" font-weight="700">NDJSON 保留</text>
+    <text x="665" y="85" font-size="12">實驗：落地 2 筆</text>
+    <text x="665" y="102" font-size="12">輪替、ACL、刪除期限</text>
+    <text x="290" y="170" font-weight="700">Full → dropped += 1</text>
+    <text x="290" y="191" font-size="12">實驗：主動丟棄 3 筆</text>
+    <text x="115" y="302" font-weight="700">輸入驗證</text>
+    <text x="115" y="321" font-size="12">鍵、版本、單位、型別</text>
+    <text x="115" y="338" font-size="12">壞 JSON 快照保留原檔</text>
+    <text x="380" y="302" font-weight="700">同一交易提交</text>
+    <text x="380" y="321" font-size="12">INSERT 事件＋UPDATE checkpoint</text>
+    <text x="380" y="338" font-size="12">唯一鍵：重送只留一列</text>
+    <text x="645" y="302" font-weight="700">重啟重讀</text>
+    <text x="645" y="321" font-size="12">從已提交 checkpoint 繼續</text>
+    <text x="645" y="338" font-size="12">一致重送略過，衝突拒絕</text>
+    <text x="380" y="408" font-weight="700">兩條路徑只用 run ID 關聯，沒有共同提交</text>
+    <text x="380" y="430" font-size="12">看到「完成」log ≠ 交易已 commit；commit 成功也可能 log 遺失。狀態以資料庫為準，不靠 log 重建。</text>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4">
+    <line x1="530" y1="112" x2="530" y2="382"/>
+  </g>
+  <text x="536" y="230" fill="currentColor" font-size="12">run ID</text>
+</svg>

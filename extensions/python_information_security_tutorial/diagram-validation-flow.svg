@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 730" role="img" aria-labelledby="dg-isv-title dg-isv-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-isv-title">閘道器輸入驗證鏈：拒絕、隔離與接受的判斷流程圖</title>
+  <desc id="dg-isv-desc">對應延伸範例的 Validator.check()。訊息依序檢查，便宜的先做。第一，大小不超過 512 位元組且是合法 JSON，否則拒絕。第二，以 HMAC-SHA256 驗證 point、value、ts、nonce 四個欄位的簽章，不符就拒絕。第三，point 必須是字串且在白名單內，value 必須是非 bool 的數字，ts 必須是整數、nonce 必須是字串，否則拒絕。第四，時間戳與現在相差不超過 300 秒且 nonce 尚未使用，否則拒絕。前四項失敗代表訊息不可信，直接丟棄並記錄，不更新任何狀態。第五，數值要在點位的上下限內，否則隔離，例如冰水 55.0 超出 3.0 到 15.0。第六，與上一筆被接受的值相比，變化不超過每分鐘上限乘以 max(1, 經過分鐘)，否則隔離，例如 60 秒內 18.2 跳到 26.0，上限只有 2.0。隔離代表訊息可信但數值可疑，保留給人工確認，不送進控制邏輯，也不更新比較基準。全部通過才接受，並更新 last 與 seen_nonce。</desc>
+  <defs>
+    <marker id="dg-isv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="40" y="12" width="380" height="44" rx="22" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="230,80 420,112 230,144 40,112"/>
+    <polygon class="dg-box" points="230,168 420,200 230,232 40,200"/>
+    <polygon class="dg-box" points="230,256 420,288 230,320 40,288"/>
+    <polygon class="dg-box" points="230,344 420,376 230,408 40,376"/>
+    <polygon class="dg-box" points="230,432 420,464 230,496 40,464"/>
+    <polygon class="dg-box" points="230,520 420,552 230,584 40,552"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="470" y="84" width="275" height="320" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="436" width="275" height="144" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="40" y="608" width="380" height="56" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-isv-arrow)">
+    <line x1="230" y1="56" x2="230" y2="78"/>
+    <line x1="230" y1="144" x2="230" y2="166"/>
+    <line x1="230" y1="232" x2="230" y2="254"/>
+    <line x1="230" y1="320" x2="230" y2="342"/>
+    <line x1="230" y1="408" x2="230" y2="430"/>
+    <line x1="230" y1="496" x2="230" y2="518"/>
+    <line x1="230" y1="584" x2="230" y2="606"/>
+    <line x1="420" y1="112" x2="468" y2="112"/>
+    <line x1="420" y1="200" x2="468" y2="200"/>
+    <line x1="420" y1="288" x2="468" y2="288"/>
+    <line x1="420" y1="376" x2="468" y2="376"/>
+    <line x1="420" y1="464" x2="468" y2="464"/>
+    <line x1="420" y1="552" x2="468" y2="552"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="230" y="39" font-weight="700">收到 MQTT／HTTP 溫度事件（bytes）</text>
+    <text x="230" y="108">① ≤ 512 B 且是合法 JSON？</text>
+    <text x="230" y="125" font-size="12">便宜的檢查先做</text>
+    <text x="230" y="196">② HMAC 簽章相符？</text>
+    <text x="230" y="213" font-size="12">point、value、ts、nonce</text>
+    <text x="230" y="284">③ 白名單點位、欄位型別？</text>
+    <text x="230" y="301" font-size="12">value 非 bool；ts 整數</text>
+    <text x="230" y="372">④ ts 在 ±300 s 內？</text>
+    <text x="230" y="389" font-size="12">nonce 尚未使用</text>
+    <text x="230" y="460">⑤ 在點位上下限內？</text>
+    <text x="230" y="477" font-size="12">例：CHW 3.0–15.0</text>
+    <text x="230" y="548">⑥ 變化 ≤ 上限 × max(1, Δt/60)？</text>
+    <text x="230" y="565" font-size="12">與上一筆「接受」的值比</text>
+    <text x="230" y="631" font-weight="700">接受：寫入並更新 last、seen_nonce</text>
+    <text x="230" y="651" font-size="12">範例：AHU1_SAT 18.2 °C</text>
+    <text x="607" y="110" font-weight="700">拒絕：訊息不可信</text>
+    <text x="607" y="130" font-size="12">丟棄並記錄事件碼</text>
+    <text x="607" y="150" font-size="12">不更新 last 與 seen_nonce</text>
+    <text x="607" y="196" font-size="12">範例：偽造簽章、非 JSON</text>
+    <text x="607" y="284" font-size="12">範例：未知點位、型別錯誤</text>
+    <text x="607" y="372" font-size="12">範例：過期 3,600 s、重放 a1</text>
+    <text x="607" y="462" font-weight="700">隔離：可信但數值可疑</text>
+    <text x="607" y="484" font-size="12">55.0 超出 3.0–15.0</text>
+    <text x="607" y="506" font-size="12">60 s 內 18.2 → 26.0（上限 2.0）</text>
+    <text x="607" y="534" font-size="12">保留供人工確認，不進控制</text>
+    <text x="607" y="556" font-size="12">不更新比較基準</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="430" y="104">否</text>
+    <text x="430" y="192">否</text>
+    <text x="430" y="280">否</text>
+    <text x="430" y="368">否</text>
+    <text x="430" y="456">否</text>
+    <text x="430" y="544">否</text>
+    <text x="238" y="160">是</text>
+  </g>
+  <text x="380" y="696" fill="currentColor" text-anchor="middle" font-size="12">①～④ 失敗代表來源或封包不可信；⑤⑥ 失敗代表來源可信、數值需要人看。</text>
+  <text x="380" y="716" fill="currentColor" text-anchor="middle" font-size="12">各「是」分支都往下一步；「現在時間」在範例中固定，輸出可重現。</text>
+</svg>
