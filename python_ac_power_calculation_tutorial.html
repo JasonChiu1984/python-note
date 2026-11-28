@@ -177,7 +177,7 @@ if __name__ == &quot;__main__&quot;:
             print(f&quot;{label}: P={x.p_kw:.3f} kW, Q={x.q_kvar:+.3f} kvar, &quot;
                   f&quot;S={x.s_kva:.3f} kVA, PF={x.pf:.4f}, φ={x.phi_deg:+.2f}°&quot;)
         print(&quot;單相示意真實 PF:&quot;, true_pf_1ph(1.84, 230, 10))</code></pre></details>
-<p>依據：<a href="https://www.electrical-installation.org/enwiki/Definition_of_reactive_power">Schneider Electric 電氣安裝指南：有功、無功、視在功率</a> · <a href="https://www.electrical-installation.org/enwiki/Power_factor">Schneider Electric：功率因數</a> · <a href="https://web.mit.edu/6.685/6.685/www/chapter7.pdf">MIT 6.685：同步機模型與功角</a>。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節從單相講到功率三角形與諧波。本節把三相量測資料完整算一次：各相複功率加總、三相功率因數、電壓與電流不平衡率，以及改善功率因數需要多少電容。</p><h3>可實跑範例：三相功率加總、不平衡率與電容量估算</h3><p>以 cmath 把每相表示成複功率 S = V·I·e^{jφ}，加總後再求功率因數；不平衡率採 NEMA MG-1 的「最大偏差 ÷ 平均」定義；電容量以 Qc = P(tanφ₁ − tanφ₂) 估算。量測值為合成資料。</p><p><a class="button" download href="extensions/python_ac_power_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;三相電壓不平衡率、各相功率加總與功率因數改善電容量估算（標準函式庫 cmath）。&quot;&quot;&quot;
+<p>依據：<a href="https://www.electrical-installation.org/enwiki/Definition_of_reactive_power">Schneider Electric 電氣安裝指南：有功、無功、視在功率</a> · <a href="https://www.electrical-installation.org/enwiki/Power_factor">Schneider Electric：功率因數</a> · <a href="https://web.mit.edu/6.685/6.685/www/chapter7.pdf">MIT 6.685：同步機模型與功角</a>。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用合成的正弦基波資料，示範各相複功率加總、電壓與電流不平衡率，以及利用帶正負號的基波無效功率估算補償量。</p><h3>可實跑範例：三相功率加總、不平衡率與電容量估算</h3><p>以 cmath 計算各相基波複功率 S₁ = V₁·I₁·e^{jφ}。向量功率比 ΣP₁ ÷ |ΣS₁| 不等同含諧波或不平衡時電表的總功率因數。電容補償以 max(0, Q₁ − P₁·tan(acos(目標落後位移功因))) 估算；Q₁ 感性落後為正、容性超前為負。不可把 PF 幅值或含諧波的總 PF 當作基波 kvar。</p><p><a class="button" download href="extensions/python_ac_power_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;三相電壓不平衡率、各相功率加總與功率因數改善電容量估算（標準函式庫 cmath）。&quot;&quot;&quot;
 import cmath
 import math
 
@@ -201,8 +201,14 @@ def phase_power(v, i, lag_deg):
     return s
 
 
-def capacitor_kvar(p_kw, pf_now, pf_target):
-    return p_kw * (math.tan(math.acos(pf_now)) - math.tan(math.acos(pf_target)))
+def capacitor_kvar(p1_kw, q1_kvar, target_dpf):
+    &quot;&quot;&quot;新增電容的基波估算：p1 &gt; 0，q1 帶號（感性正、容性負）。&quot;&quot;&quot;
+    if not math.isfinite(p1_kw) or p1_kw &lt;= 0 or not math.isfinite(q1_kvar):
+        raise ValueError(&quot;基波 kW 須為正值，且 kW、kvar 須為有限數&quot;)
+    if not 0 &lt; target_dpf &lt;= 1:
+        raise ValueError(&quot;目標落後位移功率因數須在 (0, 1] 內&quot;)
+    q1_target = p1_kw * math.tan(math.acos(target_dpf))
+    return max(0.0, q1_kvar - q1_target)  # 已超前或已達標：不得再加入電容
 
 
 if __name__ == &quot;__main__&quot;:
@@ -214,20 +220,20 @@ if __name__ == &quot;__main__&quot;:
     print(f&quot;合計：P={total.real:.2f} kW  Q={total.imag:.2f} kvar  S={abs(total):.2f} kVA&quot;)
     pf = total.real / abs(total)
     naive_s = sum(abs(phase_power(**ph)) for ph in PHASES.values())
-    print(f&quot;三相功率因數 = ΣP ÷ |ΣS| = {pf:.3f}（若把各相 kVA 直接相加得 {naive_s:.2f} kVA）&quot;)
+    print(f&quot;本基波模型的向量功率比 = ΣP₁ ÷ |ΣS₁| = {pf:.3f}（若把各相 kVA 直接相加得 {naive_s:.2f} kVA）&quot;)
     vu = unbalance_pct(list(LINE_V.values()))
     iu = unbalance_pct([ph[&quot;i&quot;] for ph in PHASES.values()])
     print(f&quot;線電壓不平衡 {vu:.2f}%，電流不平衡 {iu:.2f}%&quot;)
     for target in (0.90, 0.95, 0.98):
-        kvar = capacitor_kvar(total.real, pf, target)
-        print(f&quot;由 PF {pf:.3f} 改善到 {target:.2f}：約需 {kvar:.1f} kvar 電容&quot;)
+        kvar = capacitor_kvar(total.real, total.imag, target)
+        print(f&quot;落後基波目標 {target:.2f}：模擬估算 {kvar:.1f} kvar（非電容組選型）&quot;)
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>R 相：P= 33.57 kW  Q= 24.39 kvar  S= 41.50 kVA  PF=0.809
 S 相：P= 30.92 kW  Q= 24.60 kvar  S= 39.51 kVA  PF=0.783
 T 相：P= 32.39 kW  Q= 21.85 kvar  S= 39.07 kVA  PF=0.829
 合計：P=96.89 kW  Q=70.84 kvar  S=120.02 kVA
-三相功率因數 = ΣP ÷ |ΣS| = 0.807（若把各相 kVA 直接相加得 120.08 kVA）
+本基波模型的向量功率比 = ΣP₁ ÷ |ΣS₁| = 0.807（若把各相 kVA 直接相加得 120.08 kVA）
 線電壓不平衡 0.95%，電流不平衡 3.80%
-由 PF 0.807 改善到 0.90：約需 23.9 kvar 電容
-由 PF 0.807 改善到 0.95：約需 39.0 kvar 電容
-由 PF 0.807 改善到 0.98：約需 51.2 kvar 電容</code></pre><h3>工程現場案例：冰水泵馬達溫度偏高，功率因數只有 0.8</h3><p>某機房的冰水泵配電盤，三相電流分別是 182、176、169 A，電流不平衡 3.8%，功率因數 0.807。馬達溫度偏高，維修人員先懷疑軸承。範例顯示線電壓不平衡只有 0.95%，但電流不平衡放大到 3.8%；感應馬達的負序電流會造成額外發熱，電壓不平衡 1% 就可能讓溫升明顯增加。</p><p>改善分兩步：先查三相負載分配與接點鬆脫，降低不平衡；再加裝約 39 kvar 電容把功率因數拉到 0.95。若配電盤後端有變頻器，電容可能與諧波形成諧振，要先量測諧波頻譜，必要時改用串聯電抗器的電容組或主動式濾波器。</p><ol><li>用電力分析儀同時記錄三相電壓、電流、功率因數與 THD，至少涵蓋一個完整運轉週期。</li><li>以範例的 unbalance_pct() 計算線電壓與電流不平衡率，電壓不平衡超過 1% 時先查上游。</li><li>電容量以平均負載計算，再用最低負載檢查是否過度補償（功率因數超前）。</li><li>電容組有變頻器負載時，先評估諧波與諧振風險，再決定是否加電抗器。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>諧波限制可參考 IEEE 519-2022（電力系統諧波控制建議作法與要求），它取代 2014 版，限制值以公共耦合點（PCC）為準。台電依平均功率因數以 80% 為基準調整電費、超過 95% 的部分不再扣減；增減比例以台電最新電價表為準，不同整理資料寫法不一，計算前請直接查電價表。 <a href="https://standards.ieee.org/ieee/519/10677/">來源：IEEE 519-2022</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼三相功率因數要用 ΣP ÷ |ΣS|，而不是三相功率因數的平均？</p><details><summary>看解答</summary><p>功率因數是比值，各相負載大小不同時直接平均沒有物理意義。複功率可以相加，ΣP 與 ΣQ 加總後再求比值，才代表整體從電源取用的有效功與視在功關係。</p></details></li><li><p>把 T 相電流改成 150 A，電流不平衡率是多少？</p><details><summary>看解答</summary><p>平均 (182 + 176 + 150) ÷ 3 = 169.33 A，最大偏差 |150 − 169.33| = 19.33 A，不平衡率 11.4%。可改 PHASES 重新執行驗證。</p></details></li><li><p>若夜間負載降到 30 kW、功率因數 0.85，固定裝了 39 kvar 電容會發生什麼？</p><details><summary>看解答</summary><p>30 kW、PF 0.85 的無效功率約 30 × tan(acos 0.85) ≈ 18.6 kvar，比 39 kvar 小，系統會變成超前功率因數（過度補償），電壓上升，也可能影響電費計算。應使用自動功因調整器分段投入電容。</p></details></li><li><p>capacitor_kvar() 算的是三相總量還是每相？</p><details><summary>看解答</summary><p>輸入的是三相總有效功率，算出的是三相總 kvar。三角形接法的電容組每相承擔三分之一，選購時要確認型錄標示的是三相總容量還是每相容量，以及額定電壓。</p></details></li></ol></section><!-- extension:end -->
+落後基波目標 0.90：模擬估算 23.9 kvar（非電容組選型）
+落後基波目標 0.95：模擬估算 39.0 kvar（非電容組選型）
+落後基波目標 0.98：模擬估算 51.2 kvar（非電容組選型）</code></pre><h3>工程現場案例：冰水泵馬達溫度偏高，功率因數只有 0.8</h3><p>某機房的冰水泵配電盤，三相電流分別是 182、176、169 A，電流不平衡 3.8%，功率因數 0.807。馬達溫度偏高，維修人員先懷疑軸承。範例顯示線電壓不平衡只有 0.95%，但電流不平衡放大到 3.8%；感應馬達的負序電流會造成額外發熱，電壓不平衡 1% 就可能讓溫升明顯增加。</p><p>先查三相負載分配與接點，再判斷是否需要功率因數補償。本例 39.0 kvar 是合成資料在感性落後、目標 0.95 時的連續理論量，不是現場選型或投切指令。變頻器等非線性負載應另由合格人員評估電表定義、基波 kvar、諧波、諧振、最低負載與補償級距。</p><ol><li>依電力分析儀手冊確認帶方向的基波 kvar 與位移功率因數；分開記錄總 PF、諧波與負載區間。</li><li>以範例的 unbalance_pct() 計算線電壓與電流不平衡率，電壓不平衡超過 1% 時先查上游。</li><li>補償只針對感性基波 Q；已超前或已達目標時，範例回傳 0。若已過度補償，0 只代表不應加碼，不表示現況達標。</li><li>電容組有變頻器負載時，先評估諧波與諧振風險，再決定是否加電抗器。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>諧波限制可參考 IEEE 519-2022（電力系統諧波控制建議作法與要求），它取代 2014 版，限制值以公共耦合點（PCC）為準。台電依平均功率因數以 80% 為基準調整電費、超過 95% 的部分不再扣減；增減比例以台電最新電價表為準，不同整理資料寫法不一，計算前請直接查電價表。 <a href="https://standards.ieee.org/ieee/519/10677/">來源：IEEE 519-2022</a> <a href="https://assets.fluke.com/manuals/F430-II_umeng0100.pdf">來源：Fluke 430 Series II 使用手冊：附錄 A，位移功率因數</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼範例中的向量功率比不能用各相 PF 的算術平均？</p><details><summary>看解答</summary><p>各相負載不同，比例不能直接平均。本模型先加總基波 P₁、Q₁，再除以複功率總和的絕對值。它不保證等於各款電表以有效視在功率或其他方法計得的總 PF。</p></details></li><li><p>把 T 相電流改成 150 A，電流不平衡率是多少？</p><details><summary>看解答</summary><p>平均 (182 + 176 + 150) ÷ 3 = 169.33 A，最大偏差 |150 − 169.33| = 19.33 A，不平衡率 11.4%。可改 PHASES 重新執行驗證。</p></details></li><li><p>同為 30 kW、位移功因幅值 0.85，感性落後與容性超前的結果相同嗎？</p><details><summary>看解答</summary><p>不相同。帶正負號的基波 Q₁ 約為 +18.59 或 −18.59 kvar。目標落後 0.95 時，感性案例理論上需新增約 8.73 kvar，超前案例不應新增電容，故回傳 0。演算並未驗證任何現場投切。</p></details></li><li><p>capacitor_kvar() 算的是三相總量還是每相？</p><details><summary>看解答</summary><p>輸入與結果均是本算例的三相合計，39.0 kvar 是估算而非設備選型。電容組的額定總容量、電壓及安裝條件須另行核對。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>
