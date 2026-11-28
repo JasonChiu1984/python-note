@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁介紹以 Wireshark 與 TShark 觀察封包。本節反過來，用 Python 手動組出一個含 Modbus TCP 請求的 pcap 檔，再逐層解析，練習把 Wireshark 畫面上每一層欄位對應回原始位元組。",
+ "example_title": "手動組出並解析 pcap 中的 Modbus TCP 封包",
+ "example_desc": "pcap 全域標頭與記錄標頭是 little-endian，乙太網路以上的協定欄位是 big-endian（網路位元組順序）。程式依序解析 Ethernet、IPv4、TCP 與 MBAP，輸出可與 Wireshark 的封包詳細窗格對照。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不會擷取網路流量",
+ "case": {
+  "title": "BAS 說讀不到電表，電表廠商說沒收到請求",
+  "paragraphs": [
+   "整合時常見雙方各執一詞。在閘道器與電表之間的交換器設定鏡像埠擷取封包，用顯示篩選 modbus 過濾，就能確認請求是否真的送出、Unit ID 與起始位址是否正確、電表有沒有回應或回了例外碼。",
+   "擷取檔要能重跑分析：保存原始 pcap、擷取點、時間與篩選條件。範例示範的逐層解析，也可以寫成腳本批次檢查大量擷取檔，例如統計每台電表的平均回應時間與例外碼次數。"
+  ],
+  "steps": [
+   "確認擷取點：交換器鏡像埠或閘道器本機，記錄位置與時間同步方式。",
+   "先用 tcp.port == 502 篩選，再用 modbus.func_code、modbus.exception_code 細分。",
+   "把同一個觀測寫成 tshark 指令，結果輸出成 CSV 方便比對。",
+   "擷取檔可能含帳密或個資，保存與分享前要確認權限並視需要遮蔽。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Wireshark 預設以 pcapng 格式儲存擷取檔；本範例使用結構較簡單的傳統 libpcap 格式，Wireshark 與 TShark 都能讀寫（另存時選 pcap）。Python 端常用套件版本：scapy 2.8.0、pyshark 0.6（pyshark 需要本機安裝 TShark）。",
+   "sources": [
+    {
+     "title": "Wireshark 文件：檔案格式",
+     "url": "https://wiki.wireshark.org/Development/LibpcapFileFormat"
+    },
+    {
+     "title": "PyPI：scapy",
+     "url": "https://pypi.org/project/scapy/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "MBAP 的長度欄位是 6，代表哪幾個位元組？",
+   "a": "<p>長度欄位計算的是其後的位元組數：Unit ID 1 + 功能碼 1 + 起始位址 2 + 數量 2 = 6。不含交易識別碼、協定識別碼與長度欄位本身。</p>"
+  },
+  {
+   "q": "為什麼 pcap 全域標頭用 \"<\"，而 IP 與 TCP 欄位用 \">\"？",
+   "a": "<p>pcap 標頭以寫檔主機的位元組順序儲存，魔術數字 0xA1B2C3D4 讀出來的順序可判斷 endian；本例為 little-endian。乙太網路以上的協定欄位依標準一律採網路位元組順序（big-endian）。</p>"
+  },
+  {
+   "q": "如果要讓 parse() 也能讀 big-endian 的 pcap，怎麼改？",
+   "a": "<p>先讀前 4 bytes：若 \"&lt;I\" 解出 0xA1B2C3D4 為 little-endian；若 \"&gt;I\" 解出才是 big-endian。依此決定後續標頭的 endian 前綴。另有 0xA1B23C4D 表示奈秒精度的時間戳。</p>"
+  },
+  {
+   "q": "範例的 IHL 為 20、TCP 標頭為 20 bytes。若 TCP 帶了選項（例如時間戳記），解析程式哪裡會出錯？",
+   "a": "<p>不會出錯，因為程式依 data offset 欄位計算 TCP 標頭長度（(doff &gt;&gt; 4) × 4），帶選項時會自動往後跳。若寫死 20 bytes，MBAP 就會從錯誤位置開始解析。</p>"
+  }
+ ]
+}

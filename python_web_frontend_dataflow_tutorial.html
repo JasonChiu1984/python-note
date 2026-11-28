@@ -562,6 +562,58 @@ def merge(current, incoming, *, snapshot=False):
 <pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_stream</code></pre>
 <p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
 <p>官方參考：<a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">WHATWG：Server-Sent Events</a> · <a href="https://websockets.spec.whatwg.org/">WHATWG：WebSockets API</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-conditional-requests">RFC 9110：HTTP 條件請求</a>。內容校閱：2026-11-26（台灣）。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明前端與後端的資料流。本節示範即時趨勢最常用的單向推送格式 Server-Sent Events：事件 ID 讓瀏覽器斷線重連後從中斷處繼續，變化量節流則減少前端不必要的重繪。</p><h3>可實跑範例：SSE 格式、斷線續傳與節流</h3><p>sse() 產生符合 SSE 規格的文字（id、event、data 各一行，空行結束）；stream() 依 Last-Event-ID 略過已送出的事件，並略過變化小於 0.25 的讀值；最後的 retry 告訴瀏覽器重連間隔。</p><p><a class="button" download href="extensions/python_web_frontend_dataflow_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;前端資料流的後端支援：Server-Sent Events（SSE）格式、事件 ID 續傳與節流（標準函式庫）。
+
+瀏覽器以 EventSource 連線，斷線重連時會帶 Last-Event-ID，伺服器從下一筆開始補送。
+&quot;&quot;&quot;
+import json
+
+EVENTS = [(i, {&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: round(22.0 + i * 0.1, 1)}) for i in range(1, 9)]
+
+
+def sse(event_id, data, event=&quot;reading&quot;):
+    return f&quot;id: {event_id}\nevent: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n&quot;
+
+
+def stream(last_event_id=None, min_delta=0.25):
+    &quot;&quot;&quot;從 last_event_id 之後送出；數值變化小於 min_delta 的略過，降低前端重繪。&quot;&quot;&quot;
+    last_sent = None
+    for eid, data in EVENTS:
+        if last_event_id is not None and eid &lt;= last_event_id:
+            continue
+        if last_sent is not None and abs(data[&quot;value&quot;] - last_sent) &lt; min_delta:
+            continue
+        last_sent = data[&quot;value&quot;]
+        yield sse(eid, data)
+    yield &quot;retry: 5000\n\n&quot;                   # 告訴瀏覽器斷線後 5 秒重連
+
+
+if __name__ == &quot;__main__&quot;:
+    print(&quot;== 首次連線&quot;)
+    print(&quot;&quot;.join(stream()), end=&quot;&quot;)
+    print(&quot;== 斷線後重連，Last-Event-ID: 5&quot;)
+    print(&quot;&quot;.join(stream(last_event_id=5)), end=&quot;&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>== 首次連線
+id: 1
+event: reading
+data: {&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.1}
+
+id: 4
+event: reading
+data: {&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.4}
+
+id: 7
+event: reading
+data: {&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.7}
+
+retry: 5000
+
+== 斷線後重連，Last-Event-ID: 5
+id: 6
+event: reading
+data: {&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.6}
+
+retry: 5000</code></pre><h3>工程現場案例：即時趨勢圖每次網路閃斷都缺一段</h3><p>某 BAS 網頁以輪詢 API 每秒更新趨勢，行動網路閃斷時那幾秒的資料就消失了，而且大量畫面同時輪詢讓伺服器負載偏高。改成 SSE 後，伺服器有新資料才推送；瀏覽器內建的 EventSource 會自動重連並帶上 Last-Event-ID，伺服器從下一筆開始補送。</p><p>節流也很重要：溫度每秒變化 0.01 °C 時，前端每秒重繪對使用者沒有意義。範例只在變化超過門檻時送出，8 筆資料只送 3 筆；門檻要依點位精度與使用情境設定。</p><ol><li>事件 ID 使用單調遞增的序號，伺服器保留最近一段時間的事件以供補送。</li><li>依點位設定節流門檻，並保證至少每隔一段時間送一次（心跳），讓前端知道連線仍有效。</li><li>反向代理要關閉回應緩衝，否則事件會被累積後才送出。</li><li>需要雙向即時通訊時再考慮 WebSocket，單向推送用 SSE 較簡單。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>SSE 由 WHATWG HTML Living Standard 的 Server-sent events 章節定義，主流瀏覽器皆支援 EventSource。HTTP/2 以上不再受瀏覽器對同一網域 6 條連線的限制，多分頁同時使用 SSE 的問題較少。 <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">來源：WHATWG：Server-sent events</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼第 2、3 筆沒有送出？</p><details><summary>看解答</summary><p>第 1 筆 22.1 送出後，第 2 筆 22.2、第 3 筆 22.3 與 22.1 的差距都小於 0.25；第 4 筆 22.4 差距 0.3，才送出。節流以「上一次送出的值」為基準，而不是上一筆讀值。</p></details></li><li><p>重連時帶 Last-Event-ID: 5，為什麼第一筆送的是 6 而不是被節流的第 4 筆之後的某筆？</p><details><summary>看解答</summary><p>重連後 last_sent 從空開始，第一筆一定送出，讓前端立即取得最新狀態。這是合理的設計：重連時使用者最需要的是目前值。</p></details></li><li><p>若伺服器只保留最近 100 筆事件，用戶端帶的 Last-Event-ID 已經超出保留範圍，應該怎麼做？</p><details><summary>看解答</summary><p>無法完整補送時，應送出一個特殊事件（例如 event: reset）通知前端重新載入完整資料，而不是假裝沒有遺漏。</p></details></li><li><p>data 欄位若包含換行字元會怎樣？</p><details><summary>看解答</summary><p>SSE 以換行分隔欄位，資料中的換行會被當成新的一行。多行資料要拆成多個 data: 行，或像範例一樣用 JSON 編碼（json.dumps 會把換行轉成 \n）。</p></details></li></ol></section><!-- extension:end -->
 </main>
 <script>
 "use strict";

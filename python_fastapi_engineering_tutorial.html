@@ -926,6 +926,66 @@ def test_status_and_openapi(client):
 <pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_fastapi_contract_and_shutdown</code></pre>
 <p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
 <p>官方參考：<a href="https://fastapi.tiangolo.com/advanced/testing-events/">FastAPI：啟停測試</a> · <a href="https://fastapi.tiangolo.com/tutorial/response-model/">FastAPI：Response Model</a> · <a href="https://fastapi.tiangolo.com/advanced/async-tests/">FastAPI：非同步測試的 lifespan 限制</a>。內容校閱：2026-11-26（台灣）。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明 FastAPI 的工程化。本節把四個上線前必須處理的項目寫成一支可執行的程式：用 lifespan 管理連線資源、健康檢查、把設備離線轉成 RFC 9457 的錯誤格式，並附 Retry-After。</p><h3>可實跑範例：lifespan、健康檢查與 Problem Details 錯誤</h3><p>lifespan 取代已不建議使用的 on_event；TestClient 用 with 進入時觸發 startup、離開時觸發 shutdown。自訂例外處理器回傳 application/problem+json，欄位依 RFC 9457。</p><p><a class="button" download href="extensions/python_fastapi_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;FastAPI 生產化重點：lifespan 管理資源、背景工作、統一錯誤格式（RFC 9457）、健康檢查（需 fastapi、httpx）。&quot;&quot;&quot;
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.testclient import TestClient
+
+EVENTS = []
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.pool = {&quot;connected&quot;: True}          # 正式環境：建立資料庫或 Modbus 連線池
+    EVENTS.append(&quot;startup&quot;)
+    yield
+    app.state.pool[&quot;connected&quot;] = False
+    EVENTS.append(&quot;shutdown&quot;)
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+class DeviceOffline(Exception):
+    def __init__(self, device):
+        self.device = device
+
+
+@app.exception_handler(DeviceOffline)
+async def offline_handler(request: Request, exc: DeviceOffline):
+    return JSONResponse(status_code=503, media_type=&quot;application/problem+json&quot;, headers={&quot;Retry-After&quot;: &quot;30&quot;},
+                        content={&quot;type&quot;: &quot;https://example.com/problems/device-offline&quot;, &quot;title&quot;: &quot;Device offline&quot;,
+                                 &quot;status&quot;: 503, &quot;detail&quot;: f&quot;{exc.device} 無回應&quot;, &quot;instance&quot;: str(request.url.path)})
+
+
+@app.get(&quot;/healthz&quot;)
+def health(request: Request):
+    ok = request.app.state.pool[&quot;connected&quot;]
+    return JSONResponse({&quot;status&quot;: &quot;ok&quot; if ok else &quot;degraded&quot;}, status_code=200 if ok else 503)
+
+
+@app.get(&quot;/devices/{dev}/value&quot;)
+def value(dev: str):
+    if dev.startswith(&quot;OFF&quot;):
+        raise DeviceOffline(dev)
+    return {&quot;device&quot;: dev, &quot;value&quot;: 22.5}
+
+
+if __name__ == &quot;__main__&quot;:
+    with TestClient(app) as c:                     # 進入時執行 startup，離開時執行 shutdown
+        print(&quot;健康檢查：&quot;, c.get(&quot;/healthz&quot;).json())
+        print(&quot;正常讀值：&quot;, c.get(&quot;/devices/AHU-01/value&quot;).json())
+        r = c.get(&quot;/devices/OFF-03/value&quot;)
+        print(&quot;離線設備：&quot;, r.status_code, r.headers[&quot;content-type&quot;], r.headers[&quot;retry-after&quot;])
+        print(&quot;  &quot;, r.json())
+    print(&quot;生命週期事件：&quot;, EVENTS)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需先 pip install fastapi httpx</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>健康檢查： {&#x27;status&#x27;: &#x27;ok&#x27;}
+正常讀值： {&#x27;device&#x27;: &#x27;AHU-01&#x27;, &#x27;value&#x27;: 22.5}
+離線設備： 503 application/problem+json 30
+   {&#x27;type&#x27;: &#x27;https://example.com/problems/device-offline&#x27;, &#x27;title&#x27;: &#x27;Device offline&#x27;, &#x27;status&#x27;: 503, &#x27;detail&#x27;: &#x27;OFF-03 無回應&#x27;, &#x27;instance&#x27;: &#x27;/devices/OFF-03/value&#x27;}
+生命週期事件： [&#x27;startup&#x27;, &#x27;shutdown&#x27;]</code></pre><h3>工程現場案例：設備離線時 API 回 500，前端只顯示「系統錯誤」</h3><p>某 BAS 查詢 API 在設備沒有回應時直接讓例外往外拋，FastAPI 回 500 Internal Server Error。前端無法區分是程式錯誤還是設備離線，值班人員看到「系統錯誤」就打電話給開發者。</p><p>把設備離線定義成專用例外，轉成 503 加上 Retry-After 與結構化的錯誤內容後，前端可以顯示「AHU-03 無回應，30 秒後重試」，監控也能把設備問題與程式錯誤分開統計。</p><ol><li>連線池、模型載入等資源在 lifespan 建立與釋放，不在每個請求中建立。</li><li>把可預期的失敗（設備離線、權限不足）定義成例外並對應適當的狀態碼。</li><li>錯誤內容使用 RFC 9457 格式，type 指向說明文件。</li><li>健康檢查區分程序存活（liveness）與依賴可用（readiness），部署平台依此決定重啟或移出負載。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>此延伸範例使用 FastAPI 0.141.1 驗證。@app.on_event('startup') 已被 lifespan 取代，新程式應使用 lifespan。 <a href="https://pypi.org/project/fastapi/">來源：PyPI：fastapi</a> <a href="https://www.rfc-editor.org/rfc/rfc9457">來源：RFC 9457</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 TestClient 要用 with 區塊？不用會怎樣？</p><details><summary>看解答</summary><p>只有在 with 區塊中，TestClient 才會執行 lifespan 的 startup 與 shutdown。不用 with 時 app.state.pool 不存在，健康檢查會丟出 AttributeError。</p></details></li><li><p>設備離線為什麼用 503 而不是 404 或 500？</p><details><summary>看解答</summary><p>404 代表資源不存在，但設備是存在的；500 代表伺服器程式錯誤。503 Service Unavailable 表示暫時無法提供服務，搭配 Retry-After 告訴用戶端何時再試。</p></details></li><li><p>健康檢查若每次都真的去讀一台設備，有什麼問題？</p><details><summary>看解答</summary><p>部署平台可能每幾秒呼叫一次，會對設備造成額外負載；任一設備離線也會讓整個服務被判定不健康並重啟。readiness 應檢查自身依賴（連線池、資料庫），設備狀態另外監控。</p></details></li><li><p>Problem Details 的 type 欄位應該填什麼？</p><details><summary>看解答</summary><p>指向說明該錯誤類型的 URI，最好是可開啟的文件頁面，說明原因與處理方式。同一類錯誤使用固定的 type，用戶端可依此分類處理。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <button class="back-to-top" type="button" aria-label="回到最上層">↑</button>

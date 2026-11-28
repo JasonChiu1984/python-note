@@ -1118,7 +1118,85 @@ ModuleNotFoundError: No module named 'notes_app.templates'</pre>
       <footer>
         範例輸出為教學用預期結果，不會在瀏覽器中執行 Python。中級教材定位為工程實戰導向，適合已熟悉初級語法後使用。版本：v4.2.40，發布重點：以本地最新 `v4.2.39` 為 baseline 再次確認教程深度、廣度、頁面版本與 dated maintenance artifacts 後，沒有新增章節需求、lesson regression 或 artifact-chain 缺口。本輪主要處理的仍是尚未完成的 Git publish traceability gap，且 `origin/main` 仍停在已發布的 `v4.2.31`，因此同步補上今日 maintenance evidence，並把首頁、repo metadata 與 major pages 一起提升到新的 documentation-oriented maintenance release。
       </footer>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>中級課程的各個主題（dataclass、生成器、上下文管理器、自訂例外、logging）單獨看都不難，難在組合使用。本節用一個「讀點位表 → 驗證 → 摘要」的小任務把它們串起來。</p><h3>可實跑範例：綜合練習：點位表驗證</h3><p>rows() 是生成器，逐列讀取；parse() 把格式錯誤轉成自訂的 PointError 並保留原始例外（raise … from）；timed() 是上下文管理器；警告以 logging 輸出到標準輸出。耗時不印出，讓輸出可重現。</p><p><a class="button" download href="extensions/python_intermediate_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;中級綜合練習：dataclass、生成器、上下文管理器、例外分類與日誌，一起完成「讀點位表 → 驗證 → 摘要」（標準函式庫）。&quot;&quot;&quot;
+import csv
+import io
+import logging
+from contextlib import contextmanager
+from dataclasses import dataclass
+from time import perf_counter
+
+logging.basicConfig(format=&quot;%(levelname)s %(message)s&quot;, level=logging.INFO, stream=__import__(&quot;sys&quot;).stdout)
+log = logging.getLogger(&quot;points&quot;)
+
+CSV_TEXT = &quot;&quot;&quot;name,addr,scale,unit
+AHU1_SAT,0,0.1,degC
+AHU1_RAT,1,0.1,degC
+CH1_KW,100,abc,kW
+CH1_KW,101,1,kW
+AHU1_DMP,70000,1,%
+&quot;&quot;&quot;
+
+
+class PointError(ValueError):
+    &quot;&quot;&quot;點位資料錯誤：可以略過該列繼續處理。&quot;&quot;&quot;
+
+
+@dataclass(frozen=True)
+class Point:
+    name: str
+    addr: int
+    scale: float
+    unit: str
+
+
+def rows(text):
+    yield from csv.DictReader(io.StringIO(text))        # 生成器：大檔也不會一次讀進記憶體
+
+
+def parse(row, line):
+    try:
+        p = Point(row[&quot;name&quot;], int(row[&quot;addr&quot;]), float(row[&quot;scale&quot;]), row[&quot;unit&quot;])
+    except ValueError as e:
+        raise PointError(f&quot;第 {line} 列格式錯誤：{e}&quot;) from e
+    if not 0 &lt;= p.addr &lt;= 65535:
+        raise PointError(f&quot;第 {line} 列位址超出範圍：{p.addr}&quot;)
+    return p
+
+
+@contextmanager
+def timed(label):
+    start = perf_counter()
+    try:
+        yield
+    finally:
+        log.info(&quot;%s 完成（耗時已記錄，不印出以保持輸出可重現）&quot;, label)
+        _ = perf_counter() - start
+
+
+if __name__ == &quot;__main__&quot;:
+    points, seen = [], set()
+    with timed(&quot;點位表驗證&quot;):
+        for line, row in enumerate(rows(CSV_TEXT), start=2):
+            try:
+                p = parse(row, line)
+            except PointError as e:
+                log.warning(&quot;%s&quot;, e)
+                continue
+            if p.name in seen:
+                log.warning(&quot;第 %d 列名稱重複：%s&quot;, line, p.name)
+                continue
+            seen.add(p.name)
+            points.append(p)
+    by_unit = {}
+    for p in points:
+        by_unit.setdefault(p.unit, []).append(p.name)
+    print(f&quot;有效點位 {len(points)} 個：&quot;, by_unit)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>WARNING 第 4 列格式錯誤：could not convert string to float: &#x27;abc&#x27;
+WARNING 第 6 列位址超出範圍：70000
+INFO 點位表驗證 完成（耗時已記錄，不印出以保持輸出可重現）
+有效點位 3 個： {&#x27;degC&#x27;: [&#x27;AHU1_SAT&#x27;, &#x27;AHU1_RAT&#x27;], &#x27;kW&#x27;: [&#x27;CH1_KW&#x27;]}</code></pre><h3>工程現場案例：一列錯誤讓整份點位表匯入失敗</h3><p>某匯入程式遇到第一個格式錯誤就整個中止，現場工程師每次只能修一列。範例的做法是把「可以略過的資料錯誤」定義成 PointError，記錄警告後繼續處理下一列，最後報告有效點位；程式本身的錯誤（例如 KeyError 表示欄位名稱不對）則不攔截，讓它直接中止。</p><p>區分例外類型是中級程式設計的關鍵：攔截太廣（except Exception）會把程式錯誤也當成資料問題略過，攔截太窄又會讓單一壞資料中斷整批處理。</p><ol><li>為「預期會發生、可以處理」的錯誤定義專用例外類別。</li><li>只攔截專用例外，其他例外讓它往外拋。</li><li>用 raise … from 保留原始例外，日誌與除錯時才看得到根本原因。</li><li>處理大量資料時用生成器逐筆處理，避免一次讀入記憶體。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>範例使用的語法與模組在 Python 3.10–3.15 皆可執行。Python 3.10 已結束支援，練習建議使用 3.13 或 3.14。 <a href="https://devguide.python.org/versions/">來源：Python 版本狀態</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>CSV 中有兩列 CH1_KW，為什麼輸出沒有出現「名稱重複」的警告？</p><details><summary>看解答</summary><p>第 4 列的 CH1_KW 因 scale 為 abc 而解析失敗，沒有加入 seen；第 5 列是第一個有效的 CH1_KW。若把第 4 列的 scale 改成合法數字，第 5 列就會觸發重複警告。</p></details></li><li><p>把 parse() 的 except ValueError 改成 except Exception，會有什麼風險？</p><details><summary>看解答</summary><p>若 CSV 欄位名稱打錯（例如 adress），row["addr"] 會丟 KeyError，也會被包裝成 PointError 並略過，結果每一列都被略過，程式卻正常結束、報告 0 個點位。程式錯誤應該讓程式失敗。</p></details></li><li><p>raise PointError(...) from e 的 from e 有什麼作用？</p><details><summary>看解答</summary><p>把原始例外存到 __cause__，traceback 會顯示「The above exception was the direct cause of…」，除錯時可以看到最初是哪個轉換失敗。</p></details></li><li><p>timed() 的 finally 有什麼用？若驗證過程丟出例外會怎樣？</p><details><summary>看解答</summary><p>finally 確保即使區塊中發生例外，也會記錄完成訊息（以及耗時），然後例外繼續往外拋。這是上下文管理器做資源清理與計時的標準寫法。</p></details></li></ol></section><!-- extension:end -->
+</main>
     <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>

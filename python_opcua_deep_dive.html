@@ -181,4 +181,58 @@ if __name__ == &quot;__main__&quot;:
 <tr><th scope="row">重啟及冗餘</th><td>測 namespace 索引改變、對照來源與訂閱狀態；若有主備，測應用有效值時間及漏失，不能只看 TCP 恢復。</td></tr>
 <tr><th scope="row">信任與權限</th><td>受信及不受信端點、到期憑證、唯讀帳號拒絕寫入；確認客戶端沒有靜默降級。</td></tr>
 </tbody></table></div><p>起始指標：每來源 last-good age、訂閱序號缺口和 Republish 結果、每 item Overflow、應用佇列水位與丟棄、成功寫入與憑證到期。定值點的最後變更時間不可單獨當作離線證據；用符合現場語意的心跳或品質。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁強調 NodeId、Namespace URI 與 DataValue 是整合契約。本節把三件事寫成可執行的小工具：解析 NodeId 字串、依 StatusCode 的最高位元分級，以及用 SourceTimestamp 判斷資料是否過期。</p><h3>可實跑範例：NodeId 解析、StatusCode 分級與資料時效</h3><p>NodeId 支援 ns=（命名空間索引）與 nsu=（命名空間 URI）兩種寫法；省略命名空間代表 ns=0。StatusCode 只看最高兩位元就能分出 Good、Uncertain、Bad。時效判斷同時列出來源時間距今與伺服器延遲。</p><p><a class="button" download href="extensions/python_opcua_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;OPC UA 整合契約的三個基本功：NodeId 解析、StatusCode 分級、DataValue 時效判斷（標準函式庫）。&quot;&quot;&quot;
+import re
+from datetime import datetime, timedelta, timezone
+
+NODEID = re.compile(r&quot;(?:ns=(?P&lt;ns&gt;\d+)|nsu=(?P&lt;nsu&gt;[^;]+));(?P&lt;kind&gt;[isgb])=(?P&lt;id&gt;.+)&quot;)
+
+
+def parse_nodeid(text):
+    m = NODEID.fullmatch(text)
+    if not m:
+        if text.startswith((&quot;i=&quot;, &quot;s=&quot;)):          # 省略 ns 代表 namespace 0
+            kind, ident = text.split(&quot;=&quot;, 1)
+            return {&quot;ns&quot;: 0, &quot;kind&quot;: kind, &quot;id&quot;: ident}
+        raise ValueError(f&quot;無法解析 NodeId：{text}&quot;)
+    d = m.groupdict()
+    return {&quot;ns&quot;: int(d[&quot;ns&quot;]) if d[&quot;ns&quot;] else None, &quot;nsu&quot;: d[&quot;nsu&quot;], &quot;kind&quot;: d[&quot;kind&quot;], &quot;id&quot;: d[&quot;id&quot;]}
+
+
+def severity(status_code: int):
+    &quot;&quot;&quot;StatusCode 最高兩個位元：00 Good、01 Uncertain、10 Bad。&quot;&quot;&quot;
+    return {0: &quot;Good&quot;, 1: &quot;Uncertain&quot;, 2: &quot;Bad&quot;}.get(status_code &gt;&gt; 30, &quot;Reserved&quot;)
+
+
+def freshness(source_ts, server_ts, now, max_age=timedelta(seconds=30)):
+    if source_ts is None:
+        return &quot;無來源時間，只能依伺服器時間判斷&quot;
+    age = now - source_ts
+    lag = server_ts - source_ts
+    verdict = &quot;過期&quot; if age &gt; max_age else &quot;新鮮&quot;
+    return f&quot;{verdict}（來源時間距今 {age.total_seconds():.0f}s，伺服器延遲 {lag.total_seconds():.0f}s）&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    for t in (&quot;ns=2;s=AHU01.SAT&quot;, &quot;nsu=urn:example:plant;s=AHU01.SAT&quot;, &quot;i=2258&quot;, &quot;ns=3;i=1001&quot;, &quot;AHU01.SAT&quot;):
+        try:
+            print(f&quot;{t:&lt;36} → {parse_nodeid(t)}&quot;)
+        except ValueError as e:
+            print(f&quot;{t:&lt;36} → {e}&quot;)
+    for code in (0x00000000, 0x40920000, 0x80340000, 0x808A0000):
+        print(f&quot;StatusCode 0x{code:08X} → {severity(code)}&quot;)
+    now = datetime(2026, 11, 28, 10, 0, 0, tzinfo=timezone.utc)
+    print(freshness(now - timedelta(seconds=5), now - timedelta(seconds=4), now))
+    print(freshness(now - timedelta(minutes=10), now - timedelta(seconds=2), now))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不需要 OPC UA 伺服器</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>ns=2;s=AHU01.SAT                     → {&#x27;ns&#x27;: 2, &#x27;nsu&#x27;: None, &#x27;kind&#x27;: &#x27;s&#x27;, &#x27;id&#x27;: &#x27;AHU01.SAT&#x27;}
+nsu=urn:example:plant;s=AHU01.SAT    → {&#x27;ns&#x27;: None, &#x27;nsu&#x27;: &#x27;urn:example:plant&#x27;, &#x27;kind&#x27;: &#x27;s&#x27;, &#x27;id&#x27;: &#x27;AHU01.SAT&#x27;}
+i=2258                               → {&#x27;ns&#x27;: 0, &#x27;kind&#x27;: &#x27;i&#x27;, &#x27;id&#x27;: &#x27;2258&#x27;}
+ns=3;i=1001                          → {&#x27;ns&#x27;: 3, &#x27;nsu&#x27;: None, &#x27;kind&#x27;: &#x27;i&#x27;, &#x27;id&#x27;: &#x27;1001&#x27;}
+AHU01.SAT                            → 無法解析 NodeId：AHU01.SAT
+StatusCode 0x00000000 → Good
+StatusCode 0x40920000 → Uncertain
+StatusCode 0x80340000 → Bad
+StatusCode 0x808A0000 → Bad
+新鮮（來源時間距今 5s，伺服器延遲 1s）
+過期（來源時間距今 600s，伺服器延遲 598s）</code></pre><h3>工程現場案例：伺服器重啟後命名空間索引變了，點位全部對錯</h3><p>某 SCADA 以 ns=2;s=AHU01.SAT 訂閱點位。OPC UA 伺服器更新後新增了一個命名空間，原本的索引 2 變成 3，客戶端仍訂閱 ns=2，結果讀到另一個命名空間裡同名的節點，數值看起來合理，沒有人發現。</p><p>命名空間索引只在單一工作階段內有效，穩定的識別是 Namespace URI。設定檔應保存 nsu=urn:example:plant;s=AHU01.SAT，連線後依伺服器的 NamespaceArray 轉成索引。範例也提醒：伺服器延遲 598 秒的點位雖然 StatusCode 可能是 Good，實際上已經過期。</p><ol><li>點位表保存 Namespace URI 而非索引，連線後查 NamespaceArray 轉換。</li><li>每個 DataValue 同時檢查 StatusCode 等級與 SourceTimestamp。</li><li>Uncertain 的值可以顯示但要標示，不可直接用於控制或計費。</li><li>過期門檻依點位的更新週期設定，並記錄在點位表中。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 Python 常用的 OPC UA 套件 asyncua 最新版為 2.1.0。新專案應使用 asyncua 的非同步 API；同步包裝層適合簡單腳本，不適合大量訂閱。 <a href="https://pypi.org/project/asyncua/">來源：PyPI：asyncua</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>字串 ns=2;s=AHU01;SAT 會被怎麼解析？這說明了什麼？</p><details><summary>看解答</summary><p>正規表示式的 id 群組會取到 AHU01;SAT。字串型 NodeId 的識別碼可以包含分號，解析時只能以第一個 ;s= 等前綴切分，不能用 split(';')。</p></details></li><li><p>StatusCode 0x40920000 的最高兩位元是什麼？為什麼是 Uncertain？</p><details><summary>看解答</summary><p>0x40920000 &gt;&gt; 30 = 1（二進位 01），依規格 01 代表 Uncertain。只看最高位元就能分級，詳細原因再查表。</p></details></li><li><p>若 SourceTimestamp 為空，只有 ServerTimestamp，資料時效該怎麼判斷？</p><details><summary>看解答</summary><p>只能以伺服器時間近似，但伺服器時間代表伺服器處理或快取的時間，可能比實際量測晚很多。應在點位表標註此點位缺來源時間，並用較保守的過期門檻或改請設備端提供來源時間。</p></details></li><li><p>為什麼 AHU01.SAT（沒有 ns 也沒有 i=／s= 前綴）要拒絕，而不是自動當成 ns=0;s=AHU01.SAT？</p><details><summary>看解答</summary><p>ns=0 是 OPC UA 標準命名空間，不會有使用者自訂點位。自動補成 ns=0 幾乎一定是錯的；明確拒絕能讓設定錯誤在載入時就被發現。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a> · <a href="python_industrial_protocol_comparison_tutorial.html#opcua">工業協定比較</a></footer></body></html>

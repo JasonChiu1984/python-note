@@ -1491,6 +1491,42 @@ python python_roadmap_ot_research_lab.py protocol --test</code></pre>
 <details><summary>本章核心運算（簡化節錄）</summary><pre><code>usable = [point for point in points if point[&quot;state&quot;] == &quot;GOOD&quot;]</code></pre></details>
 <p>一手資料：<a href="https://www.modbus.org/modbus-specifications">Modbus Organization 規格</a> · <a href="https://reference.opcfoundation.org/specs/OPC-10000-4/full">OPC UA Part 4</a> · <a href="https://bacnetinternational.org/">BACnet International</a> · <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a></p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較十個協定家族。本節用同一個數值「送風溫度 22.5 °C」，看它在 Modbus、BACnet 與 MQTT 中實際變成哪些位元組，以及每種協定把單位與品質放在哪裡。</p><h3>可實跑範例：同一個數值在三種協定中的表示</h3><p>Modbus 示範 INT16 乘 10 與 FLOAT32 兩種常見做法，並展示字組順序弄反時的結果；BACnet 示範 REAL 的應用標籤編碼；MQTT 示範專案自訂的 JSON payload。</p><p><a class="button" download href="extensions/python_industrial_protocol_comparison_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;同一個「送風溫度 22.5 °C」在 Modbus、BACnet、MQTT 中的資料表示方式對照（標準函式庫）。&quot;&quot;&quot;
+import json
+import struct
+
+value = 22.5
+
+# Modbus：兩種常見做法——INT16 乘以 10，或 FLOAT32 佔兩個暫存器（字組順序依設備而定）
+int16 = struct.pack(&quot;&gt;h&quot;, round(value * 10))
+f32 = struct.pack(&quot;&gt;f&quot;, value)
+print(f&quot;Modbus INT16×10：暫存器 0x{int16.hex()}（{struct.unpack(&#x27;&gt;h&#x27;, int16)[0]}，讀取端需知道倍率 0.1）&quot;)
+hi, lo = f32[:2], f32[2:]
+print(f&quot;Modbus FLOAT32：高字組在前 {hi.hex()} {lo.hex()}；若設備低字組在前，讀成 {struct.unpack(&#x27;&gt;f&#x27;, lo + hi)[0]:.3e}&quot;)
+
+# BACnet：Analog Input 的 Present_Value 是 REAL，物件本身帶單位與狀態旗標
+bacnet_tag = bytes([0x44]) + struct.pack(&quot;&gt;f&quot;, value)          # 應用標籤 4（REAL），長度 4
+print(f&quot;BACnet REAL 編碼：{bacnet_tag.hex(&#x27; &#x27;)}；單位由 Units 屬性提供（degrees-celsius = 62）&quot;)
+
+# MQTT：payload 格式由專案自訂，常見 JSON
+payload = json.dumps({&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: value, &quot;unit&quot;: &quot;degC&quot;, &quot;ts&quot;: &quot;2026-11-28T02:00:00Z&quot;, &quot;q&quot;: &quot;good&quot;})
+print(f&quot;MQTT payload（{len(payload)} bytes）：{payload}&quot;)
+
+print(&quot;\n比較：&quot;)
+rows = [(&quot;Modbus&quot;, &quot;只有數值，單位與倍率要看點位表&quot;, &quot;2 或 4 bytes&quot;),
+        (&quot;BACnet&quot;, &quot;物件自帶單位、狀態旗標與名稱&quot;, &quot;5 bytes（值本身）&quot;),
+        (&quot;MQTT&quot;, &quot;格式自訂，要寫進資料契約&quot;, f&quot;{len(payload)} bytes&quot;)]
+for name, meaning, size in rows:
+    print(f&quot;  {name:&lt;7} {meaning:&lt;20} {size}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>Modbus INT16×10：暫存器 0x00e1（225，讀取端需知道倍率 0.1）
+Modbus FLOAT32：高字組在前 41b4 0000；若設備低字組在前，讀成 2.357e-41
+BACnet REAL 編碼：44 41 b4 00 00；單位由 Units 屬性提供（degrees-celsius = 62）
+MQTT payload（95 bytes）：{&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.5, &quot;unit&quot;: &quot;degC&quot;, &quot;ts&quot;: &quot;2026-11-28T02:00:00Z&quot;, &quot;q&quot;: &quot;good&quot;}
+
+比較：
+  Modbus  只有數值，單位與倍率要看點位表      2 或 4 bytes
+  BACnet  物件自帶單位、狀態旗標與名稱       5 bytes（值本身）
+  MQTT    格式自訂，要寫進資料契約         95 bytes</code></pre><h3>工程現場案例：FLOAT32 讀出來是 2.357e-41</h3><p>整合新設備時，FLOAT32 點位讀出一個極小的數字，很多人第一反應是設備壞了。其實是字組順序：設備把低位字組放在前面，讀取端卻以高位字組在前解讀。範例重現了這個現象：22.5 被讀成 2.357e-41。</p><p>這也說明了協定之間的根本差異：Modbus 只傳數字，倍率、單位、字組順序全部依賴點位表；BACnet 物件自帶單位與狀態旗標；MQTT 則完全由專案定義。跨協定整合時，點位表或資料契約就是唯一的真相來源。</p><ol><li>Modbus 點位表為每個點位記錄資料型別、倍率、單位與字組順序。</li><li>新設備上線時用已知數值（例如面板顯示 22.5）驗證讀取結果。</li><li>BACnet 讀取時同時取 Present_Value、Units 與 Status_Flags。</li><li>MQTT payload 格式寫成文件與 JSON Schema，版本變更要有遷移計畫。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時常用 Python 協定套件版本：pymodbus 3.16.2、BAC0 2026.7.25、asyncua 2.1.0、paho-mqtt 2.2.0。BACnet 工程單位代碼依 ASHRAE 135 的 BACnetEngineeringUnits 列舉，degrees-celsius 為 62。 <a href="https://pypi.org/project/BAC0/">來源：PyPI：BAC0</a> <a href="https://pypi.org/project/pymodbus/">來源：PyPI：pymodbus</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>22.5 的 FLOAT32 是 0x41B40000。若設備同時交換字組與位元組，讀到的原始位元組順序是什麼？</p><details><summary>看解答</summary><p>位元組完全反轉：00 00 B4 41。常見的四種順序是 ABCD、CDAB（字組交換）、BADC（位元組交換）、DCBA（全部反轉），新設備上線時要逐一驗證。</p></details></li><li><p>INT16 乘 10 的做法，可表示的溫度範圍是多少？</p><details><summary>看解答</summary><p>INT16 為 −32,768 到 32,767，除以 10 為 −3,276.8 到 3,276.7 °C，精度 0.1 °C。若需要更高精度或更大範圍，要改用乘 100 或 FLOAT32，範圍與精度要一起考慮。</p></details></li><li><p>BACnet 的 0x44 標籤位元組代表什麼？</p><details><summary>看解答</summary><p>高 4 位元 4 是應用標籤編號（REAL），低 4 位元 4 是長度（4 bytes）。後面 41 B4 00 00 就是 IEEE 754 單精度的 22.5，BACnet 規定以 big-endian 傳送。</p></details></li><li><p>MQTT 的 payload 比 Modbus 大很多，在現場網路上會是問題嗎？</p><details><summary>看解答</summary><p>對一般乙太網路或 4G 通常不是問題，95 bytes 每秒一筆只有約 0.8 kbps。但在 LoRaWAN 等低頻寬網路就必須改用精簡格式（例如 CBOR 或固定欄位的二進位格式）。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

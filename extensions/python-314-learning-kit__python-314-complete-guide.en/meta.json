@@ -1,0 +1,62 @@
+{
+ "lang": "en",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  14
+ ],
+ "intro": "Three 3.14 features are especially useful in engineering code: t-strings (PEP 750) let interpolations be handled safely, annotations are now evaluated lazily (PEP 649/749), and the standard library gains Zstandard compression (PEP 784).",
+ "example_title": "t-string parameterised SQL, deferred annotations and zstd",
+ "example_desc": "A t-string does not produce a str but a Template; to_sql() replaces every interpolation with ? and moves the value into a parameter list, so hostile input is treated purely as data. poll()'s annotations can name classes that do not exist yet. zstd compresses highly repetitive CSV records.",
+ "run_note": "needs Python 3.14 or later",
+ "case": {
+  "title": "A point name with an apostrophe breaks the query",
+  "paragraphs": [
+   "A reporting tool built SQL with f-strings and failed as soon as the point name O'Neil_AHU appeared; with web input, injection is the bigger risk. An f-string mixes value and SQL the moment it is created, so no function downstream can tell them apart. A t-string keeps the structure and lets a processing function decide how each interpolation is handled.",
+   "Lazy annotations remove the need for from __future__ import annotations or string annotations when modules reference each other's types, and zstd makes archive compression available without a third-party package."
+  ],
+  "steps": [
+   "Always parameterise database queries; a t-string with a processing function is one way to wrap this.",
+   "Find code that relies on __annotations__ being evaluated eagerly and switch it to annotationlib.",
+   "Evaluate zstd for log and history archives, comparing ratio and speed.",
+   "Run the full test suite on 3.14 before upgrading."
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.14 is in full (bugfix) support; extension output was rechecked on 3.14.10. 3.14.5 reverted the incremental garbage collector.",
+   "sources": [
+    {
+     "title": "Python Developer's Guide: Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "PEP 750",
+     "url": "https://peps.python.org/pep-0750/"
+    },
+    {
+     "title": "PEP 784",
+     "url": "https://peps.python.org/pep-0784/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "What is the key difference between t\"...\" and f\"...\"?",
+   "a": "<p>An f-string produces a str immediately. A t-string produces a Template that keeps the static strings and every interpolation (value, expression, conversion and format spec), so a processing function can decide how to combine them, for example by escaping or parameterising.</p>"
+  },
+  {
+   "q": "Does print(t\"...\") print the combined string?",
+   "a": "<p>No, it prints the Template's repr. Templates deliberately have no default string conversion; a processing function must render them, which prevents unsafe direct use.</p>"
+  },
+  {
+   "q": "What happens if the example's poll() definition runs on 3.13?",
+   "a": "<p>NameError: GatewayDevice is not defined. Before 3.14 annotations were evaluated when the function was defined, unless from __future__ import annotations or string annotations were used.</p>"
+  },
+  {
+   "q": "Why does the example compress so well?",
+   "a": "<p>The data is one line repeated 2,000 times and carries almost no information. Real time-series data repeats less, so measure with your own data; zstd's strength is being faster than gzip at a similar ratio.</p>"
+  }
+ ]
+}

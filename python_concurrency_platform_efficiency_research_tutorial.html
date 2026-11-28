@@ -92,4 +92,49 @@ python3.15t concurrency_platform_benchmark.py --start spawn &gt; result-ft.json<
 results.extend(future.result() for future in finished)</code></pre>
 <p>官方資料：<a href="https://docs.python.org/3/library/concurrent.futures.html">Python：Future、wait 與 executor 生命週期</a>、<a href="https://docs.python.org/3/library/time.html#time.perf_counter">Python：以單調時鐘量耗時</a>。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁以實測比較各種執行方式。本節補上實測之前應該先算的理論上限：可平行比例決定了加開工作者最多能快幾倍，並整理各平台 multiprocessing 預設啟動方式的差異。</p><h3>可實跑範例：Amdahl 與 Gustafson 加速比上限</h3><p>Amdahl 定律假設總工作量固定，Gustafson 定律假設工作量隨工作者增加而增加。範例只做計算，不量測本機時間，因此在任何機器上輸出都相同。</p><p><a class="button" download href="extensions/python_concurrency_platform_efficiency_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;加速比的上限：Amdahl 定律與 Gustafson 定律，並列出各平台 multiprocessing 預設啟動方式（標準函式庫）。
+
+輸出不量測本機時間，因為不同機器結果不同；量測方法請見本頁第 4 節。
+&quot;&quot;&quot;
+
+
+def amdahl(p, n):
+    &quot;&quot;&quot;固定工作量：可平行比例 p、n 個工作者的加速比上限。&quot;&quot;&quot;
+    return 1 / ((1 - p) + p / n)
+
+
+def gustafson(p, n):
+    &quot;&quot;&quot;工作量隨工作者數增加：可平行比例 p 時的擴展加速比。&quot;&quot;&quot;
+    return (1 - p) + p * n
+
+
+if __name__ == &quot;__main__&quot;:
+    workers = (1, 2, 4, 8, 16, 64)
+    print(&quot;可平行比例 |&quot; + &quot;&quot;.join(f&quot;{n:&gt;7}&quot; for n in workers))
+    for p in (0.5, 0.8, 0.95, 0.99):
+        print(f&quot;Amdahl {p:4.0%} |&quot; + &quot;&quot;.join(f&quot;{amdahl(p, n):7.2f}&quot; for n in workers))
+    print(f&quot;Gustafson 95% |&quot; + &quot;&quot;.join(f&quot;{gustafson(0.95, n):7.2f}&quot; for n in workers))
+    print()
+    print(&quot;例：資料解析 95% 可平行，其餘 5% 是讀檔與彙總。8 核心最多約&quot;, f&quot;{amdahl(0.95, 8):.1f}&quot;, &quot;倍，&quot;,
+          &quot;即使 64 核心也只有&quot;, f&quot;{amdahl(0.95, 64):.1f}&quot;, &quot;倍（上限 20 倍）。&quot;)
+    print()
+    defaults = [(&quot;Linux（Python 3.14 起）&quot;, &quot;forkserver&quot;), (&quot;Linux（3.13 以前）&quot;, &quot;fork&quot;),
+                (&quot;macOS（3.8 起）&quot;, &quot;spawn&quot;), (&quot;Windows&quot;, &quot;spawn&quot;)]
+    print(&quot;multiprocessing 預設啟動方式：&quot;)
+    for plat, method in defaults:
+        print(f&quot;  {plat:&lt;22} {method}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>可平行比例 |      1      2      4      8     16     64
+Amdahl  50% |   1.00   1.33   1.60   1.78   1.88   1.97
+Amdahl  80% |   1.00   1.67   2.50   3.33   4.00   4.71
+Amdahl  95% |   1.00   1.90   3.48   5.93   9.14  15.42
+Amdahl  99% |   1.00   1.98   3.88   7.48  13.91  39.26
+Gustafson 95% |   1.00   1.95   3.85   7.65  15.25  60.85
+
+例：資料解析 95% 可平行，其餘 5% 是讀檔與彙總。8 核心最多約 5.9 倍， 即使 64 核心也只有 15.4 倍（上限 20 倍）。
+
+multiprocessing 預設啟動方式：
+  Linux（Python 3.14 起）   forkserver
+  Linux（3.13 以前）         fork
+  macOS（3.8 起）           spawn
+  Windows                spawn</code></pre><h3>工程現場案例：報表從 4 核心換到 16 核心，只快了 1.6 倍</h3><p>某能源報表程序用 multiprocessing 平行解析 200 個點位的月資料，搬到 16 核心伺服器後預期快 4 倍，實際只快約 1.6 倍。剖析後發現讀取原始檔與最後彙總寫 Excel 占了約 20% 的時間，而且只能單一程序執行。依 Amdahl 定律，可平行比例 80% 時，4 核心上限 2.5 倍、16 核心上限 4.0 倍，兩者相比只多 1.6 倍，與實測一致。</p><p>改善方向是縮小序列部分：讀檔改成各工作者直接讀自己負責的檔案，彙總改成先在各工作者內部分彙總，最後只合併少量結果。之後可平行比例提高到約 95%，16 核心的上限就提高到約 9 倍。</p><ol><li>先用剖析工具量出序列部分（讀檔、彙總、寫檔）占總時間的比例。</li><li>用 amdahl() 算出目標核心數的理論上限，判斷加硬體是否值得。</li><li>優先縮小序列部分，再增加工作者數。</li><li>跨平台部署時明確指定 multiprocessing 啟動方式，不依賴預設值。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.14 起，Linux 等 POSIX 平台（macOS 除外）的 multiprocessing 預設啟動方式由 fork 改為 forkserver。依賴 fork 繼承全域狀態的程式（例如在主程序開好的連線或已載入的大型物件）在升級後可能行為改變，應以 multiprocessing.get_context('fork') 明確指定或改寫成不依賴繼承。 <a href="https://docs.python.org/3/whatsnew/3.14.html">來源：What's new in Python 3.14：multiprocessing</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>可平行比例 99% 時，Amdahl 的理論上限是多少倍？</p><details><summary>看解答</summary><p>1 ÷ (1 − 0.99) = 100 倍。64 核心時約 39 倍，離上限還很遠；這類工作才值得投資大量核心。</p></details></li><li><p>為什麼 Gustafson 定律的數字比 Amdahl 樂觀得多？</p><details><summary>看解答</summary><p>Gustafson 假設工作者增加時，問題規模也跟著放大（例如處理更多點位或更長期間），序列部分所占比例因此變小。Amdahl 則假設問題規模固定。兩者回答的是不同問題。</p></details></li><li><p>程式從 Python 3.13 升到 3.14 後，子程序讀不到主程序在 if __name__ == '__main__' 之前建立的全域快取，可能原因是什麼？</p><details><summary>看解答</summary><p>Linux 預設啟動方式從 fork 改為 forkserver。fork 會複製主程序的記憶體，forkserver 不會，子程序需重新匯入模組並重建狀態。可改為在子程序初始化函式中建立快取，或明確指定 fork。</p></details></li><li><p>I/O 密集的工作（例如輪詢 100 台設備）適合用 Amdahl 定律估算嗎？</p><details><summary>看解答</summary><p>不太適合。I/O 等待時間主要由設備回應決定，瓶頸可能在網路或設備併發上限，而不是 CPU 核心數。這類工作要用 asyncio 或執行緒，並量測設備端的可承受併發數。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

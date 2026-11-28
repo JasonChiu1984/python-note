@@ -757,7 +757,54 @@ if __name__ == "__main__":
 <article class="reading"><h3>先停止擴大影響，再診斷</h3><ul><li><strong>busy / locked：</strong>暫停 worker，縮小批次；查長交易和寫入稽核，再以有上限的退避重試。不可在鎖內等網路或人工確認。</li><li><strong>checkpoint 已到尾但仍有 NULL：</strong>找出相容層漏寫或資料倒灌的來源，修復後對照缺漏列；不能直接改進度來通過收斂。</li><li><strong>語意不符：</strong>核對單位、精度與有效範圍，區分原始值、已換算值及無效資料；不要默默把異常變成零。</li></ul></article><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓資料升版變成可交付、可回退資產</h2><p>版本發布時，schema 狀態、backfill 進度與 rollback 可行性都應被記錄。</p></div></div><article class="reading"><h3>發布前可照做的清單</h3><ol><li>確認應用與 schema 相容矩陣，盤點所有舊讀與寫入者。</li><li>將 expand、回填、切讀與 contract 分成不同發布關卡。</li><li>實測備份、資料驗收、觀察窗與異常回退。正式收斂另安排維護窗口。</li><li>工控場景優先在離線、去識別化遙測副本演練；控制命令、設備設定與現場連鎖不可用這個測試腳本操作。</li></ol><p><a href="https://www.sqlite.org/lang_altertable.html">SQLite ALTER TABLE</a> · <a href="https://www.sqlite.org/lang_transaction.html">SQLite 交易</a> · <a href="https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup">Python SQLite 備份 API</a></p></article><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明資料演進治理。本節示範一種不需要改寫舊資料的做法：每筆紀錄帶 schema 版本，讀取時依序套用升級函式到最新結構；遇到比程式更新的版本則明確拒絕。</p><h3>可實跑範例：版本化紀錄與逐版升級</h3><p>v1 → v2 補上單位；v2 → v3 欄位改名、單位代碼標準化、新增品質欄位（舊資料標記 unknown）。每個升級函式只處理相鄰兩版，新增版本時只需加一個函式。</p><p><a class="button" download href="extensions/python_data_evolution_governance_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;資料結構演進：每筆紀錄帶 schema 版本，讀取時逐版升級到最新結構；舊資料不改寫也能讀（標準函式庫）。&quot;&quot;&quot;
+import json
+
+RECORDS = [
+    &#x27;{&quot;v&quot;: 1, &quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.5}&#x27;,
+    &#x27;{&quot;v&quot;: 2, &quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.6, &quot;unit&quot;: &quot;C&quot;}&#x27;,
+    &#x27;{&quot;v&quot;: 3, &quot;point_id&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.7, &quot;unit&quot;: &quot;degC&quot;, &quot;quality&quot;: &quot;good&quot;}&#x27;,
+    &#x27;{&quot;v&quot;: 4, &quot;point_id&quot;: &quot;AHU1_SAT&quot;, &quot;value&quot;: 22.8}&#x27;,
+]
+
+
+def v1_to_v2(r):
+    return {**r, &quot;v&quot;: 2, &quot;unit&quot;: &quot;C&quot;}                     # v1 沒有單位欄位，當時一律是攝氏
+
+
+def v2_to_v3(r):
+    r = dict(r)
+    r[&quot;point_id&quot;] = r.pop(&quot;point&quot;)                       # 欄位改名
+    r[&quot;unit&quot;] = {&quot;C&quot;: &quot;degC&quot;, &quot;F&quot;: &quot;degF&quot;}[r[&quot;unit&quot;]]    # 單位改用 UCUM 風格代碼
+    r[&quot;quality&quot;] = &quot;unknown&quot;                             # 新欄位：舊資料沒有品質資訊
+    r[&quot;v&quot;] = 3
+    return r
+
+
+UPGRADES = {1: v1_to_v2, 2: v2_to_v3}
+LATEST = 3
+
+
+def load(line):
+    r = json.loads(line)
+    if r[&quot;v&quot;] &gt; LATEST:
+        raise ValueError(f&quot;版本 {r[&#x27;v&#x27;]} 比程式支援的 {LATEST} 新，請先升級讀取程式&quot;)
+    while r[&quot;v&quot;] &lt; LATEST:
+        r = UPGRADES[r[&quot;v&quot;]](r)
+    return r
+
+
+if __name__ == &quot;__main__&quot;:
+    for line in RECORDS:
+        try:
+            print(load(line))
+        except ValueError as e:
+            print(&quot;拒絕：&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>{&#x27;v&#x27;: 3, &#x27;value&#x27;: 22.5, &#x27;unit&#x27;: &#x27;degC&#x27;, &#x27;point_id&#x27;: &#x27;AHU1_SAT&#x27;, &#x27;quality&#x27;: &#x27;unknown&#x27;}
+{&#x27;v&#x27;: 3, &#x27;value&#x27;: 22.6, &#x27;unit&#x27;: &#x27;degC&#x27;, &#x27;point_id&#x27;: &#x27;AHU1_SAT&#x27;, &#x27;quality&#x27;: &#x27;unknown&#x27;}
+{&#x27;v&#x27;: 3, &#x27;point_id&#x27;: &#x27;AHU1_SAT&#x27;, &#x27;value&#x27;: 22.7, &#x27;unit&#x27;: &#x27;degC&#x27;, &#x27;quality&#x27;: &#x27;good&#x27;}
+拒絕： 版本 4 比程式支援的 3 新，請先升級讀取程式</code></pre><h3>工程現場案例：三年的歷史資料有三種格式，報表程式滿是 if</h3><p>某平台三年來改了兩次資料格式：先加上單位欄位，後來把 point 改名為 point_id 並加入品質。報表程式裡到處是 if 'point' in r 之類的判斷，每次新功能都要記得處理三種格式，錯誤不斷。</p><p>逐版升級把格式差異集中在一處：讀取時一律轉成最新版，其他程式只需處理一種結構。舊資料不需要一次性改寫（改寫數億筆資料本身就有風險）。遇到 v4 這種比程式還新的資料直接拒絕，避免舊程式誤讀新格式。</p><ol><li>每筆紀錄或每個檔案都帶 schema 版本，第一版就要有。</li><li>每次格式變更寫一個升級函式與測試，處理相鄰兩版。</li><li>新增欄位時明確定義舊資料的預設值或「未知」，不要猜。</li><li>寫入端先升級，讀取端要能讀新版後才開始寫新版（或同時部署）。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>單位代碼可參考 UCUM（Unified Code for Units of Measure）；溫度以 Cel 表示攝氏、[degF] 表示華氏。範例的 degC 是常見的簡化寫法，跨系統交換時建議採用正式代碼並寫進資料字典。 <a href="https://ucum.org/">來源：UCUM</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若 v2 的資料中出現 unit 為 "K"（克耳文），v2_to_v3 會怎樣？</p><details><summary>看解答</summary><p>對照表沒有 K，會丟出 KeyError。這是好事：未知單位應該被發現而不是被猜測。可以把例外轉成更清楚的訊息，並在對照表中補上 K。</p></details></li><li><p>為什麼 v1_to_v2 可以直接補 unit 為 C？</p><details><summary>看解答</summary><p>依範例的假設，v1 時期所有資料都是攝氏。這種假設必須有依據並寫在註解或文件中；若不確定，應該標記為 unknown 而不是猜。</p></details></li><li><p>讀取程式只支援到 v3，但寫入端已經開始寫 v4，會發生什麼？部署順序應該怎麼安排？</p><details><summary>看解答</summary><p>舊讀取程式遇到 v4 會拒絕，報表中斷。應先部署能讀 v4 的讀取程式，確認全部更新後，再讓寫入端開始寫 v4。</p></details></li><li><p>升級函式為什麼要回傳新的 dict，而不是直接修改傳入的 r？</p><details><summary>看解答</summary><p>避免副作用：呼叫端若還持有原始物件，原地修改會讓它意外改變，也讓測試難以比對前後差異。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

@@ -181,4 +181,50 @@ if __name__ == &quot;__main__&quot;:
     main()</code></pre></details>
 <p>練習：把 A、B、C 的 COP 做簡單平均再比較期間值，說明為什麼不同。另以只讀副本變更供回水順序，觀察驗證程式如何拒絕不適用的冷卻模式記錄。</p></section><section class="panel" id="diagnosis"><h2>診斷｜先排除量測誤差，再談低 ΔT</h2><ol><li><strong>對時、點位與倍率：</strong>核對時區、窗口和趨勢時間戳、供回水感測器安裝位置、流量方向／流量計量程，以及電錶 CT/PT 倍率；用三相實功率或有效電能，別拿 kVA 代 kW。</li><li><strong>配對感測器校驗：</strong>若兩支各有 ±0.10°C 最大誤差，僅 ΔT 的保守誤差上界可達 ±0.20 K。真實 5 K 時達 4%；1 K 時達 20%。這不是統計信賴區間，也未含流量或物性誤差。使用不確定度分析時要交代感測器相關性與同步條件。</li><li><strong>查低 ΔT 根因，不從 COP 單指標下結論：</strong>以同一負載對照流量、回水溫、末端閥位、旁通／混水、二次與一次流量差，並核對盤管和壓差。若可信低 ΔT，等冷量下通常意味更大流量，可能增加泵耗或提前耗盡可用流量；不能只用低 ΔT 推論某台冰機退化。</li><li><strong>拒絕錯位資料：</strong>有流量、冷量正值但機組電力顯示零時，先查時間錯位、計量缺漏、自由冷卻或蓄冰是否另有供冷；本單機示例視為不合其邊界。零冷量／零電力的單段效率顯示不可計，並按約定保留待機電能。</li></ol>
 <p class="notice">本章是離線觀測與資料驗證，不是自動改變供水溫、泵速、閥位或保護值的操作指令。改善冷量或泵塔效率前，另行確認原廠操作範圍、最小流量、負載裕度、現場維護與控制核准。</p>
-<h3>規格與參考文件</h3><ul><li><a href="https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8">NIST SP 811：冷凍噸換算</a></li><li><a href="https://www.ahrinet.org/search-standards/ahri-550590-i-p-and-551591-si-performance-rating-water-chilling-and-heat-pump-water-heating-packages">AHRI 550/590 與 551/591：冰機評級</a> · <a href="https://www.ahrinet.org/certification/ahri-certification-programs/water-cooled-water-chilling-and-heat-pump-water-heating-packages-using-vapor-compression-cycle-wccl">AHRI 水冷冰機認證</a></li><li><a href="https://handbook.ashrae.org/Handbooks/S16/SI/s16_ch03/s16_ch03_si.aspx">ASHRAE Handbook：中央冷卻與供熱系統</a> · <a href="https://www.ashrae.org/file%20library/technical%20resources/standards%20and%20guidelines/standards%20errata/standards-errata/standards/184-2016erratasheet-10-2-2017-.pdf">ASHRAE 184 勘誤：冰機量測項目</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_datacenter_efficiency_tutorial.html">回資料中心能源管理</a></footer></main></body></html>
+<h3>規格與參考文件</h3><ul><li><a href="https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8">NIST SP 811：冷凍噸換算</a></li><li><a href="https://www.ahrinet.org/search-standards/ahri-550590-i-p-and-551591-si-performance-rating-water-chilling-and-heat-pump-water-heating-packages">AHRI 550/590 與 551/591：冰機評級</a> · <a href="https://www.ahrinet.org/certification/ahri-certification-programs/water-cooled-water-chilling-and-heat-pump-water-heating-packages-using-vapor-compression-cycle-wccl">AHRI 水冷冰機認證</a></li><li><a href="https://handbook.ashrae.org/Handbooks/S16/SI/s16_ch03/s16_ch03_si.aspx">ASHRAE Handbook：中央冷卻與供熱系統</a> · <a href="https://www.ashrae.org/file%20library/technical%20resources/standards%20and%20guidelines/standards%20errata/standards-errata/standards/184-2016erratasheet-10-2-2017-.pdf">ASHRAE 184 勘誤：冰機量測項目</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_datacenter_efficiency_tutorial.html">回資料中心能源管理</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用一組 15 分鐘平均資料同時算冰機與全廠能效，再示範兩個常讓數字失真的因素：低 ΔT 讓泵浦耗電增加，以及溫度感測器的小誤差讓冰機看起來變好或變差。</p><h3>可實跑範例：kW/RT、COP、低 ΔT 與感測器誤差</h3><p>冷量以流量 × 比熱 × ΔT 計算，1 RT = 3.517 kW。低 ΔT 情境假設泵浦功率與流量三次方成正比，是上限估計；感測器誤差情境把供回水各偏 0.2 °C，觀察 kW/RT 的變化。</p><p><a class="button" download href="extensions/python_chiller_efficiency_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;冰機 kW/RT、COP 與全廠能效；並示範低 ΔT 對泵浦用電的影響（標準函式庫）。
+
+冷量 kW = 流量(L/s) × 4.186 × ΔT(°C)；1 RT = 3.517 kW。
+&quot;&quot;&quot;
+RT_KW = 3.517
+CP = 4.186                                      # kJ/(kg·K)，以 1 kg/L 近似
+
+
+def cooling_kw(flow_lps, t_return, t_supply):
+    return flow_lps * CP * (t_return - t_supply)
+
+
+if __name__ == &quot;__main__&quot;:
+    # 15 分鐘平均資料：冰水 45 L/s、回水 12.5 °C、供水 7.0 °C
+    q = cooling_kw(45.0, 12.5, 7.0)
+    rt = q / RT_KW
+    chiller_kw, chw_pump, cw_pump, tower = 168.0, 18.5, 22.0, 11.0
+    plant_kw = chiller_kw + chw_pump + cw_pump + tower
+    print(f&quot;冷量 {q:.1f} kW = {rt:.1f} RT&quot;)
+    print(f&quot;冰機 {chiller_kw} kW → {chiller_kw / rt:.3f} kW/RT，COP {q / chiller_kw:.2f}&quot;)
+    print(f&quot;全廠 {plant_kw} kW → {plant_kw / rt:.3f} kW/RT，COP {q / plant_kw:.2f}&quot;)
+    print()
+    print(&quot;同樣冷量下，ΔT 對冰水流量與泵浦用電的影響（泵浦功率 ∝ 流量³ 的上限估計）：&quot;)
+    for dt in (5.5, 4.5, 3.5):
+        flow = q / (CP * dt)
+        pump = chw_pump * (flow / 45.0) ** 3
+        print(f&quot;  ΔT {dt} °C → 流量 {flow:5.1f} L/s，冰水泵約 {pump:5.1f} kW，&quot;
+              f&quot;全廠 {(chiller_kw + pump + cw_pump + tower) / rt:.3f} kW/RT&quot;)
+    print()
+    print(&quot;溫度感測器誤差的影響：供回水各偏 0.2 °C（方向相反）時&quot;)
+    for err in (0.0, 0.2, -0.2):
+        q_err = cooling_kw(45.0, 12.5 + err, 7.0 - err)
+        print(f&quot;  誤差 {err:+.1f} °C：冷量 {q_err / RT_KW:6.1f} RT，冰機 {chiller_kw / (q_err / RT_KW):.3f} kW/RT&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>冷量 1036.0 kW = 294.6 RT
+冰機 168.0 kW → 0.570 kW/RT，COP 6.17
+全廠 219.5 kW → 0.745 kW/RT，COP 4.72
+
+同樣冷量下，ΔT 對冰水流量與泵浦用電的影響（泵浦功率 ∝ 流量³ 的上限估計）：
+  ΔT 5.5 °C → 流量  45.0 L/s，冰水泵約  18.5 kW，全廠 0.745 kW/RT
+  ΔT 4.5 °C → 流量  55.0 L/s，冰水泵約  33.8 kW，全廠 0.797 kW/RT
+  ΔT 3.5 °C → 流量  70.7 L/s，冰水泵約  71.8 kW，全廠 0.926 kW/RT
+
+溫度感測器誤差的影響：供回水各偏 0.2 °C（方向相反）時
+  誤差 +0.0 °C：冷量  294.6 RT，冰機 0.570 kW/RT
+  誤差 +0.2 °C：冷量  316.0 RT，冰機 0.532 kW/RT
+  誤差 -0.2 °C：冷量  273.2 RT，冰機 0.615 kW/RT</code></pre><h3>工程現場案例：冰機效率每月都在「改善」，其實是溫度計漂移</h3><p>某冰水廠的冰機 kW/RT 在半年內從 0.57 降到 0.53，看起來效率提升 7%。檢查後發現回水溫度感測器漂移 +0.2 °C、供水 −0.2 °C，ΔT 從 5.5 °C 變成 5.9 °C，冷量被高估 7%。範例的最後一段重現了這個現象：0.2 °C 的誤差就讓 kW/RT 從 0.570 變成 0.532。</p><p>另一個常見問題是低 ΔT：負載側二通閥失效或盤管髒污時，回水溫度偏低，要用更多流量才能送出同樣冷量。範例中 ΔT 從 5.5 °C 降到 3.5 °C，冰水流量增加 57%，全廠 kW/RT 從 0.745 惡化到最多 0.926。</p><ol><li>供回水溫度感測器至少每年以標準溫度計比對，兩支感測器在同一水溫下的差值應小於 0.1 °C。</li><li>能效計算前先檢查 ΔT 合理範圍，ΔT 過小（例如 &lt; 2 °C）的時段標記為低信賴度。</li><li>全廠 kW/RT 要包含冰機、冰水泵、冷卻水泵與冷卻水塔風扇，各自的電表與冷量用同一時間窗。</li><li>低 ΔT 先查負載端：二通閥是否關不緊、旁通閥是否常開、盤管是否結垢。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>冰機部分負載效率（IPLV／NPLV）依 AHRI 550/590（現行 2020 版含 2022 年 Addendum 1）計算，100%、75%、50%、25% 負載的權重為 1%、42%、45%、12%。以 COP 或 EER 表示時是加權算術平均；以 kW/RT 表示時要用加權調和平均：IPLV = 1 ÷ (0.01/A + 0.42/B + 0.45/C + 0.12/D)，直接對 kW/RT 做算術平均會算錯。設計時以 IPLV 比較機型，運轉時仍要用現場量測的 kW/RT，兩者條件不同，不能直接比較。 <a href="https://www.ahrinet.org/system/files/2023-06/AHRI%20Standard%20550-590%202020%20%28I-P%29%20with%20Addendum%201.pdf">來源：AHRI Standard 550/590 (I-P)-2020 with Addendum 1</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>冰水流量 45 L/s、ΔT 5.5 °C 的冷量是多少 RT？請手算後與範例比對。</p><details><summary>看解答</summary><p>45 × 4.186 × 5.5 = 1,036.0 kW，÷ 3.517 = 294.6 RT。</p></details></li><li><p>冰機 kW/RT 0.570 換算成 COP 是多少？兩者有什麼關係？</p><details><summary>看解答</summary><p>COP = 3.517 ÷ kW/RT = 3.517 ÷ 0.570 ≈ 6.17。kW/RT 越低越好，COP 越高越好，兩者互為倒數關係（差一個單位換算係數）。</p></details></li><li><p>為什麼範例說泵浦功率與流量三次方成正比是「上限估計」？</p><details><summary>看解答</summary><p>立方定律只在系統沒有靜揚程且差壓設定點隨流量下降時成立。若冰水泵依固定差壓控制，揚程不會隨流量平方下降，功率增加會小於三次方；但若泵浦已在高轉速，增加流量可能需要加開一台泵，功率會階梯式上升。</p></details></li><li><p>修改 cooling_kw()，在 ΔT 小於 1 °C 時丟出例外，理由是什麼？</p><details><summary>看解答</summary><p>ΔT 很小時，溫度計的 ±0.1 °C 誤差就占 10% 以上，算出的冷量與能效已無參考價值，常見於低負載或冰機停機時段。直接拒絕計算比產生誤導性的數字安全。</p></details></li><li><p>某冰機在 100%、75%、50%、25% 負載的 kW/RT 分別是 0.60、0.50、0.45、0.55。IPLV 是多少 kW/RT？若誤用算術平均會得到多少？</p><details><summary>看解答</summary><p>調和平均：1 ÷ (0.01/0.60 + 0.42/0.50 + 0.45/0.45 + 0.12/0.55) = 1 ÷ (0.0167 + 0.84 + 1.0 + 0.2182) ≈ 0.482 kW/RT。誤用算術平均：0.01×0.60 + 0.42×0.50 + 0.45×0.45 + 0.12×0.55 = 0.4845 kW/RT。此例差異不大，但各負載點差距越大，算術平均的偏差越明顯，而且方向固定偏高。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

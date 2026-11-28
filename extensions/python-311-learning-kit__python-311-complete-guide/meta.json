@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  11
+ ],
+ "intro": "3.11 最常被工程專案用到的是 asyncio.TaskGroup、except* 與 tomllib。本節把三者放在同一個輪詢情境：從 TOML 讀取設備清單，同時輪詢，並依例外類型分別處理。",
+ "example_title": "TaskGroup、except* 與 tomllib",
+ "example_desc": "M01 正常、M02 會逾時、M03 立即拒絕連線。注意輸出：M03 一失敗，TaskGroup 就取消其他任務，所以 M01 雖然只要 0.01 秒也沒有結果，M02 也來不及逾時。這是 TaskGroup「一個失敗、全部取消」的語意。",
+ "run_note": "需要 Python 3.11 以上",
+ "case": {
+  "title": "一台設備離線，整批輪詢都沒有資料",
+  "paragraphs": [
+   "某專案把 asyncio.gather 改成 TaskGroup 後，發現只要一台設備拒絕連線，同一批其他設備的讀值全部消失。這不是錯誤，而是 TaskGroup 的設計：適合「全部成功才有意義」的工作，例如同一筆交易的多個步驟。",
+   "設備輪詢通常希望各自獨立：在 read() 內部捕捉例外並回傳品質為 bad 的結果，讓 TaskGroup 只處理真正的程式錯誤；或者每台設備各自一個 TaskGroup。"
+  ],
+  "steps": [
+   "決定一批工作是「全有全無」還是「各自獨立」。",
+   "各自獨立的工作在協程內部處理預期內的例外（逾時、拒絕連線）。",
+   "用 except* 依類型處理 ExceptionGroup，避免只看第一個例外。",
+   "設定檔改用 tomllib 讀取，不再需要第三方 toml 套件。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.11 已於 2026 年起只接受安全性修補，預計 2027 年 10 月終止支援。新專案建議至少使用 3.13。",
+   "sources": [
+    {
+     "title": "Python 文件：Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "要讓 M01 的結果保留下來，最簡單的改法是什麼？",
+   "a": "<p>在 read() 內用 try/except 捕捉 ConnectionError 與 TimeoutError，回傳 (name, None) 之類的結果而不是丟出例外。TaskGroup 就不會取消其他任務。</p>"
+  },
+  {
+   "q": "如果把 M03 的 delay 改成 0.03（不再拒絕連線），輸出會變成什麼？",
+   "a": "<p>M01 與 M03 成功，M02 在 0.05 秒逾時。TaskGroup 收到 TimeoutError 後取消其他任務，但此時 M01、M03 已經完成，結果仍會保留；輸出「逾時 1 台」與兩台的成功結果。</p>"
+  },
+  {
+   "q": "except* TimeoutError 與 except TimeoutError 有何不同？",
+   "a": "<p>except* 用來匹配 ExceptionGroup 內的例外，可以同時進入多個 except* 區塊；一般 except 只匹配單一例外，對 TaskGroup 丟出的 ExceptionGroup 不會生效。</p>"
+  },
+  {
+   "q": "tomllib 可以寫入 TOML 嗎？",
+   "a": "<p>不行，tomllib 只能讀取。需要寫入時使用第三方套件，例如 tomli-w。</p>"
+  }
+ ]
+}

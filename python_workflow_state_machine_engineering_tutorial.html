@@ -372,7 +372,83 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>流程失控時先看 transition history</h2><p>多數問題來自狀態規則不集中、逾時缺位或人工交接不清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓 audit evidence 進更新紀錄與 release note</h2><p>下一位工程師要能從記錄知道流程怎麼走、在哪裡失敗、怎麼補償。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁介紹轉移表與補償。本節以 BAS 常見的批次操作為例：一次調整多台冰機的設定點，其中一台離線時，已改過的設備要依相反順序回復，最後狀態要能從日誌完整還原。</p><h3>可實跑範例：多設備設定點變更與補償</h3><p>TRANSITIONS 是唯一允許的狀態轉移；任何不在表內的事件都會被拒絕。寫入前記錄每台設備的舊值，失敗時依相反順序回寫，這就是 Saga 模式的補償。</p><p><a class="button" download href="extensions/python_workflow_state_machine_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;多台設備設定點變更的工作流：狀態轉移表、逾時、部分失敗時依相反順序補償（標準函式庫）。&quot;&quot;&quot;
+
+TRANSITIONS = {
+    (&quot;draft&quot;, &quot;approve&quot;): &quot;approved&quot;,
+    (&quot;approved&quot;, &quot;apply&quot;): &quot;applying&quot;,
+    (&quot;applying&quot;, &quot;all_ok&quot;): &quot;done&quot;,
+    (&quot;applying&quot;, &quot;failed&quot;): &quot;compensating&quot;,
+    (&quot;compensating&quot;, &quot;rolled_back&quot;): &quot;rolled_back&quot;,
+}
+
+
+class Workflow:
+    def __init__(self, changes):
+        self.state, self.changes, self.applied, self.log = &quot;draft&quot;, changes, [], []
+
+    def fire(self, event):
+        nxt = TRANSITIONS.get((self.state, event))
+        if nxt is None:
+            raise ValueError(f&quot;狀態 {self.state} 不接受事件 {event}&quot;)
+        self.log.append(f&quot;{self.state} --{event}--&gt; {nxt}&quot;)
+        self.state = nxt
+
+    def run(self, devices):
+        self.fire(&quot;approve&quot;)
+        self.fire(&quot;apply&quot;)
+        for dev, new in self.changes:
+            old = devices[dev][&quot;sp&quot;]
+            if devices[dev].get(&quot;offline&quot;):
+                self.log.append(f&quot;  {dev} 寫入逾時（離線）&quot;)
+                self.fire(&quot;failed&quot;)
+                for d, prev in reversed(self.applied):           # 依相反順序補償
+                    devices[d][&quot;sp&quot;] = prev
+                    self.log.append(f&quot;  補償 {d} → 回復 {prev}&quot;)
+                self.fire(&quot;rolled_back&quot;)
+                return
+            devices[dev][&quot;sp&quot;] = new
+            self.applied.append((dev, old))
+            self.log.append(f&quot;  {dev} {old} → {new}&quot;)
+        self.fire(&quot;all_ok&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    plan = [(&quot;CH-01&quot;, 7.5), (&quot;CH-02&quot;, 7.5), (&quot;CH-03&quot;, 7.5)]
+    for title, offline in ((&quot;全部在線&quot;, None), (&quot;CH-03 離線&quot;, &quot;CH-03&quot;)):
+        devs = {d: {&quot;sp&quot;: 7.0} for d, _ in plan}
+        if offline:
+            devs[offline][&quot;offline&quot;] = True
+        wf = Workflow(plan)
+        wf.run(devs)
+        print(f&quot;== {title}：最終狀態 {wf.state}&quot;)
+        print(&quot;\n&quot;.join(wf.log))
+        print(&quot;設定點：&quot;, {d: v[&quot;sp&quot;] for d, v in devs.items()})
+    try:
+        Workflow(plan).fire(&quot;apply&quot;)
+    except ValueError as e:
+        print(&quot;非法轉移：&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>== 全部在線：最終狀態 done
+draft --approve--&gt; approved
+approved --apply--&gt; applying
+  CH-01 7.0 → 7.5
+  CH-02 7.0 → 7.5
+  CH-03 7.0 → 7.5
+applying --all_ok--&gt; done
+設定點： {&#x27;CH-01&#x27;: 7.5, &#x27;CH-02&#x27;: 7.5, &#x27;CH-03&#x27;: 7.5}
+== CH-03 離線：最終狀態 rolled_back
+draft --approve--&gt; approved
+approved --apply--&gt; applying
+  CH-01 7.0 → 7.5
+  CH-02 7.0 → 7.5
+  CH-03 寫入逾時（離線）
+applying --failed--&gt; compensating
+  補償 CH-02 → 回復 7.0
+  補償 CH-01 → 回復 7.0
+compensating --rolled_back--&gt; rolled_back
+設定點： {&#x27;CH-01&#x27;: 7.0, &#x27;CH-02&#x27;: 7.0, &#x27;CH-03&#x27;: 7.0}
+非法轉移： 狀態 draft 不接受事件 apply</code></pre><h3>工程現場案例：批次調整設定點，一半成功一半失敗</h3><p>某冰水廠在尖峰前要把三台冰機的出水溫度從 7.0 °C 調到 7.5 °C。第三台因通訊中斷寫入失敗，操作人員沒注意到，結果兩台 7.5 °C、一台 7.0 °C，負載分配失衡，7.0 °C 那台長時間滿載。</p><p>以工作流處理後，任何一台失敗都會進入 compensating 狀態，依相反順序把已修改的設備改回 7.0 °C，最終狀態 rolled_back，三台一致；同時日誌記錄每一步，值班人員可以清楚知道發生了什麼，排除通訊問題後再重新執行。</p><ol><li>把批次操作拆成明確的狀態與事件，寫成轉移表並放進版本控制。</li><li>寫入前讀取並記錄每台設備的現值，作為補償依據。</li><li>每台設備的寫入設定逾時，逾時視為失敗並觸發補償。</li><li>補償本身也可能失敗，要有告警與人工處理流程，並把狀態持久化以便重啟後繼續。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>範例只用標準函式庫。需要持久化與重試的工作流可考慮 Temporal、Prefect 等平台，或 transitions 等狀態機套件；不論工具為何，轉移表、補償與冪等這三件事都要明確設計。 <a href="https://docs.python.org/3/library/enum.html">來源：Python 文件：enum（狀態常數建議用 Enum）</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼補償要依相反順序進行？</p><details><summary>看解答</summary><p>後執行的步驟可能依賴先執行的結果（例如先開閥再啟泵），回復時要先撤銷後面的步驟。對設定點這類獨立操作順序影響較小，但統一採相反順序能避免在有依賴的情境出錯。</p></details></li><li><p>若 CH-01 離線（第一台就失敗），補償會做哪些事？</p><details><summary>看解答</summary><p>applied 是空的，沒有設備需要回復，狀態直接 applying → compensating → rolled_back。可把 offline 改成 CH-01 驗證。</p></details></li><li><p>範例的狀態只存在記憶體中。程式在 compensating 途中崩潰，重啟後會怎樣？要怎麼改？</p><details><summary>看解答</summary><p>重啟後不知道哪些設備已回復，可能留下不一致的設定點。應在每次狀態轉移與每台設備寫入後持久化（例如寫入 SQLite），重啟時從最後狀態繼續補償。</p></details></li><li><p>把狀態從字串改成 Enum 有什麼好處？</p><details><summary>看解答</summary><p>拼錯狀態名稱會在載入時就報錯，而不是在執行到那一行才發現；IDE 與型別檢查器也能協助補全與檢查轉移表的鍵。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

@@ -429,7 +429,54 @@ class ArchitectureGovernanceTests(unittest.TestCase):
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>重構出問題時，先看規則不是先怪人</h2><p>模組漂移、循環依賴與舊 API 殘留，多半是治理層缺位。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓架構治理跟 release 一起交付</h2><p>ADR、ownership、boundary check 與 deprecation 時程應進更新紀錄與 release note。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明 ADR、ownership 與邊界規則。本節把「分層之間不可反向依賴」寫成可以放進 CI 的檢查：用 ast 讀出每個檔案的 import，比對允許表。</p><h3>可實跑範例：分層 import 規則檢查器</h3><p>ALLOWED 定義每一層可以依賴的下層；domain 不能依賴任何其他層。程式只剖析不執行，所以可以在沒有安裝相依套件的 CI 環境中執行。範例的檔案內容是內嵌字串，實際使用時改成讀取專案目錄。</p><p><a class="button" download href="extensions/python_architecture_governance_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;用 ast 檢查分層架構的 import 規則：domain 不可依賴 adapters 或 app（標準函式庫）。&quot;&quot;&quot;
+import ast
+
+ALLOWED = {                 # 層: 可以匯入的層
+    &quot;domain&quot;: set(),
+    &quot;services&quot;: {&quot;domain&quot;},
+    &quot;adapters&quot;: {&quot;domain&quot;, &quot;services&quot;},
+    &quot;app&quot;: {&quot;domain&quot;, &quot;services&quot;, &quot;adapters&quot;},
+}
+
+FILES = {
+    &quot;bms/domain/point.py&quot;: &quot;from dataclasses import dataclass\n&quot;,
+    &quot;bms/domain/alarm.py&quot;: &quot;from bms.adapters.modbus import read_register\n&quot;,
+    &quot;bms/services/report.py&quot;: &quot;from bms.domain.point import Point\nimport bms.app.cli\n&quot;,
+    &quot;bms/adapters/modbus.py&quot;: &quot;from bms.domain.point import Point\n&quot;,
+    &quot;bms/app/cli.py&quot;: &quot;from bms.services.report import build\n&quot;,
+}
+
+
+def layer_of(module):
+    parts = module.split(&quot;.&quot;)
+    return parts[1] if len(parts) &gt; 1 and parts[0] == &quot;bms&quot; else None
+
+
+def violations():
+    for path, src in sorted(FILES.items()):
+        here = path.split(&quot;/&quot;)[1]
+        for node in ast.walk(ast.parse(src, path)):
+            mods = []
+            if isinstance(node, ast.Import):
+                mods = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                mods = [node.module]
+            for m in mods:
+                target = layer_of(m)
+                if target and target != here and target not in ALLOWED[here]:
+                    yield f&quot;{path}:{node.lineno} {here} 不可匯入 {target}（{m}）&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    found = list(violations())
+    for v in found:
+        print(v)
+    print(f&quot;共 {len(found)} 個違規；CI 中應以非零結束碼失敗&quot; if found else &quot;沒有違規&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>bms/domain/alarm.py:1 domain 不可匯入 adapters（bms.adapters.modbus）
+bms/services/report.py:2 services 不可匯入 app（bms.app.cli）
+共 2 個違規；CI 中應以非零結束碼失敗</code></pre><h3>工程現場案例：領域模型直接呼叫 Modbus，單元測試必須接真實設備</h3><p>某專案的告警判斷邏輯放在 domain/alarm.py，但為了方便直接 import 了 Modbus 讀取函式。結果所有告警規則的單元測試都要連到設備或寫一堆 mock，測試越來越慢也越來越少人跑。</p><p>分層規則把依賴方向固定下來：domain 只處理資料與規則，由 services 從 adapters 取得資料再交給 domain。範例在 CI 中擋下兩個違規，其中 services 匯入 app 也是常見問題：一旦下層依賴上層，就無法單獨重用或測試下層。</p><ol><li>在 ADR 中寫下分層與允許的依賴方向，並放進版本控制。</li><li>把檢查器加進 CI，違規時失敗；既有違規先列入允許清單並設期限。</li><li>新增層或調整規則時更新 ALLOWED 與 ADR，兩者同步審查。</li><li>大型專案可改用 import-linter 等現成工具，規則概念相同。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時常用靜態分析工具版本：ruff 0.17.6、mypy 2.4.1。ruff 可透過 flake8-tidy-imports 規則限制特定 import，但完整的分層契約通常仍需要 import-linter 或自訂檢查。 <a href="https://pypi.org/project/ruff/">來源：PyPI：ruff</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>在 FILES 加入 bms/adapters/bacnet.py，內容為 from bms.services.report import build，會被判定違規嗎？</p><details><summary>看解答</summary><p>不會。adapters 允許匯入 domain 與 services。是否合理要看設計：若 adapter 只是取資料，依賴 services 可能代表職責混亂，可視需要收緊規則。</p></details></li><li><p>程式碼若寫成 importlib.import_module('bms.adapters.modbus')，檢查器抓得到嗎？</p><details><summary>看解答</summary><p>抓不到，ast 只看 import 陳述式。動態匯入應該很少見，可以另外搜尋 import_module 與 __import__ 並人工審查。</p></details></li><li><p>同一層內互相匯入（例如 domain.alarm 匯入 domain.point）為什麼不算違規？</p><details><summary>看解答</summary><p>程式中 target != here 的條件跳過同層匯入。層內依賴通常允許，但若同層模組越來越多，也可再細分子層或用循環依賴檢查。</p></details></li><li><p>相對匯入 from ..adapters import modbus 會被正確判斷嗎？</p><details><summary>看解答</summary><p>不會。ImportFrom 的 module 是 'adapters'，level 為 2，layer_of() 無法辨識。完整實作要依檔案所在套件與 level 換算成絕對模組名稱。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

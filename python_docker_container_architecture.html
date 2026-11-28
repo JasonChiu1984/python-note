@@ -388,6 +388,70 @@ python3 host.py sample</code></pre>
 <li><strong>S11｜額外查核：</strong><a href="https://docs.docker.com/engine/containers/runmetrics/">Docker 執行期指標</a>、<a href="https://docs.docker.com/reference/cli/docker/container/inspect/">Docker inspect</a>、<a href="https://docs.docker.com/reference/cli/docker/container/stop/">Docker stop</a>。本文 D 組為教學實驗設計，並非文件保證的測量結果。</li>
 </ul></section>
 
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明容器架構。本節提供一個多階段建置的 Dockerfile 範本，並寫一個簡單的靜態檢查器，對照常見寫法找出六個問題：未用 digest 固定、以 root 執行、沒有健康檢查、秘密寫進映像、快取層順序與 shell 形式的 CMD。</p><h3>可實跑範例：多階段 Dockerfile 與靜態檢查</h3><p>範本在 build 階段把相依套件與專案編成 wheel，執行階段只安裝 wheel，不帶編譯工具。檢查器只做文字層級的規則比對，正式專案可搭配 hadolint 等工具。</p><p><a class="button" download href="extensions/python_docker_container_architecture/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;產生多階段 Dockerfile 並做靜態檢查：非 root、辨識未以 digest 固定的基底、無秘密、層順序利於快取（標準函式庫）。&quot;&quot;&quot;
+import re
+
+DOCKERFILE = &quot;&quot;&quot;\
+FROM python:3.13-slim AS build
+WORKDIR /src
+COPY pyproject.toml uv.lock ./
+RUN pip install --no-cache-dir uv &amp;&amp; uv export --frozen -o requirements.txt
+COPY src ./src
+RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels &amp;&amp; pip wheel --no-deps . -w /wheels
+
+FROM python:3.13-slim
+RUN useradd --create-home --uid 10001 app
+COPY --from=build /wheels /wheels
+RUN pip install --no-cache-dir /wheels/* &amp;&amp; rm -rf /wheels
+USER app
+HEALTHCHECK --interval=30s --timeout=3s CMD python -m bmsgateway.health || exit 1
+ENTRYPOINT [&quot;python&quot;, &quot;-m&quot;, &quot;bmsgateway&quot;]
+&quot;&quot;&quot;
+
+BAD = &quot;&quot;&quot;\
+FROM python:latest
+COPY . /app
+RUN pip install -r /app/requirements.txt
+ENV DB_PASSWORD=Bms2026
+CMD python /app/main.py
+&quot;&quot;&quot;
+
+
+def lint(text):
+    issues, lines = [], text.splitlines()
+    froms = [l for l in lines if l.startswith(&quot;FROM&quot;)]
+    if any(not re.search(r&quot;@sha256:[0-9a-f]{64}(?:\s|$)&quot;, f) for f in froms):
+        issues.append(&quot;基底映像未用 digest 固定（標籤可變動）&quot;)
+    if not any(l.startswith(&quot;USER &quot;) and &quot;root&quot; not in l for l in lines):
+        issues.append(&quot;沒有切換為非 root 使用者&quot;)
+    if not any(l.startswith(&quot;HEALTHCHECK&quot;) for l in lines):
+        issues.append(&quot;沒有 HEALTHCHECK&quot;)
+    if any(re.search(r&quot;(PASSWORD|TOKEN|SECRET)=&quot;, l) for l in lines if l.startswith((&quot;ENV&quot;, &quot;ARG&quot;))):
+        issues.append(&quot;ENV/ARG 不應放秘密；可能出現在設定、歷史或建置證明&quot;)
+    copy_all = next((i for i, l in enumerate(lines) if l.startswith(&quot;COPY . &quot;)), None)
+    install = next((i for i, l in enumerate(lines) if &quot;pip install&quot; in l), None)
+    if copy_all is not None and install is not None and copy_all &lt; install:
+        issues.append(&quot;先 COPY 全部原始碼再安裝相依，任何程式改動都會讓安裝層快取失效&quot;)
+    if any(l.startswith(&quot;CMD &quot;) and not l.startswith(&quot;CMD [&quot;) for l in lines):
+        issues.append(&quot;CMD 使用 shell 形式；確認 shell 會轉送 SIGTERM 或改用 exec 形式&quot;)
+    return issues
+
+
+if __name__ == &quot;__main__&quot;:
+    for name, text in ((&quot;多階段範本&quot;, DOCKERFILE), (&quot;常見寫法&quot;, BAD)):
+        found = lint(text)
+        print(f&quot;{name}：{&#x27;沒有發現問題&#x27; if not found else &#x27;&#x27;}&quot;)
+        for i in found:
+            print(&quot;  -&quot;, i)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>多階段範本：
+  - 基底映像未用 digest 固定（標籤可變動）
+常見寫法：
+  - 基底映像未用 digest 固定（標籤可變動）
+  - 沒有切換為非 root 使用者
+  - 沒有 HEALTHCHECK
+  - ENV/ARG 不應放秘密；可能出現在設定、歷史或建置證明
+  - 先 COPY 全部原始碼再安裝相依，任何程式改動都會讓安裝層快取失效
+  - CMD 使用 shell 形式；確認 shell 會轉送 SIGTERM 或改用 exec 形式</code></pre><h3>工程現場案例：閘道器容器停機要等 10 秒，而且每次部署都重新安裝全部套件</h3><p>某閘道器的 Dockerfile 以 CMD python main.py（shell 形式）啟動。容器停止時 SIGTERM 送給的是 /bin/sh，Python 程序收不到，Docker 等滿 10 秒後強制終止，輪詢中的資料因此遺失。改成 exec 形式 ENTRYPOINT ["python", …] 後，程序能收到訊號並優雅停機。</p><p>同一個 Dockerfile 先 COPY . 整個專案再 pip install，任何一行程式修改都讓安裝層的快取失效，每次建置都重新下載所有套件。範本把相依宣告檔先複製、安裝，再複製原始碼，日常修改只會重建最後幾層。</p><ol><li>以 digest 固定基底映像；有版本的標籤仍可變動，並定期更新以取得安全修正。</li><li>使用多階段建置，執行映像不含編譯器與建置快取。</li><li>建立非 root 使用者並以 USER 切換，ENTRYPOINT 使用 exec 形式。</li><li>秘密在執行時以環境變數或掛載提供，不寫進 ENV、ARG 或映像檔案。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 官方映像的 slim 標籤以 Debian 為基礎；本頁範本以 python:3.13-slim 為例，3.14、3.15 亦有對應標籤。BuildKit 的 RUN --mount=type=secret 可在建置時使用秘密而不留在映像層中。 <a href="https://docs.docker.com/build/building/secrets/">來源：Docker 文件：Build secrets</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 ENV DB_PASSWORD=… 即使在後面的指令 unset，秘密仍然留在映像中？</p><details><summary>看解答</summary><p>每個 Dockerfile 指令會產生一層，ENV 的值記錄在映像設定與歷史中，docker history 或 docker inspect 就能看到。後續指令無法從前面的層刪除資料。</p></details></li><li><p>範本為什麼在第二階段 rm -rf /wheels？這樣做有效嗎？</p><details><summary>看解答</summary><p>COPY 與 RUN 是不同層，COPY 帶進來的 /wheels 仍存在於前一層，rm 只是在新層標記刪除，映像大小不會變小。更好的做法是用 RUN --mount=type=bind,from=build 直接從建置階段掛載安裝，不複製進映像。</p></details></li><li><p>lint() 判斷「未固定版本」的規則有什麼漏洞？</p><details><summary>看解答</summary><p>任何標籤都可能指向不同映像。用經驗證的 @sha256 digest 固定內容，更新時重建及掃描。此靜態檢查只辨識格式，不能核對 registry 或映像內容。</p></details></li><li><p>HEALTHCHECK 最後加上 || exit 1 的用意是什麼？</p><details><summary>看解答</summary><p>Docker 的健康檢查以結束碼 0 為健康、1 為不健康。部分指令失敗時可能回傳其他值（例如 2），明確轉成 1 可以避免被解讀為保留值。</p></details></li></ol></section><!-- extension:end -->
 </main><script>
 const button = document.querySelector('#trial-generate');
 button.addEventListener('click', () => {

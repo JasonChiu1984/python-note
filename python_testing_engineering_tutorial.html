@@ -604,6 +604,90 @@ if __name__ == "__main__":
     check(totals(variant) == reference, &quot;reference or metamorphic relation failed&quot;)</code></pre>
 <p>官方資料：<a href="https://docs.python.org/3/library/unittest.html">Python：unittest 的 subTest、assertRaises</a>。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明測試策略。本節示範設備邏輯最難測的兩個部分：時間與通訊。用假時鐘與假通訊取代真實設備，就能在毫秒內測完「連續高溫 60 秒才告警」與「通訊逾時不應誤報高溫」。</p><h3>可實跑範例：假時鐘與假通訊測試告警延遲</h3><p>HighTempAlarm 透過注入的 clock 與 dev 取得時間與讀值，測試時換成 FakeClock 與 FakeModbus。四個測試涵蓋延遲告警、短暫尖峰、剛好等於門檻，以及逾時重置。範例以 unittest 執行並整理輸出。</p><p><a class="button" download href="extensions/python_testing_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;用 unittest 測試設備邏輯：以假時鐘與假通訊取代真實設備，涵蓋正常、逾時與邊界（標準函式庫）。&quot;&quot;&quot;
+import io
+import unittest
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+
+    def now(self):
+        return self.t
+
+    def advance(self, s):
+        self.t += s
+
+
+class FakeModbus:
+    def __init__(self, values):
+        self.values, self.calls = list(values), 0
+
+    def read(self):
+        self.calls += 1
+        v = self.values.pop(0)
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+
+class HighTempAlarm:
+    &quot;&quot;&quot;連續高於門檻達 delay 秒才告警；通訊失敗時回報 &#x27;comm_fail&#x27;，不誤報高溫。&quot;&quot;&quot;
+
+    def __init__(self, dev, clock, limit=28.0, delay=60):
+        self.dev, self.clock, self.limit, self.delay, self.since = dev, clock, limit, delay, None
+
+    def poll(self):
+        try:
+            v = self.dev.read()
+        except TimeoutError:
+            self.since = None
+            return &quot;comm_fail&quot;
+        if v &lt;= self.limit:
+            self.since = None
+            return &quot;normal&quot;
+        self.since = self.since if self.since is not None else self.clock.now()
+        return &quot;alarm&quot; if self.clock.now() - self.since &gt;= self.delay else &quot;pending&quot;
+
+
+class TestHighTempAlarm(unittest.TestCase):
+    def run_sequence(self, values, step=30):
+        clock, dev = FakeClock(), FakeModbus(values)
+        a = HighTempAlarm(dev, clock)
+        out = []
+        for _ in values:
+            out.append(a.poll())
+            clock.advance(step)
+        return out
+
+    def test_alarm_after_delay(self):
+        self.assertEqual(self.run_sequence([29, 29, 29]), [&quot;pending&quot;, &quot;pending&quot;, &quot;alarm&quot;])
+
+    def test_short_spike_no_alarm(self):
+        self.assertEqual(self.run_sequence([29, 27, 29]), [&quot;pending&quot;, &quot;normal&quot;, &quot;pending&quot;])
+
+    def test_exactly_at_limit_is_normal(self):
+        self.assertEqual(self.run_sequence([28.0]), [&quot;normal&quot;])
+
+    def test_timeout_resets_and_is_not_alarm(self):
+        self.assertEqual(self.run_sequence([29, TimeoutError(), 29, 29]),
+                         [&quot;pending&quot;, &quot;comm_fail&quot;, &quot;pending&quot;, &quot;pending&quot;])
+
+
+if __name__ == &quot;__main__&quot;:
+    stream = io.StringIO()
+    result = unittest.TextTestRunner(stream=stream, verbosity=2).run(
+        unittest.defaultTestLoader.loadTestsFromTestCase(TestHighTempAlarm))
+    for line in stream.getvalue().splitlines():
+        if line.endswith((&quot;ok&quot;, &quot;FAIL&quot;, &quot;ERROR&quot;)):
+            print(line.split(&quot; (&quot;)[0], &quot;→&quot;, line.rsplit(&quot; &quot;, 1)[-1])
+    print(f&quot;共 {result.testsRun} 個測試，失敗 {len(result.failures)}，錯誤 {len(result.errors)}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上；也可用 pytest example.py 執行</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>test_alarm_after_delay → ok
+test_exactly_at_limit_is_normal → ok
+test_short_spike_no_alarm → ok
+test_timeout_resets_and_is_not_alarm → ok
+共 4 個測試，失敗 0，錯誤 0</code></pre><h3>工程現場案例：高溫告警的測試要等一分鐘，所以沒人寫</h3><p>某專案的高溫告警邏輯直接呼叫 time.time() 與 Modbus 讀取函式。要測「連續 60 秒高於門檻才告警」就得真的等 60 秒，還要有一台能調溫度的設備，結果這段邏輯從來沒有自動化測試。一次修改把 >= 改成 >，剛好等於門檻時就誤報，上線後才發現。</p><p>把時間與設備當成參數傳入後，測試可以瞬間推進時間、模擬任何讀值序列與逾時。範例的 test_exactly_at_limit_is_normal 就是鎖定這個邊界的測試。</p><ol><li>找出邏輯中直接呼叫的時間、亂數、網路與檔案存取，改成可注入的參數。</li><li>為每個門檻寫邊界測試：低於、等於、高於。</li><li>通訊失敗要有專門的測試，確認不會被當成正常值或告警值。</li><li>假物件只模擬介面，真正的設備相容性另外用整合測試驗證。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 pytest 最新版為 9.2.0；unittest 測試類別可直接由 pytest 執行。Python 3.12 起 unittest 的命令列支援 --durations 顯示最慢的測試。 <a href="https://pypi.org/project/pytest/">來源：PyPI：pytest</a> <a href="https://docs.python.org/3/library/unittest.html">來源：Python 文件：unittest</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 poll() 中的 v <= self.limit 改成 v < self.limit，哪個測試會失敗？</p><details><summary>看解答</summary><p>test_exactly_at_limit_is_normal。28.0 會被當成超溫，回傳 pending 而不是 normal。</p></details></li><li><p>為什麼逾時時要把 self.since 設回 None？</p><details><summary>看解答</summary><p>通訊中斷期間無法確認溫度是否持續高於門檻，延續計時可能在通訊恢復後立刻誤報。重置是保守的設計；若業務要求不同（例如逾時也算風險），要明確寫出並測試。</p></details></li><li><p>若想測試「高溫持續 59 秒不告警、60 秒告警」，run_sequence 的 step 要怎麼設？</p><details><summary>看解答</summary><p>可以設 step=59 並給兩筆高溫，第二筆距離第一筆 59 秒應為 pending；再另寫 step=60 的案例應為 alarm。假時鐘讓精確的邊界時間測試變得容易。</p></details></li><li><p>FakeModbus 用清單依序回傳值。若被呼叫的次數多於清單長度會怎樣？這是好事嗎？</p><details><summary>看解答</summary><p>pop(0) 會丟出 IndexError，測試失敗。這是好事：代表被測程式讀取次數超出預期，可能有重複讀取或迴圈錯誤。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

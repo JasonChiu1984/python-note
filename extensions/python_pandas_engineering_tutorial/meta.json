@@ -1,0 +1,53 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "requires": [
+  "pandas"
+ ],
+ "intro": "本頁說明 pandas 的工程化做法。本節聚焦兩個最容易悄悄出錯的操作：merge 時點位表有重複鍵導致資料列被複製，以及把不同時間戳的讀值與設定點對齊。",
+ "example_title": "merge 驗證與 merge_asof 時間對齊",
+ "example_desc": "validate='many_to_one' 讓 pandas 在右表鍵重複時直接報錯，而不是默默產生多出來的列；merge_asof 以 direction='backward' 讓每筆讀值配上當時已生效的設定點。範例需要 pandas 3.x。",
+ "run_note": "需先 pip install pandas",
+ "case": {
+  "title": "合併點位表後，用電量多算了一倍",
+  "paragraphs": [
+   "某報表把電表讀值與點位表合併以取得單位與所屬空調箱。點位表中 KW 這個點位不小心出現兩次（同時對應 AHU-01 與 AHU-02），一般的 merge 會把每筆 KW 讀值複製成兩列，加總後用電量多了一倍，而且不會有任何錯誤訊息。",
+   "加上 validate 參數後，重複鍵會立即被發現；合併後再檢查筆數與合併前相同，是另一道防線。設定點對齊則不能用一般 merge（時間戳不會剛好相等），要用 merge_asof 找出每筆讀值當下有效的設定點。"
+  ],
+  "steps": [
+   "每次 merge 都加上 validate，明確宣告預期的關聯（one_to_one、many_to_one 等）。",
+   "合併前後檢查筆數，左合併時兩者應相同。",
+   "時間序列對齊用 merge_asof，兩邊都先依時間排序，並視需要設定 tolerance 上限。",
+   "點位表本身在載入時就檢查鍵的唯一性。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 pandas 最新版為 3.1.1。pandas 3 全面採用 Copy-on-Write，對切片的修改不再影響原表；依賴舊行為的鏈式賦值會失效，應改用 .loc 一次指定。",
+   "sources": [
+    {
+     "title": "PyPI：pandas",
+     "url": "https://pypi.org/project/pandas/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "不加 validate 直接 merge，合併後會有幾筆？",
+   "a": "<p>SAT 3 筆各配 1 列，KW 2 筆各配 2 列，共 3 + 4 = 7 筆，比原本多 2 筆。若對 value 加總，KW 的用電量會被重複計算。</p>"
+  },
+  {
+   "q": "merge_asof 的 direction='backward' 是什麼意思？為什麼適合設定點？",
+   "a": "<p>每筆讀值配上時間早於或等於它的最近一筆設定點，也就是「當時已生效的設定」。用 forward 會配到未來才生效的設定，邏輯上錯誤。</p>"
+  },
+  {
+   "q": "若某筆讀值比所有設定點都早（例如 07:59），merge_asof 會給什麼？",
+   "a": "<p>sat_sp 為缺值。這代表沒有可用的設定點，應該在報表中標示，而不是用其他值填補。</p>"
+  },
+  {
+   "q": "drop_duplicates('point', keep='first') 真的是正確的處理嗎？",
+   "a": "<p>不一定。範例為了示範後續步驟直接保留第一筆，但實際上 KW 對應兩台空調箱代表點位命名有問題，正確做法是修正點位表（例如改成 AHU1_KW、AHU2_KW），而不是任意丟掉一筆。</p>"
+  }
+ ]
+}

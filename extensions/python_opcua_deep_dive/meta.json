@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁強調 NodeId、Namespace URI 與 DataValue 是整合契約。本節把三件事寫成可執行的小工具：解析 NodeId 字串、依 StatusCode 的最高位元分級，以及用 SourceTimestamp 判斷資料是否過期。",
+ "example_title": "NodeId 解析、StatusCode 分級與資料時效",
+ "example_desc": "NodeId 支援 ns=（命名空間索引）與 nsu=（命名空間 URI）兩種寫法；省略命名空間代表 ns=0。StatusCode 只看最高兩位元就能分出 Good、Uncertain、Bad。時效判斷同時列出來源時間距今與伺服器延遲。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不需要 OPC UA 伺服器",
+ "case": {
+  "title": "伺服器重啟後命名空間索引變了，點位全部對錯",
+  "paragraphs": [
+   "某 SCADA 以 ns=2;s=AHU01.SAT 訂閱點位。OPC UA 伺服器更新後新增了一個命名空間，原本的索引 2 變成 3，客戶端仍訂閱 ns=2，結果讀到另一個命名空間裡同名的節點，數值看起來合理，沒有人發現。",
+   "命名空間索引只在單一工作階段內有效，穩定的識別是 Namespace URI。設定檔應保存 nsu=urn:example:plant;s=AHU01.SAT，連線後依伺服器的 NamespaceArray 轉成索引。範例也提醒：伺服器延遲 598 秒的點位雖然 StatusCode 可能是 Good，實際上已經過期。"
+  ],
+  "steps": [
+   "點位表保存 Namespace URI 而非索引，連線後查 NamespaceArray 轉換。",
+   "每個 DataValue 同時檢查 StatusCode 等級與 SourceTimestamp。",
+   "Uncertain 的值可以顯示但要標示，不可直接用於控制或計費。",
+   "過期門檻依點位的更新週期設定，並記錄在點位表中。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 Python 常用的 OPC UA 套件 asyncua 最新版為 2.1.0。新專案應使用 asyncua 的非同步 API；同步包裝層適合簡單腳本，不適合大量訂閱。",
+   "sources": [
+    {
+     "title": "PyPI：asyncua",
+     "url": "https://pypi.org/project/asyncua/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "字串 ns=2;s=AHU01;SAT 會被怎麼解析？這說明了什麼？",
+   "a": "<p>正規表示式的 id 群組會取到 AHU01;SAT。字串型 NodeId 的識別碼可以包含分號，解析時只能以第一個 ;s= 等前綴切分，不能用 split(';')。</p>"
+  },
+  {
+   "q": "StatusCode 0x40920000 的最高兩位元是什麼？為什麼是 Uncertain？",
+   "a": "<p>0x40920000 &gt;&gt; 30 = 1（二進位 01），依規格 01 代表 Uncertain。只看最高位元就能分級，詳細原因再查表。</p>"
+  },
+  {
+   "q": "若 SourceTimestamp 為空，只有 ServerTimestamp，資料時效該怎麼判斷？",
+   "a": "<p>只能以伺服器時間近似，但伺服器時間代表伺服器處理或快取的時間，可能比實際量測晚很多。應在點位表標註此點位缺來源時間，並用較保守的過期門檻或改請設備端提供來源時間。</p>"
+  },
+  {
+   "q": "為什麼 AHU01.SAT（沒有 ns 也沒有 i=／s= 前綴）要拒絕，而不是自動當成 ns=0;s=AHU01.SAT？",
+   "a": "<p>ns=0 是 OPC UA 標準命名空間，不會有使用者自訂點位。自動補成 ns=0 幾乎一定是錯的；明確拒絕能讓設定錯誤在載入時就被發現。</p>"
+  }
+ ]
+}

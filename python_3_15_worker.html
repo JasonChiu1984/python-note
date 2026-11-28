@@ -873,7 +873,71 @@
       </div>
     </section>
 
-  </main>
+  <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁的互動模擬展示了背壓與停機。本節用真正的 asyncio 程式重現：有界佇列讓 producer 在佇列滿時等待，consumer 要求停機時 TaskGroup 自動取消 producer，最後列出尚未處理的項目。</p><h3>可實跑範例：有界佇列、TaskGroup 與優雅停機</h3><p>程式使用 Python 3.11 起提供的 TaskGroup 與 except* 語法；最後一行檢查 Python 3.15 新增的 TaskGroup.cancel()。事件順序由 asyncio 排程決定，對同一版本是固定的。</p><p><a class="button" download href="extensions/python_3_15_worker/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;asyncio 工作管線：有界佇列背壓、TaskGroup 結構化併發、停機時記錄未完成項目（需 Python 3.11+）。
+
+consumer 拋出自訂的 Shutdown 例外時，TaskGroup 會取消其他子任務（producer），再把例外包成
+ExceptionGroup 往外丟，用 except* 接住。Python 3.15 起也可以從外部呼叫 TaskGroup.cancel()。
+&quot;&quot;&quot;
+import asyncio
+import sys
+
+QUEUE_SIZE = 3
+
+
+class Shutdown(Exception):
+    pass
+
+
+async def producer(q, readings, log):
+    for r in readings:
+        await q.put(r)                    # 佇列滿時在這裡等待：背壓
+        log.append(f&quot;put {r}&quot;)
+    await q.put(None)
+
+
+async def consumer(q, out, log, stop_after):
+    while True:
+        r = await q.get()
+        if r is None:
+            return
+        await asyncio.sleep(0)            # 模擬 I/O 讓出控制權
+        out.append(r * 2)
+        log.append(f&quot;done {r}&quot;)
+        if len(out) == stop_after:
+            raise Shutdown(f&quot;收到停機要求，已處理 {len(out)} 筆&quot;)
+
+
+async def run(stop_after=None):
+    q: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
+    out, log, reason = [], [], None
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(producer(q, list(range(1, 9)), log))
+            tg.create_task(consumer(q, out, log, stop_after or 999))
+    except* Shutdown as eg:
+        reason = str(eg.exceptions[0])
+    left = []
+    while not q.empty():
+        item = q.get_nowait()
+        if item is not None:
+            left.append(item)
+    return out, log, left, reason
+
+
+if __name__ == &quot;__main__&quot;:
+    print(f&quot;Python {sys.version_info.major}.{sys.version_info.minor}；TaskGroup.cancel 可用：{hasattr(asyncio.TaskGroup, &#x27;cancel&#x27;)}&quot;)
+    out, log, left, _ = asyncio.run(run())
+    print(&quot;完整執行：&quot;, out)
+    print(&quot;前 6 個事件：&quot;, log[:6])
+    out, log, left, reason = asyncio.run(run(stop_after=3))
+    print(reason, &quot;→ 已完成&quot;, out, &quot;；佇列中未處理&quot;, left)
+    print(&quot;producer 已被 TaskGroup 取消，最後送出的是&quot;, [e for e in log if e.startswith(&quot;put&quot;)][-1])
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需 Python 3.11 以上；本頁輸出以 Python 3.15 產生</p><h4>預期輸出（以 Python 3.15.2 實際執行產生）</h4><pre><code>Python 3.15；TaskGroup.cancel 可用：True
+完整執行： [2, 4, 6, 8, 10, 12, 14, 16]
+前 6 個事件： [&#x27;put 1&#x27;, &#x27;put 2&#x27;, &#x27;put 3&#x27;, &#x27;put 4&#x27;, &#x27;done 1&#x27;, &#x27;put 5&#x27;]
+收到停機要求，已處理 3 筆 → 已完成 [2, 4, 6] ；佇列中未處理 [4, 5, 6]
+producer 已被 TaskGroup 取消，最後送出的是 put 6</code></pre><h3>工程現場案例：Worker 重新部署時，佇列中的讀值消失</h3><p>某資料上傳 Worker 從記憶體佇列取出讀值送到雲端。每次重新部署時，程序收到停止訊號就直接結束，佇列中尚未送出的資料全部遺失，趨勢圖每次部署都出現缺口。</p><p>範例中停機時佇列裡還有 4、5、6 三筆。正確做法是停止接收新資料後，把佇列中剩下的項目寫回持久化儲存（例如 SQLite 或磁碟佇列），或在限定時間內處理完再結束。TaskGroup 保證任一子任務失敗時其他子任務都會被取消，不會留下孤兒任務。</p><ol><li>佇列一定要設上限，並監控長度；無上限的佇列只是把問題延後成記憶體耗盡。</li><li>處理 SIGTERM：停止 producer、限時排空、把未完成項目持久化，再結束。</li><li>每筆資料帶序號，重啟後依序號補做並去重。</li><li>在測試中模擬停機，驗證「已完成＋未處理＝全部輸入」。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.15 新增 asyncio.TaskGroup.cancel()，可從群組外部要求取消所有子任務，不必再自訂哨兵例外；需要支援 3.11–3.14 時，仍可用範例中的例外寫法。 <a href="https://docs.python.org/3.15/whatsnew/3.15.html">來源：What's new in Python 3.15：asyncio</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼前 6 個事件是 put 1、2、3、4 之後才 done 1？佇列上限明明是 3。</p><details><summary>看解答</summary><p>consumer 先取走 1（佇列剩 2、3），producer 才能放入 4；但 consumer 在 await asyncio.sleep(0) 讓出控制權後才記錄 done 1。所以 put 4 出現在 done 1 之前，而 put 5 要等 consumer 再取走一筆。</p></details></li><li><p>把 QUEUE_SIZE 改成 1，停機時佇列中會剩幾筆？</p><details><summary>看解答</summary><p>實測只剩 1 筆（序號 4），producer 最後只送出到 put 4。佇列越小，停機時要搶救的資料越少，但 producer 等待的時間變多，吞吐量可能下降。</p></details></li><li><p>若 consumer 直接 raise asyncio.CancelledError 會發生什麼？</p><details><summary>看解答</summary><p>CancelledError 被當成該任務自己被取消，不會觸發 TaskGroup 取消其他任務；producer 會卡在 q.put() 永遠等待，整個程式不會結束。這正是本範例改用自訂例外的原因。</p></details></li><li><p>except* Shutdown 和 except Shutdown 有什麼不同？</p><details><summary>看解答</summary><p>TaskGroup 會把子任務的例外包成 ExceptionGroup，一般的 except Shutdown 接不到；except* 會從群組中挑出符合的例外處理，其他例外仍繼續往外拋。</p></details></li></ol></section><!-- extension:end -->
+</main>
 
   <!-- Footer -->
   <footer class="border-t border-lab-border/80 bg-lab-bg/80 mt-8">

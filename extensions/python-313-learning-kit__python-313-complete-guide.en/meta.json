@@ -1,0 +1,58 @@
+{
+ "lang": "en",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  13
+ ],
+ "intro": "3.13 added two small but useful standard-library features: copy.replace() unifies \"copy with some fields changed\", and warnings.deprecated (PEP 702) makes a retired API warn at run time and get flagged by type checkers.",
+ "example_title": "copy.replace() and warnings.deprecated",
+ "example_desc": "PointConfig is a frozen dataclass; copy.replace() returns a new object with a different scale and leaves the original untouched. With @deprecated, every call to read_point() emits a DeprecationWarning and type checkers flag the call site.",
+ "run_note": "needs Python 3.13 or later",
+ "case": {
+  "title": "Changing one point's scale changed every point sharing its config",
+  "paragraphs": [
+   "A program kept point settings in mutable objects. To try a new scale someone set cfg.scale directly, and every point referencing the same object changed with it; the reports were wrong for a whole day. With frozen dataclasses and copy.replace(), a change can only create a new object.",
+   "Another common problem is old APIs that can never be removed because nobody knows who still calls them. @deprecated makes callers see the warning immediately in tests (run with -W error::DeprecationWarning) and in the editor."
+  ],
+  "steps": [
+   "Use frozen=True dataclasses for configuration objects.",
+   "Create variants with copy.replace() instead of mutating the original.",
+   "Mark functions being retired with @deprecated, naming the replacement and the removal version.",
+   "Run CI tests with -W error::DeprecationWarning to find remaining callers."
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.13 moved to security-only fixes in October 2026 and is expected to reach end of life in October 2029. On 3.12 and earlier, typing_extensions.deprecated provides the same decorator.",
+   "sources": [
+    {
+     "title": "Python Developer's Guide: Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "PEP 702",
+     "url": "https://peps.python.org/pep-0702/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "Which types support copy.replace()?",
+   "a": "<p>Any object implementing __replace__. In the standard library that includes dataclasses, namedtuples, datetime, date, time, SimpleNamespace and code objects. Custom classes gain support by defining __replace__.</p>"
+  },
+  {
+   "q": "What does copy.replace(sat, unit=\"°C\") do?",
+   "a": "<p>It raises TypeError: a dataclass's __replace__ calls the constructor with the new arguments, and PointConfig has no unit field.</p>"
+  },
+  {
+   "q": "Why does the example use catch_warnings(record=True) with simplefilter(\"always\")?",
+   "a": "<p>By default a DeprecationWarning is shown only when triggered from __main__, and only once per location. Recording with \"always\" makes the example capture and print the warning reliably.</p>"
+  },
+  {
+   "q": "Why is the result of read_points {'SAT': 2.25}, with only one entry?",
+   "a": "<p>Both configs are named SAT, so the second value (225 × 0.01 = 2.25) overwrites the first (22.5) under the same key. In practice point names must be unique; check this when loading configuration.</p>"
+  }
+ ]
+}

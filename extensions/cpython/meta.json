@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁比較了多種打包方案。本節示範最輕量的一種：標準函式庫內建的 zipapp，把一個小工具打包成單一 .pyz 檔，並揭露一個常被忽略的細節：結束碼。",
+ "example_title": "用 zipapp 打包單檔工具",
+ "example_desc": "zipapp.create_archive() 把整個套件目錄壓成 .pyz，並寫入 shebang 與進入點。zipapp 產生的 __main__.py 只會呼叫 main()，不會把回傳值當成結束碼，所以範例在 main() 裡用 sys.exit() 明確設定。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；檔案建立在暫存目錄",
+ "case": {
+  "title": "現場檢查工具要發給十個工程師，但他們不會裝套件",
+  "paragraphs": [
+   "某團隊寫了一個檢查 Modbus 點位表的小工具，只用標準函式庫。最初用 git clone 加說明文件發給現場工程師，結果每個人的資料夾結構都不同、執行方式也不同。改成 zipapp 後只需要一個 pointcheck.pyz，用 python pointcheck.pyz 檔名 就能執行，更新時直接覆蓋檔案。",
+   "排程系統依結束碼判斷成功與否。初版的 main() 回傳 1 表示有錯，但 zipapp 不會傳遞回傳值，排程永遠顯示成功。範例的修正是改用 sys.exit()，這是打包任何 CLI 都要驗證的項目。"
+  ],
+  "steps": [
+   "工具只用標準函式庫，或把純 Python 相依套件一起放進來源目錄（pip install --target）。",
+   "用 zipapp 產生 .pyz，並在目標 Python 版本上測試。",
+   "CLI 一律以 sys.exit() 或 raise SystemExit 設定結束碼，並寫測試驗證。",
+   "需要 C 擴充或完全不依賴目標機器 Python 時，再考慮 PyInstaller、Nuitka 或 shiv。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時各打包工具最新版：PyInstaller 6.22.3、Nuitka 4.4、Cython 3.3.2、shiv 1.0.8、pex 2.107.1、Briefcase 0.4.7。zipapp 為標準函式庫，隨 Python 版本更新。",
+   "sources": [
+    {
+     "title": "Python 文件：zipapp",
+     "url": "https://docs.python.org/3/library/zipapp.html"
+    },
+    {
+     "title": "PyPI：pyinstaller",
+     "url": "https://pypi.org/project/pyinstaller/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 cli.py 的 sys.exit(...) 改回 return 1 if bad else 0，第二次執行的結束碼會是多少？",
+   "a": "<p>0。zipapp 的 __main__.py 只執行 pointcheck.cli.main()，回傳值被丟棄，程序正常結束。這就是範例要用 sys.exit() 的原因。</p>"
+  },
+  {
+   "q": ".pyz 能在沒有安裝 Python 的電腦上執行嗎？",
+   "a": "<p>不行。zipapp 只打包你的程式碼，不含直譯器。目標機器需要有相容版本的 Python；完全獨立的執行檔要用 PyInstaller 或 Nuitka。</p>"
+  },
+  {
+   "q": "compressed=True 有什麼影響？",
+   "a": "<p>檔案以 deflate 壓縮，體積較小，但每次匯入模組需要解壓。對小工具影響可以忽略；含大量模組時可比較啟動時間。</p>"
+  },
+  {
+   "q": "如果工具依賴 pymodbus 這種純 Python 套件，要怎麼放進 .pyz？",
+   "a": "<p>先 pip install pymodbus --target 來源目錄，再建立 .pyz。純 Python 套件可以從 zip 匯入；含 C 擴充的套件（例如部分加密或數值套件）無法直接從 zip 載入，需要改用 shiv 等會解壓到快取目錄的工具。</p>"
+  }
+ ]
+}

@@ -48,4 +48,89 @@ assert AESGCM(key).decrypt(nonce, sealed, aad) == b"HVAC demo"</code></pre>
 <li><a href="https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final">NIST SP 800-57 Part 1 Rev. 5：金鑰管理</a></li>
 <li><a href="https://cryptography.io/en/stable/hazmat/primitives/aead/">PyCA：AEAD API</a> · <a href="https://docs.python.org/3/library/secrets.html">Python secrets</a> · <a href="https://docs.python.org/3/library/hmac.html">Python hmac</a></li>
 <li><a href="https://www.rfc-editor.org/rfc/rfc9106">RFC 9106：Argon2</a> · <a href="https://www.rfc-editor.org/rfc/rfc8032">RFC 8032：EdDSA</a> · <a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446：TLS 1.3</a></li></ul></article>
-<footer><a href="#top">回頁首</a></footer></main></body></html>
+<footer><a href="#top">回頁首</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面示範 AES-GCM 加密（需要第三方套件 cryptography）。很多現場問題其實不是「保密」而是「確認沒被改過」：本節只用標準函式庫，示範設定檔的完整性簽章、金鑰輪替與密碼雜湊。</p><h3>可實跑範例：HMAC 設定檔簽章、金鑰輪替與 scrypt 密碼雜湊</h3><p>sign() 以 HMAC-SHA256 對正規化後的 JSON 簽章並附上金鑰版本 kid；verify() 只接受清單內的版本，並用 hmac.compare_digest 做常數時間比較。hash_password() 用 scrypt 產生可儲存的密碼雜湊字串。範例金鑰與 salt 是固定值，只為了讓輸出可重現。</p><p><a class="button" download href="extensions/python_cryptography_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;設定檔完整性簽章（HMAC-SHA256＋金鑰版本）與密碼雜湊（scrypt），只用標準函式庫。
+
+情境：閘道器從維護主機下載 Modbus 點位設定檔。要確認檔案沒被竄改、來自持有金鑰的一方，
+並能在金鑰輪替期間同時接受新舊金鑰。這只提供完整性與來源驗證，不提供機密性（不加密）。
+&quot;&quot;&quot;
+import base64
+import hashlib
+import hmac
+import json
+
+KEYS = {                                   # 實務上金鑰放在 KMS／HSM 或受保護的檔案，不寫進程式
+    &quot;k2025&quot;: bytes.fromhex(&quot;11&quot; * 32),
+    &quot;k2026&quot;: bytes.fromhex(&quot;22&quot; * 32),
+}
+ACTIVE_KID = &quot;k2026&quot;
+ACCEPTED_KIDS = {&quot;k2025&quot;, &quot;k2026&quot;}         # 輪替期間兩把都接受；過渡期結束後移除 k2025
+
+
+def canonical(obj) -&gt; bytes:
+    &quot;&quot;&quot;固定鍵順序與分隔字元，避免同內容不同排版導致簽章不同。&quot;&quot;&quot;
+    return json.dumps(obj, sort_keys=True, separators=(&quot;,&quot;, &quot;:&quot;), ensure_ascii=False).encode()
+
+
+def sign(config: dict, kid: str = ACTIVE_KID) -&gt; dict:
+    mac = hmac.new(KEYS[kid], kid.encode() + b&quot;.&quot; + canonical(config), hashlib.sha256).digest()
+    return {&quot;kid&quot;: kid, &quot;config&quot;: config, &quot;mac&quot;: base64.urlsafe_b64encode(mac).decode()}
+
+
+def verify(envelope: dict) -&gt; dict:
+    kid = envelope.get(&quot;kid&quot;)
+    if kid not in ACCEPTED_KIDS:
+        raise ValueError(f&quot;不接受的金鑰版本：{kid}&quot;)
+    expected = hmac.new(KEYS[kid], kid.encode() + b&quot;.&quot; + canonical(envelope[&quot;config&quot;]),
+                        hashlib.sha256).digest()
+    given = base64.urlsafe_b64decode(envelope[&quot;mac&quot;])
+    if not hmac.compare_digest(expected, given):       # 常數時間比較，避免時序側通道
+        raise ValueError(&quot;簽章不符：檔案可能被修改&quot;)
+    return envelope[&quot;config&quot;]
+
+
+def hash_password(password: str, salt: bytes) -&gt; str:
+    dk = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    return f&quot;scrypt$16384$8$1${salt.hex()}${dk.hex()}&quot;
+
+
+def check_password(password: str, stored: str) -&gt; bool:
+    _, n, r, p, salt_hex, dk_hex = stored.split(&quot;$&quot;)
+    dk = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex),
+                        n=int(n), r=int(r), p=int(p), dklen=len(dk_hex) // 2)
+    return hmac.compare_digest(dk.hex(), dk_hex)
+
+
+if __name__ == &quot;__main__&quot;:
+    config = {&quot;device&quot;: &quot;AHU-01&quot;, &quot;unit_id&quot;: 3,
+              &quot;points&quot;: [{&quot;name&quot;: &quot;SAT&quot;, &quot;fc&quot;: 3, &quot;addr&quot;: 0, &quot;scale&quot;: 0.1}]}
+    env = sign(config)
+    print(&quot;簽章：&quot;, env[&quot;kid&quot;], env[&quot;mac&quot;][:16] + &quot;…&quot;)
+    print(&quot;驗證原檔：&quot;, verify(env)[&quot;device&quot;])
+
+    tampered = json.loads(json.dumps(env))
+    tampered[&quot;config&quot;][&quot;points&quot;][0][&quot;scale&quot;] = 1.0       # 有人把倍率改成 1.0
+    try:
+        verify(tampered)
+    except ValueError as e:
+        print(&quot;驗證竄改檔：&quot;, e)
+
+    old = sign(config, &quot;k2025&quot;)
+    print(&quot;舊金鑰簽的檔案（輪替期內）：&quot;, verify(old)[&quot;unit_id&quot;])
+    ACCEPTED_KIDS.discard(&quot;k2025&quot;)
+    try:
+        verify(old)
+    except ValueError as e:
+        print(&quot;過渡期結束後：&quot;, e)
+
+    salt = bytes.fromhex(&quot;a1&quot; * 16)                       # 示範固定 salt；實務用 os.urandom(16)
+    stored = hash_password(&quot;Bms#2026!&quot;, salt)
+    print(&quot;密碼雜湊：&quot;, stored[:40] + &quot;…&quot;)
+    print(&quot;正確密碼：&quot;, check_password(&quot;Bms#2026!&quot;, stored), &quot;／錯誤密碼：&quot;, check_password(&quot;bms#2026!&quot;, stored))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>簽章： k2026 ZFOdNG4gC5rEErN5…
+驗證原檔： AHU-01
+驗證竄改檔： 簽章不符：檔案可能被修改
+舊金鑰簽的檔案（輪替期內）： 3
+過渡期結束後： 不接受的金鑰版本：k2025
+密碼雜湊： scrypt$16384$8$1$a1a1a1a1a1a1a1a1a1a1a1a…
+正確密碼： True ／錯誤密碼： False</code></pre><h3>工程現場案例：點位設定檔的倍率被改成 1.0</h3><p>某閘道器每天從維護主機下載 Modbus 點位設定檔。一次維修後，送風溫度倍率從 0.1 被誤改成 1.0，BAS 顯示 225 °C，聯動邏輯誤判高溫而關閉空調箱。檔案以 HTTPS 傳輸，但 HTTPS 只保護傳輸途中，無法證明檔案在維護主機上沒被改過。</p><p>加上 HMAC 簽章後，閘道器只載入簽章正確的檔案；未經發布流程修改的檔案會被拒絕並保留現行設定。簽章不提供保密，若設定檔含帳密，仍要另外加密或改用祕密管理服務。</p><ol><li>把設定檔發布做成固定流程：審核 → 以發布金鑰簽章 → 上傳。閘道器只持有驗證用金鑰（HMAC 是同一把，因此要限制可讀取的帳號）。</li><li>簽章內容先正規化（排序鍵、固定分隔字元），避免縮排或鍵順序不同造成誤判。</li><li>金鑰輪替時先讓閘道器同時接受新舊 kid，所有檔案改用新金鑰重簽後，再移除舊 kid。</li><li>驗證失敗要告警並保留現行設定，不要退回「不驗證直接載入」。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>NIST 於 2026 年 10 月 27 日發布 IR 8547 定稿：所有易受量子攻擊的公開金鑰演算法（RSA、ECDSA、EdDSA、DH 等），不論金鑰長度都在 2030 年後列為 deprecated、2035 年後 disallowed。草案原本只把 112-bit 參數（如 RSA-2048）提前淘汰，定稿連 RSA-3072、P-256、Ed25519 也一併納入。替代方案為 ML-KEM（FIPS 203）與 ML-DSA、SLH-DSA（FIPS 204／205）。 <a href="https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ir8547-pqc-transition-20261030-csa-st/">來源：Cloud Security Alliance：NIST IR 8547 定稿摘要</a></li><li>HMAC-SHA256 與 AES-256 這類對稱式演算法不在上述淘汰範圍內，本節範例的做法仍適用。本頁核對時 cryptography 套件最新版為 50.0.2。 <a href="https://pypi.org/project/cryptography/">來源：PyPI：cryptography</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 verify() 要用 hmac.compare_digest()，而不是 expected == given？</p><details><summary>看解答</summary><p>一般的 == 在第一個不同的位元組就會回傳，比較時間會洩漏「前面有幾個位元組正確」。攻擊者可以逐位元組猜出正確的 MAC。compare_digest() 的執行時間與內容無關。</p></details></li><li><p>如果簽章時沒有把 kid 一起放進 HMAC 的輸入，會有什麼風險？</p><details><summary>看解答</summary><p>攻擊者可以把 kid 換成另一個仍被接受的版本，讓驗證端用不同金鑰驗證。雖然 MAC 仍需正確，但把 kid 納入簽章能確保「用哪把鑰匙」本身也受保護，避免版本混淆。</p></details></li><li><p>把設定檔的 "unit_id": 3 改成 "unit_id": 3.0，簽章會通過嗎？為什麼？</p><details><summary>看解答</summary><p>不會。json.dumps 會把 3.0 輸出成 "3.0"，正規化後的位元組不同，HMAC 也就不同。這是好事：型別改變可能影響閘道器行為，應該視為修改。</p></details></li><li><p>scrypt 的 n=2**14 代表什麼？什麼情況需要調高？</p><details><summary>看解答</summary><p>n 是 CPU／記憶體成本參數，記憶體用量約為 128 × n × r 位元組（此例約 16 MB）。硬體變快或安全需求提高時要調高，但要確認登入伺服器在尖峰時的記憶體足夠。雜湊字串中保存了參數，舊密碼仍可驗證，可在使用者下次登入時重新雜湊。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

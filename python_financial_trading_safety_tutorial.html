@@ -316,4 +316,65 @@ if __name__ == &quot;__main__&quot;:
 <p>延伸練習：把每張卡的「紙上驗收」寫成先後事件與可觀察斷言，再用下列章節核對現有合成程式。<a href="#lab">回全離線 Python 實驗</a>。參考 <a href="https://www.fixtrading.org/wp-content/uploads/download-manager-files/FIX-Latest-as-of-EP284-Order-State-Changes.pdf">FIX Trading Community：委託狀態轉移矩陣</a>（介面範例，非所有券商語意）與 <a href="https://www.twse.com.tw/en/products/system/trading.html">臺灣證交所：交易機制</a>（核對商品、交易型態與適用公告，不把本章例子當成市場法定門檻）。</p></section>
 <section id="acceptance"><p class="kicker">06 / ACCEPTANCE</p><h2>驗收順序：邊界、重放、延遲、對帳</h2>
 <ol><li>設計可重複的測試：同 ID 同內容、同 ID 不同內容、部分成交、撤單競態與資料缺口。用輸入序號和最終現金、持倉作驗收證據。</li><li>分批測時計與市場假設：事件時間、到達順序、固定／變動費、參考價與滑價；避免使用未來資料、忽略退市樣本或把滑價設成零便宣稱可獲利。</li><li>驗接收、寫入與重播：跨服務版需原子化儲存、唯一索引、可重放與另存原始回報。製造不一致時檢查是否封鎖新意圖、保留告警並能人工復核。</li><li>最後記錄教學界線：此模型現金全額買入、單幣別、單商品、無實盤路由，無複雜更正、結算或投資績效預測。</li></ol></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明委託、成交、撤單是不同事件。本節用一個簡化帳戶實作保留額機制：下單前先檢查上限並保留資金，部分成交扣款，撤單只釋放未成交部分，全程以 Decimal 計算。</p><h3>可實跑範例：委託前風控、保留額與撤單</h3><p>可用資金 = 現金 − 保留額。每筆委託先檢查單筆上限與可用資金，接受後保留；成交時從保留轉為扣款；撤單釋放未成交部分。這是教學模擬，不連接任何交易系統，也不構成投資建議。</p><p><a class="button" download href="extensions/python_financial_trading_safety_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;委託前風控與保留額：下單時先保留資金，成交扣款、撤單釋放未成交部分；所有金額用 Decimal（教學模擬，不連任何券商）。&quot;&quot;&quot;
+from decimal import Decimal as D
+
+
+class Account:
+    def __init__(self, cash):
+        self.cash, self.reserved, self.orders = D(cash), D(0), {}
+
+    @property
+    def available(self):
+        return self.cash - self.reserved
+
+    def place(self, oid, qty, price, max_order_value=D(&quot;200000&quot;)):
+        value = D(qty) * D(price)
+        if qty &lt;= 0 or D(price) &lt;= 0:
+            return f&quot;{oid} 拒絕：數量與價格必須為正&quot;
+        if value &gt; max_order_value:
+            return f&quot;{oid} 拒絕：單筆金額 {value:,} 超過上限 {max_order_value:,}&quot;
+        if value &gt; self.available:
+            return f&quot;{oid} 拒絕：可用資金 {self.available:,} 不足 {value:,}&quot;
+        self.reserved += value
+        self.orders[oid] = {&quot;qty&quot;: qty, &quot;price&quot;: D(price), &quot;filled&quot;: 0}
+        return f&quot;{oid} 接受，保留 {value:,}，可用 {self.available:,}&quot;
+
+    def fill(self, oid, qty):
+        o = self.orders[oid]
+        qty = min(qty, o[&quot;qty&quot;] - o[&quot;filled&quot;])
+        cost = D(qty) * o[&quot;price&quot;]
+        o[&quot;filled&quot;] += qty
+        self.reserved -= cost
+        self.cash -= cost
+        return f&quot;{oid} 成交 {qty}，扣款 {cost:,}，現金 {self.cash:,}&quot;
+
+    def cancel(self, oid):
+        o = self.orders[oid]
+        left = o[&quot;qty&quot;] - o[&quot;filled&quot;]
+        release = D(left) * o[&quot;price&quot;]
+        self.reserved -= release
+        o[&quot;qty&quot;] = o[&quot;filled&quot;]
+        return f&quot;{oid} 撤單，釋放未成交 {left} 股的保留 {release:,}；已成交 {o[&#x27;filled&#x27;]} 股不回滾&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    acct = Account(&quot;300000&quot;)
+    for step in (lambda: acct.place(&quot;A1&quot;, 100, &quot;1050&quot;),
+                 lambda: acct.place(&quot;A2&quot;, 1000, &quot;250&quot;),
+                 lambda: acct.place(&quot;A3&quot;, 200, &quot;1100&quot;),
+                 lambda: acct.fill(&quot;A1&quot;, 60),
+                 lambda: acct.cancel(&quot;A1&quot;),
+                 lambda: acct.place(&quot;A3&quot;, 150, &quot;1100&quot;)):
+        print(step())
+    print(f&quot;最終：現金 {acct.cash:,}、保留 {acct.reserved:,}、可用 {acct.available:,}&quot;)
+    print(&quot;浮點數陷阱：0.1 + 0.2 =&quot;, 0.1 + 0.2, &quot;；Decimal：&quot;, D(&quot;0.1&quot;) + D(&quot;0.2&quot;))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>A1 接受，保留 105,000，可用 195,000
+A2 拒絕：單筆金額 250,000 超過上限 200,000
+A3 拒絕：單筆金額 220,000 超過上限 200,000
+A1 成交 60，扣款 63,000，現金 237,000
+A1 撤單，釋放未成交 40 股的保留 42,000；已成交 60 股不回滾
+A3 接受，保留 165,000，可用 72,000
+最終：現金 237,000、保留 165,000、可用 72,000
+浮點數陷阱：0.1 + 0.2 = 0.30000000000000004 ；Decimal： 0.3</code></pre><h3>工程現場案例：撤單回報延遲，系統以為資金已釋放而重複下單</h3><p>某自動化程式送出撤單後，立即把整筆委託金額加回可用資金並下新單。實際上撤單回報晚了幾秒，原委託在這期間又成交了一部分，結果兩筆委託同時成交，資金透支。問題在於把「送出撤單」當成「撤單成功」，並且忽略撤單前的部分成交。</p><p>範例中 A1 先成交 60 股、再撤單，只釋放未成交 40 股的保留額；已成交部分不會回滾。正確的保留額流程是：撤單回報確認後才釋放，而且只釋放確認時的剩餘數量。</p><ol><li>每筆委託在送出前先保留資金，並檢查單筆與單日上限。</li><li>成交、撤單都以交易所或券商的回報為準，送出請求不等於狀態改變。</li><li>保留額、現金與持倉每日與券商對帳，不一致時停止自動下單。</li><li>金額與價格一律使用 Decimal，並明確設定四捨五入規則。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 標準函式庫的 decimal 模組實作 IEEE 754-2008 十進位浮點與 General Decimal Arithmetic 規格，可設定精度與捨入方式，適合金額計算；float 的二進位表示無法精確表示 0.1。 <a href="https://docs.python.org/3/library/decimal.html">來源：Python 文件：decimal</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>A3 第一次以 200 股被拒絕，第二次 150 股被接受。若第二次仍是 200 股，會因為什麼原因被拒絕？</p><details><summary>看解答</summary><p>200 × 1,100 = 220,000，超過單筆上限 200,000，與可用資金無關。風控檢查的順序決定回報的原因，通常先檢查規則性上限，再檢查資金。</p></details></li><li><p>fill() 中 qty = min(qty, …) 的用意是什麼？</p><details><summary>看解答</summary><p>防止成交回報數量超過剩餘委託數量（例如重複收到回報），避免扣款超過保留額。實務上這種情況應該告警，因為代表回報處理有問題。</p></details></li><li><p>撤單時若原委託已全部成交，cancel() 會釋放多少？</p><details><summary>看解答</summary><p>left 為 0，釋放 0。撤單請求在全部成交後到達很常見，系統要能處理「撤單失敗：已成交」的回報，而不是當成錯誤。</p></details></li><li><p>為什麼保留額要在送出委託前扣，而不是成交後才扣？</p><details><summary>看解答</summary><p>若成交後才扣，多筆委託可能在成交前都通過資金檢查，同時成交時就會透支。先保留確保所有在途委託的最大可能支出都被計入。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">回 Python 教材首頁</a></footer></body></html>

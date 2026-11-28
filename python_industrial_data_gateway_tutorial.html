@@ -803,6 +803,60 @@ python python_roadmap_ot_research_lab.py gateway --test</code></pre>
 <details><summary>本章核心運算（簡化節錄）</summary><pre><code>INSERT INTO samples VALUES (?, ?) ON CONFLICT(id) DO NOTHING</code></pre></details>
 <p>一手資料：<a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS MQTT 5.0</a> · <a href="https://www.sqlite.org/lang_upsert.html">SQLite UPSERT</a> · <a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev.3</a></p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明工業資料閘道器的架構。本節聚焦閘道器最該做、也最常被省略的一件事：每個數值都附上單位、原始值、來源時間與品質標記，讓下游知道哪些資料可以拿來計算。</p><h3>可實跑範例：讀值品質標記</h3><p>tag() 依序判斷：通訊失敗為 bad、換算後超出儀表量程為 uncertain、資料年齡超過上限為 stale，其他為 good。輸出為每行一筆 JSON，可直接送進 MQTT 或寫入資料庫。</p><p><a class="button" download href="extensions/python_industrial_data_gateway_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;閘道器的資料品質標記：把原始讀值、倍率、單位與品質一起傳出，而不是只傳一個數字（標準函式庫）。
+
+規則：通訊失敗 → bad；值超出儀表量程 → uncertain；超過資料年齡上限 → stale；其他 → good。
+&quot;&quot;&quot;
+import json
+from dataclasses import asdict, dataclass
+
+POINTS = {
+    &quot;AHU1_SAT&quot;: {&quot;scale&quot;: 0.1, &quot;unit&quot;: &quot;degC&quot;, &quot;range&quot;: (-20, 60), &quot;max_age_s&quot;: 30},
+    &quot;CH1_KW&quot;: {&quot;scale&quot;: 1, &quot;unit&quot;: &quot;kW&quot;, &quot;range&quot;: (0, 500), &quot;max_age_s&quot;: 30},
+}
+
+
+@dataclass
+class Sample:
+    point: str
+    raw: int | None
+    value: float | None
+    unit: str
+    quality: str
+    source_ts: int
+    age_s: int
+
+
+def tag(point, raw, source_ts, now, comm_ok=True):
+    cfg = POINTS[point]
+    age = now - source_ts
+    if not comm_ok or raw is None:
+        return Sample(point, None, None, cfg[&quot;unit&quot;], &quot;bad&quot;, source_ts, age)
+    value = round(raw * cfg[&quot;scale&quot;], 3)
+    lo, hi = cfg[&quot;range&quot;]
+    q = &quot;uncertain&quot; if not lo &lt;= value &lt;= hi else &quot;stale&quot; if age &gt; cfg[&quot;max_age_s&quot;] else &quot;good&quot;
+    return Sample(point, raw, value, cfg[&quot;unit&quot;], q, source_ts, age)
+
+
+if __name__ == &quot;__main__&quot;:
+    now = 1_795_800_100
+    out = [
+        tag(&quot;AHU1_SAT&quot;, 225, now - 4, now),
+        tag(&quot;AHU1_SAT&quot;, 225, now - 95, now),
+        tag(&quot;AHU1_SAT&quot;, 32767, now - 3, now),
+        tag(&quot;CH1_KW&quot;, None, now - 2, now, comm_ok=False),
+        tag(&quot;CH1_KW&quot;, 168, now - 1, now),
+    ]
+    for s in out:
+        print(json.dumps(asdict(s), ensure_ascii=False))
+    good = [s for s in out if s.quality == &quot;good&quot;]
+    print(f&quot;可直接用於計算的筆數：{len(good)} / {len(out)}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>{&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;raw&quot;: 225, &quot;value&quot;: 22.5, &quot;unit&quot;: &quot;degC&quot;, &quot;quality&quot;: &quot;good&quot;, &quot;source_ts&quot;: 1795800096, &quot;age_s&quot;: 4}
+{&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;raw&quot;: 225, &quot;value&quot;: 22.5, &quot;unit&quot;: &quot;degC&quot;, &quot;quality&quot;: &quot;stale&quot;, &quot;source_ts&quot;: 1795800005, &quot;age_s&quot;: 95}
+{&quot;point&quot;: &quot;AHU1_SAT&quot;, &quot;raw&quot;: 32767, &quot;value&quot;: 3276.7, &quot;unit&quot;: &quot;degC&quot;, &quot;quality&quot;: &quot;uncertain&quot;, &quot;source_ts&quot;: 1795800097, &quot;age_s&quot;: 3}
+{&quot;point&quot;: &quot;CH1_KW&quot;, &quot;raw&quot;: null, &quot;value&quot;: null, &quot;unit&quot;: &quot;kW&quot;, &quot;quality&quot;: &quot;bad&quot;, &quot;source_ts&quot;: 1795800098, &quot;age_s&quot;: 2}
+{&quot;point&quot;: &quot;CH1_KW&quot;, &quot;raw&quot;: 168, &quot;value&quot;: 168, &quot;unit&quot;: &quot;kW&quot;, &quot;quality&quot;: &quot;good&quot;, &quot;source_ts&quot;: 1795800099, &quot;age_s&quot;: 1}
+可直接用於計算的筆數：2 / 5</code></pre><h3>工程現場案例：送風溫度顯示 3,276.7 °C，能源報表照樣計算</h3><p>某閘道器只把換算後的數值送到雲端。溫度感測器斷線時，DDC 的暫存器回傳 32767（INT16 最大值，常用來表示感測器故障），乘以倍率後變成 3,276.7 °C；另一次閘道器卡住，同一個值重複送了 95 秒。下游的能源計算完全不知道這些值有問題。</p><p>加上品質標記後，3,276.7 °C 被標成 uncertain、95 秒前的值被標成 stale、通訊失敗的值為 null 並標成 bad。下游只用 good 的資料計算，其他的另外統計並告警。</p><ol><li>點位表為每個點位定義倍率、單位、合理範圍與資料年齡上限。</li><li>閘道器輸出同時包含原始值、換算值、單位、來源時間與品質。</li><li>確認設備的故障代碼（例如 32767、-32768、0xFFFF）並對應到品質標記。</li><li>下游計算只使用 good，並統計各品質的比例作為資料健康度指標。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OPC UA 的 StatusCode 與 BACnet 的 Status_Flags 都有標準化的品質表示；閘道器把 Modbus 等沒有品質概念的協定轉出時，應自行補上同等資訊。本頁的 OPC UA 深度研究有 StatusCode 分級範例。 <a href="https://reference.opcfoundation.org/Core/Part4/">來源：OPC Foundation：OPC UA Part 4（Services）</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 32767 被標成 uncertain 而不是 bad？</p><details><summary>看解答</summary><p>範例只用量程判斷，3,276.7 超出 −20 到 60 的範圍就標 uncertain。若已確認設備以 32767 表示感測器故障，應該直接對應為 bad，這要依設備手冊在點位表中設定。</p></details></li><li><p>一筆資料同時超出範圍又過期，範例會標成什麼？</p><details><summary>看解答</summary><p>uncertain。判斷順序是先檢查範圍，再檢查年齡。若下游需要知道所有問題，可以改成輸出問題清單而不是單一品質值。</p></details></li><li><p>bad 的資料為什麼還要送出，而不是直接丟棄？</p><details><summary>看解答</summary><p>送出 bad 讓下游知道「這個時間點有嘗試讀取但失敗」，與「完全沒有資料」可以區分；趨勢圖也能顯示斷線區間，而不是用前後值連成一條線。</p></details></li><li><p>age_s 用閘道器的現在時間減去來源時間。若兩者時鐘不同步會怎樣？</p><details><summary>看解答</summary><p>年齡會被高估或低估，甚至出現負值，stale 判斷就不可靠。閘道器與設備都要同步 NTP；若設備沒有時鐘，來源時間只能用閘道器收到的時間，並在文件中說明。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

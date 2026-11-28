@@ -722,7 +722,48 @@ async def main():
         </div>
       </div>
     </section>
-  </main>
+  <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁以互動卡片介紹 Python 3.15 新語法。本節把它們寫成一支可以直接執行的程式，並放進設備資料的情境：攤平分組清單、合併多層預設值、區分「未提供」與「明確清除」。</p><h3>可實跑範例：推導式解包、frozendict、sentinel 與 re.prefixmatch</h3><p>[*r for r in racks] 與 {**d for d in defaults} 是 PEP 798 的推導式解包；sentinel 必須定義在模組層級，pickle 與 copy 之後才能保持同一個物件。集合的顯示順序不固定，範例排序後再印。</p><p><a class="button" download href="extensions/python_3_15_syntax_parallel_lab/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.15 新語法實測：推導式解包（PEP 798）、frozendict、sentinel、re.prefixmatch()。需 Python 3.15。&quot;&quot;&quot;
+import copy
+import pickle
+import re
+
+MISSING = sentinel(&quot;MISSING&quot;)       # 模組層級定義，pickle／copy 後仍是同一個物件
+
+racks = [[&quot;AHU-01&quot;, &quot;AHU-02&quot;], [&quot;CH-01&quot;], [], [&quot;CT-01&quot;, &quot;CT-02&quot;]]
+print(&quot;攤平：&quot;, [*r for r in racks])
+defaults = [{&quot;scale&quot;: 1.0}, {&quot;unit&quot;: &quot;degC&quot;}, {&quot;scale&quot;: 0.1}]
+print(&quot;合併（後者覆蓋前者）：&quot;, {**d for d in defaults})
+print(&quot;集合（排序後顯示）：&quot;, sorted({*r for r in racks}))
+
+limits = frozendict(AHU=(5.0, 40.0), CH=(3.0, 15.0))
+print(&quot;frozendict 可雜湊：&quot;, hash(limits) == hash(frozendict(CH=(3.0, 15.0), AHU=(5.0, 40.0))))
+
+
+def update_setpoint(value=MISSING):
+    if value is MISSING:
+        return &quot;未提供 → 保持原值&quot;
+    if value is None:
+        return &quot;None → 清除設定點&quot;
+    return f&quot;設為 {value}&quot;
+
+
+for v in (MISSING, None, 7.0):
+    print(f&quot;{v!r:&lt;8} {update_setpoint(v)}&quot;)
+print(&quot;pickle/copy 身分不變：&quot;, pickle.loads(pickle.dumps(MISSING)) is MISSING, copy.deepcopy(MISSING) is MISSING)
+
+print(&quot;prefixmatch：&quot;, bool(re.prefixmatch(r&quot;AHU-\d+&quot;, &quot;AHU-01/SAT&quot;)), bool(re.prefixmatch(r&quot;SAT&quot;, &quot;AHU-01/SAT&quot;)))
+print(&quot;與 re.match 相同語意，但名稱不再讓人誤以為會比對整串&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需 Python 3.15</p><h4>預期輸出（以 Python 3.15.2 實際執行產生）</h4><pre><code>攤平： [&#x27;AHU-01&#x27;, &#x27;AHU-02&#x27;, &#x27;CH-01&#x27;, &#x27;CT-01&#x27;, &#x27;CT-02&#x27;]
+合併（後者覆蓋前者）： {&#x27;scale&#x27;: 0.1, &#x27;unit&#x27;: &#x27;degC&#x27;}
+集合（排序後顯示）： [&#x27;AHU-01&#x27;, &#x27;AHU-02&#x27;, &#x27;CH-01&#x27;, &#x27;CT-01&#x27;, &#x27;CT-02&#x27;]
+frozendict 可雜湊： True
+MISSING  未提供 → 保持原值
+None     None → 清除設定點
+7.0      設為 7.0
+pickle/copy 身分不變： True True
+prefixmatch： True False
+與 re.match 相同語意，但名稱不再讓人誤以為會比對整串</code></pre><h3>工程現場案例：API 的 PATCH 分不清「沒傳」與「傳了 null」</h3><p>某 BAS 整合 API 用 None 當預設參數。使用者想清除冰水出水溫度設定點時送出 null，程式卻當成「沒傳」而保持原值；另一個呼叫方漏傳欄位時，舊版程式又把設定點清掉。根源是 None 同時代表兩種意思。</p><p>改用 sentinel 後，MISSING 代表未提供、None 代表明確清除，兩者在型別上也能清楚區分。多層預設值（全域、設備類型、單一設備）則用 {**d for d in layers} 依序合併，後面的覆蓋前面的。</p><ol><li>在函式簽名中把「未提供」的預設值改成 sentinel，None 保留給明確的語意。</li><li>多層設定以清單表示層級順序，用推導式解包一次合併，並在測試中驗證覆蓋規則。</li><li>合併後的結果轉成 frozendict，避免在執行期被意外修改。</li><li>需要支援 3.14 以前版本的程式碼，sentinel 可改用模組層級的 object() 加上自訂 repr，或使用第三方套件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>PEP 798（推導式解包）、PEP 814（frozendict）與內建 sentinel 都是 Python 3.15 的新功能；re.prefixmatch() 是 re.match() 的新名稱，語意相同。程式要支援 3.14 以前版本時，這些語法會在剖析階段就失敗，不能只靠 try/except。 <a href="https://docs.python.org/3.15/whatsnew/3.15.html">來源：What's new in Python 3.15</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>[*r for r in racks] 和 [x for r in racks for x in r] 有什麼差別？</p><details><summary>看解答</summary><p>結果相同，都是攤平。前者是 3.15 的新寫法，較短且意圖清楚；後者在所有 Python 3 版本都能用。</p></details></li><li><p>{**d for d in defaults} 的結果中 scale 為什麼是 0.1？</p><details><summary>看解答</summary><p>字典依序合併，後面的鍵覆蓋前面的。第一層 scale 是 1.0，第三層是 0.1，最後的值是 0.1。</p></details></li><li><p>把 MISSING = sentinel('MISSING') 搬到函式內部，pickle 那一行會發生什麼？</p><details><summary>看解答</summary><p>pickle 依名稱在模組層級尋找 sentinel，找不到就丟出 PicklingError。sentinel 必須定義在模組層級，且變數名稱與 sentinel 名稱一致。</p></details></li><li><p>為什麼這支程式不能用 try: … except SyntaxError 讓 3.14 也能執行？</p><details><summary>看解答</summary><p>SyntaxError 發生在剖析整個檔案時，任何程式碼都還沒執行，try 區塊根本不會被執行到。要相容舊版，只能把新語法放在另一個模組並依版本決定是否匯入。</p></details></li></ol></section><!-- extension:end -->
+</main>
 
   <!-- Footer Sources -->
   <footer class="mt-8 border-t border-slate-800/90 bg-slate-950/80 py-6">

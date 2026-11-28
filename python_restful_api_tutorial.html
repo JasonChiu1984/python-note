@@ -101,6 +101,114 @@ curl -i -X PUT -H 'Content-Type: application/json' -H 'If-Match: "1"' \
 </ul>
 <p>校閱：<time datetime="2026-11-27">2026-11-27</time>。公開教材只有靜態頁面；HTTP 呼叫需自行啟動上面的本機服務。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面各節從伺服器端定義契約。本節換到用戶端：BAS 整合程式呼叫別人的 API 時，怎麼處理分頁、限流與維護中的回應，以及哪些請求絕對不能自動重試。</p><h3>可實跑範例：分頁讀取與 Retry-After 退避</h3><p>程式在本機啟動一個模擬設備清冊 API，第 2、3 次呼叫分別回 429 與 503。用戶端依 Retry-After 退避後重試 GET，最後讀完 11 台設備；POST 收到 503 則直接回報，不自動重送。等待時間只記錄不實際等待，讓輸出可重現。</p><p><a class="button" download href="extensions/python_restful_api_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;REST 用戶端：分頁讀取、429／503 依 Retry-After 退避、非冪等請求不自動重試（標準函式庫）。
+
+程式在本機啟動一個模擬設備清冊 API（127.0.0.1 隨機埠），用 urllib 呼叫它。
+等待時間記錄下來而不是真的 sleep，讓輸出可重現。
+&quot;&quot;&quot;
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+import json
+import threading
+import urllib.error
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
+
+DEVICES = [{&quot;id&quot;: f&quot;AHU-{i:02d}&quot;, &quot;status&quot;: &quot;running&quot; if i % 4 else &quot;alarm&quot;} for i in range(1, 12)]
+STATE = {&quot;calls&quot;: 0}
+
+
+class Api(BaseHTTPRequestHandler):
+    def log_message(self, *args):          # 不把存取紀錄印到輸出
+        pass
+
+    def _json(self, code, body, headers=()):
+        data = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header(&quot;Content-Type&quot;, &quot;application/json&quot;)
+        for k, v in headers:
+            self.send_header(k, v)
+        self.send_header(&quot;Content-Length&quot;, str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        STATE[&quot;calls&quot;] += 1
+        if STATE[&quot;calls&quot;] in (2, 3):        # 第 2、3 次呼叫模擬限流與維護
+            code = 429 if STATE[&quot;calls&quot;] == 2 else 503
+            return self._json(code, {&quot;error&quot;: &quot;busy&quot;}, [(&quot;Retry-After&quot;, &quot;2&quot;)])
+        q = parse_qs(urlparse(self.path).query)
+        offset, limit = int(q.get(&quot;offset&quot;, [&quot;0&quot;])[0]), int(q.get(&quot;limit&quot;, [&quot;5&quot;])[0])
+        page = DEVICES[offset:offset + limit]
+        nxt = offset + limit if offset + limit &lt; len(DEVICES) else None
+        self._json(200, {&quot;items&quot;: page, &quot;next_offset&quot;: nxt})
+
+    def do_POST(self):
+        self._json(503, {&quot;error&quot;: &quot;maintenance&quot;}, [(&quot;Retry-After&quot;, &quot;5&quot;)])
+
+
+def retry_after_seconds(value, now, fallback):
+    if value is None:
+        return fallback
+    value = value.strip()
+    if value.isascii() and value.isdecimal():
+        return int(value)
+    try:
+        when = parsedate_to_datetime(value)
+        if when.tzinfo is None:
+            return fallback
+        return max(0.0, (when - now).total_seconds())
+    except (ValueError, TypeError, OverflowError):
+        return fallback
+
+
+def request(method, url, body=None, *, waits, max_attempts=4, max_wait=30):
+    idempotent = method in (&quot;GET&quot;, &quot;HEAD&quot;, &quot;PUT&quot;, &quot;DELETE&quot;)
+    # 只用於本機模擬；不繼承系統代理設定。
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    for attempt in range(1, max_attempts + 1):
+        req = urllib.request.Request(url, method=method,
+                                     data=None if body is None else json.dumps(body).encode(),
+                                     headers={&quot;Content-Type&quot;: &quot;application/json&quot;})
+        try:
+            with opener.open(req, timeout=5) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            with e:
+                if e.code not in (429, 503) or not idempotent or attempt == max_attempts:
+                    raise
+                delay = retry_after_seconds(e.headers.get(&quot;Retry-After&quot;),
+                                            datetime.now(timezone.utc), min(2**(attempt - 1), max_wait))
+                if delay &gt; max_wait:
+                    raise  # 不在伺服器要求的時間之前重送：停止，交由排程延後。
+                waits.append((e.code, delay))  # 模擬：正式客戶端需真的等待。
+
+
+if __name__ == &quot;__main__&quot;:
+    server = ThreadingHTTPServer((&quot;127.0.0.1&quot;, 0), Api)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f&quot;http://127.0.0.1:{server.server_address[1]}/devices&quot;
+
+    waits, items, offset = [], [], 0
+    while offset is not None:
+        page = request(&quot;GET&quot;, f&quot;{base}?offset={offset}&amp;limit=5&quot;, waits=waits)
+        items += page[&quot;items&quot;]
+        offset = page[&quot;next_offset&quot;]
+    print(f&quot;共讀到 {len(items)} 台設備，告警中：{[d[&#x27;id&#x27;] for d in items if d[&#x27;status&#x27;] == &#x27;alarm&#x27;]}&quot;)
+    print(f&quot;重試紀錄（狀態碼, 等待秒數）：{waits}&quot;)
+    print(f&quot;伺服器實際收到 GET 次數：{STATE[&#x27;calls&#x27;]}&quot;)
+
+    try:
+        request(&quot;POST&quot;, base, {&quot;id&quot;: &quot;AHU-12&quot;}, waits=waits)
+    except urllib.error.HTTPError as e:
+        print(f&quot;POST 收到 {e.code}，Retry-After={e.headers[&#x27;Retry-After&#x27;]}；非冪等請求不自動重試，交由使用者確認&quot;)
+    server.shutdown()
+    server.server_close()
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；會暫時佔用一個本機埠</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>共讀到 11 台設備，告警中：[&#x27;AHU-04&#x27;, &#x27;AHU-08&#x27;]
+重試紀錄（狀態碼, 等待秒數）：[(429, 2), (503, 2)]
+伺服器實際收到 GET 次數：5
+POST 收到 503，Retry-After=5；非冪等請求不自動重試，交由使用者確認</code></pre><h3>工程現場案例：能源平台 API 限流，夜間報表少了一半設備</h3><p>某專案每晚從雲端能源平台 API 抓所有電表資料產生日報。平台改版後加了每分鐘請求上限，超過時回 429 與 Retry-After。原本的程式遇到非 200 就跳過該頁，於是報表靜悄悄地少了一半電表，持續兩週才被發現。</p><p>修正方式是把錯誤分成三類：可重試（429、503）依 Retry-After 退避；不可重試（400、401、404）立即失敗並告警；結果不明（POST 逾時）不自動重送，改用查詢確認是否已建立。最後再比對抓到的筆數與清冊總數，不一致就讓排程失敗。</p><ol><li>列出整合會用到的每個端點與方法，標註是否冪等（GET、PUT、DELETE 是；POST、PATCH 預設不是）。</li><li>設定重試次數及等待預算；伺服器要求的延遲超出預算就停止或延後排程，不能把延遲截短後提前重送。</li><li>寫入類請求帶冪等鍵（例如 Idempotency-Key 標頭或用戶端產生的 ID），讓伺服器能辨識重送。</li><li>排程結束前驗證完整性：筆數、最後時間戳、各分頁是否都成功，任何一項不符就回非零結束碼。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>錯誤回應格式建議採 RFC 9457 Problem Details（application/problem+json），它在 2023 年取代 RFC 7807，欄位包含 type、title、status、detail、instance。用戶端應先依 HTTP 狀態碼判斷，再讀 detail 給人看。 <a href="https://www.rfc-editor.org/rfc/rfc9457">來源：RFC 9457</a></li><li>冪等方法的定義以 RFC 9110 第 9.2.2 節為準：PUT、DELETE 與安全方法（GET、HEAD、OPTIONS、TRACE）是冪等的。 <a href="https://www.rfc-editor.org/rfc/rfc9110#section-9.2.2">來源：RFC 9110 §9.2.2</a> <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3">來源：RFC 9110 §10.2.3</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>範例的 GET 被呼叫了 5 次，但只有 3 頁資料。多出來的 2 次是哪裡來的？</p><details><summary>看解答</summary><p>第 2 次呼叫收到 429、第 3 次收到 503，都是同一頁（offset=5）的重試。成功的是第 1、4、5 次，分別取得 offset 0、5、10 三頁。</p></details></li><li><p>Retry-After 是 HTTP 日期、已過期或超出等待預算時，各怎麼處理？</p><details><summary>看解答</summary><p>HTTP 日期換算成 UTC 時差；過去日期以零秒計，格式無效才用本地退避策略。若超過等待預算，停止或交給排程延後，不截短伺服器的等待要求。</p></details></li><li><p>為什麼 POST 收到 503 不應自動重試？什麼條件下可以？</p><details><summary>看解答</summary><p>POST 不是冪等的，伺服器可能已經處理但回應失敗，重送會建立重複資料。若 API 支援冪等鍵，用戶端每次重送都帶同一個鍵，伺服器就能辨識並回傳第一次的結果，這時才可以安全重試。</p></details></li><li><p>把 request() 的 max_attempts 改成 2，執行結果會變成什麼？</p><details><summary>看解答</summary><p>offset=5 那頁第一次收到 429，重試一次又收到 503，已達上限，HTTPError 會向外拋出，程式在分頁迴圈中中止。這正是希望的行為：與其產生不完整的報表，不如明確失敗。</p></details></li></ol></section><!-- extension:end -->
 </main>
 </div>
 <script>

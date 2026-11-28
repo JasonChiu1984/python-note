@@ -576,7 +576,64 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>效能診斷先排除測量錯誤</h2><p>資料量、測量區間、cache 狀態、I/O 與 CI 環境都會影響結論。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>效能證據要支援交付決策</h2><p>把 benchmark、profile、memory 與 budget decision 寫進 release evidence。</p></div></div><div class="cards"></div></section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁強調先量測再優化。本節走一次完整流程：用 cProfile 找到被大量呼叫的函式、用 lru_cache 消除重複解析、確認結果不變，再用 tracemalloc 比較兩種資料結構的記憶體。</p><h3>可實跑範例：cProfile、lru_cache 與 tracemalloc</h3><p>輸出只印呼叫次數、快取命中與記憶體比例，不印絕對時間，因為時間每次執行都不同。實際排查時用 pstats 依 cumulative 或 tottime 排序看耗時。</p><p><a class="button" download href="extensions/python_performance_memory_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;先量再改：cProfile 找熱點、tracemalloc 比較記憶體、正確性不變（標準函式庫）。輸出只印排名與比例，不印絕對時間。&quot;&quot;&quot;
+import cProfile
+import pstats
+import tracemalloc
+from functools import lru_cache
+
+POINTS = [f&quot;B{b}-AHU{a:02d}-{p}&quot; for b in range(1, 6) for a in range(1, 41) for p in (&quot;SAT&quot;, &quot;RAT&quot;, &quot;MAT&quot;, &quot;DMP&quot;, &quot;FAN&quot;)]
+
+
+def parse_slow(tag):
+    parts = tag.split(&quot;-&quot;)
+    building = int(parts[0][1:])
+    ahu = int(parts[1][3:])
+    kinds = {&quot;SAT&quot;: &quot;溫度&quot;, &quot;RAT&quot;: &quot;溫度&quot;, &quot;MAT&quot;: &quot;溫度&quot;, &quot;DMP&quot;: &quot;開度&quot;, &quot;FAN&quot;: &quot;狀態&quot;}   # 每次呼叫都重建
+    return building, ahu, kinds[parts[2]]
+
+
+KINDS = {&quot;SAT&quot;: &quot;溫度&quot;, &quot;RAT&quot;: &quot;溫度&quot;, &quot;MAT&quot;: &quot;溫度&quot;, &quot;DMP&quot;: &quot;開度&quot;, &quot;FAN&quot;: &quot;狀態&quot;}
+
+
+@lru_cache(maxsize=None)
+def parse_fast(tag):
+    b, a, p = tag.split(&quot;-&quot;)
+    return int(b[1:]), int(a[3:]), KINDS[p]
+
+
+def report(parse):
+    out = {}
+    for _ in range(20):                           # 模擬每輪重複解析
+        for t in POINTS:
+            b, a, kind = parse(t)
+            out[kind] = out.get(kind, 0) + 1
+    return out
+
+
+if __name__ == &quot;__main__&quot;:
+    prof = cProfile.Profile()
+    prof.enable()
+    r1 = report(parse_slow)
+    prof.disable()
+    stats = pstats.Stats(prof)
+    calls = {k[2]: v[1] for k, v in stats.stats.items() if k[2] in (&quot;parse_slow&quot;, &quot;report&quot;)}
+    print(&quot;cProfile 呼叫次數：&quot;, calls, &quot;（實際排查時用 sort_stats(&#x27;cumulative&#x27;) 看耗時排名）&quot;)
+    r2 = report(parse_fast)
+    print(&quot;結果一致：&quot;, r1 == r2, r1)
+    print(&quot;lru_cache 命中：&quot;, parse_fast.cache_info().hits, &quot;次，未命中：&quot;, parse_fast.cache_info().misses, &quot;次&quot;)
+    tracemalloc.start()
+    as_list = [t.split(&quot;-&quot;) for t in POINTS]
+    mid = tracemalloc.get_traced_memory()[0]
+    as_tuple = [tuple(t.split(&quot;-&quot;)) for t in POINTS]
+    end = tracemalloc.get_traced_memory()[0]
+    tracemalloc.stop()
+    print(f&quot;list 版與 tuple 版記憶體比：約 {mid / (end - mid):.1f} 倍&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>cProfile 呼叫次數： {&#x27;parse_slow&#x27;: 20000, &#x27;report&#x27;: 1} （實際排查時用 sort_stats(&#x27;cumulative&#x27;) 看耗時排名）
+結果一致： True {&#x27;溫度&#x27;: 12000, &#x27;開度&#x27;: 4000, &#x27;狀態&#x27;: 4000}
+lru_cache 命中： 19000 次，未命中： 1000 次
+list 版與 tuple 版記憶體比：約 1.4 倍</code></pre><h3>工程現場案例：報表每輪重新解析 1,000 個點位名稱</h3><p>某報表程式每輪把 1,000 個點位名稱重新解析一次，20 輪就是 20,000 次呼叫，而且每次呼叫都重建同一個對照字典。cProfile 顯示 parse_slow 被呼叫 20,000 次；點位名稱其實只有 1,000 種。</p><p>加上 lru_cache 後，只有前 1,000 次真正解析，其餘 19,000 次直接從快取取得結果。優化後最重要的一步是確認結果完全相同；範例比對兩個版本的輸出，確保優化沒有改變行為。</p><ol><li>用 cProfile 或 Tachyon 找出呼叫次數或耗時最高的函式，不要憑直覺優化。</li><li>確認函式是純函式（相同輸入一定相同輸出、無副作用）再加快取。</li><li>優化前後比對輸出，並保留基準測試。</li><li>有上限的快取（maxsize）適合輸入種類無限的情況，避免記憶體無限成長。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.15 新增 Tachyon 取樣剖析器（profiling.sampling，PEP 799），對長時間執行的程序影響比 cProfile 小，適合在接近正式環境的條件下量測。本頁的 3.15 效能與記憶體工作台有指令範例。 <a href="https://peps.python.org/pep-0799/">來源：PEP 799</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>lru_cache 的命中次數為什麼正好是 19,000？</p><details><summary>看解答</summary><p>共 20 輪 × 1,000 個名稱 = 20,000 次呼叫。第 1 輪每個名稱都是第一次出現，1,000 次未命中；之後 19 輪全部命中。</p></details></li><li><p>若 parse_fast 的輸入包含即時讀值（例如 tag + value），lru_cache 還適合嗎？</p><details><summary>看解答</summary><p>不適合。讀值幾乎每次都不同，快取命中率很低，maxsize=None 時還會無限累積記憶體。快取只適合重複出現的輸入。</p></details></li><li><p>tuple 版為什麼比 list 版省記憶體？</p><details><summary>看解答</summary><p>tuple 不可變，大小固定，不需要為了 append 預留額外空間；list 會超額配置以加速追加。資料建立後不再修改時，tuple 是較省的選擇。</p></details></li><li><p>為什麼範例不印出優化前後的執行時間？</p><details><summary>看解答</summary><p>時間受硬體、負載與 Python 版本影響，每次執行都不同，放在教材上會誤導，也讓輸出無法重現。實際量測應用 timeit 或 pyperf 多次執行並報告分布。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

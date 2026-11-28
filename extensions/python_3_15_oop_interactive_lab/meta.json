@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "本頁互動實驗室示範了 frozendict 與 sentinel 的行為。本節把它們組合成一個實際可用的點位設定類別：不可變、可當字典鍵、建立時驗證，並能從 CSV 匯入。",
+ "example_title": "不可變點位設定類別與 CSV 匯入",
+ "example_desc": "dataclass(frozen=True, slots=True) 讓實例不可修改且省記憶體；tags 欄位用 frozendict 讓整個物件可雜湊；with_changes() 以 sentinel 區分「不改」與「設為 None」。匯入時位址超出範圍的列會被拒絕。",
+ "run_note": "需 Python 3.15",
+ "case": {
+  "title": "點位設定在執行中被改掉，沒有人知道是誰",
+  "paragraphs": [
+   "某閘道器把點位設定讀成普通 dict，多個模組共用同一份物件。其中一個除錯模組為了測試把倍率改成 1.0，忘了改回，其他模組也跟著讀到錯誤倍率。因為 dict 可以在任何地方被修改，事後很難追到修改點。",
+   "改成 frozen dataclass 後，任何直接修改都會立即丟出 FrozenInstanceError；需要不同設定時用 replace() 產生新物件，舊物件不受影響。CSV 匯入時在 __post_init__ 驗證位址範圍，錯誤在載入階段就被擋下，不會等到通訊時才發現。"
+  ],
+  "steps": [
+   "把點位設定定義成 frozen dataclass，欄位型別與驗證寫在類別裡。",
+   "巢狀的對應資料（標籤、單位）用 frozendict，讓整個物件可雜湊。",
+   "匯入 CSV 時逐列建立物件，失敗的列收集起來一次回報，不要只回報第一個錯誤。",
+   "變更設定一律透過 replace() 或 with_changes()，並記錄新舊版本。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "dataclass 的 slots=True 自 Python 3.10 起提供；frozendict 與 sentinel 為 Python 3.15 新增。若要在 3.14 以前使用，tags 可改用 types.MappingProxyType（唯讀但不可雜湊）或 tuple 形式的鍵值對。",
+   "sources": [
+    {
+     "title": "Python 文件：dataclasses",
+     "url": "https://docs.python.org/3/library/dataclasses.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 tags 欄位的型別改成一般 dict，範例中哪一行會失敗？為什麼？",
+   "a": "<p>把 sat 當字典鍵的那一行會丟出 TypeError。frozen dataclass 的 __hash__ 會對所有欄位取雜湊，dict 不可雜湊。</p>"
+  },
+  {
+   "q": "with_changes(sat, alarm_high=None) 和 with_changes(sat) 的差別是什麼？",
+   "a": "<p>前者明確把告警上限清除為 None；後者沒有傳 alarm_high，參數值是 UNSET，該欄位不被列入 changes，保持原值 30.0。</p>"
+  },
+  {
+   "q": "CSV 中 alarm_high 欄位是空字串時，程式怎麼處理？",
+   "a": "<p>空字串轉成 None，表示沒有告警上限。不能直接 float('')，會丟出 ValueError。</p>"
+  },
+  {
+   "q": "為什麼位址驗證放在 __post_init__，而不是在讀 CSV 的迴圈裡？",
+   "a": "<p>放在類別裡，不論物件從 CSV、JSON 或程式碼建立，都會經過同一個驗證；放在迴圈裡，其他建立路徑就可能繞過驗證。</p>"
+  }
+ ]
+}

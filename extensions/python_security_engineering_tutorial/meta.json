@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁整理了安全工程原則。本節用三個最常見、也最容易用程式碼避免的漏洞示範安全預設：SQL 注入、路徑穿越，以及把密碼寫進日誌。",
+ "example_title": "參數化 SQL、路徑穿越防護與日誌遮蔽",
+ "example_desc": "同一個惡意輸入分別用字串拼接與參數化查詢執行，比較結果；safe_path() 先 resolve 再用 is_relative_to 檢查是否在允許目錄內；日誌過濾器在輸出前遮蔽 password、token、api_key。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "報表下載功能可以讀到 /etc/passwd",
+  "paragraphs": [
+   "某 BAS 網頁提供報表下載，網址參數是檔名，後端直接 open(REPORT_DIR + name)。測試人員把 name 改成 ../../../etc/passwd 就下載到系統檔案。同一個系統的點位查詢還用字串拼接 SQL，輸入 ' OR '1'='1 就能列出所有點位，包括不該公開的項目。",
+   "範例顯示：參數化查詢讓惡意字串只被當成一個值，回傳 0 筆；路徑先正規化再檢查，穿越嘗試被拒絕，正常的子目錄路徑仍可使用；日誌中的密碼在寫出前就被遮蔽。"
+  ],
+  "steps": [
+   "所有 SQL 一律使用參數化查詢或 ORM，不用 f-string 組 SQL。",
+   "處理使用者提供的路徑時先 resolve()，再檢查是否位於允許目錄內。",
+   "日誌加上遮蔽過濾器，並避免記錄完整的請求標頭或連線字串。",
+   "以 bandit 等工具在 CI 掃描常見的危險寫法。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Path.is_relative_to() 自 Python 3.9 起提供；Python 3.12 起 os.path 與 pathlib 在 Windows 上對保留名稱等邊界情況有更多處理，路徑檢查仍應在部署平台實測。",
+   "sources": [
+    {
+     "title": "Python 文件：pathlib",
+     "url": "https://docs.python.org/3/library/pathlib.html"
+    },
+    {
+     "title": "Python 文件：sqlite3 參數化查詢",
+     "url": "https://docs.python.org/3/library/sqlite3.html#sqlite3-placeholders"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼字串拼接的查詢回傳 3 筆？",
+   "a": "<p>組出的 SQL 是 WHERE name = 'AHU1_SAT' OR '1'='1'，'1'='1' 永遠為真，所以所有列都符合，包括 ADMIN_PW。</p>"
+  },
+  {
+   "q": "safe_path() 若只檢查 user_input 是否包含 '..'，有什麼漏洞？",
+   "a": "<p>攻擊者可以用絕對路徑（/etc/passwd，Path 會直接替換基底）、符號連結或編碼後的字元繞過。先 resolve 再檢查最終路徑才可靠。</p>"
+  },
+  {
+   "q": "Redact 過濾器只處理 record.msg，若用 log.info('pw=%s', password) 這種寫法會怎樣？",
+   "a": "<p>密碼在 record.args 裡，格式化時才組進訊息，過濾器看到的 msg 只有 'pw=%s'，遮蔽失敗。應改成對 record.getMessage() 的結果遮蔽，或避免把秘密當成參數傳給日誌。</p>"
+  },
+  {
+   "q": "參數化查詢可以防止所有 SQL 相關的問題嗎？",
+   "a": "<p>不行。表名、欄位名與 ORDER BY 方向不能參數化，若要依使用者輸入決定，必須用白名單對應。權限控制（例如查詢帳號只能讀特定表）也是必要的另一層防護。</p>"
+  }
+ ]
+}

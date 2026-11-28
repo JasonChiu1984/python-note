@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  12
+ ],
+ "intro": "3.12 讓泛型與型別別名的寫法大幅簡化（PEP 695），也新增了 itertools.batched 並放寬 f-string 的語法限制（PEP 701）。本節用讀取 Modbus 暫存器的分批計畫與帶型別的讀值物件示範。",
+ "example_title": "PEP 695 泛型、batched 與 f-string",
+ "example_desc": "Reading[T] 不需要 TypeVar 與 Generic；latest[T] 是泛型函式；type Address = int 建立延遲求值的型別別名，實際型別存在 __value__。batched(addrs, 125) 依 Modbus 單次最多讀 125 個暫存器的限制切分。",
+ "run_note": "需要 Python 3.12 以上",
+ "case": {
+  "title": "一次讀 250 個暫存器，設備回傳例外碼 03",
+  "paragraphs": [
+   "Modbus 規定 Read Holding Registers 單次最多 125 個暫存器（許多設備更少）。某程式一次要求 250 個，設備回傳 Illegal Data Value。以 batched() 依上限切分，就不必自己寫索引計算。",
+   "型別參數讓同一個 Reading 類別同時表示數值點與文字狀態點，型別檢查工具也能分辨 latest(temps) 回傳的是 Reading[float]。"
+  ],
+  "steps": [
+   "查設備手冊確認單次讀取的暫存器上限，寫進設定。",
+   "用 batched() 產生讀取計畫，並合併連續位址以減少請求數。",
+   "資料類別使用 PEP 695 語法標註型別參數。",
+   "以 mypy 或 pyright 檢查，確認泛型推論正確。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.12 目前只接受安全性修補，預計 2028 年 10 月終止支援。batched() 在 3.13 起新增 strict 參數，長度不足時可以丟出例外。",
+   "sources": [
+    {
+     "title": "Python 文件：Status of Python versions",
+     "url": "https://devguide.python.org/versions/"
+    },
+    {
+     "title": "Python 文件：itertools.batched",
+     "url": "https://docs.python.org/3/library/itertools.html#itertools.batched"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "若暫存器有 260 個，batched(addrs, 125) 會產生哪些批次？",
+   "a": "<p>(0, 125)、(125, 125)、(250, 10)。最後一批不足 125 個也會產生；若要求每批都滿，3.13 起可用 strict=True。</p>"
+  },
+  {
+   "q": "type Address = int 與 Address = int 有什麼不同？",
+   "a": "<p>前者建立 TypeAliasType 物件，右側延遲求值，可以前向參考尚未定義的型別，型別工具也明確知道它是別名。後者只是普通變數賦值，Address 就是 int 本身。</p>"
+  },
+  {
+   "q": "範例中的 f\"{point[\"name\"]}\" 在 3.11 執行會怎樣？",
+   "a": "<p>SyntaxError。3.12 之前 f-string 內不能重複使用外層的引號，必須改成 point['name']。</p>"
+  },
+  {
+   "q": "Reading[T] 在執行時會檢查 value 的型別嗎？",
+   "a": "<p>不會。型別參數只供靜態檢查工具使用，執行時 Reading(\"SAT\", \"abc\") 也能建立。需要執行時檢查時，使用 pydantic 等驗證工具或在 __post_init__ 中自行檢查。</p>"
+  }
+ ]
+}

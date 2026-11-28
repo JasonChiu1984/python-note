@@ -244,4 +244,52 @@ python3.11 python-311-core.py
 python3.11 hvac-monitor-311.py --output report.json</code></pre></section><section id="part-6"><h2>Part 6 | Verification and learning kit</h2><p>The kit was verified with CPython 3.11.18 on Linux x86_64. No HVAC devices were contacted; this is not a benchmark, third-party compatibility check, or static typing validation.</p><ul><li><a href="python-311-core.py">python-311-core.py</a>: 16 core examples</li><li><a href="python-311-lab.py">python-311-lab.py</a>: 6 feature and boundary checks</li><li><a href="python-311-concurrency.py">python-311-concurrency.py</a>: 4 concurrency scenarios</li><li><a href="hvac-monitor-311.py">hvac-monitor-311.py</a>: 8 synthetic readings</li></ul><pre tabindex="0"><code>python3.11 python-311-core.py
 python3.11 python-311-lab.py
 python3.11 python-311-concurrency.py
-python3.11 hvac-monitor-311.py</code></pre><p><a href="verification.txt">Verification record</a> · <a href="https://github.com/JasonChiu1984/python-note/blob/main/python-315-learning-kit/python-315-complete-guide.md">Reference: Python 3.15 complete guide</a></p></section></main></div></body></html>
+python3.11 hvac-monitor-311.py</code></pre><p><a href="verification.txt">Verification record</a> · <a href="https://github.com/JasonChiu1984/python-note/blob/main/python-315-learning-kit/python-315-complete-guide.md">Reference: Python 3.15 complete guide</a></p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>Further practice: runnable example, field case and self-check</h2><p>The 3.11 features engineering projects use most are asyncio.TaskGroup, except* and tomllib. This section combines them in one polling scenario: read a device list from TOML, poll concurrently, and handle failures by exception type.</p><h3>Runnable example：TaskGroup, except* and tomllib</h3><p>M01 is healthy, M02 times out and M03 refuses the connection at once. Note the output: as soon as M03 fails, TaskGroup cancels the other tasks, so M01 returns nothing even though it needs only 0.01 s, and M02 never reaches its timeout. That is TaskGroup's one-fails-all-cancel semantics.</p><p><a class="button" download href="extension-example-en.py">Download example extension-example-en.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Python 3.11: poll concurrently with TaskGroup, handle errors by type with except*, read config with tomllib (needs 3.11+).&quot;&quot;&quot;
+import asyncio
+import tomllib
+
+CONFIG = tomllib.loads(&quot;&quot;&quot;
+[poll]
+timeout_s = 0.05
+[[device]]
+name = &quot;M01&quot;
+delay = 0.01
+[[device]]
+name = &quot;M02&quot;
+delay = 0.2
+[[device]]
+name = &quot;M03&quot;
+delay = -1
+&quot;&quot;&quot;)
+
+
+async def read(dev):
+    if dev[&quot;delay&quot;] &lt; 0:
+        raise ConnectionRefusedError(f&quot;{dev[&#x27;name&#x27;]} refused the connection&quot;)
+    async with asyncio.timeout(CONFIG[&quot;poll&quot;][&quot;timeout_s&quot;]):
+        await asyncio.sleep(dev[&quot;delay&quot;])
+    return dev[&quot;name&quot;], 22.5
+
+
+async def main():
+    results = {}
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(read(d)) for d in CONFIG[&quot;device&quot;]]
+    except* TimeoutError as eg:
+        print(f&quot;{len(eg.exceptions)} device(s) timed out&quot;)
+    except* ConnectionError as eg:
+        print(&quot;Connection errors:&quot;, [str(e) for e in eg.exceptions])
+    for t in tasks:
+        if t.done() and not t.cancelled() and t.exception() is None:
+            results.update([t.result()])
+    print(&quot;Succeeded:&quot;, results)
+
+
+if __name__ == &quot;__main__&quot;:
+    print(&quot;Config:&quot;, [d[&quot;name&quot;] for d in CONFIG[&quot;device&quot;]], &quot;timeout&quot;, CONFIG[&quot;poll&quot;][&quot;timeout_s&quot;], &quot;s&quot;)
+    asyncio.run(main())
+</code></pre><p class="ext-note">How to run：<code>python extension-example-en.py</code>, needs Python 3.11 or later</p><h4>Expected output (captured from a real run on Python 3.13)</h4><pre><code>Config: [&#x27;M01&#x27;, &#x27;M02&#x27;, &#x27;M03&#x27;] timeout 0.05 s
+Connection errors: [&#x27;M03 refused the connection&#x27;]
+Succeeded: {}</code></pre><h3>Field case：One device goes offline and the whole batch loses its data</h3><p>A project replaced asyncio.gather with TaskGroup and found that one device refusing a connection wiped out the readings of every other device in the batch. This is by design: TaskGroup suits work that only makes sense when every part succeeds, such as the steps of one transaction.</p><p>Device polling usually wants independent results. Catch expected exceptions inside read() and return a reading with bad quality, so TaskGroup only sees real programming errors; or give each device its own TaskGroup.</p><ol><li>Decide whether a batch is all-or-nothing or independent.</li><li>For independent work, handle expected exceptions (timeouts, refused connections) inside the coroutine.</li><li>Use except* to handle every exception in an ExceptionGroup, not just the first.</li><li>Read configuration with tomllib; no third-party toml package is needed.</li></ol><h3>Version and regulation updates (checked 2026-11-28)</h3><ul><li>Python 3.11 has received security fixes only since 2026 and is expected to reach end of life in October 2027. New projects should use 3.13 or later. <a href="https://devguide.python.org/versions/">Source：Python Developer's Guide: Status of Python versions</a></li></ul><h3>Exercises and self-check</h3><ol><li><p>What is the simplest change that keeps M01's result?</p><details><summary>Show answer</summary><p>Catch ConnectionError and TimeoutError inside read() and return something like (name, None) instead of raising. TaskGroup then has no reason to cancel the other tasks.</p></details></li><li><p>If M03's delay becomes 0.03 (no refusal), what is printed?</p><details><summary>Show answer</summary><p>M01 and M03 succeed and M02 times out at 0.05 s. When TaskGroup receives the TimeoutError the other two have already finished, so their results are kept: "1 device(s) timed out" plus two successful readings.</p></details></li><li><p>How does except* TimeoutError differ from except TimeoutError?</p><details><summary>Show answer</summary><p>except* matches exceptions inside an ExceptionGroup and several except* clauses can run for one group. A plain except matches a single exception and does not catch the ExceptionGroup raised by TaskGroup.</p></details></li><li><p>Can tomllib write TOML?</p><details><summary>Show answer</summary><p>No, it only reads. Use a third-party package such as tomli-w to write.</p></details></li></ol></section><!-- extension:end -->
+</main></div></body></html>

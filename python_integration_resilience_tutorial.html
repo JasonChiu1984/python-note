@@ -1104,6 +1104,55 @@ if __name__ == "__main__":
 <pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_retry</code></pre>
 <p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
 <p>官方參考：<a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after">RFC 9110：Retry-After</a> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods">RFC 9110：冪等方法</a> · <a href="https://www.rfc-editor.org/rfc/rfc6585.html#section-4">RFC 6585：429</a>。內容校閱：2026-11-26（台灣）。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明整合韌性。本節實作斷路器：外部系統連續失敗時暫停呼叫，冷卻時間過後只試探一次，成功才恢復。這能避免外部系統故障時，自己的程式被大量逾時拖垮。</p><h3>可實跑範例：斷路器狀態變化</h3><p>連續 3 次失敗後由 closed 轉為 open；open 期間直接略過，不發出請求；冷卻 30 秒後進入 half_open 試探一次，失敗則重新開路，成功則關閉並清除失敗計數。時鐘以參數注入，輸出可重現。</p><p><a class="button" download href="extensions/python_integration_resilience_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;斷路器：連續失敗後暫停呼叫外部系統，冷卻後試探一次，成功才恢復（標準函式庫，使用模擬時鐘）。&quot;&quot;&quot;
+
+
+class CircuitBreaker:
+    def __init__(self, threshold=3, cooldown=30.0, clock=None):
+        self.threshold, self.cooldown, self.clock = threshold, cooldown, clock
+        self.state, self.failures, self.opened_at = &quot;closed&quot;, 0, None
+
+    def call(self, fn):
+        now = self.clock()
+        if self.state == &quot;open&quot;:
+            if now - self.opened_at &lt; self.cooldown:
+                return &quot;略過（斷路中）&quot;
+            self.state = &quot;half_open&quot;
+        try:
+            result = fn()
+        except Exception as e:
+            self.failures += 1
+            if self.state == &quot;half_open&quot; or self.failures &gt;= self.threshold:
+                self.state, self.opened_at = &quot;open&quot;, now
+            return f&quot;失敗：{e}&quot;
+        self.state, self.failures = &quot;closed&quot;, 0
+        return f&quot;成功：{result}&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    t = [0.0]
+    up = {&quot;ok&quot;: False}
+
+    def energy_api():
+        if not up[&quot;ok&quot;]:
+            raise ConnectionError(&quot;能源平台無回應&quot;)
+        return &quot;上傳 120 筆&quot;
+
+    cb = CircuitBreaker(clock=lambda: t[0])
+    timeline = [(0, False), (5, False), (10, False), (15, False), (25, False),
+                (41, False), (75, True), (80, True)]
+    for at, ok in timeline:
+        t[0], up[&quot;ok&quot;] = at, ok
+        before = cb.state
+        print(f&quot;t={at:&gt;3}s 狀態 {before:&lt;9} → {cb.call(energy_api):&lt;16} 之後 {cb.state}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>t=  0s 狀態 closed    → 失敗：能源平台無回應       之後 closed
+t=  5s 狀態 closed    → 失敗：能源平台無回應       之後 closed
+t= 10s 狀態 closed    → 失敗：能源平台無回應       之後 open
+t= 15s 狀態 open      → 略過（斷路中）          之後 open
+t= 25s 狀態 open      → 略過（斷路中）          之後 open
+t= 41s 狀態 open      → 失敗：能源平台無回應       之後 open
+t= 75s 狀態 open      → 成功：上傳 120 筆      之後 closed
+t= 80s 狀態 closed    → 成功：上傳 120 筆      之後 closed</code></pre><h3>工程現場案例：能源平台當機，閘道器的本地輪詢也跟著變慢</h3><p>某閘道器每 5 秒把資料上傳到雲端能源平台，平台當機時每次上傳都要等 10 秒逾時。上傳與本地輪詢在同一個執行緒，結果 Modbus 輪詢週期從 5 秒拉長到 15 秒，本地的需量控制也受到影響。</p><p>加上斷路器後，連續 3 次失敗就停止上傳嘗試，資料暫存在本地佇列；每 30 秒試探一次，平台恢復後再補傳。範例的時間軸顯示 15 秒與 25 秒時直接略過、41 秒試探失敗重新開路、75 秒試探成功恢復。</p><ol><li>找出所有呼叫外部系統的地方，為每個外部系統各自建立斷路器。</li><li>開路期間把資料寫入本地持久化佇列，恢復後依序補送。</li><li>斷路器狀態變化寫入日誌並告警。</li><li>本地控制與外部上傳分開執行緒或程序，確保外部故障不影響本地控制。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>斷路器、重試與逾時通常一起使用；Python 生態中常見 tenacity（重試）與 pybreaker 等套件。重試要搭配退避與上限，否則會在外部系統恢復時造成大量請求湧入。 <a href="https://docs.python.org/3/library/urllib.request.html">來源：Python 文件：urllib.request（逾時參數）</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 half_open 試探失敗時，不需要等失敗次數達到門檻就重新開路？</p><details><summary>看解答</summary><p>試探失敗代表外部系統仍未恢復，再多試幾次只會增加負擔。half_open 只允許一次試探，失敗立刻回到 open 並重新計算冷卻時間。</p></details></li><li><p>若把 cooldown 改成 60 秒，75 秒時會發生什麼？</p><details><summary>看解答</summary><p>41 秒重新開路，75 − 41 = 34 秒，小於 60 秒，仍在冷卻期，直接略過。要到 101 秒之後才會再試探。</p></details></li><li><p>開路期間略過的資料要怎麼處理？</p><details><summary>看解答</summary><p>不能丟棄。應寫入本地持久化佇列（例如 SQLite），恢復後依序補送，並以序號或時間戳讓接收端去重。佇列也要有上限與告警。</p></details></li><li><p>多個執行緒共用同一個斷路器時，範例的寫法安全嗎？</p><details><summary>看解答</summary><p>不安全。state 與 failures 的讀寫不是原子操作，可能有多個執行緒同時進入 half_open 並發出多次試探。多執行緒環境要加鎖。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

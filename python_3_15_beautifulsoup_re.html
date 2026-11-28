@@ -1407,6 +1407,74 @@ def extract(html):
 <pre tabindex="0"><code>python -m unittest -v python_roadmap_web_contract_lab.LabTests.test_parser</code></pre>
 <p>離線測試需先在隔離環境安裝相應相依。FastAPI 使用 <code>python -m pip install fastapi httpx2</code>（配合近期 Starlette）；DOM 使用 <code>python -m pip install beautifulsoup4</code>；其餘兩例使用標準庫。部署時請另外鎖定經團隊驗證的版本。</p>
 <p>官方參考：<a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup：官方文件</a> · <a href="https://docs.python.org/3.15/library/re.html">Python 3.15：re</a>。內容校閱：2026-11-26（台灣）。</p></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁使用 BeautifulSoup 示範擷取。本節改用標準函式庫 html.parser，並把重點放在擷取後的驗證：欄位格式不符的列排除，表頭與預期不同就整批拒絕，避免網站改版後悄悄產生錯誤資料。</p><h3>可實跑範例：html.parser 擷取表格與版型變動偵測</h3><p>TableParser 把表格轉成二維清單；extract() 先比對表頭，再用 re.fullmatch 驗證每個欄位。SAMPLE_V2 模擬網站把「PM2.5」改成「PM2.5 (μg/m3)」，程式會直接拒絕。最後一行使用 Python 3.15 的 re.prefixmatch()。</p><p><a class="button" download href="extensions/python_3_15_beautifulsoup_re/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;不用第三方套件解析 HTML 表格：html.parser ＋ re 驗證欄位格式，並偵測版型變動。需 Python 3.15（re.prefixmatch）。&quot;&quot;&quot;
+import re
+from html.parser import HTMLParser
+
+SAMPLE_V1 = &quot;&quot;&quot;&lt;table id=&quot;aqi&quot;&gt;&lt;tr&gt;&lt;th&gt;測站&lt;/th&gt;&lt;th&gt;AQI&lt;/th&gt;&lt;th&gt;PM2.5&lt;/th&gt;&lt;th&gt;發布時間&lt;/th&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;中山&lt;/td&gt;&lt;td&gt;42&lt;/td&gt;&lt;td&gt;11&lt;/td&gt;&lt;td&gt;2026-11-28 10:00&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;松山&lt;/td&gt;&lt;td&gt;57&lt;/td&gt;&lt;td&gt;18&lt;/td&gt;&lt;td&gt;2026-11-28 10:00&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;古亭&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;設備維護&lt;/td&gt;&lt;td&gt;2026-11-28 10:00&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&quot;&quot;&quot;
+SAMPLE_V2 = SAMPLE_V1.replace(&quot;&lt;th&gt;PM2.5&lt;/th&gt;&quot;, &quot;&lt;th&gt;PM2.5 (μg/m3)&lt;/th&gt;&quot;)   # 網站改了欄名
+
+EXPECTED = [&quot;測站&quot;, &quot;AQI&quot;, &quot;PM2.5&quot;, &quot;發布時間&quot;]
+TS = re.compile(r&quot;\d{4}-\d{2}-\d{2} \d{2}:\d{2}&quot;)
+
+
+class TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.rows, self._row, self._cell = [], None, None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == &quot;tr&quot;:
+            self._row = []
+        elif tag in (&quot;td&quot;, &quot;th&quot;):
+            self._cell = []
+
+    def handle_data(self, data):
+        if self._cell is not None:
+            self._cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in (&quot;td&quot;, &quot;th&quot;) and self._cell is not None:
+            self._row.append(&quot;&quot;.join(self._cell).strip())
+            self._cell = None
+        elif tag == &quot;tr&quot; and self._row is not None:
+            self.rows.append(self._row)
+            self._row = None
+
+
+def extract(html):
+    p = TableParser()
+    p.feed(html)
+    header, *body = p.rows
+    if header != EXPECTED:
+        raise ValueError(f&quot;版型變動：欄位 {header}&quot;)
+    good, rejected = [], []
+    for name, aqi, pm, ts in body:
+        if re.fullmatch(r&quot;\d{1,3}&quot;, aqi) and re.fullmatch(r&quot;\d{1,4}&quot;, pm) and TS.fullmatch(ts):
+            good.append({&quot;site&quot;: name, &quot;aqi&quot;: int(aqi), &quot;pm25&quot;: int(pm), &quot;ts&quot;: ts})
+        else:
+            rejected.append(name)
+    return good, rejected
+
+
+if __name__ == &quot;__main__&quot;:
+    good, rejected = extract(SAMPLE_V1)
+    for g in good:
+        print(g)
+    print(&quot;格式不符而排除：&quot;, rejected)
+    try:
+        extract(SAMPLE_V2)
+    except ValueError as e:
+        print(e)
+    print(&quot;prefixmatch 判斷是否為時間開頭：&quot;, bool(re.prefixmatch(r&quot;\d{4}-&quot;, &quot;2026-11-28 10:00&quot;)))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，需 Python 3.15（re.prefixmatch）；其餘部分 3.10 以上即可</p><h4>預期輸出（以 Python 3.15.2 實際執行產生）</h4><pre><code>{&#x27;site&#x27;: &#x27;中山&#x27;, &#x27;aqi&#x27;: 42, &#x27;pm25&#x27;: 11, &#x27;ts&#x27;: &#x27;2026-11-28 10:00&#x27;}
+{&#x27;site&#x27;: &#x27;松山&#x27;, &#x27;aqi&#x27;: 57, &#x27;pm25&#x27;: 18, &#x27;ts&#x27;: &#x27;2026-11-28 10:00&#x27;}
+格式不符而排除： [&#x27;古亭&#x27;]
+版型變動：欄位 [&#x27;測站&#x27;, &#x27;AQI&#x27;, &#x27;PM2.5 (μg/m3)&#x27;, &#x27;發布時間&#x27;]
+prefixmatch 判斷是否為時間開頭： True</code></pre><h3>工程現場案例：網站改了欄位順序，AQI 欄位被當成 PM2.5</h3><p>某儀表板每小時擷取一個公開網頁的空品表格。對方網站調整欄位順序後，程式仍依「第 3 欄」取 PM2.5，結果抓到的是另一個指標，數值看起來合理，所以兩週都沒人發現。</p><p>範例的做法是把表頭當成契約：表頭和預期不完全一致就拒絕整批，並告警請人確認。設備維護、數值為「—」等格式不符的列則個別排除並列出，而不是轉成 0。若官方有開放資料 API，應優先使用 API。</p><ol><li>把預期的表頭寫成常數，擷取時先比對，不一致就停止並告警。</li><li>每個欄位用 re.fullmatch 定義格式，fullmatch 比 match 更能避免部分符合。</li><li>保存原始 HTML 與擷取時間，改版時可回溯比對。</li><li>擷取結果與前一次比較，數值突然大幅變化時標記為待確認。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 beautifulsoup4 最新版為 4.15.0、lxml 為 6.2.0。空品資料建議優先使用環境部開放資料 API，不要擷取網頁畫面。 <a href="https://pypi.org/project/beautifulsoup4/">來源：PyPI：beautifulsoup4</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼驗證 AQI 用 re.fullmatch 而不是 re.match（或 re.prefixmatch）？</p><details><summary>看解答</summary><p>match／prefixmatch 只檢查開頭，"42abc" 也會符合 \d{1,3}。fullmatch 要求整個字串都符合，才能排除夾雜其他文字的值。</p></details></li><li><p>古亭站為什麼被排除？排除後應該怎麼呈現在儀表板上？</p><details><summary>看解答</summary><p>AQI 是「—」、PM2.5 是「設備維護」，都不符合數字格式。儀表板應顯示「無資料／設備維護」並標示時間，不能顯示 0 或沿用上一次的值。</p></details></li><li><p>若網站只是在表頭前後多了空白，例如 " AQI "，程式會拒絕嗎？</p><details><summary>看解答</summary><p>不會。handle_endtag 已對每個儲存格 strip()。但若是全形空白或換行以外的字元差異，仍會被拒絕；可以視需要先做 Unicode 正規化（unicodedata.normalize）再比對。</p></details></li><li><p>html.parser 和 BeautifulSoup 該怎麼選？</p><details><summary>看解答</summary><p>結構簡單、只需要少數欄位且不想增加相依套件時，html.parser 就夠用。HTML 不規範、需要 CSS 選擇器或大量巢狀查詢時，BeautifulSoup（搭配 lxml）較省力。兩者都需要同樣的驗證步驟。</p></details></li></ol></section><!-- extension:end -->
 </main>
 
   <footer class="site-footer">

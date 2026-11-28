@@ -277,4 +277,48 @@ def container_state(known_id: str) -> dict:
 <li><a href="https://docs.docker.com/compose/how-tos/networking/">Docker：Compose 網路</a> · <a href="https://docs.docker.com/compose/how-tos/startup-order/">Compose 依賴與健康檢查</a> · <a href="https://docs.docker.com/reference/cli/docker/compose/up/">Compose up</a> · <a href="https://docs.docker.com/reference/cli/docker/compose/run/">Compose run</a></li>
 <li><a href="https://docs.docker.com/engine/storage/bind-mounts/">Docker：Bind mounts</a> · <a href="https://docs.docker.com/engine/install/linux-postinstall/">Docker daemon 權限</a> · <a href="https://docs.docker.com/reference/compose-file/services/#stop_grace_period">stop_grace_period</a></li>
 <li><a href="https://docker-py.readthedocs.io/en/stable/client.html">Docker SDK：Client</a> · <a href="https://docker-py.readthedocs.io/en/stable/containers.html">Docker SDK：Containers</a> · <a href="https://docs.python.org/3/library/subprocess.html">Python：subprocess</a></li></ul></section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁比較了 CLI、SDK 與 API 三種操作方式。用 Python 呼叫 docker CLI 時最常見的風險是把使用者輸入拼進 shell 字串；本節示範以參數清單組裝指令，並在組裝前驗證名稱、映像標籤與掛載路徑。</p><h3>可實跑範例：安全地組出 docker run 參數清單</h3><p>build_run() 只回傳 argv 清單，交給 subprocess.run(argv) 執行時不經 shell，名稱裡的分號或 $() 不會被解譯。同時套用非 root 使用者、唯讀根檔案系統、資源上限、健康檢查與唯讀掛載。範例不會真的執行 Docker。</p><p><a class="button" download href="extensions/python_docker_interop_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;以參數清單（不經 shell）組出 docker run 指令，並在組裝前驗證輸入（標準函式庫）。
+
+subprocess.run(argv) 直接執行參數清單，不會被名稱中的空白、分號或 $() 注入指令。
+範例只印出指令，不實際執行 Docker。
+&quot;&quot;&quot;
+import re
+import shlex
+
+NAME_RE = re.compile(r&quot;[a-z0-9][a-z0-9_.-]{0,62}&quot;)
+IMAGE_RE = re.compile(r&quot;[a-z0-9./_-]+(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})&quot;)
+
+
+def build_run(name, image, data_dir, *, memory=&quot;256m&quot;, cpus=&quot;0.5&quot;):
+    if not NAME_RE.fullmatch(name):
+        raise ValueError(f&quot;容器名稱不合法：{name!r}&quot;)
+    if not IMAGE_RE.fullmatch(image) or image.endswith(&quot;:latest&quot;):
+        raise ValueError(f&quot;映像必須帶明確版本或 digest：{image!r}&quot;)
+    if not data_dir.startswith(&quot;/srv/bms/&quot;):
+        raise ValueError(f&quot;只允許掛載 /srv/bms/ 底下的目錄：{data_dir!r}&quot;)
+    return [&quot;docker&quot;, &quot;run&quot;, &quot;-d&quot;, &quot;--name&quot;, name,
+            &quot;--user&quot;, &quot;10001:10001&quot;, &quot;--read-only&quot;, &quot;--tmpfs&quot;, &quot;/tmp&quot;,
+            &quot;--memory&quot;, memory, &quot;--cpus&quot;, cpus, &quot;--restart&quot;, &quot;unless-stopped&quot;,
+            &quot;--health-cmd&quot;, &quot;python -m app.health&quot;, &quot;--health-interval&quot;, &quot;30s&quot;,
+            &quot;-v&quot;, f&quot;{data_dir}:/data:ro&quot;, image]
+
+
+if __name__ == &quot;__main__&quot;:
+    argv = build_run(&quot;modbus-poller&quot;, &quot;bms/poller:2.4.1&quot;, &quot;/srv/bms/poller&quot;)
+    print(&quot;argv 清單：&quot;, argv[:6], &quot;…&quot;)
+    print(&quot;對應的 shell 指令（僅供閱讀）：&quot;)
+    print(&quot; &quot;, shlex.join(argv))
+    for bad in [(&quot;poller; rm -rf /&quot;, &quot;bms/poller:2.4.1&quot;, &quot;/srv/bms/x&quot;),
+                (&quot;poller&quot;, &quot;bms/poller:latest&quot;, &quot;/srv/bms/x&quot;),
+                (&quot;poller&quot;, &quot;bms/poller:2.4.1&quot;, &quot;/etc&quot;)]:
+        try:
+            build_run(*bad)
+        except ValueError as e:
+            print(&quot;拒絕：&quot;, e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>argv 清單： [&#x27;docker&#x27;, &#x27;run&#x27;, &#x27;-d&#x27;, &#x27;--name&#x27;, &#x27;modbus-poller&#x27;, &#x27;--user&#x27;] …
+對應的 shell 指令（僅供閱讀）：
+  docker run -d --name modbus-poller --user 10001:10001 --read-only --tmpfs /tmp --memory 256m --cpus 0.5 --restart unless-stopped --health-cmd &#x27;python -m app.health&#x27; --health-interval 30s -v /srv/bms/poller:/data:ro bms/poller:2.4.1
+拒絕： 容器名稱不合法：&#x27;poller; rm -rf /&#x27;
+拒絕： 映像必須帶明確版本或 digest：&#x27;bms/poller:latest&#x27;
+拒絕： 只允許掛載 /srv/bms/ 底下的目錄：&#x27;/etc&#x27;</code></pre><h3>工程現場案例：維運面板的容器名稱欄位變成了指令注入點</h3><p>某邊緣主機的維運面板讓使用者輸入容器名稱，後端用 os.system(f"docker restart {name}") 執行。測試人員輸入 poller; docker rm -f influxdb，結果資料庫容器被刪除。問題不在 Docker，而在把字串交給 shell 解譯。</p><p>改成 subprocess.run(["docker", "restart", name]) 並以正規表示式驗證名稱後，同樣的輸入會被直接拒絕。範例也把常見的安全預設集中在一個函式裡，避免每次手寫指令時漏掉 --read-only 或 --memory。</p><ol><li>所有呼叫 docker CLI 的地方改用參數清單，禁止 shell=True 與字串拼接。</li><li>名稱、映像、路徑先用白名單或正規表示式驗證，失敗就拒絕。</li><li>把安全預設（非 root、唯讀、資源上限、健康檢查）寫成共用函式。</li><li>需要大量操作時改用 Docker SDK，同樣限制可操作的容器與動作。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>本頁核對時 Docker SDK for Python（docker 套件）最新版為 7.2.0。透過 SDK 或 CLI 存取 Docker daemon 等同取得主機 root 權限，執行這類工具的帳號與 socket 權限要嚴格限制。 <a href="https://pypi.org/project/docker/">來源：PyPI：docker</a> <a href="https://docs.python.org/3/library/subprocess.html#security-considerations">來源：Python 文件：subprocess 安全考量</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 shlex.join(argv) 只用來「顯示」，不用來執行？</p><details><summary>看解答</summary><p>shlex.join 會為含空白的參數加上引號，方便人閱讀與複製；但執行時再交給 shell 等於回到字串拼接的老路。執行一律用 subprocess.run(argv)。</p></details></li><li><p>IMAGE_RE 為什麼拒絕 :latest？</p><details><summary>看解答</summary><p>:latest 會隨重新拉取而改變，無法追溯現場實際執行的版本。要求明確版本或 sha256 digest，部署才可重現。</p></details></li><li><p>data_dir 的檢查寫成 startswith('/srv/bms/')，傳入 /srv/bms/../../etc 會發生什麼？怎麼修？</p><details><summary>看解答</summary><p>會通過檢查，但實際掛載的是 /etc。應先用 os.path.realpath() 或 Path.resolve() 正規化路徑，再檢查是否位於允許的目錄底下（Path.is_relative_to）。</p></details></li><li><p>--read-only 搭配 --tmpfs /tmp 的用意是什麼？</p><details><summary>看解答</summary><p>根檔案系統唯讀，攻擊者或錯誤程式無法修改容器內的程式檔；但很多程式需要暫存檔，用記憶體中的 tmpfs 提供可寫的 /tmp，重啟後自動清空。</p></details></li></ol></section><!-- extension:end -->
 </main>

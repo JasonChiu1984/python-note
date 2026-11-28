@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁說明部署與執行環境。本節示範一個所有長時間執行的服務都必須處理的情境：部署平台送出 SIGTERM 時，停止接新工作、完成手上的工作、把還沒開始的工作留給下一次，並在期限內結束。",
+ "example_title": "SIGTERM 優雅停機",
+ "example_desc": "訊號處理器只設定一個 Event，實際的停止邏輯在工作迴圈裡檢查。範例在處理 job-2 時對自己送出 SIGTERM，模擬部署平台的停止要求。Windows 的訊號模型不同，範例在 Windows 上會直接說明並結束。",
+ "run_note": "需 Linux 或 macOS，Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "每次滾動更新，總有一批設定寫到一半",
+  "paragraphs": [
+   "某設定下發服務在 Kubernetes 上執行。每次滾動更新時，舊 Pod 收到 SIGTERM 後程式沒有處理，30 秒後被強制終止，正在寫入的設備有時只更新了一半。",
+   "加上訊號處理後，收到 SIGTERM 時目前的設備寫完才停止，尚未開始的工作寫回佇列由新 Pod 接手。停機期限要小於平台的 terminationGracePeriodSeconds，並預留處理時間，否則仍會被強制終止。"
+  ],
+  "steps": [
+   "在主執行緒註冊 SIGTERM（與 SIGINT）處理器，處理器內只設定旗標。",
+   "工作迴圈在每個工作之間檢查旗標，不中斷進行中的工作。",
+   "未開始的工作寫回持久化佇列，確保不遺失也不重複。",
+   "設定停機期限小於平台寬限時間，並在日誌中記錄停機過程。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 的訊號處理器只會在主執行緒執行；signal.signal() 也只能在主執行緒呼叫。Kubernetes 預設 terminationGracePeriodSeconds 為 30 秒。",
+   "sources": [
+    {
+     "title": "Python 文件：signal 與執行緒",
+     "url": "https://docs.python.org/3/library/signal.html#signals-and-threads"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼訊號處理器裡只做 stop.set()，而不直接在處理器中清理資源？",
+   "a": "<p>訊號處理器可能在主執行緒的任何位置被插入執行，在裡面做複雜操作（例如取得鎖、寫檔）容易造成死結或狀態不一致。只設定旗標，由正常的程式流程決定何時停止，是最安全的做法。</p>"
+  },
+  {
+   "q": "若 job-2 本身需要 60 秒，而平台寬限只有 30 秒，會發生什麼？怎麼處理？",
+   "a": "<p>工作還沒完成就被 SIGKILL 強制終止。長工作要設計成可中斷與可續做：分段提交進度、收到停止訊號時在安全點保存狀態，或調整平台寬限時間。</p>"
+  },
+  {
+   "q": "容器裡若 Python 不是 PID 1（例如被 shell 包住），會有什麼問題？",
+   "a": "<p>SIGTERM 送給 PID 1 的 shell，shell 預設不轉發給子程序，Python 收不到訊號。應使用 exec 形式的 ENTRYPOINT，或使用 tini 等小型 init 轉發訊號。</p>"
+  },
+  {
+   "q": "t.join(timeout=5) 逾時後程式就結束了，worker 執行緒還在跑會怎樣？",
+   "a": "<p>若 worker 不是 daemon 執行緒，Python 會等它結束才真正退出，期限形同虛設；若是 daemon，會被直接中斷。期限到時應記錄未完成的工作，並明確決定強制結束的方式。</p>"
+  }
+ ]
+}

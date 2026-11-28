@@ -387,7 +387,63 @@ if __name__ == "__main__":
         <a class="button light" href="index.html">回入口</a>
         <a class="button primary" href="#top">回到最上層</a>
       </nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明版本升級治理。本節提供一個升級前的自動檢查：用 ast 掃描程式碼中已被移除的標準函式庫模組與已棄用的呼叫，在換版本之前就找出會壞的地方。</p><h3>可實跑範例：用 ast 掃描已移除模組與棄用 API</h3><p>ast 只剖析不執行程式碼，所以即使程式匯入了目前環境不存在的模組也能掃描。範例的規則表只列幾個常見項目，完整清單請依各版本 What's New 的 Removed 與 Deprecated 章節補充。</p><p><a class="button" download href="extensions/python_modernization_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;用 ast 掃描程式碼中已移除或已棄用的標準函式庫用法，作為升級 Python 版本前的檢查（標準函式庫）。&quot;&quot;&quot;
+import ast
+
+REMOVED = {           # 模組: (移除版本, 替代方案)
+    &quot;distutils&quot;: (&quot;3.12&quot;, &quot;setuptools 或 packaging&quot;),
+    &quot;imp&quot;: (&quot;3.12&quot;, &quot;importlib&quot;),
+    &quot;asyncore&quot;: (&quot;3.12&quot;, &quot;asyncio&quot;),
+    &quot;asynchat&quot;: (&quot;3.12&quot;, &quot;asyncio&quot;),
+    &quot;cgi&quot;: (&quot;3.13&quot;, &quot;email.message 或 multipart 套件&quot;),
+    &quot;telnetlib&quot;: (&quot;3.13&quot;, &quot;第三方套件（如 telnetlib3）&quot;),
+    &quot;pipes&quot;: (&quot;3.13&quot;, &quot;subprocess、shlex.quote&quot;),
+}
+DEPRECATED_CALLS = {
+    (&quot;datetime&quot;, &quot;utcnow&quot;): (&quot;3.12 起棄用&quot;, &quot;datetime.now(timezone.utc)&quot;),
+    (&quot;datetime&quot;, &quot;utcfromtimestamp&quot;): (&quot;3.12 起棄用&quot;, &quot;datetime.fromtimestamp(ts, timezone.utc)&quot;),
+}
+
+SOURCE = &#x27;&#x27;&#x27;
+import telnetlib
+from distutils.version import LooseVersion
+from datetime import datetime, timezone
+
+def stamp():
+    return datetime.utcnow().isoformat()
+
+def ok():
+    return datetime.now(timezone.utc)
+&#x27;&#x27;&#x27;
+
+
+def scan(src, filename=&quot;legacy_gateway.py&quot;):
+    tree = ast.parse(src, filename)
+    for node in ast.walk(tree):
+        mods = []
+        if isinstance(node, ast.Import):
+            mods = [a.name.split(&quot;.&quot;)[0] for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            mods = [node.module.split(&quot;.&quot;)[0]]
+        for m in mods:
+            if m in REMOVED:
+                ver, alt = REMOVED[m]
+                yield node.lineno, f&quot;{m} 已於 Python {ver} 移除 → {alt}&quot;
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            base = node.func.value
+            key = (base.id if isinstance(base, ast.Name) else None, node.func.attr)
+            if key in DEPRECATED_CALLS:
+                when, alt = DEPRECATED_CALLS[key]
+                yield node.lineno, f&quot;{key[0]}.{key[1]}() {when} → {alt}&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    for line, msg in sorted(scan(SOURCE)):
+        print(f&quot;legacy_gateway.py:{line}: {msg}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>legacy_gateway.py:2: telnetlib 已於 Python 3.13 移除 → 第三方套件（如 telnetlib3）
+legacy_gateway.py:3: distutils 已於 Python 3.12 移除 → setuptools 或 packaging
+legacy_gateway.py:7: datetime.utcnow() 3.12 起棄用 → datetime.now(timezone.utc)</code></pre><h3>工程現場案例：能源報表伺服器卡在 Python 3.10，因為怕升級</h3><p>某能源報表伺服器仍跑 Python 3.10，而 3.10 已在 2026 年 10 月結束支援。團隊遲遲不升級，因為不知道哪些舊程式會壞。用範例的掃描器跑過全部程式碼後，發現問題集中在 3 個檔案：一個用 telnetlib 讀舊電表、一個用 distutils 比較版本、多處使用 datetime.utcnow()。</p><p>有了清單就能估工：telnetlib 改用第三方套件、版本比較改用 packaging.version、utcnow() 改成帶時區的 datetime.now(timezone.utc)。修完後在 CI 加上新版本的測試矩陣，升級變成一個可規劃的工作。</p><ol><li>對整個程式庫執行掃描器，輸出檔名、行號與替代方案。</li><li>以 python -W error::DeprecationWarning 跑完整測試，抓出執行期才出現的棄用警告。</li><li>在 CI 加入目標版本的測試矩陣，先允許失敗，修完後改為必過。</li><li>相依套件逐一確認支援目標版本，必要時先升級套件。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>PEP 594 規劃的「dead batteries」模組（cgi、telnetlib、pipes 等）已於 Python 3.13 全部移除；distutils、imp、asyncore、asynchat 已於 3.12 移除。datetime.utcnow() 與 utcfromtimestamp() 自 3.12 起發出 DeprecationWarning。 <a href="https://peps.python.org/pep-0594/">來源：PEP 594</a> <a href="https://docs.python.org/3/whatsnew/3.12.html">來源：What's new in Python 3.12：Removed</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼用 ast 掃描，而不是直接在新版本上 import 每個模組？</p><details><summary>看解答</summary><p>import 會執行模組頂層程式碼，可能連線設備或寫檔；而且遇到第一個 ImportError 就停止。ast 只剖析語法，安全且能一次列出全部問題。</p></details></li><li><p>程式碼寫成 import datetime as dt; dt.datetime.utcnow()，範例掃得到嗎？</p><details><summary>看解答</summary><p>掃不到。範例只比對 datetime.utcnow() 這種形式（屬性的基底是名為 datetime 的變數）。要涵蓋別名，需要追蹤 import 的對應關係，或改用 ruff 的 DTZ 規則等現成工具。</p></details></li><li><p>datetime.utcnow() 有什麼問題，為什麼被棄用？</p><details><summary>看解答</summary><p>它回傳不帶時區資訊的 naive datetime，看起來像本地時間，與其他時間比較或轉換時容易出錯。datetime.now(timezone.utc) 回傳帶 UTC 時區的 aware datetime，語意明確。</p></details></li><li><p>若要把掃描器加進 CI，失敗條件應該怎麼設？</p><details><summary>看解答</summary><p>對「已在目標版本移除」的項目直接失敗；「已棄用但仍可用」的項目先列為警告並設定修正期限。也可以維護一份允許清單，記錄暫時無法修正的位置與原因。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <button class="back-to-top" type="button" aria-label="回到最上層">↑</button>
 

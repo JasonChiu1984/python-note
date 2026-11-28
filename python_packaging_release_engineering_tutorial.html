@@ -1002,6 +1002,58 @@ if tagged_hash != record_hash(content) or length != str(len(content)):
     failures.append(name)</code></pre>
 <p>官方資料：<a href="https://packaging.python.org/en/latest/specifications/binary-distribution-format/">PyPA：Binary distribution format / RECORD</a>、<a href="https://docs.python.org/3/library/zipfile.html">Python：zipfile</a>。</p>
 </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明打包與發布工程。本節把發布前最常出錯的檢查寫成程式：版本號是否符合 PEP 440、是否大於已發行的版本、wheel 檔名代表什麼，以及產生校驗用的 SHA256SUMS。</p><h3>可實跑範例：版本號、wheel 檔名與 SHA256SUMS</h3><p>PEP440 正規表示式涵蓋常見形式（epoch、預發行、post、dev、local），完整比較請使用 packaging.version。wheel_info() 拆解檔名中的套件、版本與相容性標籤。範例的成品內容為示意。</p><p><a class="button" download href="extensions/python_packaging_release_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;發行前檢查：版本號符合 PEP 440、版本遞增、wheel 檔名解析與 SHA256SUMS 產生（標準函式庫）。&quot;&quot;&quot;
+import hashlib
+import re
+
+PEP440 = re.compile(r&quot;^(\d+!)?\d+(\.\d+)*((a|b|rc)\d+)?(\.post\d+)?(\.dev\d+)?(\+[a-z0-9.]+)?$&quot;, re.I)
+
+
+def parse(v):
+    m = re.match(r&quot;(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?&quot;, v)
+    nums = tuple(int(x) for x in m.groups()[:3])
+    pre = {&quot;a&quot;: 0, &quot;b&quot;: 1, &quot;rc&quot;: 2, None: 3}[m.group(4)]
+    return nums + (pre, int(m.group(5) or 0))
+
+
+def wheel_info(name):
+    parts = name[:-4].split(&quot;-&quot;)
+    dist, ver, *rest = parts
+    py, abi, plat = rest[-3:]
+    return {&quot;套件&quot;: dist, &quot;版本&quot;: ver, &quot;Python&quot;: py, &quot;ABI&quot;: abi, &quot;平台&quot;: plat}
+
+
+if __name__ == &quot;__main__&quot;:
+    for v in (&quot;2.4.1&quot;, &quot;2.5.0rc1&quot;, &quot;2.5&quot;, &quot;v2.5.0&quot;, &quot;2.5.0-beta&quot;, &quot;2.5.0.post1&quot;, &quot;1!2.0&quot;):
+        print(f&quot;{v:&lt;12} PEP 440：{&#x27;合法&#x27; if PEP440.match(v) else &#x27;不合法&#x27;}&quot;)
+    released = [&quot;2.4.0&quot;, &quot;2.4.1&quot;]
+    for cand in (&quot;2.4.1&quot;, &quot;2.4.0&quot;, &quot;2.5.0rc1&quot;, &quot;2.5.0&quot;):
+        ok = parse(cand) &gt; parse(released[-1])
+        print(f&quot;候選 {cand}：{&#x27;可發行&#x27; if ok else &#x27;拒絕（未大於已發行的 &#x27; + released[-1] + &#x27;）&#x27;}&quot;)
+    print(&quot;2.5.0rc1 &lt; 2.5.0：&quot;, parse(&quot;2.5.0rc1&quot;) &lt; parse(&quot;2.5.0&quot;))
+    for w in (&quot;bmsgateway-2.5.0-py3-none-any.whl&quot;, &quot;bmsfast-2.5.0-cp313-cp313-manylinux_2_28_x86_64.whl&quot;):
+        print(wheel_info(w))
+    artifacts = {&quot;bmsgateway-2.5.0-py3-none-any.whl&quot;: b&quot;wheel bytes&quot;, &quot;bmsgateway-2.5.0.tar.gz&quot;: b&quot;sdist bytes&quot;}
+    print(&quot;SHA256SUMS：&quot;)
+    for n, data in sorted(artifacts.items()):
+        print(f&quot;{hashlib.sha256(data).hexdigest()}  {n}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>2.4.1        PEP 440：合法
+2.5.0rc1     PEP 440：合法
+2.5          PEP 440：合法
+v2.5.0       PEP 440：不合法
+2.5.0-beta   PEP 440：不合法
+2.5.0.post1  PEP 440：合法
+1!2.0        PEP 440：合法
+候選 2.4.1：拒絕（未大於已發行的 2.4.1）
+候選 2.4.0：拒絕（未大於已發行的 2.4.1）
+候選 2.5.0rc1：可發行
+候選 2.5.0：可發行
+2.5.0rc1 &lt; 2.5.0： True
+{&#x27;套件&#x27;: &#x27;bmsgateway&#x27;, &#x27;版本&#x27;: &#x27;2.5.0&#x27;, &#x27;Python&#x27;: &#x27;py3&#x27;, &#x27;ABI&#x27;: &#x27;none&#x27;, &#x27;平台&#x27;: &#x27;any&#x27;}
+{&#x27;套件&#x27;: &#x27;bmsfast&#x27;, &#x27;版本&#x27;: &#x27;2.5.0&#x27;, &#x27;Python&#x27;: &#x27;cp313&#x27;, &#x27;ABI&#x27;: &#x27;cp313&#x27;, &#x27;平台&#x27;: &#x27;manylinux_2_28_x86_64&#x27;}
+SHA256SUMS：
+67c0d8f7de19e30c2d5891030a0b37cbfcdd240852b53055c0b28290ad52290b  bmsgateway-2.5.0-py3-none-any.whl
+d3d5861e9ea6cbf19696b47dd712a900fbb326192e16813e3e2114bb8117e6ec  bmsgateway-2.5.0.tar.gz</code></pre><h3>工程現場案例：版本 v2.5.0-beta 上傳後，排在 2.4.1 前面</h3><p>某團隊在 Git 標籤用 v2.5.0-beta，並直接把它寫進套件版本。這不符合 PEP 440，部分工具會拒絕，部分會正規化成意料之外的值，安裝工具的版本排序也因此出錯。正確寫法是 2.5.0b1。</p><p>另一個常見錯誤是重新發行同一個版本號：修了一個錯誤又以 2.4.1 上傳。套件庫通常不允許覆蓋，就算內部套件庫允許，已安裝 2.4.1 的機器也不會更新。範例的檢查會拒絕不大於已發行版本的候選版本。</p><ol><li>版本號只在 pyproject.toml 維護，Git 標籤由它產生（例如 v + 版本號）。</li><li>發行前檢查 PEP 440 格式與版本遞增。</li><li>建置 sdist 與 wheel 後產生 SHA256SUMS，與成品一起保存。</li><li>使用 Trusted Publishing 等機制上傳，並保留建置紀錄。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>版本號規格現由 Python Packaging User Guide 的 Version specifiers 維護（源自 PEP 440）；wheel 的平台標籤 manylinux_x_y 依 PEP 600。本頁核對時 uv 最新版 0.13.10，可用 uv build 建置、uv publish 上傳。 <a href="https://packaging.python.org/en/latest/specifications/version-specifiers/">來源：Version specifiers 規格</a> <a href="https://peps.python.org/pep-0600/">來源：PEP 600</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>2.5.0rc1 為什麼小於 2.5.0？</p><details><summary>看解答</summary><p>依 PEP 440，預發行版本（a、b、rc）排在同一版本號的正式版之前。parse() 把正式版的預發行等級設為 3，大於 rc 的 2，所以比較時正式版較大。</p></details></li><li><p>cp313-cp313-manylinux_2_28_x86_64 代表什麼？</p><details><summary>看解答</summary><p>只適用 CPython 3.13、使用 CPython 3.13 的 ABI、需要 glibc 2.28 以上的 x86_64 Linux。在 Python 3.14 或 macOS 上，安裝工具不會選用這個 wheel。</p></details></li><li><p>範例的 parse() 有哪些 PEP 440 情況處理不了？</p><details><summary>看解答</summary><p>epoch（1!2.0）、post、dev 與 local 版本，以及少於三段的版本號（2.5）都不支援。正式專案應使用 packaging.version.Version，它完整實作了規格。</p></details></li><li><p>SHA256SUMS 的用途是什麼？誰會用到它？</p><details><summary>看解答</summary><p>讓下載者確認拿到的檔案與發行時相同，沒有在傳輸或存放過程中被替換。內部部署腳本可以在安裝前比對；搭配簽章使用時還能證明檔案來自發行者。</p></details></li></ol></section><!-- extension:end -->
 </main>
   </div>
   <script>

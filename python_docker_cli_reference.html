@@ -49,7 +49,64 @@
 <article class="tile" data-group="compose" data-risk="變更"><h3>docker compose down</h3><div class="meta"><span>管理專案</span><span class="flag flag-change">變更</span></div><pre tabindex="0"><code>docker --context default compose -p python-interop-lab down</code></pre><dl><dt>預期證據</dt><dd>停止並移除這個實驗專案的容器和非外部網路。</dd><dt>注意事項</dt><dd>不加 -v 預設不移除 volumes，但容器可寫層會消失；匿名卷不保證下次 up 自動掛回。</dd></dl><div class="tile-footer"><a href="https://docs.docker.com/reference/cli/docker/compose/down/">官方參數</a><button class="mini" type="button" aria-label="複製第 29 條指令" hidden>複製指令</button></div></article></div>
 <p id="cli-empty" hidden>查無相符資料。試著清掉關鍵字或放寬分類。</p>
 <p class="caption">參考：<a href="https://docs.docker.com/reference/cli/docker/">Docker CLI</a> · <a href="https://docs.docker.com/reference/cli/docker/compose/">Compose</a> · <a href="https://docs.docker.com/reference/cli/docker/buildx/build/">Buildx</a>。範例預期輸出是判讀提示，不是實測紀錄。</p>
-</section></main>
+</section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁整理了 Docker 指令與預期輸出。本節把 docker ps 與 docker inspect 的 JSON 輸出交給 Python 檢查，一次找出現場最常見的容器問題：重啟迴圈、沒有健康檢查、以 root 執行、沒有記憶體上限與使用 :latest。</p><h3>可實跑範例：容器健康度批次檢查</h3><p>範例內嵌兩段模擬輸出；實際使用時把 docker ps -a --format '{{json .}}' 與 docker inspect 的結果存成檔案再讀入。檢查規則可依專案增減。</p><p><a class="button" download href="extensions/python_docker_cli_reference/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;解析 docker ps／inspect 的 JSON 輸出，找出重啟中、沒有健康檢查或以 root 執行的容器（標準函式庫）。
+
+實際使用：docker ps -a --format &#x27;{{json .}}&#x27; &gt; ps.jsonl；docker inspect $(docker ps -aq) &gt; inspect.json
+&quot;&quot;&quot;
+import json
+
+PS_JSONL = &quot;&quot;&quot;{&quot;Names&quot;:&quot;bms-gateway&quot;,&quot;Image&quot;:&quot;bms/gateway:2.4.1&quot;,&quot;State&quot;:&quot;running&quot;,&quot;Status&quot;:&quot;Up 3 days (healthy)&quot;}
+{&quot;Names&quot;:&quot;modbus-poller&quot;,&quot;Image&quot;:&quot;bms/poller:latest&quot;,&quot;State&quot;:&quot;restarting&quot;,&quot;Status&quot;:&quot;Restarting (1) 12 seconds ago&quot;}
+{&quot;Names&quot;:&quot;influxdb&quot;,&quot;Image&quot;:&quot;influxdb:2.7&quot;,&quot;State&quot;:&quot;running&quot;,&quot;Status&quot;:&quot;Up 3 days&quot;}&quot;&quot;&quot;
+
+INSPECT = [
+    {&quot;Name&quot;: &quot;/bms-gateway&quot;, &quot;Config&quot;: {&quot;User&quot;: &quot;app&quot;, &quot;Healthcheck&quot;: {&quot;Test&quot;: [&quot;CMD&quot;, &quot;python&quot;, &quot;-m&quot;, &quot;health&quot;]}},
+     &quot;RestartCount&quot;: 0, &quot;HostConfig&quot;: {&quot;RestartPolicy&quot;: {&quot;Name&quot;: &quot;unless-stopped&quot;}, &quot;Memory&quot;: 268435456}},
+    {&quot;Name&quot;: &quot;/modbus-poller&quot;, &quot;Config&quot;: {&quot;User&quot;: &quot;&quot;, &quot;Healthcheck&quot;: None},
+     &quot;RestartCount&quot;: 147, &quot;HostConfig&quot;: {&quot;RestartPolicy&quot;: {&quot;Name&quot;: &quot;always&quot;}, &quot;Memory&quot;: 0}},
+    {&quot;Name&quot;: &quot;/influxdb&quot;, &quot;Config&quot;: {&quot;User&quot;: &quot;&quot;, &quot;Healthcheck&quot;: None},
+     &quot;RestartCount&quot;: 0, &quot;HostConfig&quot;: {&quot;RestartPolicy&quot;: {&quot;Name&quot;: &quot;no&quot;}, &quot;Memory&quot;: 0}},
+]
+
+
+def findings():
+    ps = {row[&quot;Names&quot;]: row for row in map(json.loads, PS_JSONL.splitlines())}
+    for c in INSPECT:
+        name = c[&quot;Name&quot;].lstrip(&quot;/&quot;)
+        issues = []
+        if ps[name][&quot;State&quot;] == &quot;restarting&quot; or c[&quot;RestartCount&quot;] &gt; 5:
+            issues.append(f&quot;重啟 {c[&#x27;RestartCount&#x27;]} 次，先看 docker logs --tail 50 {name}&quot;)
+        if not c[&quot;Config&quot;][&quot;Healthcheck&quot;]:
+            issues.append(&quot;沒有 HEALTHCHECK&quot;)
+        if c[&quot;Config&quot;][&quot;User&quot;] in (&quot;&quot;, &quot;root&quot;, &quot;0&quot;):
+            issues.append(&quot;以 root 執行&quot;)
+        if c[&quot;HostConfig&quot;][&quot;Memory&quot;] == 0:
+            issues.append(&quot;未設定記憶體上限&quot;)
+        if ps[name][&quot;Image&quot;].endswith(&quot;:latest&quot;):
+            issues.append(&quot;使用 :latest；請另記錄實際映像 ID 或 digest&quot;)
+        if c[&quot;HostConfig&quot;][&quot;RestartPolicy&quot;][&quot;Name&quot;] == &quot;no&quot;:
+            issues.append(&quot;重開機後不會自動啟動&quot;)
+        yield name, issues
+
+
+if __name__ == &quot;__main__&quot;:
+    for name, issues in findings():
+        print(f&quot;{name}: {&#x27;OK&#x27; if not issues else &#x27;&#x27;}&quot;)
+        for i in issues:
+            print(f&quot;  - {i}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>bms-gateway: OK
+modbus-poller:
+  - 重啟 147 次，先看 docker logs --tail 50 modbus-poller
+  - 沒有 HEALTHCHECK
+  - 以 root 執行
+  - 未設定記憶體上限
+  - 使用 :latest；請另記錄實際映像 ID 或 digest
+influxdb:
+  - 沒有 HEALTHCHECK
+  - 以 root 執行
+  - 未設定記憶體上限
+  - 重開機後不會自動啟動</code></pre><h3>工程現場案例：Modbus 輪詢容器重啟 147 次，資料庫卻沒告警</h3><p>某邊緣主機以 Docker 執行閘道器、輪詢程式與 InfluxDB。輪詢容器因設定檔錯誤持續崩潰，重啟政策是 always，所以 docker ps 偶爾看到它是 Up 狀態；但因為沒有健康檢查，監控只看到「容器存在」就判定正常，趨勢資料斷了三天才被發現。</p><p>範例把這類問題變成可定期執行的檢查：重啟次數過多、缺少 HEALTHCHECK、以 root 執行、沒有記憶體上限，以及使用無法追溯版本的 :latest 標籤。InfluxDB 的重啟政策為 no，主機重開機後不會自動啟動，也被一併列出。</p><ol><li>每個容器都定義 HEALTHCHECK，檢查實際功能（例如最近一次成功輪詢的時間），而不只是程序存在。</li><li>記錄部署時實際的映像 ID 或 digest；即使是具版本號的標籤也可能變動。</li><li>Dockerfile 指定非 root 使用者；記憶體上限在容器執行或 Compose 設定，並以 inspect 驗證。</li><li>把範例的檢查排入每日排程，結果送到既有的告警管道。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Docker SDK for Python（docker 套件）本頁核對時最新版為 7.2.0。用 SDK 取得的 attrs 結構與 docker inspect 的 JSON 相同，範例的檢查邏輯可直接沿用。 <a href="https://pypi.org/project/docker/">來源：PyPI：docker</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>Config.User 為空字串代表什麼？</p><details><summary>看解答</summary><p>代表映像沒有指定使用者，容器內程序預設以 root（UID 0）執行。即使在容器內，root 權限仍會擴大逃逸或掛載卷宗被誤寫的影響範圍。</p></details></li><li><p>HostConfig.Memory 為 0 代表什麼？為什麼要設定上限？</p><details><summary>看解答</summary><p>0 表示沒有限制，容器可以用到主機全部記憶體。程式記憶體洩漏時會拖垮同一主機上的其他服務；設定上限後只會影響該容器，並由重啟政策處理。</p></details></li><li><p>若要把「重啟次數大於 5」改成「最近一小時內重啟超過 3 次」，需要哪些資料？</p><details><summary>看解答</summary><p>RestartCount 是累計值，無法得知時間分布。需要定期記錄 RestartCount 與時間，計算一小時內的差值；或讀取 docker events 的 die／start 事件。</p></details></li><li><p>為什麼 :latest 被列為問題？</p><details><summary>看解答</summary><p>:latest 只是一個會移動的標籤。重新拉取映像時可能取得不同版本，事故時無法確定現場跑的是哪一版。具版本的標籤也可能變動；要固定內容，使用 image digest（@sha256:…）。</p></details></li></ol></section><!-- extension:end -->
+</main>
 <script>
 'use strict';
 const el=id=>document.getElementById(id);

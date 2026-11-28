@@ -2183,7 +2183,49 @@ class NoteService:
       <footer class="footer">
         <p>教材檔案為單一 HTML，CSS、JavaScript、SVG 都已內嵌。範例輸出是教學用預期結果，不會在瀏覽器中執行 Python 程式碼。版本：v4.2.40，發布重點：以本地最新 <code>v4.2.39</code> 為 baseline 再次確認教程深度、廣度、頁面版本與 dated maintenance artifacts 後，沒有新增章節需求、lesson regression 或 artifact-chain 缺口。本輪主要處理的仍是尚未完成的 Git publish traceability gap，且 <code>origin/main</code> 仍停在已發布的 <code>v4.2.31</code>，因此同步補上今日 maintenance evidence，並把首頁、repo metadata 與 major pages 一起提升到新的 documentation-oriented maintenance release。</p>
       </footer>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>初級課程介紹了變數、串列、字典、迴圈與函式。本節用一個小任務把它們全部用一次：整理一天的溫度紀錄，分類、計數並找出偏熱的時段。</p><h3>可實跑範例：整理一天的溫度紀錄</h3><p>readings 是由（時間, 溫度）組成的串列；classify() 是有多個條件的函式；summary() 用串列推導式取出溫度、用字典計數；最後用 f-string 對齊輸出。所有語法都在初級課程範圍內。</p><p><a class="button" download href="extensions/python_beginner_interactive_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;初學者綜合練習：串列、字典、迴圈、函式與 f-string，整理一天的溫度紀錄（標準函式庫）。&quot;&quot;&quot;
+
+readings = [
+    (&quot;08:00&quot;, 23.1), (&quot;09:00&quot;, 24.6), (&quot;10:00&quot;, 26.2), (&quot;11:00&quot;, 27.8),
+    (&quot;12:00&quot;, 28.5), (&quot;13:00&quot;, 29.1), (&quot;14:00&quot;, 28.7), (&quot;15:00&quot;, 27.4),
+]
+
+
+def classify(temp):
+    if temp &gt;= 28:
+        return &quot;偏熱&quot;
+    if temp &gt;= 25:
+        return &quot;注意&quot;
+    return &quot;舒適&quot;
+
+
+def summary(rows):
+    temps = [t for _, t in rows]                     # 串列推導式
+    counts = {}
+    for _, t in rows:
+        level = classify(t)
+        counts[level] = counts.get(level, 0) + 1     # 字典計數
+    return {&quot;最高&quot;: max(temps), &quot;最低&quot;: min(temps), &quot;平均&quot;: round(sum(temps) / len(temps), 1), &quot;分類&quot;: counts}
+
+
+if __name__ == &quot;__main__&quot;:
+    for time, temp in readings:
+        print(f&quot;{time}  {temp:&gt;4.1f} °C  {classify(temp)}&quot;)
+    s = summary(readings)
+    print(&quot;摘要：&quot;, s)
+    hot = [time for time, temp in readings if temp &gt;= 28]
+    print(f&quot;偏熱時段共 {len(hot)} 小時：{&#x27;, &#x27;.join(hot)}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>08:00  23.1 °C  舒適
+09:00  24.6 °C  舒適
+10:00  26.2 °C  注意
+11:00  27.8 °C  注意
+12:00  28.5 °C  偏熱
+13:00  29.1 °C  偏熱
+14:00  28.7 °C  偏熱
+15:00  27.4 °C  注意
+摘要： {&#x27;最高&#x27;: 29.1, &#x27;最低&#x27;: 23.1, &#x27;平均&#x27;: 26.9, &#x27;分類&#x27;: {&#x27;舒適&#x27;: 2, &#x27;注意&#x27;: 3, &#x27;偏熱&#x27;: 3}}
+偏熱時段共 3 小時：12:00, 13:00, 14:00</code></pre><h3>工程現場案例：從 Excel 手動整理，改成十幾行 Python</h3><p>某值班人員每天要從溫度紀錄中找出最高、最低、平均溫度與偏熱的時段，在 Excel 裡手動篩選大約要 10 分鐘，偶爾還會漏看一列。用範例的程式，只要把資料換成當天的紀錄，一執行就得到同樣的摘要。</p><p>這也是學程式最好的起點：找一個自己每天重複做、規則清楚的小工作，先用最基本的語法寫出來，之後再學讀檔（CSV）、畫圖與排程。</p><ol><li>把自己的資料用範例的格式寫成串列，或練習改成從 CSV 讀入。</li><li>修改 classify() 的門檻，改成自己場域的標準。</li><li>在 summary() 加上一個新欄位，例如「超過 28 °C 的時數」。</li><li>把程式存成檔案，每天執行一次並比較結果。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>範例在 Python 3.10–3.15 皆可執行。初學者建議安裝 Python 3.13 或 3.14；python.org 官方安裝程式在 Windows 上記得勾選 Add python.exe to PATH。 <a href="https://www.python.org/downloads/">來源：python.org：Downloads</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若 16:00 的溫度是 25.0，classify() 會回傳什麼？</p><details><summary>看解答</summary><p>「注意」。條件是 temp &gt;= 25，等於 25 也算。寫門檻時要清楚決定邊界值屬於哪一邊。</p></details></li><li><p>counts.get(level, 0) + 1 這一行在做什麼？</p><details><summary>看解答</summary><p>取出該分類目前的次數（還沒出現過就當作 0），加 1 後存回。這是用字典計數最常見的寫法，也可以改用 collections.Counter。</p></details></li><li><p>把平均溫度改成顯示到小數第 2 位，要改哪裡？</p><details><summary>看解答</summary><p>把 round(sum(temps) / len(temps), 1) 的 1 改成 2。</p></details></li><li><p>若 readings 是空串列，程式會發生什麼錯誤？怎麼避免？</p><details><summary>看解答</summary><p>max() 與 min() 會丟出 ValueError，len(temps) 為 0 也會造成除以零。在 summary() 開頭先檢查 if not rows: 並回傳適當訊息。</p></details></li></ol></section><!-- extension:end -->
+</main>
     <button class="back-to-top" type="button" aria-label="回到最上層" title="回到最上層">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>

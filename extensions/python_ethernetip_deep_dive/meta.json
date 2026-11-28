@@ -1,0 +1,18 @@
+{"lang":"zh","python":"3.13","checked":"2026-11-28",
+"intro":"本節不連實機，只用 struct 組出與解析 EtherNet/IP 封裝標頭與 ListIdentity 回應，練習讀懂封包裡的位元組，並注意同一個封包裡 little-endian 與 big-endian 混用的位置。",
+"example_title":"封裝標頭與 ListIdentity 解析",
+"example_desc":"封裝標頭固定 24 位元組、全部 little-endian；Identity 項目中的 Socket Address 沿用 sockaddr_in，是 big-endian。程式也示範長度欄位與實際資料不符時直接拒絕。",
+"run_note":"只需 Python 3.10 以上，無第三方套件；不會送出任何網路封包",
+"case":{"title":"盤點現場 PLC 與通訊模組","paragraphs":[
+"接手一個舊廠區時，常常沒有完整的 PLC 清冊。ListIdentity 是 EtherNet/IP 的唯讀探索指令（UDP 44818），回應包含廠商代碼、產品代碼、韌體版本、序號與產品名稱，可以在不改變設備狀態的前提下建立清冊，並找出韌體過舊、需要評估資安公告的模組。",
+"即使是唯讀探索，也要在維護窗口、經現場同意後進行，並限制在指定網段。廣播封包可能被防火牆或交換器政策阻擋，結果不完整時要用單播逐台確認，不要直接當成「沒有設備」。"],
+"steps":["取得網段清單與執行許可，確認不會影響控制網路的頻寬。",
+"以單播或受控廣播送出 ListIdentity，記錄每台回應的 IP、廠商代碼、產品代碼、韌體版本與序號。",
+"把韌體版本與廠商資安公告比對，列出需要升級或加強網路隔離的設備。",
+"清冊與網路圖一起納入變更管理，之後每次異動都更新。"]},
+"updates":[{"text":"本頁核對時 Python 常用的 EtherNet/IP 套件版本：pycomm3 1.2.16、cpppo 5.8.0。存取 PLC 標籤前要確認套件支援的控制器系列與連線方式，並優先使用唯讀標籤。","sources":[{"title":"PyPI：pycomm3","url":"https://pypi.org/project/pycomm3/"},{"title":"PyPI：cpppo","url":"https://pypi.org/project/cpppo/"}]}],
+"exercises":[
+{"q":"為什麼 HEADER 用 \"<HHII8sI\"，而 Socket Address 要用 \">hH4s\"？","a":"<p>EtherNet/IP 封裝與 CIP 資料採 little-endian；Socket Address 欄位直接沿用 BSD sockaddr_in 結構，依網路慣例採 big-endian（網路位元組順序）。同一個封包裡兩種順序並存，解析時要分段處理。</p>"},
+{"q":"回應標頭的 length 是 51，Identity 項目長度是 45。差的 6 位元組是什麼？","a":"<p>CPF（Common Packet Format）前導：項目數（2 位元組）、項目型別（2 位元組）、項目長度（2 位元組）。</p>"},
+{"q":"若產品名稱是 32 個字元，parse_identity_item() 需要修改嗎？","a":"<p>不需要。名稱是 SHORT_STRING，第一個位元組是長度，程式依長度切片；state 也依名稱長度計算位置。但應加上邊界檢查，避免長度欄位大於實際資料。</p>"},
+{"q":"為什麼探索時用 ListIdentity，而不是直接讀寫標籤？","a":"<p>ListIdentity 不需要建立 session，也不會讀寫控制資料，對設備影響最小。讀寫標籤需要 RegisterSession 與連線，若路徑或資料型別錯誤，可能影響控制器或產生不預期的寫入。</p>"}]}

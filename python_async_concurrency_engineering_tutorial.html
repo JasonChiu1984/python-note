@@ -716,7 +716,43 @@ if __name__ == "__main__":
 </div>
 </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明非同步並發工程。本節示範輪詢大量設備時的三個必要控制：用 Semaphore 限制同時連線數、用 wait_for 為每台設備設定逾時，以及用 gather(return_exceptions=True) 讓一台失敗不影響其他台的結果。</p><h3>可實跑範例：併發上限、逾時與部分失敗</h3><p>8 台電表中 M05 需要 1 秒才回應，逾時設定 0.2 秒。程式記錄同時進行的連線數，確認不超過上限 3；結果分成成功與逾時兩組。</p><p><a class="button" download href="extensions/python_async_concurrency_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;asyncio 併發上限與逾時：Semaphore 限制同時連線數、wait_for 處理單台逾時、gather 收集結果不中斷（標準函式庫）。&quot;&quot;&quot;
+import asyncio
+
+DELAYS = {f&quot;M{i:02d}&quot;: 0.01 for i in range(1, 9)}
+DELAYS[&quot;M05&quot;] = 1.0                       # 這台很慢
+MAX_CONCURRENT, TIMEOUT = 3, 0.2
+
+
+async def read_meter(name, sem, active, peak):
+    async with sem:
+        active[0] += 1
+        peak[0] = max(peak[0], active[0])
+        try:
+            await asyncio.sleep(DELAYS[name])
+            return name, 100 + int(name[1:])
+        finally:
+            active[0] -= 1
+
+
+async def main():
+    sem = asyncio.Semaphore(MAX_CONCURRENT)
+    active, peak = [0], [0]
+    tasks = [asyncio.wait_for(read_meter(n, sem, active, peak), TIMEOUT) for n in DELAYS]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    ok = {r[0]: r[1] for r in results if isinstance(r, tuple)}
+    failed = [n for n, r in zip(DELAYS, results) if isinstance(r, Exception)]
+    print(f&quot;成功 {len(ok)} 台：{ok}&quot;)
+    print(f&quot;逾時 {failed}（{type(results[4]).__name__}）&quot;)
+    print(f&quot;同時連線數最高 {peak[0]}（上限 {MAX_CONCURRENT}）&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    asyncio.run(main())
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.11 以上（asyncio.wait_for 丟出內建 TimeoutError），無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>成功 7 台：{&#x27;M01&#x27;: 101, &#x27;M02&#x27;: 102, &#x27;M03&#x27;: 103, &#x27;M04&#x27;: 104, &#x27;M06&#x27;: 106, &#x27;M07&#x27;: 107, &#x27;M08&#x27;: 108}
+逾時 [&#x27;M05&#x27;]（TimeoutError）
+同時連線數最高 3（上限 3）</code></pre><h3>工程現場案例：同時連 200 台電表，閘道器直接拒絕連線</h3><p>某程式改成 asyncio 後，一次對 200 台電表發起連線。Modbus TCP 閘道器只允許 8 條同時連線，其餘全部被拒絕，而且一台慢設備讓整批 gather 等到逾時。結果比原本的同步輪詢還慢、還不穩定。</p><p>範例用 Semaphore 把同時連線數限制在設備能承受的範圍內；每台設備有自己的逾時，慢的那台只影響自己；return_exceptions=True 讓 gather 收集所有結果而不是遇到第一個例外就中止。</p><ol><li>查清楚每個閘道器或設備的最大同時連線數，設定對應的 Semaphore。</li><li>每個請求都設定逾時，逾時時間依設備正常回應時間設定。</li><li>收集結果時區分成功、逾時與其他錯誤，分別記錄與重試。</li><li>大量設備時依閘道器分組，各組有自己的併發上限。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.11 起 asyncio.TimeoutError 是內建 TimeoutError 的別名，並提供 asyncio.timeout() 上下文管理器；Python 3.15 的 TaskGroup.cancel() 可從外部取消整組任務。 <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.timeout">來源：Python 文件：asyncio.timeout</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MAX_CONCURRENT 改成 8，peak 會是多少？M05 還會逾時嗎？</p><details><summary>看解答</summary><p>peak 為 8，所有讀取同時開始。M05 仍需 1 秒，逾時 0.2 秒，所以仍會逾時。併發上限不影響單台設備的回應時間。</p></details></li><li><p>wait_for 包在 read_meter 外面，逾時時 Semaphore 會被釋放嗎？</p><details><summary>看解答</summary><p>會。逾時會取消內部任務，async with sem 的區塊因 CancelledError 而離開，自動釋放 Semaphore，finally 也會把 active 減一。這是用 async with 管理資源的好處。</p></details></li><li><p>若不加 return_exceptions=True，結果會怎樣？</p><details><summary>看解答</summary><p>gather 會在 M05 逾時時把 TimeoutError 往外拋，main() 拿不到其他 7 台的結果（雖然它們已經完成）。</p></details></li><li><p>逾時的設備應該立刻重試嗎？</p><details><summary>看解答</summary><p>通常不應該。立刻重試會對已經很慢的設備增加負擔。可以在下一輪輪詢時再試，並在連續逾時數次後降低輪詢頻率或標記離線。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

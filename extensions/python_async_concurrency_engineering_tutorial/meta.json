@@ -1,0 +1,50 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁說明非同步並發工程。本節示範輪詢大量設備時的三個必要控制：用 Semaphore 限制同時連線數、用 wait_for 為每台設備設定逾時，以及用 gather(return_exceptions=True) 讓一台失敗不影響其他台的結果。",
+ "example_title": "併發上限、逾時與部分失敗",
+ "example_desc": "8 台電表中 M05 需要 1 秒才回應，逾時設定 0.2 秒。程式記錄同時進行的連線數，確認不超過上限 3；結果分成成功與逾時兩組。",
+ "run_note": "只需 Python 3.11 以上（asyncio.wait_for 丟出內建 TimeoutError），無第三方套件",
+ "case": {
+  "title": "同時連 200 台電表，閘道器直接拒絕連線",
+  "paragraphs": [
+   "某程式改成 asyncio 後，一次對 200 台電表發起連線。Modbus TCP 閘道器只允許 8 條同時連線，其餘全部被拒絕，而且一台慢設備讓整批 gather 等到逾時。結果比原本的同步輪詢還慢、還不穩定。",
+   "範例用 Semaphore 把同時連線數限制在設備能承受的範圍內；每台設備有自己的逾時，慢的那台只影響自己；return_exceptions=True 讓 gather 收集所有結果而不是遇到第一個例外就中止。"
+  ],
+  "steps": [
+   "查清楚每個閘道器或設備的最大同時連線數，設定對應的 Semaphore。",
+   "每個請求都設定逾時，逾時時間依設備正常回應時間設定。",
+   "收集結果時區分成功、逾時與其他錯誤，分別記錄與重試。",
+   "大量設備時依閘道器分組，各組有自己的併發上限。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.11 起 asyncio.TimeoutError 是內建 TimeoutError 的別名，並提供 asyncio.timeout() 上下文管理器；Python 3.15 的 TaskGroup.cancel() 可從外部取消整組任務。",
+   "sources": [
+    {
+     "title": "Python 文件：asyncio.timeout",
+     "url": "https://docs.python.org/3/library/asyncio-task.html#asyncio.timeout"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 MAX_CONCURRENT 改成 8，peak 會是多少？M05 還會逾時嗎？",
+   "a": "<p>peak 為 8，所有讀取同時開始。M05 仍需 1 秒，逾時 0.2 秒，所以仍會逾時。併發上限不影響單台設備的回應時間。</p>"
+  },
+  {
+   "q": "wait_for 包在 read_meter 外面，逾時時 Semaphore 會被釋放嗎？",
+   "a": "<p>會。逾時會取消內部任務，async with sem 的區塊因 CancelledError 而離開，自動釋放 Semaphore，finally 也會把 active 減一。這是用 async with 管理資源的好處。</p>"
+  },
+  {
+   "q": "若不加 return_exceptions=True，結果會怎樣？",
+   "a": "<p>gather 會在 M05 逾時時把 TimeoutError 往外拋，main() 拿不到其他 7 台的結果（雖然它們已經完成）。</p>"
+  },
+  {
+   "q": "逾時的設備應該立刻重試嗎？",
+   "a": "<p>通常不應該。立刻重試會對已經很慢的設備增加負擔。可以在下一輪輪詢時再試，並在連續逾時數次後降低輪詢頻率或標記離線。</p>"
+  }
+ ]
+}

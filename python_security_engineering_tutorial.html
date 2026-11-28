@@ -536,7 +536,60 @@ if __name__ == "__main__":
         </div>
       </section>
       <nav class="pager"><a class="button" href="index.html">回入口</a><a class="button primary" href="#top">回到最上層</a></nav>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁整理了安全工程原則。本節用三個最常見、也最容易用程式碼避免的漏洞示範安全預設：SQL 注入、路徑穿越，以及把密碼寫進日誌。</p><h3>可實跑範例：參數化 SQL、路徑穿越防護與日誌遮蔽</h3><p>同一個惡意輸入分別用字串拼接與參數化查詢執行，比較結果；safe_path() 先 resolve 再用 is_relative_to 檢查是否在允許目錄內；日誌過濾器在輸出前遮蔽 password、token、api_key。</p><p><a class="button" download href="extensions/python_security_engineering_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;安全預設：參數化 SQL 防注入、路徑穿越防護、秘密不進日誌（標準函式庫）。&quot;&quot;&quot;
+import logging
+import re
+import sqlite3
+import sys
+from pathlib import Path
+
+db = sqlite3.connect(&quot;:memory:&quot;)
+db.executescript(&quot;CREATE TABLE point(name TEXT, value REAL); &quot;
+                 &quot;INSERT INTO point VALUES (&#x27;AHU1_SAT&#x27;, 22.5), (&#x27;AHU2_SAT&#x27;, 23.1), (&#x27;ADMIN_PW&#x27;, 0);&quot;)
+
+evil = &quot;AHU1_SAT&#x27; OR &#x27;1&#x27;=&#x27;1&quot;
+unsafe = db.execute(f&quot;SELECT name FROM point WHERE name = &#x27;{evil}&#x27;&quot;).fetchall()
+safe = db.execute(&quot;SELECT name FROM point WHERE name = ?&quot;, (evil,)).fetchall()
+print(f&quot;字串拼接查詢回傳 {len(unsafe)} 筆（注入成功）；參數化查詢回傳 {len(safe)} 筆&quot;)
+
+BASE = Path(&quot;/srv/bms/reports&quot;).resolve()
+
+
+def safe_path(user_input: str) -&gt; Path:
+    p = (BASE / user_input).resolve()
+    if not p.is_relative_to(BASE):
+        raise PermissionError(f&quot;拒絕存取報表目錄以外的路徑：{user_input}&quot;)
+    return p
+
+
+for name in (&quot;2026-11.csv&quot;, &quot;../../../etc/passwd&quot;, &quot;sub/../2026-10.csv&quot;):
+    try:
+        print(&quot;允許：&quot;, safe_path(name))
+    except PermissionError as e:
+        print(e)
+
+
+class Redact(logging.Filter):
+    PATTERN = re.compile(r&quot;(password|token|api_key)=([^\s&amp;]+)&quot;, re.I)
+
+    def filter(self, record):
+        record.msg = self.PATTERN.sub(r&quot;\1=***&quot;, str(record.msg))
+        return True
+
+
+log = logging.getLogger(&quot;gw&quot;)
+h = logging.StreamHandler(sys.stdout)
+h.setFormatter(logging.Formatter(&quot;%(levelname)s %(message)s&quot;))
+h.addFilter(Redact())
+log.addHandler(h)
+log.setLevel(logging.INFO)
+log.info(&quot;connect host=10.0.0.5 user=bms password=Bms#2026! token=abc123&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>字串拼接查詢回傳 3 筆（注入成功）；參數化查詢回傳 0 筆
+允許： /srv/bms/reports/2026-11.csv
+拒絕存取報表目錄以外的路徑：../../../etc/passwd
+允許： /srv/bms/reports/2026-10.csv
+INFO connect host=10.0.0.5 user=bms password=*** token=***</code></pre><h3>工程現場案例：報表下載功能可以讀到 /etc/passwd</h3><p>某 BAS 網頁提供報表下載，網址參數是檔名，後端直接 open(REPORT_DIR + name)。測試人員把 name 改成 ../../../etc/passwd 就下載到系統檔案。同一個系統的點位查詢還用字串拼接 SQL，輸入 ' OR '1'='1 就能列出所有點位，包括不該公開的項目。</p><p>範例顯示：參數化查詢讓惡意字串只被當成一個值，回傳 0 筆；路徑先正規化再檢查，穿越嘗試被拒絕，正常的子目錄路徑仍可使用；日誌中的密碼在寫出前就被遮蔽。</p><ol><li>所有 SQL 一律使用參數化查詢或 ORM，不用 f-string 組 SQL。</li><li>處理使用者提供的路徑時先 resolve()，再檢查是否位於允許目錄內。</li><li>日誌加上遮蔽過濾器，並避免記錄完整的請求標頭或連線字串。</li><li>以 bandit 等工具在 CI 掃描常見的危險寫法。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Path.is_relative_to() 自 Python 3.9 起提供；Python 3.12 起 os.path 與 pathlib 在 Windows 上對保留名稱等邊界情況有更多處理，路徑檢查仍應在部署平台實測。 <a href="https://docs.python.org/3/library/pathlib.html">來源：Python 文件：pathlib</a> <a href="https://docs.python.org/3/library/sqlite3.html#sqlite3-placeholders">來源：Python 文件：sqlite3 參數化查詢</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼字串拼接的查詢回傳 3 筆？</p><details><summary>看解答</summary><p>組出的 SQL 是 WHERE name = 'AHU1_SAT' OR '1'='1'，'1'='1' 永遠為真，所以所有列都符合，包括 ADMIN_PW。</p></details></li><li><p>safe_path() 若只檢查 user_input 是否包含 '..'，有什麼漏洞？</p><details><summary>看解答</summary><p>攻擊者可以用絕對路徑（/etc/passwd，Path 會直接替換基底）、符號連結或編碼後的字元繞過。先 resolve 再檢查最終路徑才可靠。</p></details></li><li><p>Redact 過濾器只處理 record.msg，若用 log.info('pw=%s', password) 這種寫法會怎樣？</p><details><summary>看解答</summary><p>密碼在 record.args 裡，格式化時才組進訊息，過濾器看到的 msg 只有 'pw=%s'，遮蔽失敗。應改成對 record.getMessage() 的結果遮蔽，或避免把秘密當成參數傳給日誌。</p></details></li><li><p>參數化查詢可以防止所有 SQL 相關的問題嗎？</p><details><summary>看解答</summary><p>不行。表名、欄位名與 ORDER BY 方向不能參數化，若要依使用者輸入決定，必須用白名單對應。權限控制（例如查詢帳號只能讀特定表）也是必要的另一層防護。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

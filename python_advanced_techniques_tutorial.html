@@ -1382,5 +1382,68 @@ if __name__ == &quot;__main__&quot;:
         unittest.main(argv=[sys.argv[0]], verbosity=2)
     else:
         print(asyncio.run(collect({&quot;op&quot;: &quot;observe&quot;, &quot;limit&quot;: 2}, examples())), end=&quot;&quot;)
-</code></pre></section><section><h2>延伸閱讀</h2><ul><li><a href="https://docs.python.org/3/library/itertools.html#itertools.islice">Python 文件：itertools.islice</a></li><li><a href="https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager">Python 文件：contextmanager</a></li><li><a href="https://docs.python.org/3/library/dataclasses.html">Python 文件：dataclasses</a></li><li><a href="https://peps.python.org/pep-0634/">PEP 634：結構式比對規格</a></li><li><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">Python 文件：TaskGroup</a></li></ul><a href="index.html#advanced">回 Python 教材入口</a></section></main>
+</code></pre></section><section><h2>延伸閱讀</h2><ul><li><a href="https://docs.python.org/3/library/itertools.html#itertools.islice">Python 文件：itertools.islice</a></li><li><a href="https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager">Python 文件：contextmanager</a></li><li><a href="https://docs.python.org/3/library/dataclasses.html">Python 文件：dataclasses</a></li><li><a href="https://peps.python.org/pep-0634/">PEP 634：結構式比對規格</a></li><li><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">Python 文件：TaskGroup</a></li></ul><a href="index.html#advanced">回 Python 教材入口</a></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁介紹大量進階技巧。本節挑三個在設備驅動程式中特別實用的，組合成一個小範例：描述器做欄位範圍驗證、__init_subclass__ 讓子類別自動註冊，以及 contextvars 在不傳參數的情況下把請求 ID 帶進錯誤訊息。</p><h3>可實跑範例：描述器、自動註冊與 contextvars</h3><p>Bounded 描述器在設定屬性時檢查範圍；Driver 的子類別只要宣告 protocol 就會自動加入 DRIVERS；request_id 是 ContextVar，在同一個請求的呼叫鏈中都能取得，且在 asyncio 任務之間互相隔離。</p><p><a class="button" download href="extensions/python_advanced_techniques_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;進階技巧組合：描述器做欄位驗證、__init_subclass__ 自動註冊驅動、contextvars 傳遞請求 ID（標準函式庫）。&quot;&quot;&quot;
+import contextvars
+
+request_id = contextvars.ContextVar(&quot;request_id&quot;, default=&quot;-&quot;)
+
+
+class Bounded:
+    &quot;&quot;&quot;描述器：設定屬性時檢查範圍，錯誤訊息帶欄位名稱。&quot;&quot;&quot;
+
+    def __init__(self, lo, hi):
+        self.lo, self.hi = lo, hi
+
+    def __set_name__(self, owner, name):
+        self.name = &quot;_&quot; + name
+
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, value):
+        if not self.lo &lt;= value &lt;= self.hi:
+            raise ValueError(f&quot;[{request_id.get()}] {self.name[1:]}={value} 超出 {self.lo}–{self.hi}&quot;)
+        setattr(obj, self.name, value)
+
+
+DRIVERS = {}
+
+
+class Driver:
+    protocol = None
+
+    def __init_subclass__(cls, **kw):
+        super().__init_subclass__(**kw)
+        if cls.protocol:
+            DRIVERS[cls.protocol] = cls          # 定義子類別時自動註冊
+
+    setpoint = Bounded(5.0, 15.0)
+
+
+class ModbusDriver(Driver):
+    protocol = &quot;modbus&quot;
+
+
+class BacnetDriver(Driver):
+    protocol = &quot;bacnet&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    print(&quot;已註冊驅動：&quot;, sorted(DRIVERS))
+    for rid, proto, sp in ((&quot;req-001&quot;, &quot;modbus&quot;, 7.5), (&quot;req-002&quot;, &quot;bacnet&quot;, 25.0)):
+        token = request_id.set(rid)
+        try:
+            d = DRIVERS[proto]()
+            d.setpoint = sp
+            print(f&quot;[{request_id.get()}] {proto} setpoint = {d.setpoint}&quot;)
+        except ValueError as e:
+            print(&quot;拒絕：&quot;, e)
+        finally:
+            request_id.reset(token)
+    print(&quot;請求結束後的 request_id：&quot;, request_id.get())
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>已註冊驅動： [&#x27;bacnet&#x27;, &#x27;modbus&#x27;]
+[req-001] modbus setpoint = 7.5
+拒絕： [req-002] setpoint=25.0 超出 5.0–15.0
+請求結束後的 request_id： -</code></pre><h3>工程現場案例：新增 BACnet 驅動，卻忘了在工廠函式加一行</h3><p>某專案用一個大型 if/elif 依協定名稱建立驅動物件。新增 BACnet 驅動後，開發者忘了在工廠函式加上分支，部署後所有 BACnet 設備都報「不支援的協定」。用 __init_subclass__ 自動註冊後，只要定義子類別並匯入模組，就會出現在 DRIVERS 中。</p><p>錯誤訊息也是除錯重點：多個請求同時寫入設定點時，日誌只寫「超出範圍」無法知道是哪個請求。contextvars 讓請求 ID 自動出現在描述器的錯誤訊息裡，而不必把 ID 當參數傳遍每一層函式。</p><ol><li>重複出現的欄位驗證邏輯寫成描述器，在類別定義中宣告。</li><li>外掛式的元件（驅動、匯出器）用 __init_subclass__ 註冊，並確保相關模組有被匯入。</li><li>請求範圍的資訊（請求 ID、使用者）放在 ContextVar，在請求開始時設定、結束時 reset。</li><li>進階技巧要配合清楚的文件與測試，避免讓團隊其他人難以理解。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>contextvars 自 Python 3.7 起提供，asyncio 會為每個任務複製目前的 context；Python 3.14 起執行緒也可以透過 threading.Thread 的 context 參數繼承呼叫端的 context。 <a href="https://docs.python.org/3/library/contextvars.html">來源：Python 文件：contextvars</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>描述器的 __set_name__ 有什麼作用？</p><details><summary>看解答</summary><p>類別建立時，Python 會對每個描述器呼叫 __set_name__(owner, name)，讓描述器知道自己被指派給哪個屬性名稱。範例用它決定實際存值的屬性名稱（_setpoint）與錯誤訊息中的欄位名。</p></details></li><li><p>為什麼 Driver 本身沒有被註冊到 DRIVERS？</p><details><summary>看解答</summary><p>__init_subclass__ 只在定義子類別時被呼叫，不會對 Driver 自己呼叫；而且 Driver 的 protocol 是 None，程式也會略過。</p></details></li><li><p>request_id.reset(token) 為什麼要放在 finally？</p><details><summary>看解答</summary><p>確保即使發生例外，請求 ID 也會恢復成請求開始前的值，不會殘留到下一個請求。範例最後一行顯示 reset 之後回到預設值 "-"。</p></details></li><li><p>若 ModbusDriver 定義在另一個模組中，且那個模組從未被匯入，DRIVERS 裡會有它嗎？</p><details><summary>看解答</summary><p>不會。子類別在模組被匯入、類別定義被執行時才註冊。外掛式設計要確保在啟動時匯入所有外掛模組，例如用 importlib.import_module 依設定載入，或使用 entry points。</p></details></li></ol></section><!-- extension:end -->
+</main>
 <script>document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const code=document.getElementById(button.dataset.copy);const status=button.nextElementSibling;try{await navigator.clipboard.writeText(code.textContent);status.textContent='已複製';}catch{const range=document.createRange();range.selectNodeContents(code);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);status.textContent='剪貼簿不可用，已選取程式碼，請手動複製。';}}));</script></body></html>

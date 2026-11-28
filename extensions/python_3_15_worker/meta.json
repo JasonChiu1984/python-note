@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "min_python": [
+  3,
+  15
+ ],
+ "intro": "本頁的互動模擬展示了背壓與停機。本節用真正的 asyncio 程式重現：有界佇列讓 producer 在佇列滿時等待，consumer 要求停機時 TaskGroup 自動取消 producer，最後列出尚未處理的項目。",
+ "example_title": "有界佇列、TaskGroup 與優雅停機",
+ "example_desc": "程式使用 Python 3.11 起提供的 TaskGroup 與 except* 語法；最後一行檢查 Python 3.15 新增的 TaskGroup.cancel()。事件順序由 asyncio 排程決定，對同一版本是固定的。",
+ "run_note": "需 Python 3.11 以上；本頁輸出以 Python 3.15 產生",
+ "case": {
+  "title": "Worker 重新部署時，佇列中的讀值消失",
+  "paragraphs": [
+   "某資料上傳 Worker 從記憶體佇列取出讀值送到雲端。每次重新部署時，程序收到停止訊號就直接結束，佇列中尚未送出的資料全部遺失，趨勢圖每次部署都出現缺口。",
+   "範例中停機時佇列裡還有 4、5、6 三筆。正確做法是停止接收新資料後，把佇列中剩下的項目寫回持久化儲存（例如 SQLite 或磁碟佇列），或在限定時間內處理完再結束。TaskGroup 保證任一子任務失敗時其他子任務都會被取消，不會留下孤兒任務。"
+  ],
+  "steps": [
+   "佇列一定要設上限，並監控長度；無上限的佇列只是把問題延後成記憶體耗盡。",
+   "處理 SIGTERM：停止 producer、限時排空、把未完成項目持久化，再結束。",
+   "每筆資料帶序號，重啟後依序號補做並去重。",
+   "在測試中模擬停機，驗證「已完成＋未處理＝全部輸入」。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "Python 3.15 新增 asyncio.TaskGroup.cancel()，可從群組外部要求取消所有子任務，不必再自訂哨兵例外；需要支援 3.11–3.14 時，仍可用範例中的例外寫法。",
+   "sources": [
+    {
+     "title": "What's new in Python 3.15：asyncio",
+     "url": "https://docs.python.org/3.15/whatsnew/3.15.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼前 6 個事件是 put 1、2、3、4 之後才 done 1？佇列上限明明是 3。",
+   "a": "<p>consumer 先取走 1（佇列剩 2、3），producer 才能放入 4；但 consumer 在 await asyncio.sleep(0) 讓出控制權後才記錄 done 1。所以 put 4 出現在 done 1 之前，而 put 5 要等 consumer 再取走一筆。</p>"
+  },
+  {
+   "q": "把 QUEUE_SIZE 改成 1，停機時佇列中會剩幾筆？",
+   "a": "<p>實測只剩 1 筆（序號 4），producer 最後只送出到 put 4。佇列越小，停機時要搶救的資料越少，但 producer 等待的時間變多，吞吐量可能下降。</p>"
+  },
+  {
+   "q": "若 consumer 直接 raise asyncio.CancelledError 會發生什麼？",
+   "a": "<p>CancelledError 被當成該任務自己被取消，不會觸發 TaskGroup 取消其他任務；producer 會卡在 q.put() 永遠等待，整個程式不會結束。這正是本範例改用自訂例外的原因。</p>"
+  },
+  {
+   "q": "except* Shutdown 和 except Shutdown 有什麼不同？",
+   "a": "<p>TaskGroup 會把子任務的例外包成 ExceptionGroup，一般的 except Shutdown 接不到；except* 會從群組中挑出符合的例外處理，其他例外仍繼續往外拋。</p>"
+  }
+ ]
+}

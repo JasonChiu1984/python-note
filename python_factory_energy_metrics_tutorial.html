@@ -314,4 +314,37 @@ assert report["sec_kwh_per_good"] == 51 / 80</code></pre></details>
   "sec_kwh_per_good": 0.75
 }</code></pre><p>後端驗證讀取範圍、時間與計量邊界；查無完整資料就回傳具機器可讀錯誤的回應，不沿用上一期值，也不自動修改現場資料。現有 CLI 實作的是可重用計算函式，而非此 HTTP 服務。</p></details></section>
 <section id="acceptance"><h2>5｜交付驗收：查數字，也查資料從哪來</h2><ol><li>用短期間比對電表、產量與時間戳；驗 CT/PT、單位、設備歸屬、反向值與重設紀錄。</li><li>刻意少一筆、複製一筆、歸零、更換時區表示或送空產量，確認異常有理由，不轉成漂亮數字。</li><li>保存原始切片、區間定義、來源品質、分攤法、基準版號與報表輸出；同輸入應可重跑。班次交接或公用設備調度要另標。</li><li>用帳單／主表做獨立對帳；跨日、需量窗口和損失口徑要一致。人工調整後保留原版與原因。</li></ol>
-<p><a href="python_datacenter_efficiency_tutorial.html#formula-sheet">機房能效公式</a> · <a href="python_equipment_utilization_tutorial.html">設備稼動率</a> · <a href="python_taiwan_electricity_billing_tutorial.html">台灣電費</a> · <a href="python_carbon_emissions_calculation_tutorial.html">碳排放量計算</a> · <a href="python_iso50001_energy_reporting_tutorial.html">ISO 50001 能源管理報表</a></p></section></main></body></html>
+<p><a href="python_datacenter_efficiency_tutorial.html#formula-sheet">機房能效公式</a> · <a href="python_equipment_utilization_tutorial.html">設備稼動率</a> · <a href="python_taiwan_electricity_billing_tutorial.html">台灣電費</a> · <a href="python_carbon_emissions_calculation_tutorial.html">碳排放量計算</a> · <a href="python_iso50001_energy_reporting_tutorial.html">ISO 50001 能源管理報表</a></p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁整理了 41 個能效公式。本節示範把公式用在真實的月資料上時，最常被忽略的三件事：先做主電表與分電表對帳、公用設施依量測比例分攤，以及分母用良品而不是總產出。</p><h3>可實跑範例：單位良品能耗與公用設施分攤</h3><p>空壓與冰水依各產線的流量計與冷量計比例分攤，不用產量或面積平均分。未計量電力超過 5% 時先停下來查原因。所有計算用 Decimal，結果以四捨五入顯示。</p><p><a class="button" download href="extensions/python_factory_energy_metrics_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;單位良品能耗與分攤：主電表與分電表對帳、公用設施依量測分攤、良品數為分母（標準函式庫 Decimal）。&quot;&quot;&quot;
+from decimal import Decimal as D, ROUND_HALF_UP
+
+MAIN_KWH = D(&quot;186400&quot;)                     # 台電主電表（月）
+SUB = {&quot;產線A&quot;: D(&quot;72300&quot;), &quot;產線B&quot;: D(&quot;58900&quot;), &quot;空壓&quot;: D(&quot;21800&quot;), &quot;冰水&quot;: D(&quot;27600&quot;)}
+COMPRESSED_AIR_SHARE = {&quot;產線A&quot;: D(&quot;0.62&quot;), &quot;產線B&quot;: D(&quot;0.38&quot;)}    # 依各線流量計
+CHW_SHARE = {&quot;產線A&quot;: D(&quot;0.45&quot;), &quot;產線B&quot;: D(&quot;0.55&quot;)}               # 依各線冰水冷量計
+GOOD = {&quot;產線A&quot;: 48_200, &quot;產線B&quot;: 31_500}
+TOTAL = {&quot;產線A&quot;: 50_100, &quot;產線B&quot;: 31_900}
+
+
+def q(x, p=&quot;0.01&quot;):
+    return x.quantize(D(p), ROUND_HALF_UP)
+
+
+if __name__ == &quot;__main__&quot;:
+    unmetered = MAIN_KWH - sum(SUB.values())
+    print(f&quot;主電表 {MAIN_KWH:,} kWh，分表合計 {sum(SUB.values()):,} kWh，未計量 {unmetered:,} kWh&quot;
+          f&quot;（{q(unmetered / MAIN_KWH * 100, &#x27;0.1&#x27;)}%）&quot;)
+    if unmetered / MAIN_KWH &gt; D(&quot;0.05&quot;):
+        print(&quot;  ⚠ 未計量超過 5%，先查照明、辦公與分表倍率，再談分攤&quot;)
+    for line in (&quot;產線A&quot;, &quot;產線B&quot;):
+        kwh = SUB[line] + SUB[&quot;空壓&quot;] * COMPRESSED_AIR_SHARE[line] + SUB[&quot;冰水&quot;] * CHW_SHARE[line]
+        per_good = kwh / GOOD[line]
+        per_total = kwh / TOTAL[line]
+        yield_rate = D(GOOD[line]) / TOTAL[line]
+        print(f&quot;{line}：分攤後 {q(kwh, &#x27;1&#x27;):,} kWh，良率 {q(yield_rate * 100, &#x27;0.1&#x27;)}%，&quot;
+              f&quot;每件良品 {q(per_good, &#x27;0.001&#x27;)} kWh（以總產出計 {q(per_total, &#x27;0.001&#x27;)}）&quot;)
+    print(&quot;良率越低，「每件良品」與「每件產出」的差距越大；改善良率本身就是節能。&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>主電表 186,400 kWh，分表合計 180,600 kWh，未計量 5,800 kWh（3.1%）
+產線A：分攤後 98,236 kWh，良率 96.2%，每件良品 2.038 kWh（以總產出計 1.961）
+產線B：分攤後 82,364 kWh，良率 98.7%，每件良品 2.615 kWh（以總產出計 2.582）
+良率越低，「每件良品」與「每件產出」的差距越大；改善良率本身就是節能。</code></pre><h3>工程現場案例：產線 A 的能耗看起來比較低，其實是良率被忽略</h3><p>範例中產線 A 以總產出計算每件 1.961 kWh，比產線 B 的 2.582 kWh 低很多。但 A 的良率只有 96.2%，報廢品的能源也算在內；以良品計算後 A 是 2.038 kWh，差距仍在，但比例改變了。若只看總產出，改善良率的節能效益完全看不到。</p><p>公用設施分攤也是爭議來源：若空壓用電依產量平均分，用氣量大的產線會被低估。用各線的流量計比例分攤，指標才能反映真實的耗能結構，也才知道改善空壓洩漏該從哪條產線開始。</p><ol><li>每月先核對主電表與分電表合計，未計量比例設定門檻（例如 5%）。</li><li>公用設施（空壓、冰水、真空）依實際量測比例分攤，沒有量測時在報表註明分攤方法。</li><li>能耗指標同時提供以良品與以總產出計算的版本。</li><li>把分攤比例與計算方法版本化，換方法時重算歷史資料以保持可比較性。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>能源績效指標與基線的方法可參考 ISO 50006（以能源基線與能源績效指標衡量能源績效）；本頁的 ISO 50001 報表教材有基線正規化的完整範例。 <a href="https://www.iso.org/standard/79367.html">來源：ISO 50006</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若空壓依產量比例分攤（A 50,100 件、B 31,900 件），產線 A 分攤到的空壓電力是多少？與依流量計分攤差多少？</p><details><summary>看解答</summary><p>依產量：21,800 × 50,100 ÷ 82,000 ≈ 13,319 kWh；依流量計：21,800 × 0.62 = 13,516 kWh，差約 197 kWh。此例差異不大，但若兩線製程的用氣量差異大，依產量分攤會嚴重失真。</p></details></li><li><p>未計量的 5,800 kWh 要不要分攤給產線？</p><details><summary>看解答</summary><p>通常不分攤到產線指標，而是單獨列為「未計量／公共」並追蹤比例。硬分攤會讓產線指標包含與產線無關的用電，也會掩蓋分表遺漏的問題。</p></details></li><li><p>良率從 96.2% 提高到 98.7%，產線 A 每件良品的能耗會變成多少（假設總產出與用電不變）？</p><details><summary>看解答</summary><p>良品數變成 50,100 × 0.987 ≈ 49,449，每件良品 98,236 ÷ 49,449 ≈ 1.987 kWh，下降約 2.5%，不需要任何設備改善。</p></details></li><li><p>為什麼範例在未計量超過 5% 時只是警告，而不是直接停止？</p><details><summary>看解答</summary><p>報表仍有參考價值，但要讓使用者知道結果有不確定性。門檻與處理方式應依管理需求決定；用於對外揭露或節能獎勵申請時，應改成直接停止並要求修正。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

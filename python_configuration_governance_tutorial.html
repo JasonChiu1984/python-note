@@ -518,7 +518,69 @@ if __name__ == "__main__":
       <section class="section-block" id="troubleshooting" data-group="troubleshooting"><div class="section-head"><div><span class="eyebrow">Troubleshooting</span><h2>先排除 drift，再看程式碼</h2><p>大量「只有某環境才壞」的問題，本質上都是設定契約不清楚。</p></div></div><div class="cards"></div></section>
       <section class="section-block" id="best-practices" data-group="bestPractices"><div class="section-head"><div><span class="eyebrow">Best Practices</span><h2>讓設定變成可交付、可稽核資產</h2><p>版本發布時，設定證據、secret 邊界與 flag 狀態都應可回溯。</p></div></div><div class="cards"></div></section>
       <div class="pager"><a class="button" href="index.html">回教材入口</a><a class="button primary" href="#top">回頁首</a></div>
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明設定的優先序、必填與 fail-safe 行為。本節實作一個小型設定載入器：三層來源依優先序合併、每個值記錄來源、敏感值在證據中遮蔽，任何錯誤都在啟動時一次列出並拒絕啟動。</p><h3>可實跑範例：多來源設定合併與來源證據</h3><p>優先序為環境變數 > 設定檔 > 預設值。evidence() 輸出每個設定的值與來源，DB_PASSWORD 以 *** 遮蔽，可以直接寫進啟動日誌。未知設定會被當成錯誤，用來抓拼錯的鍵名。</p><p><a class="button" download href="extensions/python_configuration_governance_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;多來源設定合併：預設值 &lt; 設定檔 &lt; 環境變數，記錄每個值的來源，必填缺漏或型別錯誤時啟動即失敗（標準函式庫）。&quot;&quot;&quot;
+import json
+
+SCHEMA = {   # 名稱: (型別, 必填, 預設值, 是否敏感)
+    &quot;MODBUS_HOST&quot;: (str, True, None, False),
+    &quot;MODBUS_PORT&quot;: (int, False, 502, False),
+    &quot;POLL_SECONDS&quot;: (float, False, 5.0, False),
+    &quot;DB_PASSWORD&quot;: (str, True, None, True),
+    &quot;WRITE_ENABLED&quot;: (bool, False, False, False),
+}
+
+
+def parse(typ, raw):
+    if typ is bool:
+        if str(raw).lower() in (&quot;1&quot;, &quot;true&quot;, &quot;yes&quot;):
+            return True
+        if str(raw).lower() in (&quot;0&quot;, &quot;false&quot;, &quot;no&quot;):
+            return False
+        raise ValueError(f&quot;無法解讀為布林值：{raw!r}&quot;)
+    return typ(raw)
+
+
+def load(file_cfg: dict, env: dict):
+    values, sources, errors = {}, {}, []
+    for key, (typ, required, default, _) in SCHEMA.items():
+        for src, layer in ((&quot;env&quot;, env), (&quot;file&quot;, file_cfg)):
+            if key in layer:
+                try:
+                    values[key], sources[key] = parse(typ, layer[key]), src
+                except ValueError as e:
+                    errors.append(f&quot;{key}（{src}）：{e}&quot;)
+                break
+        else:
+            if required:
+                errors.append(f&quot;{key} 為必填&quot;)
+            else:
+                values[key], sources[key] = default, &quot;default&quot;
+    unknown = (set(file_cfg) | {k for k in env if k.startswith((&quot;MODBUS_&quot;, &quot;POLL_&quot;, &quot;DB_&quot;, &quot;WRITE_&quot;))}) - set(SCHEMA)
+    errors += [f&quot;未知設定 {k}（可能是拼錯）&quot; for k in sorted(unknown)]
+    if errors:
+        raise SystemExit(&quot;設定錯誤，拒絕啟動：\n  &quot; + &quot;\n  &quot;.join(errors))
+    return values, sources
+
+
+def evidence(values, sources):
+    return {k: (&quot;***&quot; if SCHEMA[k][3] else v, sources[k]) for k, v in values.items()}
+
+
+if __name__ == &quot;__main__&quot;:
+    file_cfg = {&quot;MODBUS_HOST&quot;: &quot;192.168.10.20&quot;, &quot;POLL_SECONDS&quot;: &quot;2&quot;}
+    env = {&quot;DB_PASSWORD&quot;: &quot;s3cret&quot;, &quot;MODBUS_PORT&quot;: &quot;1502&quot;}
+    values, sources = load(file_cfg, env)
+    print(json.dumps(evidence(values, sources), ensure_ascii=False))
+    try:
+        load({&quot;MODBUS_HOST&quot;: &quot;192.168.10.20&quot;, &quot;POLL_SECOND&quot;: &quot;2&quot;}, {&quot;WRITE_ENABLED&quot;: &quot;maybe&quot;})
+    except SystemExit as e:
+        print(e)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>{&quot;MODBUS_HOST&quot;: [&quot;192.168.10.20&quot;, &quot;file&quot;], &quot;MODBUS_PORT&quot;: [1502, &quot;env&quot;], &quot;POLL_SECONDS&quot;: [2.0, &quot;file&quot;], &quot;DB_PASSWORD&quot;: [&quot;***&quot;, &quot;env&quot;], &quot;WRITE_ENABLED&quot;: [false, &quot;default&quot;]}
+設定錯誤，拒絕啟動：
+  DB_PASSWORD 為必填
+  WRITE_ENABLED（env）：無法解讀為布林值：&#x27;maybe&#x27;
+  未知設定 POLL_SECOND（可能是拼錯）</code></pre><h3>工程現場案例：POLL_SECOND 拼錯，輪詢週期悄悄變回預設值</h3><p>某閘道器的設定檔把 POLL_SECONDS 誤寫成 POLL_SECOND。程式只讀取認得的鍵，拼錯的設定被默默忽略，輪詢週期維持預設的 5 秒，而不是預期的 2 秒。需量控制因此反應變慢，排查了好幾天才找到原因。</p><p>範例把未知設定當成錯誤並拒絕啟動，同時把布林值解析失敗、必填缺漏一次列出。啟動日誌中的來源證據也能回答「這個值是從哪裡來的」，排除「以為改了設定檔、其實被環境變數蓋掉」的情況。</p><ol><li>把所有設定寫成單一 schema：名稱、型別、是否必填、預設值、是否敏感。</li><li>載入時一次回報全部錯誤，任何錯誤都拒絕啟動，不要帶著部分錯誤的設定執行。</li><li>啟動日誌輸出每個設定的值（敏感值遮蔽）與來源。</li><li>控制寫入類設定（例如 WRITE_ENABLED）預設為關閉，必須明確開啟。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Python 3.11 起內建 tomllib 可讀取 TOML 設定檔（唯讀）。需要更完整的驗證與型別轉換時，常用 pydantic-settings；本頁核對時 Pydantic 最新版為 2.14.4。 <a href="https://docs.python.org/3/library/tomllib.html">來源：Python 文件：tomllib</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 env 的 MODBUS_PORT 改成 "abc"，會得到什麼錯誤訊息？</p><details><summary>看解答</summary><p>MODBUS_PORT（env）：invalid literal for int() with base 10: 'abc'，並拒絕啟動。可以把 ValueError 的訊息再包裝成更友善的說明。</p></details></li><li><p>為什麼 parse() 對布林值不用 bool(raw)？</p><details><summary>看解答</summary><p>bool("false") 是 True，因為任何非空字串都是真值。必須明確列出可接受的字串，其他一律報錯。</p></details></li><li><p>未知設定的檢查只看特定前綴的環境變數，為什麼不檢查全部？</p><details><summary>看解答</summary><p>環境變數裡有大量與程式無關的系統變數（PATH、HOME 等），全部檢查會產生大量誤報。只檢查本程式使用的前綴，既能抓到拼錯又不會干擾。</p></details></li><li><p>若要支援「設定檔可以指定另一個設定檔」的 include 功能，有什麼要注意？</p><details><summary>看解答</summary><p>要防止循環 include、限制可讀取的目錄、並在來源證據中記錄實際檔案路徑。功能越多越難追溯，多數情況下用環境別名的多個設定檔就足夠。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

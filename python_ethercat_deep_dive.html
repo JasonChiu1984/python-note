@@ -119,4 +119,58 @@ if __name__ == &quot;__main__&quot;:
         unittest.main(argv=[&quot;lab&quot;])
     else:
         print(json.dumps(classify(RECORDS, expected=3, freshness_ms=4, require_dc=True),
-                         ensure_ascii=False, indent=2))</code></pre></details><p>練習：指出哪些週期「有正常 WKC」但應標成不可用；再說明為什麼「兩筆壞資料才告警」不應推遲當筆資料失效。</p><h3>官方規格與實作資料</h3><ul><li><a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 EtherCAT Implementation Guide</a> · <a href="https://www.ethercat.org/download/documents/EtherCAT_Device_Protocol_Poster.pdf">ETG EtherCAT Device Protocol Poster</a></li><li><a href="https://infosys.beckhoff.com/content/1033/ek1322/1036980875.html">Beckhoff：EtherCAT State Machine</a> · <a href="https://infosys.beckhoff.com/content/1033/b110_ethercat_optioninterface/1984417163.html">Beckhoff：WcState</a> · <a href="https://infosys.beckhoff.com/content/1033/el4374/1037004555.html">Beckhoff：裝置通訊品質診斷與工程驗收</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回工業協定比較</a></footer></main></body></html>
+                         ensure_ascii=False, indent=2))</code></pre></details><p>練習：指出哪些週期「有正常 WKC」但應標成不可用；再說明為什麼「兩筆壞資料才告警」不應推遲當筆資料失效。</p><h3>官方規格與實作資料</h3><ul><li><a href="https://www.ethercat.org/download/documents/ETG2200_V3i2i3_G_R_EtherCATImplementationGuide.pdf">ETG.2200 EtherCAT Implementation Guide</a> · <a href="https://www.ethercat.org/download/documents/EtherCAT_Device_Protocol_Poster.pdf">ETG EtherCAT Device Protocol Poster</a></li><li><a href="https://infosys.beckhoff.com/content/1033/ek1322/1036980875.html">Beckhoff：EtherCAT State Machine</a> · <a href="https://infosys.beckhoff.com/content/1033/b110_ethercat_optioninterface/1984417163.html">Beckhoff：WcState</a> · <a href="https://infosys.beckhoff.com/content/1033/el4374/1037004555.html">Beckhoff：裝置通訊品質診斷與工程驗收</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html#ethercat-comparison">回工業協定比較</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本節用簡化模型估算 EtherCAT 的週期時間下限，並示範 PDO 超過單一乙太網路幀容量時會拆成多個 frame；最後用 WKC 期望值判斷是否有 SubDevice 沒有處理 datagram。</p><h3>可實跑範例：週期時間粗估、frame 拆分與 WKC 檢查</h3><p>每台 ESC 的轉送延遲、線路長度都是假設值；實際數值依晶片、連接埠與拓樸而異，請以主站診斷工具量測為準。WKC 依 LRW 規則計算：被讀取 +1、被寫入 +2、讀寫皆有 +3。</p><p><a class="button" download href="extensions/python_ethercat_deep_dive/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;EtherCAT 週期時間粗估與 WKC 期望值檢查（標準函式庫，參數皆為假設值）。
+
+frame 依序經過每個 SubDevice 後折返。粗估：
+週期下限 ≈ frame 序列化時間 + 每台 SubDevice 處理延遲 × 台數 × 2（去回）＋ 線路傳播延遲
+&quot;&quot;&quot;
+LINK_MBPS = 100
+ESC_DELAY_US = 0.6            # 假設每台 ESC 轉送延遲（依晶片與連接埠而異）
+CABLE_NS_PER_M = 5.0          # 銅纜約 5 ns/m
+
+
+MAX_ECAT_PAYLOAD = 1498       # 乙太網路 payload 1500 − EtherCAT 標頭 2
+
+
+def frames_for(pdo_bytes):
+    &quot;&quot;&quot;每個 datagram 有 10 B 標頭＋2 B WKC；超過單一 frame 容量時拆成多個 frame。&quot;&quot;&quot;
+    per_frame = MAX_ECAT_PAYLOAD - 12
+    sizes = []
+    while pdo_bytes &gt; 0:
+        chunk = min(pdo_bytes, per_frame)
+        sizes.append(max(64, 14 + 2 + 12 + chunk + 4))      # 以太網標頭＋EtherCAT 標頭＋datagram＋FCS
+        pdo_bytes -= chunk
+    return sizes
+
+
+def cycle_estimate(devices, pdo_bytes, cable_m):
+    sizes = frames_for(pdo_bytes)
+    ser = sum((s + 20) * 8 / LINK_MBPS for s in sizes)        # 另加前導碼與幀間隙 20 B
+    prop = devices * ESC_DELAY_US * 2 + cable_m * CABLE_NS_PER_M * 2 / 1000
+    return ser + prop, sizes
+
+
+def expected_wkc(n_read, n_write, n_readwrite):
+    &quot;&quot;&quot;LRW 命令：每台被讀取 +1、被寫入 +2、讀寫皆有則 +3。&quot;&quot;&quot;
+    return n_read * 1 + n_write * 2 + n_readwrite * 3
+
+
+if __name__ == &quot;__main__&quot;:
+    for devices, per_dev in ((10, 8), (50, 8), (100, 16)):
+        pdo = devices * per_dev
+        us, sizes = cycle_estimate(devices, pdo, cable_m=devices * 3)
+        print(f&quot;{devices:&gt;3} 台 × {per_dev:&gt;2} B PDO：{len(sizes)} 個 frame {sizes} B，週期下限約 {us:6.1f} µs&quot;)
+    exp = expected_wkc(n_read=4, n_write=2, n_readwrite=6)
+    print(f&quot;\n4 台只讀、2 台只寫、6 台讀寫的 LRW：期望 WKC = {exp}&quot;)
+    for got in (exp, exp - 3, exp - 1):
+        status = &quot;正常&quot; if got == exp else &quot;異常：有 SubDevice 未處理此 datagram&quot;
+        print(f&quot;  收到 WKC {got}：{status}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code> 10 台 ×  8 B PDO：1 個 frame [112] B，週期下限約   22.9 µs
+ 50 台 ×  8 B PDO：1 個 frame [432] B，週期下限約   97.7 µs
+100 台 × 16 B PDO：2 個 frame [1518, 146] B，週期下限約  259.3 µs
+
+4 台只讀、2 台只寫、6 台讀寫的 LRW：期望 WKC = 26
+  收到 WKC 26：正常
+  收到 WKC 23：異常：有 SubDevice 未處理此 datagram
+  收到 WKC 25：異常：有 SubDevice 未處理此 datagram</code></pre><h3>工程現場案例：擴充到 100 軸後，週期時間從 250 µs 拉到 1 ms</h3><p>某包裝線從 50 軸擴充到 100 軸，每軸 PDO 從 8 bytes 增加到 16 bytes。原本 250 µs 的週期出現 WKC 錯誤與同步抖動。範例顯示，1,600 bytes 的 PDO 已超過單一乙太網路幀容量，必須拆成 2 個 frame，週期下限約 259 µs，再加上主站處理與抖動餘裕，250 µs 已不可行。</p><p>處理方式包括：精簡 PDO 對應（移除不需要每週期更新的診斷物件，改用 SDO 非同步讀取）、把軸分配到兩個獨立的 EtherCAT 網段，或把週期放寬到 500 µs。決策前要先用主站工具量測實際的 frame 往返時間與 DC 同步誤差。</p><ol><li>從 ESI 檔案與主站設定匯出每台 SubDevice 的 PDO 大小，加總成每週期資料量。</li><li>估算 frame 數與週期下限，預留至少 30% 的時間餘裕給主站運算與抖動。</li><li>上線後監看每週期 WKC，與期望值不符時記錄是哪個 datagram、哪個時間點。</li><li>WKC 正常不代表資料新鮮，仍要檢查各軸狀態字與時間戳。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>EtherCAT 規格由 EtherCAT Technology Group（ETG）維護並標準化於 IEC 61158／61784。Python 端常見做法是透過 pysoem（SOEM 的 Python 綁定）存取，但即時性受作業系統排程限制，週期性控制仍應交給即時主站。 <a href="https://www.ethercat.org/">來源：EtherCAT Technology Group</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 MAX_ECAT_PAYLOAD 是 1,498 bytes？</p><details><summary>看解答</summary><p>標準乙太網路幀的 payload 最多 1,500 bytes，EtherCAT 在 payload 開頭還有 2 bytes 的 EtherCAT 標頭，因此可放 datagram 的空間是 1,498 bytes。每個 datagram 自己還要 10 bytes 標頭與 2 bytes WKC。</p></details></li><li><p>LRW 期望 WKC 為 26，實際收到 23。可能是哪些 SubDevice 有問題？</p><details><summary>看解答</summary><p>少了 3，最直接的解釋是一台讀寫型 SubDevice 完全沒處理（−3）；也可能是一台只讀（−1）加一台只寫（−2）同時失效。WKC 只告訴你總和不符，要配合各站的 AL 狀態與錯誤計數器定位。</p></details></li><li><p>ESC_DELAY_US 若是 1.0 µs，50 台的週期下限會變多少？</p><details><summary>看解答</summary><p>傳播部分從 50 × 0.6 × 2 = 60 µs 變成 100 µs，加上序列化約 36 µs 與線路約 1.5 µs，下限約 137.7 µs。可改常數重新執行驗證。</p></details></li><li><p>為什麼不建議在一般 Linux 上用 Python 直接跑 250 µs 的 EtherCAT 控制迴圈？</p><details><summary>看解答</summary><p>一般作業系統的排程延遲與 Python 的垃圾回收、直譯器開銷可能造成數百微秒以上的抖動，會導致錯過週期與 WKC 錯誤。Python 適合做設定、診斷與資料收集，即時控制應交給即時核心或專用主站。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

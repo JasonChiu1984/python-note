@@ -106,4 +106,51 @@ def main() -&gt; None:
 
 
 if __name__ == &quot;__main__&quot;:
-    main()</code></pre></details><h3>原始規格與實務文件</h3><ul><li><a href="https://standards.ieee.org/ieee/802.3/12400/">IEEE 802.3 Ethernet</a> · <a href="https://www.ieee802.org/3/cg/public/Nov2018/xu_3cg_01b_1118.pdf">IEEE 802.3 工作小組：frame/preamble/IPG 示意</a> · <a href="https://www.juniper.net/documentation/us/en/software/junos/interfaces-security-devices/topics/topic-map/security-interface-configuring-ethernet-interfaces.html">Juniper：frame 長度</a></li><li><a href="https://www.cisco.com/c/en/us/support/docs/switches/catalyst-9600-series-switches/217413-understand-why-fcs-errors-input-errors.html">Cisco：FCS、IFG 與實體介面注意事項</a> · <a href="https://www.modbus.org/file/secure/messagingimplementationguide.pdf">Modbus Organization：TCP/IP 實作指南</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc791">IPv4 RFC 791</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">TCP RFC 9293</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">UDP RFC 768</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業通訊比較教材</a></footer></main></body></html>
+    main()</code></pre></details><h3>原始規格與實務文件</h3><ul><li><a href="https://standards.ieee.org/ieee/802.3/12400/">IEEE 802.3 Ethernet</a> · <a href="https://www.ieee802.org/3/cg/public/Nov2018/xu_3cg_01b_1118.pdf">IEEE 802.3 工作小組：frame/preamble/IPG 示意</a> · <a href="https://www.juniper.net/documentation/us/en/software/junos/interfaces-security-devices/topics/topic-map/security-interface-configuring-ethernet-interfaces.html">Juniper：frame 長度</a></li><li><a href="https://www.cisco.com/c/en/us/support/docs/switches/catalyst-9600-series-switches/217413-understand-why-fcs-errors-input-errors.html">Cisco：FCS、IFG 與實體介面注意事項</a> · <a href="https://www.modbus.org/file/secure/messagingimplementationguide.pdf">Modbus Organization：TCP/IP 實作指南</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc791">IPv4 RFC 791</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293">TCP RFC 9293</a> · <a href="https://www.rfc-editor.org/rfc/rfc768">UDP RFC 768</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_industrial_protocol_comparison_tutorial.html">回工業通訊比較教材</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面計算了幀在線上的序列化時間。本節把它放回一次完整的 Modbus TCP 交易：當設備本身要幾毫秒才回應時，100 Mbps 換成 1 Gbps 能省下多少？</p><h3>可實跑範例：Modbus TCP 交易時間預算</h3><p>依 Modbus TCP 的 MBAP、TCP/IP 與乙太網路開銷計算請求與回應幀大小，再分別計算 100 Mbps 與 1 Gbps 的序列化時間，加上交換器轉送與設備回應時間（皆為假設值），觀察各段所占比例。</p><p><a class="button" download href="extensions/python_industrial_ethernet_speed_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;Modbus TCP 輪詢時間預算：100 Mbps 與 1 Gbps 的差異在哪裡（標準函式庫）。
+
+一次交易 = 請求在線上的序列化時間 + 交換器轉送 + 設備處理時間 + 回應序列化時間。
+乙太網路每幀還有前導碼／SFD 8 bytes 與幀間隙 12 bytes，最小幀 64 bytes（含 FCS）。
+&quot;&quot;&quot;
+ETH_OVERHEAD = 14 + 4            # MAC 標頭＋FCS
+WIRE_EXTRA = 8 + 12              # 前導碼/SFD＋幀間隙
+IP_TCP = 20 + 20
+MBAP = 7
+
+
+def frame_bytes(pdu_len):
+    payload = IP_TCP + MBAP + pdu_len
+    frame = max(64, payload + ETH_OVERHEAD)
+    return frame, frame + WIRE_EXTRA
+
+
+def serialization_us(wire_bytes, mbps):
+    return wire_bytes * 8 / mbps
+
+
+if __name__ == &quot;__main__&quot;:
+    req_pdu = 5                                  # FC03：功能碼 1＋起始位址 2＋數量 2
+    for regs in (10, 125):
+        resp_pdu = 2 + regs * 2                  # 功能碼＋位元組數＋資料
+        rq, rq_wire = frame_bytes(req_pdu)
+        rs, rs_wire = frame_bytes(resp_pdu)
+        print(f&quot;讀 {regs} 個暫存器：請求幀 {rq} B，回應幀 {rs} B（線上另加 20 B）&quot;)
+        for mbps in (100, 1000):
+            wire = serialization_us(rq_wire, mbps) + serialization_us(rs_wire, mbps)
+            switch = 2 * 2 * 5.0 if mbps == 100 else 2 * 2 * 1.0   # 兩台交換器、來回，假設轉送延遲
+            device = 4000.0                       # 假設設備回應 4 ms
+            total = wire + switch + device
+            print(f&quot;  {mbps:&gt;4} Mbps：線上 {wire:6.2f} µs＋交換器 {switch:4.1f} µs＋設備 {device:.0f} µs&quot;
+                  f&quot; = {total / 1000:.3f} ms（線上時間占 {wire / total:.2%}）&quot;)
+    devices, per_tx_ms = 60, 4.03
+    print(f&quot;\n{devices} 台電表依序輪詢、每台一次交易約 {per_tx_ms} ms：一輪 {devices * per_tx_ms / 1000:.2f} s&quot;)
+    print(&quot;升級 1 Gbps 幾乎不改變這個數字；要縮短輪詢週期，應合併讀取範圍、平行連線或減少點數。&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>讀 10 個暫存器：請求幀 70 B，回應幀 87 B（線上另加 20 B）
+   100 Mbps：線上  15.76 µs＋交換器 20.0 µs＋設備 4000 µs = 4.036 ms（線上時間占 0.39%）
+  1000 Mbps：線上   1.58 µs＋交換器  4.0 µs＋設備 4000 µs = 4.006 ms（線上時間占 0.04%）
+讀 125 個暫存器：請求幀 70 B，回應幀 317 B（線上另加 20 B）
+   100 Mbps：線上  34.16 µs＋交換器 20.0 µs＋設備 4000 µs = 4.054 ms（線上時間占 0.84%）
+  1000 Mbps：線上   3.42 µs＋交換器  4.0 µs＋設備 4000 µs = 4.007 ms（線上時間占 0.09%）
+
+60 台電表依序輪詢、每台一次交易約 4.03 ms：一輪 0.24 s
+升級 1 Gbps 幾乎不改變這個數字；要縮短輪詢週期，應合併讀取範圍、平行連線或減少點數。</code></pre><h3>工程現場案例：電表輪詢一輪要 3 秒，升級 Gigabit 交換器沒有改善</h3><p>某大樓 60 台多功能電表以 Modbus TCP 輪詢，每台讀 5 個區塊，一輪約 3 秒，無法滿足 1 秒更新的需量控制。業主把交換器全換成 Gigabit，結果幾乎沒變。範例顯示，設備回應 4 ms 時線上時間只占 0.4%，交換器速度不是瓶頸。</p><p>實際改善方式是：把分散的 5 個區塊依點位表重新排列成 1～2 次連續讀取（單次最多 125 個暫存器）、對不同電表開平行連線，並把不需要每秒更新的點（電能累計、諧波）改成較慢的輪詢群組。調整後一輪降到 0.6 秒。</p><ol><li>用封包擷取或閘道器日誌量測每台設備的實際回應時間，而不是假設。</li><li>統計每台設備每輪的交易數，合併相鄰位址的讀取。</li><li>確認設備允許的同時連線數，再決定平行輪詢的程度。</li><li>依控制需求把點位分成快速與慢速群組，各自設定輪詢週期。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現場層可留意 IEEE 802.3cg 定義的 10BASE-T1L 單對線乙太網路：10 Mbps、單對雙絞線、最長約 1,000 m，可同時供電，並有本質安全版本（Ethernet-APL）。它用來取代 4–20 mA 或 RS-485 到現場儀表的最後一段，而不是追求高頻寬。 <a href="https://standards.ieee.org/ieee/802.3cg/7308/">來源：IEEE 802.3cg-2019</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>讀 10 個暫存器的回應幀為什麼是 87 bytes？請拆解。</p><details><summary>看解答</summary><p>PDU：功能碼 1＋位元組數 1＋資料 20 = 22；MBAP 7；TCP 20；IP 20；乙太網路標頭 14；FCS 4。合計 22 + 7 + 20 + 20 + 14 + 4 = 87 bytes。</p></details></li><li><p>若設備回應時間是 50 µs（例如高速 I/O 模組），1 Gbps 相對 100 Mbps 能省多少比例？</p><details><summary>看解答</summary><p>把 device 改成 50 後重新計算：100 Mbps 約 15.8 + 20 + 50 = 85.8 µs，1 Gbps 約 1.6 + 4 + 50 = 55.6 µs，縮短約 35%。設備越快，網路速度的影響越明顯。</p></details></li><li><p>請求幀計算出 70 bytes，為什麼程式裡還有 max(64, …)？</p><details><summary>看解答</summary><p>乙太網路規定最小幀長為 64 bytes（含 FCS），不足時要補零。Modbus TCP 請求剛好超過，但像 ARP 或很短的封包就會被補到 64 bytes。</p></details></li><li><p>把 60 台電表改成每台開一條連線、同時輪詢 10 台，一輪時間大約是多少？</p><details><summary>看解答</summary><p>理想情況下 60 ÷ 10 = 6 批，每批約 4.03 ms，一輪約 24 ms 加上排程開銷。實際上會受閘道器處理能力、設備同時連線上限與 RS-485 後端（若是 TCP 轉 RTU 閘道器，後端仍是序列匯流排）限制。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

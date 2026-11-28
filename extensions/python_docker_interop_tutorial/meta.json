@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁比較了 CLI、SDK 與 API 三種操作方式。用 Python 呼叫 docker CLI 時最常見的風險是把使用者輸入拼進 shell 字串；本節示範以參數清單組裝指令，並在組裝前驗證名稱、映像標籤與掛載路徑。",
+ "example_title": "安全地組出 docker run 參數清單",
+ "example_desc": "build_run() 只回傳 argv 清單，交給 subprocess.run(argv) 執行時不經 shell，名稱裡的分號或 $() 不會被解譯。同時套用非 root 使用者、唯讀根檔案系統、資源上限、健康檢查與唯讀掛載。範例不會真的執行 Docker。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件；不需要安裝 Docker",
+ "case": {
+  "title": "維運面板的容器名稱欄位變成了指令注入點",
+  "paragraphs": [
+   "某邊緣主機的維運面板讓使用者輸入容器名稱，後端用 os.system(f\"docker restart {name}\") 執行。測試人員輸入 poller; docker rm -f influxdb，結果資料庫容器被刪除。問題不在 Docker，而在把字串交給 shell 解譯。",
+   "改成 subprocess.run([\"docker\", \"restart\", name]) 並以正規表示式驗證名稱後，同樣的輸入會被直接拒絕。範例也把常見的安全預設集中在一個函式裡，避免每次手寫指令時漏掉 --read-only 或 --memory。"
+  ],
+  "steps": [
+   "所有呼叫 docker CLI 的地方改用參數清單，禁止 shell=True 與字串拼接。",
+   "名稱、映像、路徑先用白名單或正規表示式驗證，失敗就拒絕。",
+   "把安全預設（非 root、唯讀、資源上限、健康檢查）寫成共用函式。",
+   "需要大量操作時改用 Docker SDK，同樣限制可操作的容器與動作。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 Docker SDK for Python（docker 套件）最新版為 7.2.0。透過 SDK 或 CLI 存取 Docker daemon 等同取得主機 root 權限，執行這類工具的帳號與 socket 權限要嚴格限制。",
+   "sources": [
+    {
+     "title": "PyPI：docker",
+     "url": "https://pypi.org/project/docker/"
+    },
+    {
+     "title": "Python 文件：subprocess 安全考量",
+     "url": "https://docs.python.org/3/library/subprocess.html#security-considerations"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼 shlex.join(argv) 只用來「顯示」，不用來執行？",
+   "a": "<p>shlex.join 會為含空白的參數加上引號，方便人閱讀與複製；但執行時再交給 shell 等於回到字串拼接的老路。執行一律用 subprocess.run(argv)。</p>"
+  },
+  {
+   "q": "IMAGE_RE 為什麼拒絕 :latest？",
+   "a": "<p>:latest 會隨重新拉取而改變，無法追溯現場實際執行的版本。要求明確版本或 sha256 digest，部署才可重現。</p>"
+  },
+  {
+   "q": "data_dir 的檢查寫成 startswith('/srv/bms/')，傳入 /srv/bms/../../etc 會發生什麼？怎麼修？",
+   "a": "<p>會通過檢查，但實際掛載的是 /etc。應先用 os.path.realpath() 或 Path.resolve() 正規化路徑，再檢查是否位於允許的目錄底下（Path.is_relative_to）。</p>"
+  },
+  {
+   "q": "--read-only 搭配 --tmpfs /tmp 的用意是什麼？",
+   "a": "<p>根檔案系統唯讀，攻擊者或錯誤程式無法修改容器內的程式檔；但很多程式需要暫存檔，用記憶體中的 tmpfs 提供可寫的 /tmp，重啟後自動清空。</p>"
+  }
+ ]
+}

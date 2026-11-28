@@ -604,7 +604,54 @@ python python_delivery_evidence_capstone_lab.py --changed-fixture</code></pre>
   <p>延伸：<a href="https://docs.python.org/3/library/hashlib.html">Python hashlib</a>、<a href="https://slsa.dev/spec/v1.2/provenance">SLSA v1.2 來源證明</a>。</p>
 </section>
 
-    </main>
+    <!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁把各章節收斂成可交付專案。本節提供一個交付前的自動檢查：必要檔案是否齊全、pyproject 版本是否有對應的 CHANGELOG 條目、程式碼中有沒有寫死的密碼。</p><h3>可實跑範例：交付前結構契約檢查</h3><p>check() 只做最基本、最常被遺漏的檢查，失敗項目全部列出。秘密偵測只用簡單的正規表示式，會有漏判與誤判；正式專案請搭配 gitleaks 等專用工具。檔案建立在暫存目錄。</p><p><a class="button" download href="extensions/python_project_delivery_blueprint_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;交付前自動檢查專案結構契約：必要檔案、版本號一致、測試存在、沒有遺留秘密（標準函式庫）。&quot;&quot;&quot;
+import re
+import tempfile
+from pathlib import Path
+
+REQUIRED = [&quot;README.md&quot;, &quot;pyproject.toml&quot;, &quot;CHANGELOG.md&quot;, &quot;src/bmsreport/__init__.py&quot;, &quot;tests/test_report.py&quot;]
+SECRET = re.compile(r&quot;(password|passwd|api[_-]?key|token)\s*=\s*[&#x27;\&quot;][^&#x27;\&quot;]{6,}&quot;, re.I)
+
+
+def check(root: Path):
+    problems = [f&quot;缺少 {p}&quot; for p in REQUIRED if not (root / p).exists()]
+    pyproject = (root / &quot;pyproject.toml&quot;).read_text() if (root / &quot;pyproject.toml&quot;).exists() else &quot;&quot;
+    m = re.search(r&#x27;^version\s*=\s*&quot;([^&quot;]+)&quot;&#x27;, pyproject, re.M)
+    version = m.group(1) if m else None
+    changelog = (root / &quot;CHANGELOG.md&quot;).read_text() if (root / &quot;CHANGELOG.md&quot;).exists() else &quot;&quot;
+    if version and f&quot;## {version}&quot; not in changelog:
+        problems.append(f&quot;CHANGELOG 沒有 {version} 的條目&quot;)
+    for p in root.rglob(&quot;*.py&quot;):
+        for i, line in enumerate(p.read_text().splitlines(), 1):
+            if SECRET.search(line):
+                problems.append(f&quot;疑似寫死秘密：{p.relative_to(root)}:{i}&quot;)
+    return version, problems
+
+
+if __name__ == &quot;__main__&quot;:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / &quot;src/bmsreport&quot;).mkdir(parents=True)
+        (root / &quot;README.md&quot;).write_text(&quot;# bmsreport\n&quot;)
+        (root / &quot;pyproject.toml&quot;).write_text(&#x27;[project]\nname = &quot;bmsreport&quot;\nversion = &quot;1.2.0&quot;\n&#x27;)
+        (root / &quot;CHANGELOG.md&quot;).write_text(&quot;## 1.1.0\n- 初版\n&quot;)
+        (root / &quot;src/bmsreport/__init__.py&quot;).write_text(&#x27;DB_PASSWORD = &quot;Bms#2026!&quot;\n&#x27;)
+        version, problems = check(root)
+        print(f&quot;版本 {version}，發現 {len(problems)} 個問題：&quot;)
+        for p in problems:
+            print(&quot;  -&quot;, p)
+        (root / &quot;tests&quot;).mkdir()
+        (root / &quot;tests/test_report.py&quot;).write_text(&quot;def test_ok():\n    assert True\n&quot;)
+        (root / &quot;CHANGELOG.md&quot;).write_text(&quot;## 1.2.0\n- 新增月報\n## 1.1.0\n- 初版\n&quot;)
+        (root / &quot;src/bmsreport/__init__.py&quot;).write_text(&#x27;import os\nDB_PASSWORD = os.environ[&quot;BMS_DB_PASSWORD&quot;]\n&#x27;)
+        version, problems = check(root)
+        print(f&quot;修正後：{&#x27;可以交付&#x27; if not problems else problems}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>版本 1.2.0，發現 3 個問題：
+  - 缺少 tests/test_report.py
+  - CHANGELOG 沒有 1.2.0 的條目
+  - 疑似寫死秘密：src/bmsreport/__init__.py:1
+修正後：可以交付</code></pre><h3>工程現場案例：交付給業主的版本，原始碼裡有資料庫密碼</h3><p>某專案交付時把整個資料夾壓縮給業主，事後才發現 __init__.py 裡有測試用的資料庫密碼，而且和正式環境相同。另外 pyproject 寫 1.2.0、CHANGELOG 最新卻是 1.1.0，業主無法判斷這次改了什麼。</p><p>範例把這些檢查變成交付前必跑的腳本：第一次列出 3 個問題，修正後（加上測試、更新 CHANGELOG、密碼改由環境變數讀取）顯示可以交付。檢查清單會隨專案成長，重點是每一項都能自動判斷。</p><ol><li>把交付物清單寫成 REQUIRED，與合約或驗收文件對齊。</li><li>版本號只在 pyproject 維護，CHANGELOG 必須有對應條目。</li><li>秘密一律由環境變數或秘密管理服務提供，並在 CI 執行秘密掃描。</li><li>檢查腳本加進 CI 的 release 工作，失敗就不能打包。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>pyproject.toml 的 [project] 欄位依 PEP 621 定義，現行規格由 Python Packaging User Guide 維護。本頁核對時 uv 最新版為 0.13.10、pytest 9.2.0。 <a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">來源：pyproject.toml 規格</a> <a href="https://pypi.org/project/uv/">來源：PyPI：uv</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>版本號用正規表示式從 pyproject 讀取，有什麼風險？有更好的方法嗎？</p><details><summary>看解答</summary><p>若 version 寫在其他區段或格式稍有不同，正規表示式可能讀錯。Python 3.11 起內建 tomllib，可以正確剖析 TOML：tomllib.loads(text)['project']['version']。</p></details></li><li><p>SECRET 正規表示式為什麼要求引號內至少 6 個字元？</p><details><summary>看解答</summary><p>避免把 password = ""、token = "x" 這類空值或範例誤判為秘密。這是在誤判與漏判之間取捨，所以正式專案要搭配專用工具。</p></details></li><li><p>修正後的程式改成 os.environ['BMS_DB_PASSWORD']，若環境變數沒設會怎樣？這是好事嗎？</p><details><summary>看解答</summary><p>會在啟動時丟出 KeyError。這是好事：設定缺漏在啟動時就被發現，而不是執行到連線資料庫時才失敗，也不會悄悄用空密碼連線。</p></details></li><li><p>除了範例的四項，你會再加哪些交付前檢查？</p><details><summary>看解答</summary><p>例如：所有測試通過、授權檔案存在、相依套件版本已鎖定（uv.lock）、文件中的版本號一致、建置產物可以在乾淨環境安裝。每一項都應能自動判斷。</p></details></li></ol></section><!-- extension:end -->
+</main>
   </div>
   <script>
     const lessonGroups = {

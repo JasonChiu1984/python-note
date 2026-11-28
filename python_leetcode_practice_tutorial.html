@@ -459,7 +459,75 @@ py -3 python_leetcode_practice.py</code></pre><p class="small" style="margin-top
 <div class="actions"><a class="button primary" href="python_leetcode_practice.py" download>下載完整程式與測試</a><a class="button" href="index.html#advanced">回到 100 案例 + 100 語意校閱案例</a></div>
 <p class="footer" style="margin-top:1.5rem">官方題目來源已於 2026-11-25 逐頁核對，連結置於各題「官方原題」。教材不包含官方題面全文或官方解答。勾選進度只保存在此瀏覽器，與主教材進度分開，不會同步到 LeetCode。</p></section>
 <div id="copy-status" role="status" aria-live="polite" class="small"></div>
-</div></main></div>
+</div><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>刷題的價值在於把複雜度降下來的思路，而不是背答案。本節把四種常見題型直接用在溫度趨勢資料上：滑動視窗、單調佇列、雙指標合併與單調堆疊，每個都是 O(n)。</p><h3>可實跑範例：把演算法題型用在趨勢資料</h3><p>longest_above() 找最長連續超溫段；max_in_windows() 是 LeetCode 239 的單調佇列解法；merge_sorted() 是合併兩條已排序時間序列的雙指標；next_warmer() 是 LeetCode 739 的單調堆疊。</p><p><a class="button" download href="extensions/python_leetcode_practice_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;把刷題技巧用在現場資料：滑動視窗找最長超溫區間、雙指標合併兩條時間序列、單調堆疊找下一次升溫（標準函式庫）。&quot;&quot;&quot;
+from collections import deque
+
+TEMPS = [24.1, 25.3, 28.4, 28.9, 29.2, 27.5, 28.6, 29.0, 29.4, 28.8, 26.0, 28.3]
+
+
+def longest_above(values, limit):
+    &quot;&quot;&quot;一次掃描：O(n) 找最長連續超溫段（類似「最長連續 1」）。&quot;&quot;&quot;
+    best, start, cur = (0, -1), None, 0
+    for i, v in enumerate(values):
+        if v &gt; limit:
+            start = i if start is None else start
+            if i - start + 1 &gt; best[0]:
+                best = (i - start + 1, start)
+        else:
+            start = None
+    return best
+
+
+def max_in_windows(values, k):
+    &quot;&quot;&quot;單調佇列：O(n) 求每個長度 k 視窗的最大值（LeetCode 239）。&quot;&quot;&quot;
+    dq, out = deque(), []
+    for i, v in enumerate(values):
+        while dq and values[dq[-1]] &lt;= v:
+            dq.pop()
+        dq.append(i)
+        if dq[0] &lt;= i - k:
+            dq.popleft()
+        if i &gt;= k - 1:
+            out.append(values[dq[0]])
+    return out
+
+
+def merge_sorted(a, b):
+    &quot;&quot;&quot;雙指標合併兩條已排序的 (時間, 來源) 序列，O(n + m)。&quot;&quot;&quot;
+    i = j = 0
+    out = []
+    while i &lt; len(a) and j &lt; len(b):
+        if a[i][0] &lt;= b[j][0]:
+            out.append(a[i]); i += 1
+        else:
+            out.append(b[j]); j += 1
+    return out + a[i:] + b[j:]
+
+
+def next_warmer(values):
+    &quot;&quot;&quot;單調堆疊：每個時間點要等幾步才會更熱（LeetCode 739）。&quot;&quot;&quot;
+    ans, stack = [0] * len(values), []
+    for i, v in enumerate(values):
+        while stack and values[stack[-1]] &lt; v:
+            j = stack.pop()
+            ans[j] = i - j
+        stack.append(i)
+    return ans
+
+
+if __name__ == &quot;__main__&quot;:
+    length, start = longest_above(TEMPS, 28.0)
+    print(f&quot;最長連續超過 28 °C：{length} 筆，從索引 {start} 開始 → {TEMPS[start:start + length]}&quot;)
+    print(&quot;每 3 筆視窗最大值：&quot;, max_in_windows(TEMPS, 3))
+    a = [(1, &quot;AHU1&quot;), (4, &quot;AHU1&quot;), (9, &quot;AHU1&quot;)]
+    b = [(2, &quot;CH1&quot;), (4, &quot;CH1&quot;), (7, &quot;CH1&quot;)]
+    print(&quot;合併時間序列：&quot;, merge_sorted(a, b))
+    print(&quot;幾步後更熱：&quot;, next_warmer(TEMPS))
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>最長連續超過 28 °C：4 筆，從索引 6 開始 → [28.6, 29.0, 29.4, 28.8]
+每 3 筆視窗最大值： [28.4, 28.9, 29.2, 29.2, 29.2, 29.0, 29.4, 29.4, 29.4, 28.8]
+合併時間序列： [(1, &#x27;AHU1&#x27;), (2, &#x27;CH1&#x27;), (4, &#x27;AHU1&#x27;), (4, &#x27;CH1&#x27;), (7, &#x27;CH1&#x27;), (9, &#x27;AHU1&#x27;)]
+幾步後更熱： [1, 1, 1, 1, 4, 1, 1, 1, 0, 0, 1, 0]</code></pre><h3>工程現場案例：一年的分鐘資料，用雙層迴圈算移動最大值跑了半小時</h3><p>某分析腳本要算 52 萬筆分鐘資料的 15 分鐘移動最大值，寫成每個位置往前掃 15 筆的雙層迴圈，複雜度 O(n·k)，在邊緣主機上跑得很慢；換成 60 分鐘視窗後更是慢了四倍。</p><p>單調佇列讓每個元素最多進出佇列各一次，總成本 O(n)，與視窗大小無關。實務上也可以直接用 pandas 的 rolling().max()，但理解背後的思路，才能在沒有現成函式的情況（例如自訂的告警條件）寫出有效率的程式。</p><ol><li>先估計資料量與目前演算法的複雜度，判斷是否真的需要優化。</li><li>把問題對應到熟悉的題型：連續區間、視窗極值、合併、下一個更大元素。</li><li>用小資料寫出暴力解作為對照，確認高效版本結果相同。</li><li>有成熟函式庫時優先使用（pandas、NumPy），自寫版本用於函式庫不支援的邏輯。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>範例只用 collections.deque 與串列，在 Python 3.10–3.15 皆可執行。Python 3.13 起直譯器提供實驗性 JIT，但演算法複雜度的差距遠大於直譯器優化的效果。 <a href="https://docs.python.org/3/library/collections.html#collections.deque">來源：Python 文件：collections.deque</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼 max_in_windows() 的佇列存索引而不是值？</p><details><summary>看解答</summary><p>需要用索引判斷佇列最前面的元素是否已經滑出視窗（dq[0] &lt;= i − k）。只存值無法知道它的位置。</p></details></li><li><p>next_warmer() 結果中有 0 代表什麼？</p><details><summary>看解答</summary><p>之後再也沒有更高的溫度，在資料範圍內等不到更熱的時刻。例如索引 8 的 29.4 是之後的最高值。</p></details></li><li><p>merge_sorted() 遇到相同時間戳時，誰排在前面？這重要嗎？</p><details><summary>看解答</summary><p>a[i][0] &lt;= b[j][0] 時取 a，所以時間相同時 AHU1 在 CH1 之前。這叫穩定合併；若後續處理依賴順序（例如事件先後），要明確定義同時間的排序規則。</p></details></li><li><p>longest_above() 若要同時回傳所有長度 ≥ 3 的超溫區間，要怎麼改？</p><details><summary>看解答</summary><p>在每次區間結束（v &lt;= limit 且 start 不為 None）以及迴圈結束時，檢查區間長度並加入結果清單。仍是一次掃描、O(n)。</p></details></li></ol></section><!-- extension:end -->
+</main></div>
 <script>
 (() => {
   const cards = [...document.querySelectorAll('.practice')];

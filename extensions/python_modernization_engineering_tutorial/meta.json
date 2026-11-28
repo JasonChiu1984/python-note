@@ -1,0 +1,54 @@
+{
+ "lang": "zh",
+ "checked": "2026-11-28",
+ "intro": "本頁說明版本升級治理。本節提供一個升級前的自動檢查：用 ast 掃描程式碼中已被移除的標準函式庫模組與已棄用的呼叫，在換版本之前就找出會壞的地方。",
+ "example_title": "用 ast 掃描已移除模組與棄用 API",
+ "example_desc": "ast 只剖析不執行程式碼，所以即使程式匯入了目前環境不存在的模組也能掃描。範例的規則表只列幾個常見項目，完整清單請依各版本 What's New 的 Removed 與 Deprecated 章節補充。",
+ "run_note": "只需 Python 3.10 以上，無第三方套件",
+ "case": {
+  "title": "能源報表伺服器卡在 Python 3.10，因為怕升級",
+  "paragraphs": [
+   "某能源報表伺服器仍跑 Python 3.10，而 3.10 已在 2026 年 10 月結束支援。團隊遲遲不升級，因為不知道哪些舊程式會壞。用範例的掃描器跑過全部程式碼後，發現問題集中在 3 個檔案：一個用 telnetlib 讀舊電表、一個用 distutils 比較版本、多處使用 datetime.utcnow()。",
+   "有了清單就能估工：telnetlib 改用第三方套件、版本比較改用 packaging.version、utcnow() 改成帶時區的 datetime.now(timezone.utc)。修完後在 CI 加上新版本的測試矩陣，升級變成一個可規劃的工作。"
+  ],
+  "steps": [
+   "對整個程式庫執行掃描器，輸出檔名、行號與替代方案。",
+   "以 python -W error::DeprecationWarning 跑完整測試，抓出執行期才出現的棄用警告。",
+   "在 CI 加入目標版本的測試矩陣，先允許失敗，修完後改為必過。",
+   "相依套件逐一確認支援目標版本，必要時先升級套件。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "PEP 594 規劃的「dead batteries」模組（cgi、telnetlib、pipes 等）已於 Python 3.13 全部移除；distutils、imp、asyncore、asynchat 已於 3.12 移除。datetime.utcnow() 與 utcfromtimestamp() 自 3.12 起發出 DeprecationWarning。",
+   "sources": [
+    {
+     "title": "PEP 594",
+     "url": "https://peps.python.org/pep-0594/"
+    },
+    {
+     "title": "What's new in Python 3.12：Removed",
+     "url": "https://docs.python.org/3/whatsnew/3.12.html"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "為什麼用 ast 掃描，而不是直接在新版本上 import 每個模組？",
+   "a": "<p>import 會執行模組頂層程式碼，可能連線設備或寫檔；而且遇到第一個 ImportError 就停止。ast 只剖析語法，安全且能一次列出全部問題。</p>"
+  },
+  {
+   "q": "程式碼寫成 import datetime as dt; dt.datetime.utcnow()，範例掃得到嗎？",
+   "a": "<p>掃不到。範例只比對 datetime.utcnow() 這種形式（屬性的基底是名為 datetime 的變數）。要涵蓋別名，需要追蹤 import 的對應關係，或改用 ruff 的 DTZ 規則等現成工具。</p>"
+  },
+  {
+   "q": "datetime.utcnow() 有什麼問題，為什麼被棄用？",
+   "a": "<p>它回傳不帶時區資訊的 naive datetime，看起來像本地時間，與其他時間比較或轉換時容易出錯。datetime.now(timezone.utc) 回傳帶 UTC 時區的 aware datetime，語意明確。</p>"
+  },
+  {
+   "q": "若要把掃描器加進 CI，失敗條件應該怎麼設？",
+   "a": "<p>對「已在目標版本移除」的項目直接失敗；「已棄用但仍可用」的項目先列為警告並設定修正期限。也可以維護一份允許清單，記錄暫時無法修正的位置與原因。</p>"
+  }
+ ]
+}

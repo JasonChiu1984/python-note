@@ -1,0 +1,58 @@
+{
+ "lang": "zh",
+ "python": "3.13",
+ "checked": "2026-11-28",
+ "requires": [
+  "pandas"
+ ],
+ "intro": "本節把前面的讀檔契約延伸到 BAS 趨勢資料最常做的三件事：只用品質良好的資料、重取樣成 15 分鐘平均，以及轉成一個點位一欄的寬表，並同時保留每個區間的有效筆數。",
+ "example_title": "BAS 趨勢資料：dtype、品質篩選與 15 分鐘寬表",
+ "example_desc": "範例需要 pandas 3.x（本頁輸出以 pandas 3.1.1 產生）。point_id 明確指定為 string 並關閉預設缺值，保住 001 與 NA 兩個點位代碼；只有 value 欄的空白視為缺值。重取樣同時輸出 mean 與 count，讓讀報表的人知道每格平均是幾筆資料算出來的。",
+ "run_note": "需先 pip install pandas",
+ "case": {
+  "title": "點位代碼 NA 被讀成缺值，冰水溫度整欄消失",
+  "paragraphs": [
+   "某專案的點位代碼採三碼縮寫，其中冰水供水溫度的代碼剛好是 NA。用 pd.read_csv() 預設參數讀檔時，pandas 把 NA 當成缺值，這個點位的所有資料都變成空值，groupby 時直接被排除，報表少了一個關鍵點位卻沒有任何錯誤訊息。",
+   "另一個點位 001 被推斷成整數 1，與另一棟大樓的點位 1 混在一起。範例以 dtype 與 keep_default_na=False 明確定義欄位契約，並把 comm_fail 的資料排除在平均之外，同時輸出有效資料比例，讓資料品質問題浮上檯面。"
+  ],
+  "steps": [
+   "為每個匯出檔建立欄位契約：哪些欄位是代碼（string）、哪些是量測值（Float64）、缺值字串是什麼。",
+   "讀檔後立即檢查 dtypes 與代碼清單，與點位表比對。",
+   "依 quality 欄篩選後再計算，並保留 count 或有效比例。",
+   "把契約寫成函式與測試，換新版本 pandas 時先跑一次歷史樣本。"
+  ]
+ },
+ "updates": [
+  {
+   "text": "本頁核對時 pandas 最新版為 3.1.1。pandas 3 起字串欄預設推斷為專用的字串型別，且全面採用 Copy-on-Write；以往依賴「修改切片會改到原表」或 object 字串欄的程式要重新測試。範例輸出也可看到時間欄解析為 datetime64[us]。",
+   "sources": [
+    {
+     "title": "PyPI：pandas",
+     "url": "https://pypi.org/project/pandas/"
+    },
+    {
+     "title": "pandas 官方文件",
+     "url": "https://pandas.pydata.org/docs/"
+    }
+   ]
+  }
+ ],
+ "exercises": [
+  {
+   "q": "把 read_csv() 的 keep_default_na=False 拿掉，point_id 欄會發生什麼事？",
+   "a": "<p>NA 會被當成缺值，CHW_SUPPLY 的 4 筆資料 point_id 變成 &lt;NA&gt;，map() 後 point 也是缺值，groupby 會排除它們，寬表只剩 AHU1_SAT。</p>"
+  },
+  {
+   "q": "08:00 區間的 AHU1_SAT 平均為什麼是 22.5，而不是把 3 筆都算進去？",
+   "a": "<p>08:09:40 那筆 quality 為 comm_fail 且 value 為空，已在 good 篩選時排除，所以只有 22.4 與 22.6 兩筆，平均 22.5，count 為 2。</p>"
+  },
+  {
+   "q": "如果要把 15 分鐘平均改成「區間內有效筆數少於 2 筆就顯示缺值」，要怎麼改？",
+   "a": "<p>先算出 mean 與 count，再用 wide[mean_col] = wide[mean_col].where(wide[count_col] &gt;= 2)。範例中 08:15 的 AHU1_SAT 只有 1 筆，會變成缺值。</p>"
+  },
+  {
+   "q": "為什麼 value 用 Float64（大寫 F）而不是 float64？",
+   "a": "<p>Float64 是 pandas 的可空擴充型別，缺值以 &lt;NA&gt; 表示，和整數、布林的可空型別行為一致；float64 只能用 NaN。在需要區分「缺值」與運算結果 NaN 的報表中，可空型別比較清楚。</p>"
+  }
+ ]
+}

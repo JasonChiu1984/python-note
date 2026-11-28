@@ -218,4 +218,58 @@ if __name__ == &quot;__main__&quot;:
             (&quot;policy_unavailable&quot;, replace(Context(), dependency_available=False)),
         ]:
             allowed, reason = evaluate(c)
-            print(json.dumps({&quot;case&quot;: name, &quot;allowed&quot;: allowed, &quot;reason&quot;: reason}))</code></pre></details><h3>官方引用與版本</h3><p>截至 2026-11-25，OT 指南採 NIST SP 800-82 Rev. 3 正式版；<a href="https://csrc.nist.gov/pubs/sp/800/82/r4/ipd">Rev. 4 是初版公開草案</a>，不當成已生效要求。<a href="https://csrc.nist.gov/pubs/sp/1800/35/final">NCCoE SP 1800-35</a> 提供示範部署，不是認證。臺灣政府機關可參考<a href="https://www.nics.nat.gov.tw/core_business/cybersecurity_defense/ZTA/Related_Documents_and-Forms/">國家資通安全研究院專區</a>；不應推論成所有產業的統一法規。</p><ul><li><a href="https://csrc.nist.gov/pubs/sp/800/207/final">NIST SP 800-207：零信任架構</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/207/a/final">NIST SP 800-207A：多雲應用與服務存取控制</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev. 3：OT 資訊安全</a></li><li><a href="https://www.cisa.gov/resources-tools/resources/zero-trust-maturity-model">CISA ZTMM v2.0</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9700">IETF RFC 9700：OAuth 2.0 安全最佳實務</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_information_security_tutorial.html#ot">回 OT 資訊安全教材</a></footer></main></body></html>
+            print(json.dumps({&quot;case&quot;: name, &quot;allowed&quot;: allowed, &quot;reason&quot;: reason}))</code></pre></details><h3>官方引用與版本</h3><p>截至 2026-11-25，OT 指南採 NIST SP 800-82 Rev. 3 正式版；<a href="https://csrc.nist.gov/pubs/sp/800/82/r4/ipd">Rev. 4 是初版公開草案</a>，不當成已生效要求。<a href="https://csrc.nist.gov/pubs/sp/1800/35/final">NCCoE SP 1800-35</a> 提供示範部署，不是認證。臺灣政府機關可參考<a href="https://www.nics.nat.gov.tw/core_business/cybersecurity_defense/ZTA/Related_Documents_and-Forms/">國家資通安全研究院專區</a>；不應推論成所有產業的統一法規。</p><ul><li><a href="https://csrc.nist.gov/pubs/sp/800/207/final">NIST SP 800-207：零信任架構</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/207/a/final">NIST SP 800-207A：多雲應用與服務存取控制</a></li><li><a href="https://csrc.nist.gov/pubs/sp/800/82/r3/final">NIST SP 800-82 Rev. 3：OT 資訊安全</a></li><li><a href="https://www.cisa.gov/resources-tools/resources/zero-trust-maturity-model">CISA ZTMM v2.0</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9700">IETF RFC 9700：OAuth 2.0 安全最佳實務</a></li></ul></section><footer><a href="#top">回頁首</a> · <a href="python_information_security_tutorial.html#ot">回 OT 資訊安全教材</a></footer><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁說明政策決策與執行分離。本節實作一個最小的政策決策點：預設拒絕，每筆請求都依角色、動作、資源、裝置狀態、MFA、工單與時段重新判斷，並回傳拒絕原因。</p><h3>可實跑範例：預設拒絕的政策決策點</h3><p>POLICIES 是允許清單；找不到符合的政策就拒絕。每個拒絕都帶原因，方便稽核與除錯。範例把時間固定成兩個時間點，讓輸出可重現。</p><p><a class="button" download href="extensions/python_zero_trust_architecture_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;最小權限政策決策點（PDP）：預設拒絕，每筆請求依身分、裝置狀態、資源、動作與時間窗判斷（標準函式庫）。&quot;&quot;&quot;
+from datetime import datetime
+
+POLICIES = [
+    {&quot;role&quot;: &quot;vendor&quot;, &quot;action&quot;: &quot;read&quot;, &quot;resource&quot;: &quot;ahu/*&quot;, &quot;device_ok&quot;: True,
+     &quot;ticket&quot;: True, &quot;hours&quot;: (8, 18)},
+    {&quot;role&quot;: &quot;operator&quot;, &quot;action&quot;: &quot;read&quot;, &quot;resource&quot;: &quot;*&quot;, &quot;device_ok&quot;: True},
+    {&quot;role&quot;: &quot;operator&quot;, &quot;action&quot;: &quot;write&quot;, &quot;resource&quot;: &quot;ahu/*/setpoint&quot;, &quot;device_ok&quot;: True, &quot;mfa&quot;: True},
+]
+
+
+def match(pattern, resource):
+    p, r = pattern.split(&quot;/&quot;), resource.split(&quot;/&quot;)
+    if pattern == &quot;*&quot;:
+        return True
+    return len(p) == len(r) and all(a in (&quot;*&quot;, b) for a, b in zip(p, r)) or (p[-1] == &quot;*&quot; and r[:len(p) - 1] == p[:-1])
+
+
+def decide(req):
+    for pol in POLICIES:
+        if pol[&quot;role&quot;] != req[&quot;role&quot;] or pol[&quot;action&quot;] != req[&quot;action&quot;] or not match(pol[&quot;resource&quot;], req[&quot;resource&quot;]):
+            continue
+        if pol.get(&quot;device_ok&quot;) and not req[&quot;device_ok&quot;]:
+            return &quot;拒絕：裝置狀態不符（未更新或未受管）&quot;
+        if pol.get(&quot;mfa&quot;) and not req.get(&quot;mfa&quot;):
+            return &quot;拒絕：寫入需要 MFA&quot;
+        if pol.get(&quot;ticket&quot;) and not req.get(&quot;ticket&quot;):
+            return &quot;拒絕：需要有效工單&quot;
+        if &quot;hours&quot; in pol and not pol[&quot;hours&quot;][0] &lt;= req[&quot;time&quot;].hour &lt; pol[&quot;hours&quot;][1]:
+            return f&quot;拒絕：不在允許時段 {pol[&#x27;hours&#x27;][0]}–{pol[&#x27;hours&#x27;][1]} 時&quot;
+        return &quot;允許&quot;
+    return &quot;拒絕：沒有符合的政策（預設拒絕）&quot;
+
+
+if __name__ == &quot;__main__&quot;:
+    day, night = datetime(2026, 11, 28, 10), datetime(2026, 11, 28, 22)
+    reqs = [
+        (&quot;廠商白天唯讀&quot;, dict(role=&quot;vendor&quot;, action=&quot;read&quot;, resource=&quot;ahu/01/sat&quot;, device_ok=True, ticket=True, time=day)),
+        (&quot;廠商夜間唯讀&quot;, dict(role=&quot;vendor&quot;, action=&quot;read&quot;, resource=&quot;ahu/01/sat&quot;, device_ok=True, ticket=True, time=night)),
+        (&quot;廠商嘗試寫入&quot;, dict(role=&quot;vendor&quot;, action=&quot;write&quot;, resource=&quot;ahu/01/setpoint&quot;, device_ok=True, ticket=True, time=day)),
+        (&quot;廠商無工單&quot;, dict(role=&quot;vendor&quot;, action=&quot;read&quot;, resource=&quot;ahu/01/sat&quot;, device_ok=True, ticket=False, time=day)),
+        (&quot;值班寫入無 MFA&quot;, dict(role=&quot;operator&quot;, action=&quot;write&quot;, resource=&quot;ahu/01/setpoint&quot;, device_ok=True, time=night)),
+        (&quot;值班寫入有 MFA&quot;, dict(role=&quot;operator&quot;, action=&quot;write&quot;, resource=&quot;ahu/01/setpoint&quot;, device_ok=True, mfa=True, time=night)),
+        (&quot;值班筆電未更新&quot;, dict(role=&quot;operator&quot;, action=&quot;read&quot;, resource=&quot;chiller/02/kw&quot;, device_ok=False, time=day)),
+    ]
+    for name, r in reqs:
+        print(f&quot;{name:&lt;10} {r[&#x27;action&#x27;]:&lt;5} {r[&#x27;resource&#x27;]:&lt;16} → {decide(r)}&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>廠商白天唯讀     read  ahu/01/sat       → 允許
+廠商夜間唯讀     read  ahu/01/sat       → 拒絕：不在允許時段 8–18 時
+廠商嘗試寫入     write ahu/01/setpoint  → 拒絕：沒有符合的政策（預設拒絕）
+廠商無工單      read  ahu/01/sat       → 拒絕：需要有效工單
+值班寫入無 MFA  write ahu/01/setpoint  → 拒絕：寫入需要 MFA
+值班寫入有 MFA  write ahu/01/setpoint  → 允許
+值班筆電未更新    read  chiller/02/kw    → 拒絕：裝置狀態不符（未更新或未受管）</code></pre><h3>工程現場案例：廠商遠端維護帳號長期開著全權限</h3><p>某大樓為了方便，給空調廠商一組 VPN 帳號，登入後可以看也可以改所有點位，帳號一年沒換過。零信任的做法是把「能登入」和「能做什麼」分開：廠商只有在有工單、上班時段、使用受管裝置時才能讀取空調箱的點位，任何寫入都不在允許清單內。</p><p>範例中值班人員的寫入需要 MFA，筆電未更新時連讀取都被拒絕。所有決策都有原因，事後可以回答「為什麼那次被拒」或「是誰在什麼條件下改了設定點」。</p><ol><li>盤點每個角色實際需要的資源與動作，寫成允許清單，其他一律拒絕。</li><li>把裝置狀態、MFA、工單與時段做成可查詢的屬性，由政策決策點統一判斷。</li><li>政策執行點（閘道器、API）每一筆請求都詢問決策點，不快取「已登入就放行」。</li><li>保留決策紀錄，定期檢視被拒絕最多的請求，調整政策或流程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>零信任架構的參考框架仍以 NIST SP 800-207 為主；NIST NCCoE 已發布 SP 1800-35 的實作範例。OT 環境還需考慮本地控制不得依賴遠端政策服務的可用性。 <a href="https://csrc.nist.gov/pubs/sp/800/207/final">來源：NIST SP 800-207</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 POLICIES 的順序改成第三條放第一，會影響結果嗎？</p><details><summary>看解答</summary><p>本例不會，因為各政策的角色與動作組合不重疊，每個請求最多只會符合一條。若政策有重疊，「第一條符合即決定」的寫法就要注意順序，通常把較嚴格的放前面，或改成全部評估後取最嚴格的結果。</p></details></li><li><p>「廠商嘗試寫入」的拒絕原因是「沒有符合的政策」，而不是「廠商不能寫入」。為什麼這樣比較好？</p><details><summary>看解答</summary><p>預設拒絕不需要為每個不允許的組合寫規則，政策清單只描述允許的事。新增角色或資源時，未明確允許的操作自動被拒絕，不會因為漏寫拒絕規則而開了後門。</p></details></li><li><p>時段檢查用 time.hour，若廠商在 17:59 開始一次長時間的連線，18:00 之後還能繼續讀嗎？</p><details><summary>看解答</summary><p>範例每筆請求都重新判斷，18:00 之後的讀取會被拒絕。這是零信任「持續驗證」的特性；實務上可在接近結束時提示使用者，而不是突然中斷。</p></details></li><li><p>若政策決策點本身故障，BAS 本地控制應該怎麼辦？</p><details><summary>看解答</summary><p>本地控制迴路不能依賴遠端決策點。決策點故障時，遠端存取應被拒絕（fail closed），但現場 DDC 的控制邏輯與本地操作必須照常運作。本頁的 HVAC／OT 章節就是在處理這個邊界。</p></details></li></ol></section><!-- extension:end -->
+</main></body></html>

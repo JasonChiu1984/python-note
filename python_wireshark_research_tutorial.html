@@ -86,4 +86,57 @@ tshark -n -r wireshark_http_reassembly_sample.pcap -q -z follow,tcp,ascii,0</cod
 trimmed_frames += captured &lt; original</code></pre></details>
  <p>一手資料：<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChAdvTCPAnalysis.html">Wireshark TCP Analysis</a> · <a href="https://wiki.wireshark.org/CaptureSetup/Offloading">Wireshark CaptureSetup／Offloading</a> · <a href="https://datatracker.ietf.org/doc/draft-ietf-opsawg-pcap/">IETF OPSAWG：PCAP Capture File Format</a></p>
  </section>
+<!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>本頁介紹以 Wireshark 與 TShark 觀察封包。本節反過來，用 Python 手動組出一個含 Modbus TCP 請求的 pcap 檔，再逐層解析，練習把 Wireshark 畫面上每一層欄位對應回原始位元組。</p><h3>可實跑範例：手動組出並解析 pcap 中的 Modbus TCP 封包</h3><p>pcap 全域標頭與記錄標頭是 little-endian，乙太網路以上的協定欄位是 big-endian（網路位元組順序）。程式依序解析 Ethernet、IPv4、TCP 與 MBAP，輸出可與 Wireshark 的封包詳細窗格對照。</p><p><a class="button" download href="extensions/python_wireshark_research_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;不用 Wireshark 也能讀 pcap：產生一個含 Modbus TCP 請求的 pcap，再逐層解析（標準函式庫 struct）。&quot;&quot;&quot;
+import struct
+
+
+def build_pcap():
+    mbap_pdu = struct.pack(&quot;&gt;HHHB&quot;, 0x002A, 0, 6, 1) + struct.pack(&quot;&gt;BHH&quot;, 3, 0, 10)   # FC03 讀 10 個暫存器
+    tcp = struct.pack(&quot;&gt;HHIIBBHHH&quot;, 50123, 502, 1000, 2000, 5 &lt;&lt; 4, 0x18, 8192, 0, 0)
+    ip_total = 20 + len(tcp) + len(mbap_pdu)
+    ip = struct.pack(&quot;&gt;BBHHHBBH4s4s&quot;, 0x45, 0, ip_total, 1, 0x4000, 64, 6, 0,
+                     bytes([192, 168, 10, 5]), bytes([192, 168, 10, 20]))
+    eth = bytes.fromhex(&quot;001122334455&quot;) + bytes.fromhex(&quot;66778899aabb&quot;) + struct.pack(&quot;&gt;H&quot;, 0x0800)
+    frame = eth + ip + tcp + mbap_pdu
+    global_hdr = struct.pack(&quot;&lt;IHHiIII&quot;, 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)          # LINKTYPE_ETHERNET
+    rec = struct.pack(&quot;&lt;IIII&quot;, 1_795_800_000, 123_456, len(frame), len(frame))
+    return global_hdr + rec + frame
+
+
+def parse(data):
+    magic, vmaj, vmin, _, _, snaplen, linktype = struct.unpack_from(&quot;&lt;IHHiIII&quot;, data, 0)
+    assert magic == 0xA1B2C3D4, &quot;非 little-endian 微秒格式 pcap&quot;
+    print(f&quot;pcap v{vmaj}.{vmin}，snaplen {snaplen}，linktype {linktype}（1 = Ethernet）&quot;)
+    off = 24
+    while off &lt; len(data):
+        sec, usec, incl, orig = struct.unpack_from(&quot;&lt;IIII&quot;, data, off)
+        frame = data[off + 16: off + 16 + incl]
+        off += 16 + incl
+        dst, src, etype = frame[:6], frame[6:12], struct.unpack_from(&quot;&gt;H&quot;, frame, 12)[0]
+        print(f&quot;時間 {sec}.{usec:06d}，長度 {incl}/{orig}，EtherType 0x{etype:04X}&quot;)
+        ihl = (frame[14] &amp; 0x0F) * 4
+        proto = frame[14 + 9]
+        sip, dip = frame[14 + 12:14 + 16], frame[14 + 16:14 + 20]
+        print(f&quot;IPv4 {&#x27;.&#x27;.join(map(str, sip))} → {&#x27;.&#x27;.join(map(str, dip))}，協定 {proto}（6 = TCP），IHL {ihl}&quot;)
+        t = 14 + ihl
+        sport, dport, seq, ack, doff = struct.unpack_from(&quot;&gt;HHIIB&quot;, frame, t)
+        hlen = (doff &gt;&gt; 4) * 4
+        print(f&quot;TCP {sport} → {dport}，seq {seq}，標頭 {hlen} bytes&quot;)
+        m = t + hlen
+        tid, pid, length, uid, fc, start, qty = struct.unpack_from(&quot;&gt;HHHBBHH&quot;, frame, m)
+        print(f&quot;Modbus TCP：交易 {tid}，協定 {pid}，長度 {length}，Unit {uid}，FC{fc:02d} 起始 {start} 數量 {qty}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    data = build_pcap()
+    print(f&quot;pcap 共 {len(data)} bytes&quot;)
+    parse(data)
+    print(&quot;等效 Wireshark 顯示篩選：&quot;, &quot;modbus.func_code == 3 &amp;&amp; ip.dst == 192.168.10.20&quot;)
+</code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件；不會擷取網路流量</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>pcap 共 106 bytes
+pcap v2.4，snaplen 65535，linktype 1（1 = Ethernet）
+時間 1795800000.123456，長度 66/66，EtherType 0x0800
+IPv4 192.168.10.5 → 192.168.10.20，協定 6（6 = TCP），IHL 20
+TCP 50123 → 502，seq 1000，標頭 20 bytes
+Modbus TCP：交易 42，協定 0，長度 6，Unit 1，FC03 起始 0 數量 10
+等效 Wireshark 顯示篩選： modbus.func_code == 3 &amp;&amp; ip.dst == 192.168.10.20</code></pre><h3>工程現場案例：BAS 說讀不到電表，電表廠商說沒收到請求</h3><p>整合時常見雙方各執一詞。在閘道器與電表之間的交換器設定鏡像埠擷取封包，用顯示篩選 modbus 過濾，就能確認請求是否真的送出、Unit ID 與起始位址是否正確、電表有沒有回應或回了例外碼。</p><p>擷取檔要能重跑分析：保存原始 pcap、擷取點、時間與篩選條件。範例示範的逐層解析，也可以寫成腳本批次檢查大量擷取檔，例如統計每台電表的平均回應時間與例外碼次數。</p><ol><li>確認擷取點：交換器鏡像埠或閘道器本機，記錄位置與時間同步方式。</li><li>先用 tcp.port == 502 篩選，再用 modbus.func_code、modbus.exception_code 細分。</li><li>把同一個觀測寫成 tshark 指令，結果輸出成 CSV 方便比對。</li><li>擷取檔可能含帳密或個資，保存與分享前要確認權限並視需要遮蔽。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>Wireshark 預設以 pcapng 格式儲存擷取檔；本範例使用結構較簡單的傳統 libpcap 格式，Wireshark 與 TShark 都能讀寫（另存時選 pcap）。Python 端常用套件版本：scapy 2.8.0、pyshark 0.6（pyshark 需要本機安裝 TShark）。 <a href="https://wiki.wireshark.org/Development/LibpcapFileFormat">來源：Wireshark 文件：檔案格式</a> <a href="https://pypi.org/project/scapy/">來源：PyPI：scapy</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>MBAP 的長度欄位是 6，代表哪幾個位元組？</p><details><summary>看解答</summary><p>長度欄位計算的是其後的位元組數：Unit ID 1 + 功能碼 1 + 起始位址 2 + 數量 2 = 6。不含交易識別碼、協定識別碼與長度欄位本身。</p></details></li><li><p>為什麼 pcap 全域標頭用 "<"，而 IP 與 TCP 欄位用 ">"？</p><details><summary>看解答</summary><p>pcap 標頭以寫檔主機的位元組順序儲存，魔術數字 0xA1B2C3D4 讀出來的順序可判斷 endian；本例為 little-endian。乙太網路以上的協定欄位依標準一律採網路位元組順序（big-endian）。</p></details></li><li><p>如果要讓 parse() 也能讀 big-endian 的 pcap，怎麼改？</p><details><summary>看解答</summary><p>先讀前 4 bytes：若 "&lt;I" 解出 0xA1B2C3D4 為 little-endian；若 "&gt;I" 解出才是 big-endian。依此決定後續標頭的 endian 前綴。另有 0xA1B23C4D 表示奈秒精度的時間戳。</p></details></li><li><p>範例的 IHL 為 20、TCP 標頭為 20 bytes。若 TCP 帶了選項（例如時間戳記），解析程式哪裡會出錯？</p><details><summary>看解答</summary><p>不會出錯，因為程式依 data offset 欄位計算 TCP 標頭長度（(doff &gt;&gt; 4) × 4），帶選項時會自動往後跳。若寫死 20 bytes，MBAP 就會從錯誤位置開始解析。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>
