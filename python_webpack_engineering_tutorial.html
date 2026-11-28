@@ -225,7 +225,9 @@ if __name__ == &quot;__main__&quot;:
 </section>
 <section id="debug"><p class="kicker">06 / DIAGNOSIS</p><h2>從症狀找證據，不先重裝套件</h2>
 <div class="box" id="diagnostic-controls" hidden><label for="diagnostic">選擇現場症狀</label><br><select id="diagnostic"><option value="chunk">Chunk 404／點進才壞</option><option value="api">API 200 卻不是 JSON</option><option value="css">CSS 建置後不見</option><option value="budget">首頁 bundle 變重</option></select></div>
-<article data-case="chunk"><h3>Chunk 404／點進才壞</h3><p>Network 核對完整 chunk URL；若少 <code>/field/</code>，查 <code>publicPath</code>。若路徑正確但只在跨版本舊分頁出錯，查資產保留與 HTML/runtime 版本差；也排除 CSP、MIME、CDN 回源。不要只做無上限 reload。</p></article>
+<article data-case="chunk"><h3>Chunk 404／點進才壞</h3><p>Network 核對完整 chunk URL；若少 <code>/field/</code>，查 <code>publicPath</code>。若路徑正確但只在跨版本舊分頁出錯，查資產保留與 HTML/runtime 版本差；也排除 CSP、MIME、CDN 回源。不要只做無上限 reload。</p>
+<p id="webpack-chunk-timeout"><strong>分開看兩個逾時。</strong>本例讀點的 <code>fetch</code> 在送出時設定 <code>AbortSignal.timeout(3500)</code>；趨勢的 <code>import()</code> 不使用這個 signal。範例未覆寫 <a href="https://webpack.js.org/configuration/output/#outputchunkloadtimeout"><code>output.chunkLoadTimeout</code></a>，webpack 的 chunk 載入計時預設為 <strong>120 秒</strong>。若趨勢檔有立即的 404，會較早失敗；若請求掛起，趨勢鈕可能維持載入中，但讀點可獨立操作。實驗可單獨延遲 <code>trend.*.js</code>，驗證讀點正常、趨勢逾時提示出現且按鈕恢復。要縮短等待，先在自己的部署環境測冷快取與慢速網路，再決定逾時；修改配置須重建並重測切包數值。</p>
+</article>
 <article data-case="api"><h3>API 200 卻不是 JSON</h3><p>查 Response 的 <code>Content-Type</code> 和前幾行。反向代理若把 <code>/api</code> 落進 SPA fallback，可能回 HTML 200，JSON 解析才失敗。明確分開 API 路由與前端 fallback。</p></article>
 <article data-case="css"><h3>CSS 建置後不見</h3><p>先看 stats 及 dist 有無 CSS，再查 HTML 連結與 HTTP 狀態；若根本沒產出，查 import、loader 規則及錯把 CSS 宣告無副作用。暫關壓縮只用於縮小診斷範圍，不作永久修正。</p></article>
 <article data-case="budget"><h3>首頁 bundle 變重</h3><p>先拆清楚入口與按需，再比 stats 內 module/chunk 的重複依賴及 gzip 變化。正式部署前守 entry budget；操作路徑也要守完整下載次數、主執行緒成本與錯誤率。</p></article>
