@@ -11,6 +11,10 @@ class Event:
     minute: int
     running: bool | None
 
+    def __post_init__(self):
+        if self.running is not True and self.running is not False and self.running is not None:
+            raise TypeError("運轉回授必須是 True、False 或 None；請先解碼原始點位")
+
 
 def merge_schedule(spans, start, end):
     """先裁切再取聯集，避免重疊排程重複計時。"""
@@ -83,6 +87,16 @@ SCHEDULE = [(5, 25), (20, 50)]
 
 
 class LabTests(unittest.TestCase):
+    def test_reject_raw_point_values(self):
+        for raw in (0, 1, "0", "1", 1.0, [], object()):
+            with self.subTest(raw=raw), self.assertRaises(TypeError):
+                Event(0, raw)
+
+    def test_decoded_bit_yields_complete_coverage(self):
+        sums, _ = utilization([Event(0, True), Event(5, False)], [(0, 10)], 0, 10, 10)
+        self.assertEqual(sums["schedule"], {"run": 5, "stop": 5, "unknown": 0})
+        self.assertEqual(fractions(sums["schedule"])["coverage"], Fraction(1))
+
     def test_aggregate_and_half_open(self):
         sums, trace = utilization(FIXTURE, SCHEDULE, 0, 60, 15)
         self.assertEqual(sums["calendar"], {"run": 35, "stop": 15, "unknown": 10})
