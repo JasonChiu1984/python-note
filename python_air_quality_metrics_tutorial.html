@@ -121,7 +121,7 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
 <li><strong>資料驗收：</strong>模擬不回報、空值、舊時間重送、品質故障與 UTC 窗口邊界；確認涵蓋率降低，告警帶資料年齡而不是把故障算成平均。</li>
 <li><strong>判讀驗收：</strong>把 CO₂、PM、溫濕度、占用、風量、壓差、外氣與設備維護資料沿同軸比較；保留各自單位，不把多個欄位合成不明分數。</li>
 <li><strong>變更邊界：</strong>此頁只做觀測、教學與人工核對。若需修改外氣控制，另評估通風要求、消防排煙、濕度與防結露、壓差、濾網及設備限制；經現場核准與獨立測試後再部署。</li>
-</ol><p>官方延伸：<a href="https://iaq.moenv.gov.tw/indoorair/improvement_air.aspx">環境部：室內通風與空調</a> · <a href="https://airtw.moenv.gov.tw/cht/default.aspx">環境部空氣品質監測網</a>。本頁為資料工程教材，不是法規符合性判定或健康建議。</p></div>
+</ol><p>官方延伸：<a href="https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=O0130005">室內空氣品質標準</a> · <a href="https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=O0130006">公告場所室內空氣品質檢驗測定管理辦法</a> · <a href="https://iaq.moenv.gov.tw/indoorair/improvement_air.aspx">環境部：室內通風與空調</a> · <a href="https://airtw.moenv.gov.tw/cht/default.aspx">環境部空氣品質監測網</a>。本頁為資料工程教材，不是法規符合性判定或健康建議。</p></div>
 </section>
 <p>延伸教材：<a href="python_chiller_efficiency_tutorial.html">冰水主機效率</a>（設備效率與空品分開查證） · <a href="python_datacenter_efficiency_tutorial.html">資料中心能源效率</a>（耗能指標與用能邊界）。</p>
 <p><a href="index.html">回 Python 教材路線</a> · <a href="#top">回頁首</a></p>
@@ -184,7 +184,7 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
   </g>
 </svg><figcaption><strong>架構圖｜室內遙測與室外官方 AQI 的監測架構</strong>：對應正文第 2 節：室內點位經閘道驗證、時間序列倉儲到儀表板，每一層都保留時間戳、單位與品質；環境部 AQI 由獨立唯讀連線匯入，只在畫面上做時間背景對照，不混入室內平均，儀表板也不直接連到外氣控制輸出。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 570" role="img" aria-labelledby="dg-aqf-title dg-aqf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
   <title id="dg-aqf-title">CO₂ 八小時平均判斷流程圖</title>
-  <desc id="dg-aqf-desc">對應延伸範例的 rolling_8h() 與輸出判斷。輸入是每分鐘一筆 CO₂ 讀值，斷線期間沒有資料也不補值。先取窗口起點之後、到結束時間為止的樣本，左開右閉。涵蓋率等於樣本筆數除以 480。涵蓋率低於 75% 時顯示資料不足，不內插、不當成合格。達到門檻才計算八小時平均：範例截至 16:00 為 967 ppm，截至 17:00 為 1,045 ppm，涵蓋率都是 92%。平均不高於 1,000 ppm 標示低於參考值；高於時，用 outdoor_air_lps() 估算需要的外氣量，例如 12 人約 103 L/s，再與空調箱外氣風量計或風門回饋對照。單筆最高 1,330 ppm 不直接觸發判定，因為比較對象是八小時值；單一感測器的移動平均也只是監測線索，不是依標準方法採樣的符合性判定。</desc>
+  <desc id="dg-aqf-desc">對應延伸範例的 rolling_8h() 與輸出判斷。輸入是每分鐘一筆 CO₂ 讀值，斷線期間沒有資料也不補值。先取窗口起點之後、到結束時間為止的樣本，左開右閉。涵蓋率等於樣本筆數除以 480。涵蓋率低於 75% 時顯示資料不足，不內插、不當成合格。達到門檻才計算八小時平均：範例截至 16:00 為 967 ppm，截至 17:00 為 1,045 ppm，涵蓋率都是 92%。平均不高於 1,000 ppm 標示未高於監測參考值；高於時，用 outdoor_air_lps() 估算需要的外氣量，例如 12 人約 103 L/s，再與空調箱外氣風量計或風門回饋對照。單筆最高 1,330 ppm 不直接觸發判定，因為比較對象是八小時值；單一感測器的移動平均也只是監測線索，不是依標準方法採樣的符合性判定。</desc>
   <defs>
     <marker id="dg-aqf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -224,12 +224,12 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
     <text x="230" y="342">八小時平均 fmean(values)</text>
     <text x="230" y="361" font-size="12">16:00 → 967 ppm；17:00 → 1,045 ppm</text>
     <text x="230" y="435">平均 &gt; 1,000 ppm？</text>
-    <text x="230" y="514" font-weight="700">高於參考值：查外氣量</text>
+    <text x="230" y="514" font-weight="700">高於監測參考值：查外氣量</text>
     <text x="230" y="534" font-size="12">outdoor_air_lps()：12 人約 103 L/s，</text>
     <text x="230" y="550" font-size="12">對照外氣風量計、風門回饋與 DDC 排程</text>
     <text x="607" y="258" font-weight="700">資料不足：顯示 —</text>
     <text x="607" y="277" font-size="12">不內插、不當成合格</text>
-    <text x="607" y="426" font-weight="700">低於 1,000 ppm 參考值</text>
+    <text x="607" y="426" font-weight="700">未高於 1,000 ppm 監測參考值</text>
     <text x="607" y="445" font-size="12">仍並列涵蓋率與缺值時段</text>
     <text x="607" y="102" font-weight="700">為什麼不看單筆最高？</text>
     <text x="607" y="126" font-size="12">單筆最高 1,330 ppm（15:12）</text>
@@ -247,7 +247,7 @@ assert round(summarize_slots(pm25, 0.5)[0], 2) == 14.33</code></pre>
 
 - 室內空氣品質標準：CO2 八小時值 1,000 ppm、PM2.5 二十四小時值 35 μg/m3。
 - 本例規定一個八小時窗至少要有 75% 的分鐘資料才計算平均，這是設計選擇，不是法規。
-- 單一感測器的移動平均只是監測線索，不等於依標準方法採樣的符合性判定，所以輸出寫「參考值」。
+- 單一感測器的移動平均只與監測參考值比較，不能代替公告場所的法定採樣與符合性判定。
 - 外氣量以穩態質量平衡估算：Q = N × G ÷ (Cin − Cout)，G 取成人坐姿約 0.005 L/s/人的近似值。
 &quot;&quot;&quot;
 from datetime import datetime, timedelta
@@ -296,7 +296,11 @@ if __name__ == &quot;__main__&quot;:
     for hh in (16, 17, 18):
         end = datetime(2026, 11, 20, hh, 0) - timedelta(minutes=1) if hh == 18 else datetime(2026, 11, 20, hh, 0)
         avg, cov = rolling_8h(rows, end)
-        verdict = &quot;資料不足&quot; if avg is None else (&quot;高於 1,000 ppm 參考值&quot; if avg &gt; LIMIT_CO2_8H else &quot;低於 1,000 ppm 參考值&quot;)
+        if avg is None:
+            verdict = &quot;資料不足&quot;
+        else:
+            relation = &quot;高於&quot; if avg &gt; LIMIT_CO2_8H else &quot;未高於&quot;
+            verdict = f&quot;{relation} {LIMIT_CO2_8H:,} ppm 監測參考值&quot;
         shown = &quot;—&quot; if avg is None else f&quot;{avg:.0f} ppm&quot;
         print(f&quot;截至 {end:%H:%M} 的八小時平均：{shown}，涵蓋率 {cov:.0%}，{verdict}&quot;)
     for people in (6, 12):
@@ -304,11 +308,11 @@ if __name__ == &quot;__main__&quot;:
         print(f&quot;{people} 人、維持室內 1,000 ppm 所需外氣量：約 {q:.0f} L/s（{q * 3.6:.0f} m3/h）&quot;)
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>取樣筆數：560（應有 600 筆，缺 40 筆）
 單筆最高：1330 ppm @ 15:12
-截至 16:00 的八小時平均：967 ppm，涵蓋率 92%，低於 1,000 ppm 參考值
-截至 17:00 的八小時平均：1045 ppm，涵蓋率 92%，高於 1,000 ppm 參考值
-截至 17:59 的八小時平均：1020 ppm，涵蓋率 92%，高於 1,000 ppm 參考值
+截至 16:00 的八小時平均：967 ppm，涵蓋率 92%，未高於 1,000 ppm 監測參考值
+截至 17:00 的八小時平均：1045 ppm，涵蓋率 92%，高於 1,000 ppm 監測參考值
+截至 17:59 的八小時平均：1020 ppm，涵蓋率 92%，高於 1,000 ppm 監測參考值
 6 人、維持室內 1,000 ppm 所需外氣量：約 52 L/s（186 m3/h）
-12 人、維持室內 1,000 ppm 所需外氣量：約 103 L/s（372 m3/h）</code></pre><h3>工程現場案例：會議室下午 CO2 超標，空調箱外氣風門卻顯示全開</h3><p>範例中單筆最高 1,330 ppm 出現在 15:12，但法規看的是八小時值：截至 16:00 的平均仍在 967 ppm，到 17:00 才超過 1,000 ppm。只看單筆最高值會過早告警，只看日平均又會漏掉下午的問題。</p><p>現場常見的原因是外氣風門開度與實際外氣量不一致：風門連桿鬆脫、外氣濾網堵塞，或 DDC 的最小外氣設定在下午被節能排程覆寫。CO2 推估的外氣量（12 人約 103 L/s）可以和空調箱外氣風量計或風門開度對照，找出差異。</p><ol><li>確認 CO2 感測器裝在呼吸帶高度（約 1.1 m）、遠離出風口與門口，並記錄最近一次校正日期。</li><li>從 BAS 匯出 CO2、外氣風門開度、空調箱運轉狀態與室內人數（或門禁、會議預約）資料，時間對齊到分鐘。</li><li>用範例的 rolling_8h() 計算八小時值；涵蓋率不足的窗口標示為資料不足，不要用內插補成合格。</li><li>比對 CO2 推估外氣量與風量量測值，差異超過 20% 時檢查風門、濾網與 DDC 排程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現行「室內空氣品質標準」（101 年 11 月 23 日發布）仍是 9 項：CO2 八小時值 1,000 ppm、CO 八小時值 9 ppm、甲醛一小時值 0.08 ppm、TVOC 一小時值 0.56 ppm、細菌 1,500 CFU/m3、真菌 1,000 CFU/m3、PM10 二十四小時值 75 μg/m3、PM2.5 二十四小時值 35 μg/m3、臭氧八小時值 0.06 ppm。部分地方公告場所另有更嚴格的自主管理值（例如 CO2 800 ppm），要看場所適用的公告。 <a href="https://www.laws.taipei.gov.tw/lawatt/Law/A040300030009600-20121123-2000-001.pdf">來源：臺北市法規：室內空氣品質標準</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MIN_COVERAGE 改成 0.95 後重新執行，三個時間點的結果會怎麼變？這樣的設定合理嗎？</p><details><summary>看解答</summary><p>三個窗口的涵蓋率都是 92%，全部變成「資料不足」。門檻太高會讓一次短暫斷線就失去整天的判定；太低又會讓平均值失去代表性。實務上要依量測計畫或稽核要求決定，並在報表上寫明門檻。</p></details></li><li><p>同一間會議室若要把 CO2 控制在 800 ppm 以下，12 人需要多少外氣？</p><details><summary>看解答</summary><p>Q = 12 × 0.005 ÷ ((800 − 420) × 10⁻⁶) ≈ 158 L/s，約 568 m³/h，比 1,000 ppm 時多 50% 以上。可以用 outdoor_air_lps(12, c_in=800) 驗證。目標值越接近室外濃度，需要的外氣量增加得越快。</p></details></li><li><p>為什麼 outdoor_air_lps() 在室內濃度低於或等於室外時要直接報錯，而不是回傳很大的數字？</p><details><summary>看解答</summary><p>公式的分母變成零或負數，結果沒有物理意義。這通常代表感測器偏移、室外值取錯測站，或空間根本沒人。直接報錯能逼使用者先檢查資料，而不是把錯誤數字送進控制邏輯。</p></details></li><li><p>PM2.5 的標準是二十四小時值。要把 rolling_8h() 改成 PM2.5 用的函式，需要改哪些地方？</p><details><summary>看解答</summary><p>窗口改成 24 小時（timedelta(hours=24)），分母改成 1,440 分鐘（或依實際取樣間隔計算應有筆數），門檻改成 35 μg/m³。若感測器是 5 分鐘一筆，分母要用 288，不能沿用分鐘數。</p></details></li><li><p>把 synthetic_day() 的缺值條件改成 14:30 ≤ 時間 &lt; 16:00（斷線 90 分鐘）。截至 17:00 的涵蓋率、八小時平均與判定各是多少？和完全不斷線的資料比較，說明了什麼？</p><details><summary>看解答</summary><p>實際執行結果：窗口內 390 筆，涵蓋率 81%，通過 75% 門檻；八小時平均 962 ppm，標示「低於 1,000 ppm 參考值」。同一天若完全沒有斷線，平均是 1,031 ppm，應該高於參考值。斷線剛好落在 12 人開會、CO₂ 最高的時段，平均被拉低，結論因此翻轉。</p><p>反過來，範例原本 12:00–12:40 的缺值落在 6 人的午間，截至 17:00 的平均 1,045 ppm 反而比完整資料高。涵蓋率只說明樣本夠不夠，不說明缺在哪裡；報表要同時列出缺值時段或最長間隔，缺值落在高占用時段時改標「待確認」。</p></details></li></ol></section><!-- extension:end -->
+12 人、維持室內 1,000 ppm 所需外氣量：約 103 L/s（372 m3/h）</code></pre><h3>工程現場案例：會議室下午 CO2 高於監測參考值，空調箱外氣風門卻顯示全開</h3><p>範例中單筆最高 1,330 ppm 出現在 15:12，但法規看的是八小時值：截至 16:00 的平均仍在 967 ppm，到 17:00 才超過 1,000 ppm。只看單筆最高值會過早告警，只看日平均又會漏掉下午的問題。</p><p>現場常見的原因是外氣風門開度與實際外氣量不一致：風門連桿鬆脫、外氣濾網堵塞，或 DDC 的最小外氣設定在下午被節能排程覆寫。CO2 推估的外氣量（12 人約 103 L/s）可以和空調箱外氣風量計或風門開度對照，找出差異。</p><ol><li>確認 CO2 感測器裝在呼吸帶高度（約 1.1 m）、遠離出風口與門口，並記錄最近一次校正日期。</li><li>從 BAS 匯出 CO2、外氣風門開度、空調箱運轉狀態與室內人數（或門禁、會議預約）資料，時間對齊到分鐘。</li><li>用範例的 rolling_8h() 計算八小時值；涵蓋率不足的窗口標示為資料不足，不要用內插補成合格。</li><li>比對 CO2 推估外氣量與風量量測值，差異超過 20% 時檢查風門、濾網與 DDC 排程。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>現行「室內空氣品質標準」（101 年 11 月 23 日發布）仍是 9 項：CO2 八小時值 1,000 ppm、CO 八小時值 9 ppm、甲醛一小時值 0.08 ppm、TVOC 一小時值 0.56 ppm、細菌 1,500 CFU/m3、真菌 1,000 CFU/m3、PM10 二十四小時值 75 μg/m3、PM2.5 二十四小時值 35 μg/m3、臭氧八小時值 0.06 ppm。部分地方公告場所另有更嚴格的自主管理值（例如 CO2 800 ppm），要看場所適用的公告。 <a href="https://www.laws.taipei.gov.tw/lawatt/Law/A040300030009600-20121123-2000-001.pdf">來源：臺北市法規：室內空氣品質標準</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>把 MIN_COVERAGE 改成 0.95 後重新執行，三個時間點的結果會怎麼變？這樣的設定合理嗎？</p><details><summary>看解答</summary><p>三個窗口的涵蓋率都是 92%，全部變成「資料不足」。門檻太高會讓一次短暫斷線就失去整天的判定；太低又會讓平均值失去代表性。實務上要依量測計畫或稽核要求決定，並在報表上寫明門檻。</p></details></li><li><p>同一間會議室若要把 CO2 控制在 800 ppm 以下，12 人需要多少外氣？</p><details><summary>看解答</summary><p>Q = 12 × 0.005 ÷ ((800 − 420) × 10⁻⁶) ≈ 158 L/s，約 568 m³/h，比 1,000 ppm 時多 50% 以上。可以用 outdoor_air_lps(12, c_in=800) 驗證。目標值越接近室外濃度，需要的外氣量增加得越快。</p></details></li><li><p>為什麼 outdoor_air_lps() 在室內濃度低於或等於室外時要直接報錯，而不是回傳很大的數字？</p><details><summary>看解答</summary><p>公式的分母變成零或負數，結果沒有物理意義。這通常代表感測器偏移、室外值取錯測站，或空間根本沒人。直接報錯能逼使用者先檢查資料，而不是把錯誤數字送進控制邏輯。</p></details></li><li><p>PM2.5 的標準是二十四小時值。要把 rolling_8h() 改成 PM2.5 用的函式，需要改哪些地方？</p><details><summary>看解答</summary><p>窗口改成 24 小時（timedelta(hours=24)），分母改成 1,440 分鐘（或依實際取樣間隔計算應有筆數），門檻改成 35 μg/m³。若感測器是 5 分鐘一筆，分母要用 288，不能沿用分鐘數。</p></details></li><li><p>把 synthetic_day() 的缺值條件改成 14:30 ≤ 時間 &lt; 16:00（斷線 90 分鐘）。截至 17:00 的涵蓋率、八小時平均與判定各是多少？和完全不斷線的資料比較，說明了什麼？</p><details><summary>看解答</summary><p>實際執行結果：窗口內 390 筆，涵蓋率 81%，通過 75% 門檻；八小時平均 962 ppm，標示「未高於 1,000 ppm 監測參考值」。同一天若完全沒有斷線，平均是 1,031 ppm，應該高於參考值。斷線剛好落在 12 人開會、CO₂ 最高的時段，平均被拉低，結論因此翻轉。</p><p>反過來，範例原本 12:00–12:40 的缺值落在 6 人的午間，截至 17:00 的平均 1,045 ppm 反而比完整資料高。涵蓋率只說明樣本夠不夠，不說明缺在哪裡；報表要同時列出缺值時段或最長間隔，缺值落在高占用時段時改標「待確認」。</p></details></li></ol></section><!-- extension:end -->
 </main>
 <script>
 "use strict";

@@ -2,7 +2,7 @@
 
 - 室內空氣品質標準：CO2 八小時值 1,000 ppm、PM2.5 二十四小時值 35 μg/m3。
 - 本例規定一個八小時窗至少要有 75% 的分鐘資料才計算平均，這是設計選擇，不是法規。
-- 單一感測器的移動平均只是監測線索，不等於依標準方法採樣的符合性判定，所以輸出寫「參考值」。
+- 單一感測器的移動平均只與監測參考值比較，不能代替公告場所的法定採樣與符合性判定。
 - 外氣量以穩態質量平衡估算：Q = N × G ÷ (Cin − Cout)，G 取成人坐姿約 0.005 L/s/人的近似值。
 """
 from datetime import datetime, timedelta
@@ -51,7 +51,11 @@ if __name__ == "__main__":
     for hh in (16, 17, 18):
         end = datetime(2026, 11, 20, hh, 0) - timedelta(minutes=1) if hh == 18 else datetime(2026, 11, 20, hh, 0)
         avg, cov = rolling_8h(rows, end)
-        verdict = "資料不足" if avg is None else ("高於 1,000 ppm 參考值" if avg > LIMIT_CO2_8H else "低於 1,000 ppm 參考值")
+        if avg is None:
+            verdict = "資料不足"
+        else:
+            relation = "高於" if avg > LIMIT_CO2_8H else "未高於"
+            verdict = f"{relation} {LIMIT_CO2_8H:,} ppm 監測參考值"
         shown = "—" if avg is None else f"{avg:.0f} ppm"
         print(f"截至 {end:%H:%M} 的八小時平均：{shown}，涵蓋率 {cov:.0%}，{verdict}")
     for people in (6, 12):
