@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="dg-dkf-title dg-dkf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-dkf-title">用證據分層排錯流程圖</title>
+  <desc id="dg-dkf-desc">host.py 失敗時由下而上逐層確認。第一層：能否連到 Engine，否則核對 context、權限與 daemon，不以掛 socket 或提高權限代替。第二層：compose ps 是否顯示容器執行中，否則看 logs 找程序早退原因。第三層：健康狀態是否 healthy，即容器內連自己的 8080 是否成功，否則確認程序確實在 8080 監聽。第四層：主機 127.0.0.1:18080 是否可連，否則檢查埠發布、程序是否只聽容器內 127.0.0.1，以及 context 是否其實指向遠端主機。第五層：回應是否符合 schema、單位與 quality 契約，否則以 ValueError 拒絕。全部通過也只代表通訊正常，不保證現場數值可用。</desc>
+  <defs>
+    <marker id="dg-dkf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="120" y="12" width="280" height="40" rx="20" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="260,80 420,116 260,152 100,116"/>
+    <polygon class="dg-box" points="260,178 420,214 260,250 100,214"/>
+    <polygon class="dg-box" points="260,276 420,312 260,348 100,312"/>
+    <polygon class="dg-box" points="260,374 420,410 260,446 100,410"/>
+    <polygon class="dg-box" points="260,472 420,508 260,544 100,508"/>
+    <rect class="dg-green" x="100" y="576" width="320" height="50" rx="6" stroke="#2f9e5b"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="480" y="94" width="265" height="44" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="480" y="192" width="265" height="44" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="480" y="290" width="265" height="44" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="480" y="388" width="265" height="44" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-red" x="480" y="486" width="265" height="44" rx="6" stroke="#d64545"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-dkf-arrow)">
+    <line x1="260" y1="52" x2="260" y2="78"/>
+    <line x1="260" y1="152" x2="260" y2="176"/>
+    <line x1="260" y1="250" x2="260" y2="274"/>
+    <line x1="260" y1="348" x2="260" y2="372"/>
+    <line x1="260" y1="446" x2="260" y2="470"/>
+    <line x1="260" y1="544" x2="260" y2="574"/>
+    <line x1="420" y1="116" x2="478" y2="116"/>
+    <line x1="420" y1="214" x2="478" y2="214"/>
+    <line x1="420" y1="312" x2="478" y2="312"/>
+    <line x1="420" y1="410" x2="478" y2="410"/>
+    <line x1="420" y1="508" x2="478" y2="508"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="37" font-weight="700">host.py status／sample 失敗</text>
+    <text x="260" y="112">1 能連到 Engine？</text>
+    <text x="260" y="130" font-size="11">context、權限、daemon</text>
+    <text x="260" y="210">2 容器執行中？</text>
+    <text x="260" y="228" font-size="11">compose ps</text>
+    <text x="260" y="308">3 health = healthy？</text>
+    <text x="260" y="326" font-size="11">容器內連自己的 8080</text>
+    <text x="260" y="406">4 主機 18080 可連？</text>
+    <text x="260" y="424" font-size="11">127.0.0.1:18080</text>
+    <text x="260" y="504">5 符合資料契約？</text>
+    <text x="260" y="522" font-size="11">schema、單位、quality</text>
+    <text x="260" y="597" font-weight="700">通訊與契約正常</text>
+    <text x="260" y="615" font-size="11">仍不保證現場數值可用</text>
+    <text x="612" y="112" font-weight="700">核對 docker context show</text>
+    <text x="612" y="129" font-size="11">不以掛 socket 或提權代替</text>
+    <text x="612" y="210" font-weight="700">看 logs：程序早退？</text>
+    <text x="612" y="227" font-size="11">exit code 與最後 20 行</text>
+    <text x="612" y="308" font-weight="700">程序有在 8080 監聽？</text>
+    <text x="612" y="325" font-size="11">看 logs 與 start_period</text>
+    <text x="612" y="406" font-weight="700">埠發布／監聽位址／context</text>
+    <text x="612" y="423" font-size="11">需聽 0.0.0.0；遠端 daemon 不在本機</text>
+    <text x="612" y="504" font-weight="700">ValueError：拒絕資料</text>
+    <text x="612" y="521" font-size="11">不把 HTTP 200 當成數值正確</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="430" y="108">否</text>
+    <text x="430" y="206">否</text>
+    <text x="430" y="304">否</text>
+    <text x="430" y="402">否</text>
+    <text x="430" y="500">否</text>
+    <text x="268" y="168">是</text>
+    <text x="268" y="266">是</text>
+    <text x="268" y="364">是</text>
+    <text x="268" y="462">是</text>
+    <text x="268" y="563">是</text>
+  </g>
+</svg>

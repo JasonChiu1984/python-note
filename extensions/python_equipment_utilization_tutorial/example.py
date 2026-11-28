@@ -38,3 +38,5 @@ if __name__ == "__main__":
     print(f"品質 Q = {GOOD} ÷ {TOTAL} = {quality:.1%}")
     print(f"OEE = {availability * performance * quality:.1%}")
     print(f"若把未知當停機：A = {run / planned:.1%}，OEE = {run / planned * performance * quality:.1%}")
+    print(f"涵蓋率 = {known} ÷ {planned} = {known / planned:.1%}；"
+          f"可用率可能範圍 {run / planned:.1%}～{(run + unknown) / planned:.1%}（未知全停～全轉）")

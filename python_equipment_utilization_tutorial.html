@@ -148,7 +148,131 @@ if __name__ == &quot;__main__&quot;:
                   for scope, value in counts.items()}
         print(json.dumps(dict(result=result, trace=trace), default=str,
                          ensure_ascii=False, indent=2))
-</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到完整的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段對結果的影響。</p><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown，不放進分母。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
+</code></pre></details><p>佐證：<a href="https://docs.python.org/3/library/bisect.html">Python bisect_right</a>、<a href="https://docs.python.org/3/library/fractions.html">Fraction</a>；製造 KPI 口徑參考 <a href="https://www.iso.org/standard/54497.html">ISO 22400-2:2014</a>。範例未連線設備，也未測試夏令時間、資料庫重播或現場品質碼。</p></section><!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>前面說明「未知不能當停機」。本節把它延伸到製造業常用的 OEE：可用率、效能、品質三項分別怎麼算，以及未知時段要怎麼和涵蓋率、可能範圍一起報。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 660" role="img" aria-labelledby="dg-euf-title dg-euf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-euf-title">utilization() 時間切片分類流程圖</title>
+  <desc id="dg-euf-desc">對應正文第 04 節的 utilization()。建立 Event 時，回授不是 True、False 或 None 就拋 TypeError，要求先解碼原始點位。整理事件時，落在右端點以後的事件歸下一窗；同一時戳出現不同值拋 ValueError。接著以觀測窗、排程聯集、事件時刻與事件加 TTL 為切點，切成半開區間。每個區間用 bisect_right 找左端點前最後一筆回授：沒有回授或已超過 TTL 記為未知；回授為 True 記運轉、False 記停止、None 記未知。區間一律加入日曆口徑，若落在排程聯集內也加入排程口徑。</desc>
+  <defs>
+    <marker id="dg-euf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="110" y="12" width="300" height="40" rx="20" stroke="#3b82f6"/>
+    <polygon class="dg-box" points="260,80 420,114 260,148 100,114"/>
+    <rect class="dg-box" x="80" y="176" width="360" height="58" rx="6"/>
+    <rect class="dg-box" x="80" y="262" width="360" height="58" rx="6"/>
+    <polygon class="dg-box" points="260,350 430,390 260,430 90,390"/>
+    <polygon class="dg-box" points="260,462 400,498 260,534 120,498"/>
+    <rect class="dg-box" x="80" y="596" width="360" height="52" rx="6"/>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-red" x="480" y="94" width="265" height="40" rx="6" stroke="#d64545"/>
+    <rect class="dg-red" x="480" y="190" width="265" height="30" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="480" y="372" width="265" height="36" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="480" y="440" width="265" height="32" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="480" y="482" width="265" height="32" rx="6" stroke="currentColor"/>
+    <rect class="dg-orange" x="480" y="524" width="265" height="32" rx="6" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-euf-arrow)">
+    <line x1="260" y1="52" x2="260" y2="78"/>
+    <line x1="260" y1="148" x2="260" y2="174"/>
+    <line x1="260" y1="234" x2="260" y2="260"/>
+    <line x1="260" y1="320" x2="260" y2="348"/>
+    <line x1="260" y1="430" x2="260" y2="460"/>
+    <line x1="420" y1="114" x2="478" y2="114"/>
+    <line x1="440" y1="205" x2="478" y2="205"/>
+    <line x1="430" y1="390" x2="478" y2="390"/>
+    <polyline points="400,498 455,498 455,456 478,456"/>
+    <line x1="455" y1="498" x2="478" y2="498"/>
+    <polyline points="455,498 455,540 478,540"/>
+    <line x1="260" y1="574" x2="260" y2="594"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" opacity=".7">
+    <polyline points="745,390 756,390 756,574 260,574"/>
+    <line x1="745" y1="456" x2="756" y2="456"/>
+    <line x1="745" y1="498" x2="756" y2="498"/>
+    <line x1="745" y1="540" x2="756" y2="540"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="260" y="37" font-weight="700">Event(minute, running)</text>
+    <text x="260" y="110">已解碼成</text>
+    <text x="260" y="127" font-size="12">True／False／None？</text>
+    <text x="260" y="200">整理事件</text>
+    <text x="260" y="221" font-size="12">minute ≥ end 歸下一窗；重複同值合併</text>
+    <text x="260" y="286">切成半開區間 [left, right)</text>
+    <text x="260" y="307" font-size="12">切點：窗界、排程界、事件 t、t + ttl</text>
+    <text x="260" y="384" font-size="12">bisect_right 找 left 前最後回授</text>
+    <text x="260" y="402">存在且 left &lt; t + ttl？</text>
+    <text x="260" y="503">回授值？</text>
+    <text x="260" y="618">區間長度加入日曆口徑</text>
+    <text x="260" y="637" font-size="12">落在排程聯集內的區間同時加入排程口徑</text>
+    <text x="612" y="119" font-weight="700">TypeError：先解碼點位</text>
+    <text x="612" y="210" font-size="12" font-weight="700">同時戳異值 → ValueError</text>
+    <text x="612" y="395" font-weight="700">unknown（無回授或已過期）</text>
+    <text x="612" y="461" font-weight="700">True → run</text>
+    <text x="612" y="503" font-weight="700">False → stop</text>
+    <text x="612" y="545" font-weight="700">None → unknown（品質不良）</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="428" y="106">否</text>
+    <text x="268" y="166">是</text>
+    <text x="438" y="382">否</text>
+    <text x="268" y="450">是</text>
+  </g>
+</svg><figcaption><strong>流程圖｜utilization() 時間切片分類</strong>：對應正文第 04 節的 utilization()：先拒絕未解碼的原始點位與同時戳衝突，再以窗界、排程界、事件時刻與 t + ttl 切出半開區間。每個區間只看左端點前最後一筆仍在 TTL 內的回授；沒有、過期或品質不良都是 unknown，不會被併入停止。</figcaption></figure><!-- diagram:end --><!-- diagram:start --><figure class="ext-diagram" id="diagram-2" data-kind="state"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" role="img" aria-labelledby="dg-eus-title dg-eus-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-eus-title">運轉回授狀態機</title>
+  <desc id="dg-eus-desc">觀測窗起點承接左端點前最後一筆仍在 TTL 內的回授，沒有就從未知開始。之後任何狀態收到 True 進入運轉、收到 False 進入停止、收到 None 進入未知；運轉或停止在 TTL 內沒有新回授則過期成未知。狀態只依解碼後的回授判斷，不看啟動命令：命令 ON 而回授 OFF 不算運轉，另列待診斷，回授失聯記未知，不能當停機。對照正文算例：0 到 20 分運轉、20 到 35 分停止、35 分過期、37 分品質不良、45 分恢復運轉。</desc>
+  <defs>
+    <marker id="dg-eus-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 起始 -->
+  <circle cx="380" cy="30" r="9" fill="currentColor"/>
+  <!-- 狀態 -->
+  <g stroke-width="1.5" fill="none">
+    <rect class="dg-green" x="70" y="150" width="170" height="64" rx="24" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="520" y="150" width="170" height="64" rx="24" stroke="currentColor"/>
+    <rect class="dg-orange" x="295" y="290" width="170" height="64" rx="24" stroke="#e07b1f"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-eus-arrow)">
+    <polyline points="371,36 155,100 155,148"/>
+    <polyline points="389,36 605,100 605,148"/>
+    <line x1="380" y1="39" x2="380" y2="288"/>
+    <line x1="240" y1="170" x2="518" y2="170"/>
+    <line x1="520" y1="194" x2="242" y2="194"/>
+    <polyline points="130,214 130,322 293,322"/>
+    <polyline points="630,214 630,322 467,322"/>
+    <polyline points="295,300 185,300 185,216"/>
+    <polyline points="465,300 575,300 575,216"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="155" y="178" font-weight="700">運轉 run</text>
+    <text x="155" y="198" font-size="12">0–20、45–60 分</text>
+    <text x="605" y="178" font-weight="700">停止 stop</text>
+    <text x="605" y="198" font-size="12">20–35 分</text>
+    <text x="380" y="318" font-weight="700">未知 unknown</text>
+    <text x="380" y="338" font-size="12">35–45 分</text>
+  </g>
+  <g fill="currentColor" font-size="12">
+    <text x="163" y="132">窗前 True 仍有效</text>
+    <text x="597" y="132" text-anchor="end">窗前 False 仍有效</text>
+    <text x="388" y="120">無有效回授</text>
+    <text x="310" y="162" text-anchor="middle">收到 False</text>
+    <text x="450" y="210" text-anchor="middle">收到 True</text>
+    <text x="20" y="246">收到 None，或</text>
+    <text x="20" y="262">TTL 內無新回授</text>
+    <text x="640" y="246">收到 None，或</text>
+    <text x="640" y="262">TTL 內無新回授</text>
+    <text x="190" y="290">收到 True（45 分）</text>
+    <text x="478" y="290">收到 False</text>
+  </g>
+  <rect class="dg-box dg-blue" x="40" y="372" width="680" height="46" rx="6" stroke="#3b82f6" stroke-width="1.5" fill="none"/>
+  <g fill="currentColor" text-anchor="middle" font-size="12">
+    <text x="380" y="391">只看解碼後的回授，不看啟動命令：命令 ON、回授 OFF 不算運轉，另列待診斷；</text>
+    <text x="380" y="409">回授失聯記 unknown，不當停機。正式系統的 TTL 由來源更新與心跳機制決定（範例用 15 分鐘）。</text>
+  </g>
+</svg><figcaption><strong>狀態圖｜運轉回授狀態機</strong>：以正文第 03 節的合成算例標出各狀態的時段（TTL 15 分鐘）：窗前 −5 分鐘的 True 仍有效，所以從運轉開始；20 分鐘轉停止；35 分鐘時距上次回授已 15 分鐘，過期成未知；37 分鐘的品質不良維持未知；45 分鐘恢復運轉。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：從狀態事件計算 OEE</h3><p>輸入是一串（開始時間, 狀態）事件，程式算出各狀態的累計時間，再依可用率 × 效能 × 品質計算 OEE。閘道器斷線的 20 分鐘列為 unknown：點估計只用已知時間當分母，另外印出涵蓋率與「未知全停～全轉」的可用率範圍，和正文的上下界算法一致。</p><p><a class="button" download href="extensions/python_equipment_utilization_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;由狀態事件紀錄計算稼動率與 OEE，並把「未知」時段獨立列出（標準函式庫）。&quot;&quot;&quot;
 from datetime import datetime, timedelta
 
 PLANNED = (datetime(2026, 11, 20, 8, 0), datetime(2026, 11, 20, 16, 0))   # 計畫生產 8 小時
@@ -188,6 +312,8 @@ if __name__ == &quot;__main__&quot;:
     print(f&quot;品質 Q = {GOOD} ÷ {TOTAL} = {quality:.1%}&quot;)
     print(f&quot;OEE = {availability * performance * quality:.1%}&quot;)
     print(f&quot;若把未知當停機：A = {run / planned:.1%}，OEE = {run / planned * performance * quality:.1%}&quot;)
+    print(f&quot;涵蓋率 = {known} ÷ {planned} = {known / planned:.1%}；&quot;
+          f&quot;可用率可能範圍 {run / planned:.1%}～{(run + unknown) / planned:.1%}（未知全停～全轉）&quot;)
 </code></pre><p class="ext-note">執行方式：<code>python example.py</code>，只需 Python 3.10 以上，無第三方套件</p><h4>預期輸出（以 Python 3.13 實際執行產生）</h4><pre><code>run               6:25:00
 stop_changeover   0:30:00
 stop_fault        0:45:00
@@ -197,5 +323,6 @@ unknown           0:20:00
 效能 P = 720 × 30s ÷ 6:25:00 = 93.5%
 品質 Q = 690 ÷ 720 = 95.8%
 OEE = 75.0%
-若把未知當停機：A = 80.2%，OEE = 71.9%</code></pre><h3>工程現場案例：OEE 因通訊中斷被低估 3 個百分點</h3><p>範例中閘道器在 12:00–12:20 斷線。若把這 20 分鐘當成停機，可用率從 83.7% 降到 80.2%，OEE 從 75.0% 降到 71.9%。這 3 個百分點會讓產線看起來比實際差，也可能讓維修團隊去追一個不存在的故障。</p><p>反過來，若把斷線期間當成運轉，同樣會高估。正確做法是單獨列出 unknown，並在報表上寫明涵蓋率；unknown 比例過高時，先處理資料收集問題，再談改善稼動率。</p><ol><li>確認狀態訊號來源：PLC 的運轉位元、電流門檻，或 MES 的工單狀態，各自的延遲與可靠度不同。</li><li>停機原因代碼要在現場輸入或由 PLC 給出，不要事後在報表上補。</li><li>理想節拍以設備規格或最佳實績為準，並在報表上註明，避免各班別用不同標準。</li><li>unknown 比例超過 2% 時，先檢查閘道器、網路與緩衝設定。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OEE 與可用率、效能、品質的定義可參考 ISO 22400-2（製造營運管理 KPI）。各公司常有自己的口徑，例如計畫停機是否列入分母，報表必須寫明採用哪一種。 <a href="https://www.iso.org/standard/54497.html">來源：ISO 22400-2</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若理想節拍改成 28 秒，效能與 OEE 會變成多少？</p><details><summary>看解答</summary><p>P = 720 × 28 ÷ 23,100 = 87.3%；OEE = 83.7% × 87.3% × 95.8% ≈ 70.0%。理想節拍越嚴格，效能越低，所以跨產線比較時必須用相同的節拍定義。</p></details></li><li><p>效能 P 有可能超過 100% 嗎？如果出現，代表什麼？</p><details><summary>看解答</summary><p>計算上可能，但通常代表理想節拍設得太寬鬆、產出計數重複，或運轉時間少算（例如 unknown 期間其實在生產）。應檢查資料而不是接受超過 100% 的結果。</p></details></li><li><p>修改 EVENTS，讓 14:05 的故障停機改為 14:05–14:20 故障、14:20–14:50 待料，結果哪些數字會變？</p><details><summary>看解答</summary><p>只有狀態分類變了（stop_fault 15 分鐘、新增 30 分鐘待料），運轉時間不變，所以 A、P、Q 與 OEE 都不變。差別在停機原因分析：故障與待料的改善對象完全不同。</p></details></li><li><p>為什麼 durations() 要把 PLANNED 的結束時間加到時間清單最後？</p><details><summary>看解答</summary><p>最後一筆事件（14:50 run）沒有下一筆事件可以當結束時間，必須用計畫結束時間 16:00 截斷，否則最後一段運轉時間會漏算。</p></details></li></ol></section><!-- extension:end -->
+若把未知當停機：A = 80.2%，OEE = 71.9%
+涵蓋率 = 7:40:00 ÷ 8:00:00 = 95.8%；可用率可能範圍 80.2%～84.4%（未知全停～全轉）</code></pre><h3>工程現場案例：通訊中斷 20 分鐘：OEE 該報 75.0% 還是 71.9%？</h3><p>範例中閘道器在 12:00–12:20 斷線。若把這 20 分鐘當成停機，可用率從 83.7% 降到 80.2%，OEE 從 75.0% 降到 71.9%，產線看起來比實際差，維修團隊可能去追一個不存在的故障；反過來把斷線當運轉，同樣會高估。</p><p>83.7% 也不是「真值」：它假設斷線期間和已知時段的運轉比例相同。比較誠實的報法是三個數字一起出現：涵蓋率 95.8%、點估計 83.7%、可能範圍 80.2%～84.4%。範圍很窄時可放心比較班別；unknown 拉長時範圍會變寬，連效能都可能出現不合理的數字（見練習 5），應先修資料收集。</p><ol><li>確認狀態訊號來源：PLC 的運轉位元、電流門檻，或 MES 的工單狀態，各自的延遲與可靠度不同。</li><li>停機原因代碼要在現場輸入或由 PLC 給出，不要事後在報表上補。</li><li>理想節拍以設備規格或最佳實績為準，並在報表上註明，避免各班別用不同標準。</li><li>報表同時列涵蓋率、點估計與可能範圍；涵蓋率低於約定門檻（例如 98%）時，先檢查閘道器、網路與緩衝設定，再談改善稼動率。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>OEE 與可用率、效能、品質的定義可參考 ISO 22400-2（製造營運管理 KPI）。各公司常有自己的口徑，例如計畫停機是否列入分母，報表必須寫明採用哪一種。 <a href="https://www.iso.org/standard/54497.html">來源：ISO 22400-2</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>若理想節拍改成 28 秒，效能與 OEE 會變成多少？</p><details><summary>看解答</summary><p>P = 720 × 28 ÷ 23,100 = 87.3%；OEE = 83.7% × 87.3% × 95.8% ≈ 70.0%。理想節拍越嚴格，效能越低，所以跨產線比較時必須用相同的節拍定義。</p></details></li><li><p>效能 P 有可能超過 100% 嗎？如果出現，代表什麼？</p><details><summary>看解答</summary><p>計算上可能，但通常代表理想節拍設得太寬鬆、產出計數重複，或運轉時間少算（例如 unknown 期間其實在生產）。應檢查資料而不是接受超過 100% 的結果。</p></details></li><li><p>修改 EVENTS，讓 14:05 的故障停機改為 14:05–14:20 故障、14:20–14:50 待料，結果哪些數字會變？</p><details><summary>看解答</summary><p>只有狀態分類變了（stop_fault 15 分鐘、新增 30 分鐘待料），運轉時間不變，所以 A、P、Q 與 OEE 都不變。差別在停機原因分析：故障與待料的改善對象完全不同。</p></details></li><li><p>為什麼 durations() 要把 PLANNED 的結束時間加到時間清單最後？</p><details><summary>看解答</summary><p>最後一筆事件（14:50 run）沒有下一筆事件可以當結束時間，必須用計畫結束時間 16:00 截斷，否則最後一段運轉時間會漏算。</p></details></li><li><p>把 EVENTS 中 ("12:20", "run") 改成 ("13:00", "run")，也就是斷線延長到 1 小時，產量不變。可用率、效能與 OEE 會變成多少？哪個數字最先告訴你資料有問題？</p><details><summary>看解答</summary><p>實際執行結果：unknown 1:00:00（占計畫 12.5%）、涵蓋率 87.5%；可用率 A = 5:45:00 ÷ 7:00:00 = 82.1%，可能範圍 71.9%～84.4%；效能 P = 720 × 30s ÷ 5:45:00 = 104.3%；OEE = 82.1%。</p><p>效能超過 100% 最先露出問題：720 件產量是整個班別的計數，但運轉時間少了斷線的 60 分鐘，表示斷線期間其實在生產。這時應補齊回授或改用產量計數器反推運轉，而不是把 OEE 82.1% 當成改善成果；可能範圍寬達 12.5 個百分點也說明不該拿來和其他班別比較。</p></details></li></ol></section><!-- extension:end -->
 </main></body></html>

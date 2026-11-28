@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" role="img" aria-labelledby="dg-dkp-title dg-dkp-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-dkp-title">主機 Python 與容器互動的三條路徑架構圖</title>
+  <desc id="dg-dkp-desc">左側是主機上的 Python 程式 host.py。控制面：以參數清單呼叫 Docker CLI 並明確指定 --context，或用 Docker SDK，經 Engine API socket 讀取容器狀態與日誌，socket 存取具主機等級權限。資料面：以 HTTP 連主機 loopback 的 127.0.0.1:18080，經埠發布轉到容器內 0.0.0.0:8080 的 app.py，取回 JSON；同一 Compose 網路的其他服務直接連 telemetry:8080。程序面：docker compose run --rm -T 建立一次性容器執行 app.py sample，以 stdout 的 JSON、stderr 的診斷與結束碼判定結果。</desc>
+  <defs>
+    <marker id="dg-dkp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- 分區標籤 -->
+  <g fill="currentColor" font-size="12" font-weight="700">
+    <text x="180" y="30">控制面：管理工作負載</text>
+    <text x="180" y="186">資料面：交換業務資料</text>
+    <text x="180" y="342">程序面：輸入一次、輸出一次</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity=".5">
+    <line x1="170" y1="160" x2="750" y2="160"/>
+    <line x1="170" y1="316" x2="750" y2="316"/>
+  </g>
+  <!-- 節點 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <rect class="dg-box dg-blue" x="15" y="190" width="130" height="90" rx="8" stroke="#3b82f6"/>
+    <rect class="dg-box" x="180" y="44" width="170" height="64" rx="6"/>
+    <rect class="dg-box dg-red" x="400" y="44" width="160" height="64" rx="6" stroke="#d64545"/>
+    <rect class="dg-box" x="600" y="44" width="145" height="64" rx="6"/>
+    <rect class="dg-box" x="180" y="200" width="170" height="64" rx="6"/>
+    <rect class="dg-box dg-orange" x="400" y="200" width="160" height="64" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-box dg-green" x="600" y="200" width="145" height="64" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="600" y="276" width="145" height="32" rx="6"/>
+    <rect class="dg-box" x="180" y="356" width="170" height="64" rx="6"/>
+    <rect class="dg-box dg-green" x="400" y="356" width="160" height="64" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-box" x="600" y="356" width="145" height="64" rx="6"/>
+  </g>
+  <!-- 連線 -->
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-dkp-arrow)">
+    <polyline points="145,215 160,215 160,76 178,76"/>
+    <line x1="145" y1="232" x2="178" y2="232"/>
+    <polyline points="145,255 160,255 160,388 178,388"/>
+    <line x1="350" y1="76" x2="398" y2="76"/>
+    <line x1="560" y1="76" x2="598" y2="76"/>
+    <line x1="350" y1="232" x2="398" y2="232"/>
+    <line x1="560" y1="232" x2="598" y2="232"/>
+    <line x1="672" y1="276" x2="672" y2="266"/>
+    <line x1="350" y1="388" x2="398" y2="388"/>
+    <line x1="560" y1="388" x2="598" y2="388"/>
+  </g>
+  <g fill="currentColor" text-anchor="middle">
+    <text x="80" y="228" font-weight="700">主機 Python</text>
+    <text x="80" y="248" font-family="ui-monospace, monospace" font-size="12">host.py</text>
+    <text x="80" y="266" font-size="11">不需 Engine 權限</text>
+    <text x="265" y="70" font-weight="700">Docker CLI／SDK</text>
+    <text x="265" y="90" font-size="11">argv 清單＋明確 --context</text>
+    <text x="480" y="70" font-weight="700">Engine API socket</text>
+    <text x="480" y="90" font-size="11">存取＝主機等級權限</text>
+    <text x="672" y="70" font-weight="700">容器狀態／日誌</text>
+    <text x="672" y="90" font-size="11">compose ps（JSON）</text>
+    <text x="265" y="226" font-weight="700">HTTP GET /sample</text>
+    <text x="265" y="246" font-size="11">127.0.0.1:18080，逾時 3 秒</text>
+    <text x="480" y="226" font-weight="700">埠發布</text>
+    <text x="480" y="246" font-size="11">127.0.0.1:18080 → 8080</text>
+    <text x="672" y="226" font-weight="700">容器內 app.py</text>
+    <text x="672" y="246" font-size="11">0.0.0.0:8080 回 JSON</text>
+    <text x="672" y="297" font-size="11">其他服務 → telemetry:8080</text>
+    <text x="265" y="382" font-weight="700" font-family="ui-monospace, monospace" font-size="12">compose run --rm -T</text>
+    <text x="265" y="402" font-size="11">覆蓋服務命令，不發布埠</text>
+    <text x="480" y="382" font-weight="700">一次性容器</text>
+    <text x="480" y="402" font-family="ui-monospace, monospace" font-size="11">app.py sample</text>
+    <text x="672" y="376" font-weight="700">stdout：JSON</text>
+    <text x="672" y="394" font-size="11">stderr：診斷</text>
+    <text x="672" y="410" font-size="11">結束碼：成功與否</text>
+  </g>
+  <text x="380" y="455" fill="currentColor" text-anchor="middle" font-size="12">容器服務在執行，不代表應用健康、就緒或點位正確；三條路徑的結果代表不同層級。</text>
+</svg>

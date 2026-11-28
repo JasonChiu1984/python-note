@@ -31,6 +31,15 @@
      "url": "https://docs.python.org/3.15/whatsnew/3.15.html"
     }
    ]
+  },
+  {
+   "text": "asyncio.Queue.shutdown() 自 Python 3.13 起提供：呼叫後 put() 立即拋 QueueShutDown，get() 會先把剩餘項目取完，佇列空了才拋 QueueShutDown；傳入 immediate=True 則直接清空佇列。以 CPython 3.15.2 實際執行確認前兩項行為。",
+   "sources": [
+    {
+     "title": "Python 文件：asyncio Queues",
+     "url": "https://docs.python.org/3/library/asyncio-queue.html"
+    }
+   ]
   }
  ],
  "exercises": [
@@ -49,6 +58,24 @@
   {
    "q": "except* Shutdown 和 except Shutdown 有什麼不同？",
    "a": "<p>TaskGroup 會把子任務的例外包成 ExceptionGroup，一般的 except Shutdown 接不到；except* 會從群組中挑出符合的例外處理，其他例外仍繼續往外拋。</p>"
+  },
+  {
+   "q": "在 Python 3.15 改用 TaskGroup.cancel()：consumer 處理完 3 筆時 set() 一個 asyncio.Event，主程式在 async with 區塊內 await event.wait() 後呼叫 tg.cancel()。佇列中會剩哪些項目？序號 4 去了哪裡？",
+   "a": "<p>以 CPython 3.15.2 實測：已完成 [2, 4, 6]，佇列只剩 [5, 6]，producer 一樣停在 put 6 之後。序號 4 不見了：consumer 記錄 done 3 後立刻進入下一輪，q.get() 取出 4，接著在 await asyncio.sleep(0) 讓出控制權時被取消，4 既沒處理完也不在佇列裡。</p><p>tg.cancel() 讓 TaskGroup 正常離開、不會拋例外，寫法比自訂例外簡潔；代價是取消可能發生在任何 await。要把「已取出、未完成」的項目記成 in-flight，在 except asyncio.CancelledError 中寫回持久化儲存後再 raise，停機時才能做到「已完成＋佇列剩餘＋in-flight＝全部輸入」。</p>"
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "sequence",
+   "title": "有界佇列背壓與 TaskGroup 停機",
+   "file": "diagram-shutdown-sequence.svg",
+   "caption": "對應範例 run(stop_after=3)。佇列上限 3，producer 每等到 consumer 取走一筆才能再放一筆，最後停在 await put(7)。consumer 完成第 3 筆後拋 Shutdown，TaskGroup 先取消 producer，再把例外包成 ExceptionGroup 交給 except*；run() 最後排出佇列中尚未處理的 4、5、6。"
+  },
+  {
+   "kind": "flow",
+   "title": "兩段式停機",
+   "file": "diagram-graceful-shutdown.svg",
+   "caption": "對應正文「訊號生命週期」：先讓 /readyz 回 503 擋住新流量，再呼叫 queue.shutdown()，之後 put() 立即拋 QueueShutDown，get() 要等剩餘項目取完才拋。寬限秒數內排空就正常結束；逾時才用 tg.cancel() 收尾，並把佇列剩餘與 worker 手上尚未完成的項目一起寫回持久化儲存（見練習 5）。"
   }
  ]
 }
