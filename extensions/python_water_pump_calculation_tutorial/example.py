@@ -25,7 +25,14 @@ def electric_kw(q_m3h, h_m):
 
 
 def speed_for_flow(target_q, h_static, k):
+    """求模型 20%～100% 轉速範圍內可達的正流量（m³/h）；不是 VFD 指令。"""
+    if not all(math.isfinite(x) for x in (target_q, h_static, k)) or target_q <= 0 or h_static < 0 or k < 0:
+        raise ValueError("本模型要求正目標流量及非負靜揚程與阻力係數")
     lo, hi = 0.2, 1.0
+    q_lo, _ = operating_point(lo, h_static, k)
+    q_hi, _ = operating_point(hi, h_static, k)
+    if not q_lo <= target_q <= q_hi:
+        raise ValueError(f"目標超出模型可達的流量範圍 {q_lo:.2f}～{q_hi:.2f} m³/h")
     for _ in range(60):               # 二分法
         mid = (lo + hi) / 2
         q, _ = operating_point(mid, h_static, k)

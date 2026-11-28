@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 510" role="img" aria-labelledby="dg-ncs-title dg-ncs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
   <title id="dg-ncs-title">一次 Modbus RTU 交易的時間組成序列圖（19200 bps、讀 20 個暫存器）</title>
-  <desc id="dg-ncs-desc">對應延伸範例的 transaction_ms(19200, 20, 15)。BAS 以 Modbus TCP 請求閘道器讀 20 個暫存器；閘道器在 RS-485 上送出 8 位元組的 RTU 請求，每字元 11 位元，約 4.6 毫秒；接著 3.5 字元靜默約 2.0 毫秒，加上假設的從站處理時間 15 毫秒；電表回應 45 位元組，約 25.8 毫秒；再經 3.5 字元靜默約 2.0 毫秒，閘道器才能輪到下一台，並把 Modbus TCP 回應交給 BAS。單次交易約 49.4 毫秒，其中線上傳輸 30.4 毫秒、靜默 4.0 毫秒、從站 15 毫秒；30 台依序輪詢一輪約 1.48 秒，每 2 秒一輪時匯流排使用率約 74%。RS-485 是半雙工，同一時間只能有一筆交易，第二個上位系統的請求只能在閘道器排隊；一台離線、逾時 1 秒時，一輪會拉長到 2.47 秒。</desc>
+  <desc id="dg-ncs-desc">對應延伸範例的 transaction_ms(19200, 20, 15)。BAS 以 Modbus TCP 請求閘道器讀 20 個暫存器；閘道器在 RS-485 上送出 8 位元組的 RTU 請求，每字元 11 位元，約 4.6 毫秒；接著 3.5 字元靜默約 2.0 毫秒，加上假設的從站處理時間 15 毫秒；電表回應 45 位元組，約 25.8 毫秒；再經 3.5 字元靜默約 2.0 毫秒，閘道器才能輪到下一台，並把 Modbus TCP 回應交給 BAS。單次交易約 49.4 毫秒，其中線上傳輸 30.4 毫秒、靜默 4.0 毫秒、從站 15 毫秒；30 台依序輪詢一輪約 1.48 秒，每 2 秒一輪時輪詢所需服務時間約為可用時間的 74%（需求負載，不是線路位元利用率）。RS-485 是半雙工，同一時間只能有一筆交易，第二個上位系統的請求只能在閘道器排隊；一台完全不回覆、逾時 1 秒時，雖然只傳出 8 位元組請求，仍占住交易槽約 1.005 秒，一輪拉長到 2.44 秒。</desc>
   <defs>
     <marker id="dg-ncs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -51,8 +51,8 @@
   </g>
   <rect class="dg-green" x="20" y="384" width="720" height="52" rx="8" fill="none" stroke="#2f9e5b" stroke-width="1.5"/>
   <text x="380" y="406" fill="currentColor" text-anchor="middle" font-weight="700">單次 49.4 ms ＝ 線上 30.4 ＋ 靜默 4.0 ＋ 從站 15.0</text>
-  <text x="380" y="426" fill="currentColor" text-anchor="middle" font-size="12">30 台依序輪詢一輪 1.48 s；每 2 s 一輪，匯流排使用率 74%</text>
+  <text x="380" y="426" fill="currentColor" text-anchor="middle" font-size="12">30 台依序輪詢一輪 1.48 s；每 2 s 一輪，需求負載 74%</text>
   <rect class="dg-red" x="20" y="448" width="720" height="52" rx="8" fill="none" stroke="#d64545" stroke-width="1.5"/>
   <text x="380" y="470" fill="currentColor" text-anchor="middle" font-weight="700">RS-485 半雙工：同一時間只能有一筆交易</text>
-  <text x="380" y="490" fill="currentColor" text-anchor="middle" font-size="12">第二個上位系統只能在閘道器排隊；一台離線、逾時 1 s，一輪就變 2.47 s</text>
+  <text x="380" y="490" fill="currentColor" text-anchor="middle" font-size="12">第二個上位系統只能在閘道器排隊；一台不回覆、逾時 1 s，一輪就變 2.44 s</text>
 </svg>

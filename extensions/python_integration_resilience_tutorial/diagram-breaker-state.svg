@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 450" role="img" aria-labelledby="dg-cbs-title dg-cbs-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
   <title id="dg-cbs-title">斷路器狀態機：closed、open、half_open</title>
-  <desc id="dg-cbs-desc">對應延伸範例的 CircuitBreaker.call()，門檻 3 次、冷卻 30 秒。起始為 closed：呼叫失敗且未達 3 次時 failures 加 1 並維持 closed，成功時 failures 歸零。連續第 3 次失敗（t=10）轉為 open，並記錄 opened_at。open 期間若冷卻未滿 30 秒，直接略過、不發請求（t=15、t=25）。下次呼叫時冷卻已滿 30 秒就轉為 half_open，只放行這一次呼叫：試探失敗立即回到 open 並重算冷卻（t=41），試探成功則 failures 歸零並回到 closed（t=75）。half_open 只存在於單次 call() 內，所以範例印出的「之後」只會看到 closed 或 open；多執行緒共用同一個斷路器時要加鎖，否則可能同時發出多次試探。</desc>
+  <desc id="dg-cbs-desc">對應延伸範例的 CircuitBreaker.call()，門檻 3 次、冷卻 30 秒。起始為 closed：呼叫失敗且未達 3 次時 failures 加 1 並維持 closed，成功時 failures 歸零。連續第 3 次失敗（t=10）轉為 open，並在失敗結束、開路當下以 clock() 記錄 opened_at。open 期間若冷卻未滿 30 秒，直接略過、不發請求（t=15、t=25）。下次呼叫時冷卻已滿 30 秒就轉為 half_open，只放行這一次呼叫：試探失敗立即回到 open 並重算冷卻（t=41），試探成功則 failures 歸零並回到 closed（t=75）。half_open 只存在於單次 call() 內，所以範例印出的「之後」只會看到 closed 或 open；多執行緒共用同一個斷路器時要加鎖，否則可能同時發出多次試探。</desc>
   <defs>
     <marker id="dg-cbs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -35,7 +35,7 @@
     <text x="600" y="62">冷卻未滿 30 s：略過</text>
     <text x="600" y="80">不發請求（t=15、t=25）</text>
     <text x="380" y="168">連續第 3 次失敗（t=10）</text>
-    <text x="380" y="194">記錄 opened_at = now</text>
+    <text x="380" y="194">opened_at = clock()（失敗結束時）</text>
   </g>
   <g fill="currentColor" font-size="12">
     <text x="590" y="250" text-anchor="end">下次呼叫時冷卻已滿 30 s</text>

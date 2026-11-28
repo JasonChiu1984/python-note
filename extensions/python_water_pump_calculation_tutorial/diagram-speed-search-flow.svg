@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 730" role="img" aria-labelledby="dg-wpf-title dg-wpf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
-  <title id="dg-wpf-title">變頻泵浦：以二分法找轉速並與立方定律比較</title>
-  <desc id="dg-wpf-desc">對應延伸範例的 speed_for_flow()、operating_point() 與 electric_kw()。目標流量 Q* 等於額定轉速運轉點乘上比例，例如開式迴路 124.9 m³/h 的 60% 為 74.9 m³/h。二分法從 lo 0.2、hi 1.0 開始，每輪取 mid 等於兩者平均，呼叫 operating_point(mid) 解 A·n² − B·Q² = H_static + k·Q²。若 A·n² 不大於靜揚程，轉速不足以克服靜揚程，回傳流量 0，開式 8 m 時轉速低於約 43.6% 就會如此，搜尋時視為流量不足。接著更新搜尋區間：Q 小於 Q* 時 lo 等於 mid，否則 hi 等於 mid。重複 60 次後取 n 等於 hi，以 ρg·Q·H ÷ η 算電力；開式 60% 流量為轉速 69.4%、揚程 13.5 m、3.8 kW。最後看靜揚程：大於 0 時立方定律會低估耗電，3.8 kW 對立方定律估的 2.4 kW；等於 0 的閉式迴路則與立方定律一致，60% 流量時轉速 60%、2.3 kW。效率簡化為 72% 定值。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 895" role="img" aria-labelledby="dg-wpf-title dg-wpf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wpf-title">變頻泵浦：先檢查可達範圍，再以二分法找轉速並與立方定律比較</title>
+  <desc id="dg-wpf-desc">對應延伸範例的 speed_for_flow()、operating_point() 與 electric_kw()。目標流量 Q* 等於額定轉速運轉點乘上比例，例如開式迴路 124.9 m³/h 的 60% 為 74.9 m³/h。speed_for_flow() 先算轉速 20% 與 100% 時的流量 q_lo、q_hi；開式 8 m 時 q_lo 為 0、q_hi 為 124.9。目標不在 q_lo 到 q_hi 之間就丟出 ValueError，不採用搜尋端點。在範圍內才進入二分法：lo 0.2、hi 1.0，每輪取 mid 等於兩者平均，呼叫 operating_point(mid) 解 A·n² − B·Q² = H_static + k·Q²。若 A·n² 不大於靜揚程，回傳流量 0，開式 8 m 時轉速低於約 43.6% 就會如此，搜尋時視為流量不足。接著更新搜尋區間：Q 小於 Q* 時 lo 等於 mid，否則 hi 等於 mid。重複 60 次後取 n 等於 hi，以 ρg·Q·H ÷ η 算電力；開式 60% 流量為轉速 69.4%、揚程 13.5 m、3.8 kW。最後看靜揚程：大於 0 時立方定律會低估耗電，3.8 kW 對立方定律估的 2.4 kW；等於 0 的閉式迴路則與立方定律一致，60% 流量時轉速 60%、2.3 kW。效率簡化為 72% 定值。</desc>
   <defs>
     <marker id="dg-wpf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -9,63 +9,76 @@
   <g stroke="currentColor" stroke-width="1.5" fill="none">
     <rect class="dg-box dg-blue" x="40" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
     <rect class="dg-box" x="40" y="86" width="380" height="50" rx="6"/>
-    <rect class="dg-box" x="40" y="160" width="380" height="50" rx="6"/>
-    <polygon class="dg-box" points="230,234 400,266 230,298 60,266"/>
+    <polygon class="dg-box" points="230,160 400,192 230,224 60,192"/>
+    <rect class="dg-box" x="40" y="248" width="380" height="50" rx="6"/>
     <rect class="dg-box" x="40" y="322" width="380" height="50" rx="6"/>
-    <polygon class="dg-box" points="230,396 380,428 230,460 80,428"/>
+    <polygon class="dg-box" points="230,396 400,428 230,460 60,428"/>
     <rect class="dg-box" x="40" y="484" width="380" height="50" rx="6"/>
     <polygon class="dg-box" points="230,558 380,590 230,622 80,590"/>
+    <rect class="dg-box" x="40" y="646" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,720 380,752 230,784 80,752"/>
   </g>
   <g stroke-width="1.5" fill="none">
-    <rect class="dg-orange" x="470" y="238" width="270" height="56" rx="6" stroke="#e07b1f"/>
-    <rect class="dg-red" x="470" y="562" width="270" height="56" rx="6" stroke="#d64545"/>
-    <rect class="dg-green" x="40" y="646" width="380" height="50" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="470" y="164" width="270" height="56" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="400" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="470" y="724" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="40" y="808" width="380" height="50" rx="6" stroke="#2f9e5b"/>
   </g>
   <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wpf-arrow)">
     <line x1="230" y1="62" x2="230" y2="84"/>
     <line x1="230" y1="136" x2="230" y2="158"/>
-    <line x1="230" y1="210" x2="230" y2="232"/>
-    <line x1="400" y1="266" x2="468" y2="266"/>
+    <line x1="400" y1="192" x2="468" y2="192"/>
+    <line x1="230" y1="224" x2="230" y2="246"/>
     <line x1="230" y1="298" x2="230" y2="320"/>
     <line x1="230" y1="372" x2="230" y2="394"/>
+    <line x1="400" y1="428" x2="468" y2="428"/>
     <line x1="230" y1="460" x2="230" y2="482"/>
     <line x1="230" y1="534" x2="230" y2="556"/>
-    <line x1="380" y1="590" x2="468" y2="590"/>
     <line x1="230" y1="622" x2="230" y2="644"/>
+    <line x1="230" y1="696" x2="230" y2="718"/>
+    <line x1="380" y1="752" x2="468" y2="752"/>
+    <line x1="230" y1="784" x2="230" y2="806"/>
   </g>
   <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-wpf-arrow)">
-    <polyline points="605,294 605,347 422,347"/>
-    <polyline points="80,428 20,428 20,111 38,111"/>
+    <polyline points="605,456 605,509 422,509"/>
+    <polyline points="80,590 20,590 20,273 38,273"/>
   </g>
   <g fill="currentColor" text-anchor="middle">
     <text x="230" y="33" font-weight="700">目標流量 Q* ＝ 額定運轉點 × 比例</text>
     <text x="230" y="52" font-size="12">例：開式迴路 124.9 m³/h × 60% ＝ 74.9 m³/h</text>
-    <text x="230" y="107" font-weight="700">speed_for_flow()：lo ＝ 0.2、hi ＝ 1.0</text>
-    <text x="230" y="126" font-size="12">每輪 mid ＝ (lo ＋ hi) ÷ 2</text>
-    <text x="230" y="181" font-weight="700">operating_point(mid)</text>
-    <text x="230" y="200" font-size="12">解 A·n² − B·Q² ＝ H_static ＋ k·Q²</text>
-    <text x="230" y="271">A·n² ≤ H_static？</text>
-    <text x="605" y="261" font-weight="700">轉速不足以克服靜揚程</text>
-    <text x="605" y="281" font-size="12">回傳 Q ＝ 0（開式 8 m：n &lt; 43.6%）</text>
-    <text x="230" y="343" font-weight="700">更新搜尋區間</text>
-    <text x="230" y="362" font-size="12">Q &lt; Q* → lo ＝ mid；否則 hi ＝ mid</text>
-    <text x="230" y="433">已重複 60 次？</text>
-    <text x="230" y="505" font-weight="700">n ＝ hi；electric_kw() ＝ ρg·Q·H ÷ η</text>
-    <text x="230" y="524" font-size="12">開式 60%：n ＝ 69.4%、H ＝ 13.5 m、3.8 kW</text>
-    <text x="230" y="595">H_static ＞ 0？</text>
-    <text x="605" y="585" font-weight="700">開式：立方定律低估耗電</text>
-    <text x="605" y="605" font-size="12">實算 3.8 kW，立方定律估 2.4 kW</text>
-    <text x="230" y="667" font-weight="700">閉式：與立方定律一致</text>
-    <text x="230" y="686" font-size="12">60% 流量：轉速 60%、2.3 kW（效率視為定值）</text>
+    <text x="230" y="107" font-weight="700">speed_for_flow()：先算 n ＝ 0.2、1.0 的流量</text>
+    <text x="230" y="126" font-size="12">開式 8 m：q_lo ＝ 0（未過臨界）、q_hi ＝ 124.9</text>
+    <text x="230" y="197">q_lo ≤ Q* ≤ q_hi？</text>
+    <text x="605" y="187" font-weight="700">raise ValueError</text>
+    <text x="605" y="207" font-size="12">目標超出可達範圍，不採用搜尋端點</text>
+    <text x="230" y="269" font-weight="700">二分法：lo ＝ 0.2、hi ＝ 1.0</text>
+    <text x="230" y="288" font-size="12">每輪 mid ＝ (lo ＋ hi) ÷ 2</text>
+    <text x="230" y="343" font-weight="700">operating_point(mid)</text>
+    <text x="230" y="362" font-size="12">解 A·n² − B·Q² ＝ H_static ＋ k·Q²</text>
+    <text x="230" y="433">A·n² ≤ H_static？</text>
+    <text x="605" y="423" font-weight="700">轉速不足以克服靜揚程</text>
+    <text x="605" y="443" font-size="12">回傳 Q ＝ 0（開式 8 m：n &lt; 43.6%）</text>
+    <text x="230" y="505" font-weight="700">更新搜尋區間</text>
+    <text x="230" y="524" font-size="12">Q &lt; Q* → lo ＝ mid；否則 hi ＝ mid</text>
+    <text x="230" y="595">已重複 60 次？</text>
+    <text x="230" y="667" font-weight="700">n ＝ hi；electric_kw() ＝ ρg·Q·H ÷ η</text>
+    <text x="230" y="686" font-size="12">開式 60%：n ＝ 69.4%、H ＝ 13.5 m、3.8 kW</text>
+    <text x="230" y="757">H_static ＞ 0？</text>
+    <text x="605" y="747" font-weight="700">開式：立方定律低估耗電</text>
+    <text x="605" y="767" font-size="12">實算 3.8 kW，立方定律估 2.4 kW</text>
+    <text x="230" y="829" font-weight="700">閉式：與立方定律一致</text>
+    <text x="230" y="848" font-size="12">60% 流量：轉速 60%、2.3 kW（效率視為定值）</text>
   </g>
   <g fill="currentColor" font-size="12">
-    <text x="410" y="258">是</text>
-    <text x="238" y="314">否</text>
-    <text x="512" y="340">視為 Q &lt; Q*</text>
-    <text x="26" y="418">否：下一輪</text>
-    <text x="238" y="476">是</text>
-    <text x="390" y="582">是</text>
-    <text x="238" y="638">否</text>
+    <text x="410" y="184">否</text>
+    <text x="238" y="240">是</text>
+    <text x="410" y="420">是</text>
+    <text x="238" y="476">否</text>
+    <text x="512" y="502">視為 Q &lt; Q*</text>
+    <text x="26" y="580">否：下一輪</text>
+    <text x="238" y="638">是</text>
+    <text x="390" y="744">是</text>
+    <text x="238" y="800">否</text>
   </g>
-  <text x="380" y="718" fill="currentColor" text-anchor="middle" font-size="12">數字都是範例實際輸出；效率簡化為 72% 定值，實務請用廠商曲線（含效率）求運轉點。</text>
+  <text x="380" y="882" fill="currentColor" text-anchor="middle" font-size="12">數字都是範例實際輸出；20%～100% 是本算例的搜尋範圍，不是現場允許轉速。</text>
 </svg>

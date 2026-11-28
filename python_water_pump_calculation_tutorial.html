@@ -185,9 +185,9 @@ if __name__ == &quot;__main__&quot;:
 <section id="checklist"><p class="kicker">07 / VERIFICATION</p><h2>用現場證據驗算，而不是拿合成值選泵</h2>
 <ol><li>確認兩端點、高程、吸排壓位置、管內徑、流體、最高溫／最低液位、實際閥位與管件；沿最不利路徑重算。</li><li>以需求流量、負載／壓差範圍校核廠牌曲線和效率，含低負載與備援工況；檢查允許運轉區、最小流量、NPSH 需求及馬達負載。</li><li>依核可程序對照同時刻流量、泵進出壓、頻率、電功率與水溫；區分感測器校準、路徑損失與設備狀態。計算教材不能當作現場選型、壓力安全、控制設定或驗收簽證。</li></ol>
 <p>第一手來源：<a href="https://www.energy.gov/sites/prod/files/2014/05/f16/pump.pdf">美國能源部 Pumping System Sourcebook：系統揚程、曲線與變頻</a> · <a href="https://www.grundfos.com/uk/learn/research-and-insights/npsh-net-positive-suction-head">Grundfos：NPSH 與泵浦曲線</a> · <a href="https://datatool.pumps.org/pump-fundamentals/pump-principles">Hydraulic Institute：NPSHA、NPSHR 與 NPSH3</a>。</p></section>
-<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>變頻泵浦常用「流量降到 80%，功率降到 51%」的立方定律估節能。本節示範這個估算什麼時候成立、什麼時候會高估：關鍵在系統有沒有靜揚程。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 730" role="img" aria-labelledby="dg-wpf-title dg-wpf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
-  <title id="dg-wpf-title">變頻泵浦：以二分法找轉速並與立方定律比較</title>
-  <desc id="dg-wpf-desc">對應延伸範例的 speed_for_flow()、operating_point() 與 electric_kw()。目標流量 Q* 等於額定轉速運轉點乘上比例，例如開式迴路 124.9 m³/h 的 60% 為 74.9 m³/h。二分法從 lo 0.2、hi 1.0 開始，每輪取 mid 等於兩者平均，呼叫 operating_point(mid) 解 A·n² − B·Q² = H_static + k·Q²。若 A·n² 不大於靜揚程，轉速不足以克服靜揚程，回傳流量 0，開式 8 m 時轉速低於約 43.6% 就會如此，搜尋時視為流量不足。接著更新搜尋區間：Q 小於 Q* 時 lo 等於 mid，否則 hi 等於 mid。重複 60 次後取 n 等於 hi，以 ρg·Q·H ÷ η 算電力；開式 60% 流量為轉速 69.4%、揚程 13.5 m、3.8 kW。最後看靜揚程：大於 0 時立方定律會低估耗電，3.8 kW 對立方定律估的 2.4 kW；等於 0 的閉式迴路則與立方定律一致，60% 流量時轉速 60%、2.3 kW。效率簡化為 72% 定值。</desc>
+<!-- extension:start --><style>.ext-section .ext-diagram{margin:1rem 0;padding:.75rem;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:transparent;color:inherit;overflow-x:auto;--dg-blue:#3b82f6;--dg-green:#2f9e5b;--dg-orange:#e07b1f;--dg-red:#d64545}.ext-diagram svg{display:block;width:100%;min-width:34rem;height:auto}.ext-section .ext-diagram figcaption{margin-top:.5rem;font-size:.95em;font-weight:400;color:inherit;line-height:1.65}.ext-diagram .dg-box{fill:rgba(127,127,127,.08)}.ext-diagram .dg-blue{stroke:var(--dg-blue);fill:rgba(59,130,246,.12)}.ext-diagram .dg-green{stroke:var(--dg-green);fill:rgba(47,158,91,.13)}.ext-diagram .dg-orange{stroke:var(--dg-orange);fill:rgba(224,123,31,.13)}.ext-diagram .dg-red{stroke:var(--dg-red);fill:rgba(214,69,69,.12)}.ext-diagram .dg-line-red{stroke:var(--dg-red)}.ext-diagram .dg-line-green{stroke:var(--dg-green)}.ext-diagram .dg-dash{stroke-dasharray:6 4}</style><style>.ext-section{margin:2.5rem 0;padding:1.5rem;border:1px solid rgba(127,127,127,.35);border-radius:12px}.ext-section h3{margin-top:1.5rem}.ext-section details{margin:.5rem 0;padding:.5rem .75rem;border:1px solid rgba(127,127,127,.3);border-radius:8px}.ext-section summary{cursor:pointer;font-weight:600}.ext-section pre{overflow:auto;max-width:100%}.ext-section .ext-note{opacity:.85;font-size:.95em}</style><section class="ext-section" id="extension"><h2>延伸學習：實作、現場案例與自我檢查</h2><p>變頻泵浦常用「流量降到 80%，功率降到 51%」的立方定律估節能。本節示範這個估算什麼時候成立、什麼時候會高估：關鍵在系統有沒有靜揚程。</p><h3>架構圖與流程圖</h3><!-- diagram:start --><figure class="ext-diagram" id="diagram-1" data-kind="flow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 895" role="img" aria-labelledby="dg-wpf-title dg-wpf-desc" font-family="system-ui, 'Noto Sans TC', sans-serif" font-size="13">
+  <title id="dg-wpf-title">變頻泵浦：先檢查可達範圍，再以二分法找轉速並與立方定律比較</title>
+  <desc id="dg-wpf-desc">對應延伸範例的 speed_for_flow()、operating_point() 與 electric_kw()。目標流量 Q* 等於額定轉速運轉點乘上比例，例如開式迴路 124.9 m³/h 的 60% 為 74.9 m³/h。speed_for_flow() 先算轉速 20% 與 100% 時的流量 q_lo、q_hi；開式 8 m 時 q_lo 為 0、q_hi 為 124.9。目標不在 q_lo 到 q_hi 之間就丟出 ValueError，不採用搜尋端點。在範圍內才進入二分法：lo 0.2、hi 1.0，每輪取 mid 等於兩者平均，呼叫 operating_point(mid) 解 A·n² − B·Q² = H_static + k·Q²。若 A·n² 不大於靜揚程，回傳流量 0，開式 8 m 時轉速低於約 43.6% 就會如此，搜尋時視為流量不足。接著更新搜尋區間：Q 小於 Q* 時 lo 等於 mid，否則 hi 等於 mid。重複 60 次後取 n 等於 hi，以 ρg·Q·H ÷ η 算電力；開式 60% 流量為轉速 69.4%、揚程 13.5 m、3.8 kW。最後看靜揚程：大於 0 時立方定律會低估耗電，3.8 kW 對立方定律估的 2.4 kW；等於 0 的閉式迴路則與立方定律一致，60% 流量時轉速 60%、2.3 kW。效率簡化為 72% 定值。</desc>
   <defs>
     <marker id="dg-wpf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -196,66 +196,79 @@ if __name__ == &quot;__main__&quot;:
   <g stroke="currentColor" stroke-width="1.5" fill="none">
     <rect class="dg-box dg-blue" x="40" y="12" width="380" height="50" rx="25" stroke="#3b82f6"/>
     <rect class="dg-box" x="40" y="86" width="380" height="50" rx="6"/>
-    <rect class="dg-box" x="40" y="160" width="380" height="50" rx="6"/>
-    <polygon class="dg-box" points="230,234 400,266 230,298 60,266"/>
+    <polygon class="dg-box" points="230,160 400,192 230,224 60,192"/>
+    <rect class="dg-box" x="40" y="248" width="380" height="50" rx="6"/>
     <rect class="dg-box" x="40" y="322" width="380" height="50" rx="6"/>
-    <polygon class="dg-box" points="230,396 380,428 230,460 80,428"/>
+    <polygon class="dg-box" points="230,396 400,428 230,460 60,428"/>
     <rect class="dg-box" x="40" y="484" width="380" height="50" rx="6"/>
     <polygon class="dg-box" points="230,558 380,590 230,622 80,590"/>
+    <rect class="dg-box" x="40" y="646" width="380" height="50" rx="6"/>
+    <polygon class="dg-box" points="230,720 380,752 230,784 80,752"/>
   </g>
   <g stroke-width="1.5" fill="none">
-    <rect class="dg-orange" x="470" y="238" width="270" height="56" rx="6" stroke="#e07b1f"/>
-    <rect class="dg-red" x="470" y="562" width="270" height="56" rx="6" stroke="#d64545"/>
-    <rect class="dg-green" x="40" y="646" width="380" height="50" rx="6" stroke="#2f9e5b"/>
+    <rect class="dg-red" x="470" y="164" width="270" height="56" rx="6" stroke="#d64545"/>
+    <rect class="dg-orange" x="470" y="400" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-orange" x="470" y="724" width="270" height="56" rx="6" stroke="#e07b1f"/>
+    <rect class="dg-green" x="40" y="808" width="380" height="50" rx="6" stroke="#2f9e5b"/>
   </g>
   <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#dg-wpf-arrow)">
     <line x1="230" y1="62" x2="230" y2="84"/>
     <line x1="230" y1="136" x2="230" y2="158"/>
-    <line x1="230" y1="210" x2="230" y2="232"/>
-    <line x1="400" y1="266" x2="468" y2="266"/>
+    <line x1="400" y1="192" x2="468" y2="192"/>
+    <line x1="230" y1="224" x2="230" y2="246"/>
     <line x1="230" y1="298" x2="230" y2="320"/>
     <line x1="230" y1="372" x2="230" y2="394"/>
+    <line x1="400" y1="428" x2="468" y2="428"/>
     <line x1="230" y1="460" x2="230" y2="482"/>
     <line x1="230" y1="534" x2="230" y2="556"/>
-    <line x1="380" y1="590" x2="468" y2="590"/>
     <line x1="230" y1="622" x2="230" y2="644"/>
+    <line x1="230" y1="696" x2="230" y2="718"/>
+    <line x1="380" y1="752" x2="468" y2="752"/>
+    <line x1="230" y1="784" x2="230" y2="806"/>
   </g>
   <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#dg-wpf-arrow)">
-    <polyline points="605,294 605,347 422,347"/>
-    <polyline points="80,428 20,428 20,111 38,111"/>
+    <polyline points="605,456 605,509 422,509"/>
+    <polyline points="80,590 20,590 20,273 38,273"/>
   </g>
   <g fill="currentColor" text-anchor="middle">
     <text x="230" y="33" font-weight="700">目標流量 Q* ＝ 額定運轉點 × 比例</text>
     <text x="230" y="52" font-size="12">例：開式迴路 124.9 m³/h × 60% ＝ 74.9 m³/h</text>
-    <text x="230" y="107" font-weight="700">speed_for_flow()：lo ＝ 0.2、hi ＝ 1.0</text>
-    <text x="230" y="126" font-size="12">每輪 mid ＝ (lo ＋ hi) ÷ 2</text>
-    <text x="230" y="181" font-weight="700">operating_point(mid)</text>
-    <text x="230" y="200" font-size="12">解 A·n² − B·Q² ＝ H_static ＋ k·Q²</text>
-    <text x="230" y="271">A·n² ≤ H_static？</text>
-    <text x="605" y="261" font-weight="700">轉速不足以克服靜揚程</text>
-    <text x="605" y="281" font-size="12">回傳 Q ＝ 0（開式 8 m：n &lt; 43.6%）</text>
-    <text x="230" y="343" font-weight="700">更新搜尋區間</text>
-    <text x="230" y="362" font-size="12">Q &lt; Q* → lo ＝ mid；否則 hi ＝ mid</text>
-    <text x="230" y="433">已重複 60 次？</text>
-    <text x="230" y="505" font-weight="700">n ＝ hi；electric_kw() ＝ ρg·Q·H ÷ η</text>
-    <text x="230" y="524" font-size="12">開式 60%：n ＝ 69.4%、H ＝ 13.5 m、3.8 kW</text>
-    <text x="230" y="595">H_static ＞ 0？</text>
-    <text x="605" y="585" font-weight="700">開式：立方定律低估耗電</text>
-    <text x="605" y="605" font-size="12">實算 3.8 kW，立方定律估 2.4 kW</text>
-    <text x="230" y="667" font-weight="700">閉式：與立方定律一致</text>
-    <text x="230" y="686" font-size="12">60% 流量：轉速 60%、2.3 kW（效率視為定值）</text>
+    <text x="230" y="107" font-weight="700">speed_for_flow()：先算 n ＝ 0.2、1.0 的流量</text>
+    <text x="230" y="126" font-size="12">開式 8 m：q_lo ＝ 0（未過臨界）、q_hi ＝ 124.9</text>
+    <text x="230" y="197">q_lo ≤ Q* ≤ q_hi？</text>
+    <text x="605" y="187" font-weight="700">raise ValueError</text>
+    <text x="605" y="207" font-size="12">目標超出可達範圍，不採用搜尋端點</text>
+    <text x="230" y="269" font-weight="700">二分法：lo ＝ 0.2、hi ＝ 1.0</text>
+    <text x="230" y="288" font-size="12">每輪 mid ＝ (lo ＋ hi) ÷ 2</text>
+    <text x="230" y="343" font-weight="700">operating_point(mid)</text>
+    <text x="230" y="362" font-size="12">解 A·n² − B·Q² ＝ H_static ＋ k·Q²</text>
+    <text x="230" y="433">A·n² ≤ H_static？</text>
+    <text x="605" y="423" font-weight="700">轉速不足以克服靜揚程</text>
+    <text x="605" y="443" font-size="12">回傳 Q ＝ 0（開式 8 m：n &lt; 43.6%）</text>
+    <text x="230" y="505" font-weight="700">更新搜尋區間</text>
+    <text x="230" y="524" font-size="12">Q &lt; Q* → lo ＝ mid；否則 hi ＝ mid</text>
+    <text x="230" y="595">已重複 60 次？</text>
+    <text x="230" y="667" font-weight="700">n ＝ hi；electric_kw() ＝ ρg·Q·H ÷ η</text>
+    <text x="230" y="686" font-size="12">開式 60%：n ＝ 69.4%、H ＝ 13.5 m、3.8 kW</text>
+    <text x="230" y="757">H_static ＞ 0？</text>
+    <text x="605" y="747" font-weight="700">開式：立方定律低估耗電</text>
+    <text x="605" y="767" font-size="12">實算 3.8 kW，立方定律估 2.4 kW</text>
+    <text x="230" y="829" font-weight="700">閉式：與立方定律一致</text>
+    <text x="230" y="848" font-size="12">60% 流量：轉速 60%、2.3 kW（效率視為定值）</text>
   </g>
   <g fill="currentColor" font-size="12">
-    <text x="410" y="258">是</text>
-    <text x="238" y="314">否</text>
-    <text x="512" y="340">視為 Q &lt; Q*</text>
-    <text x="26" y="418">否：下一輪</text>
-    <text x="238" y="476">是</text>
-    <text x="390" y="582">是</text>
-    <text x="238" y="638">否</text>
+    <text x="410" y="184">否</text>
+    <text x="238" y="240">是</text>
+    <text x="410" y="420">是</text>
+    <text x="238" y="476">否</text>
+    <text x="512" y="502">視為 Q &lt; Q*</text>
+    <text x="26" y="580">否：下一輪</text>
+    <text x="238" y="638">是</text>
+    <text x="390" y="744">是</text>
+    <text x="238" y="800">否</text>
   </g>
-  <text x="380" y="718" fill="currentColor" text-anchor="middle" font-size="12">數字都是範例實際輸出；效率簡化為 72% 定值，實務請用廠商曲線（含效率）求運轉點。</text>
-</svg><figcaption><strong>流程圖｜二分法找轉速，再與立方定律比較</strong>：對應 speed_for_flow()、operating_point() 與 electric_kw()：轉速不足以克服靜揚程時流量為 0，搜尋時視為流量不足；最後依有無靜揚程判斷立方定律是否適用。圖中數字都是範例實際輸出。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：泵曲線與系統曲線求解變頻運轉點</h3><p>泵曲線以二次式表示並依相似定律隨轉速縮放，系統曲線為靜揚程加摩擦損失。程式以二分法找出達到目標流量所需的轉速，計算實際功率並與立方定律比較。效率簡化為定值，實務上效率會隨運轉點改變。</p><p><a class="button" download href="extensions/python_water_pump_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;變頻泵浦：泵曲線 × 系統曲線求運轉點，並比較有／無靜揚程時的節能估算（標準函式庫）。
+  <text x="380" y="882" fill="currentColor" text-anchor="middle" font-size="12">數字都是範例實際輸出；20%～100% 是本算例的搜尋範圍，不是現場允許轉速。</text>
+</svg><figcaption><strong>流程圖｜先檢查可達範圍，再以二分法找轉速並與立方定律比較</strong>：對應 speed_for_flow()、operating_point() 與 electric_kw()：目標不在 20%～100% 轉速可達的流量範圍內就丟出 ValueError；搜尋中轉速不足以克服靜揚程時流量為 0，視為流量不足；最後依有無靜揚程判斷立方定律是否適用。圖中數字都是範例實際輸出。</figcaption></figure><!-- diagram:end --><h3>可實跑範例：泵曲線與系統曲線求解變頻運轉點</h3><p>泵曲線以二次式表示並依相似定律隨轉速縮放，系統曲線為靜揚程加摩擦損失。程式以二分法找出達到目標流量所需的轉速，估算電力並與立方定律比較。效率簡化為定值，實務上效率會隨運轉點改變。二分法只在本算例的 20%～100% 轉速區間搜尋；先檢查可達流量範圍，無解就回報錯誤。</p><p><a class="button" download href="extensions/python_water_pump_calculation_tutorial/example.py">下載範例 example.py</a></p><pre><code class="language-python">&quot;&quot;&quot;變頻泵浦：泵曲線 × 系統曲線求運轉點，並比較有／無靜揚程時的節能估算（標準函式庫）。
 
 泵曲線（額定轉速）：H = 42 − 0.0012 Q²     （Q：m3/h，H：m）
 系統曲線：H = H_static + k Q²
@@ -282,7 +295,14 @@ def electric_kw(q_m3h, h_m):
 
 
 def speed_for_flow(target_q, h_static, k):
+    &quot;&quot;&quot;求模型 20%～100% 轉速範圍內可達的正流量（m³/h）；不是 VFD 指令。&quot;&quot;&quot;
+    if not all(math.isfinite(x) for x in (target_q, h_static, k)) or target_q &lt;= 0 or h_static &lt; 0 or k &lt; 0:
+        raise ValueError(&quot;本模型要求正目標流量及非負靜揚程與阻力係數&quot;)
     lo, hi = 0.2, 1.0
+    q_lo, _ = operating_point(lo, h_static, k)
+    q_hi, _ = operating_point(hi, h_static, k)
+    if not q_lo &lt;= target_q &lt;= q_hi:
+        raise ValueError(f&quot;目標超出模型可達的流量範圍 {q_lo:.2f}～{q_hi:.2f} m³/h&quot;)
     for _ in range(60):               # 二分法
         mid = (lo + hi) / 2
         q, _ = operating_point(mid, h_static, k)
@@ -311,5 +331,5 @@ if __name__ == &quot;__main__&quot;:
 == 冷卻水塔開式迴路（靜揚程 8 m）
   額定轉速運轉點：Q=124.9 m3/h，H=23.3 m，電力 11.0 kW
   流量 80%：轉速 84.2%，H=17.8 m，電力 6.7 kW（立方定律估 5.6 kW）
-  流量 60%：轉速 69.4%，H=13.5 m，電力 3.8 kW（立方定律估 2.4 kW）</code></pre><h3>工程現場案例：冷卻水泵改變頻，節電只有預估的一半</h3><p>某工廠把冷卻水塔的泵浦改成變頻，廠商用立方定律估流量 60% 時功率只剩 22%。實際量測卻接近 35%。原因是冷卻水塔是開式迴路，有約 8 m 的靜揚程（水要被打到塔頂），轉速降低時揚程不能跟著平方下降。</p><p>範例中 60% 流量時，閉式迴路轉速 60%、電力 2.3 kW，與立方定律一致；開式迴路則需要 69.4% 轉速、電力 3.8 kW，比立方定律估的 2.4 kW 高出約 60%。轉速再往下降，泵浦甚至無法克服靜揚程、流量直接歸零。</p><ol><li>確認迴路型式：閉式冰水迴路靜揚程接近 0，冷卻水塔與揚水系統則有明顯靜揚程。</li><li>量測至少兩個運轉點的流量與差壓，擬合系統曲線的靜揚程與 k 值。</li><li>用泵浦廠商曲線（含效率）求運轉點，不要只用立方定律。</li><li>設定變頻器最低頻率，確保最低轉速時仍能克服靜揚程，並維持冷卻水塔噴頭的最低流量。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>歐盟 Ecodesign 規章 (EU) 2019/1781 規定 0.75–1000 kW 的三相馬達自 2021 年 7 月起至少 IE3，75–200 kW 自 2023 年 7 月起至少 IE4；變頻器也有 IE2 等級要求。採購進口設備時可依此確認效率等級，台灣另有電動機容許耗用能源基準，以經濟部最新公告為準。 <a href="https://eur-lex.europa.eu/eli/reg/2019/1781/oj">來源：EUR-Lex：Regulation (EU) 2019/1781</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼閉式迴路的計算結果剛好等於立方定律？</p><details><summary>看解答</summary><p>靜揚程為 0 時系統曲線通過原點（H = kQ²），與相似定律的等效率曲線重合，流量、揚程、功率分別與轉速的一次、二次、三次方成正比，所以完全符合立方定律（在效率不變的假設下）。</p></details></li><li><p>開式迴路的轉速最低可以降到多少，泵浦才不會流量歸零？</p><details><summary>看解答</summary><p>需要 A·n² &gt; H_static，也就是 n &gt; √(8 ÷ 42) ≈ 43.6%。實際運轉還要保留餘裕，並考慮泵浦最低流量與冷卻水塔噴灑需求。</p></details></li><li><p>若泵浦效率在 60% 轉速時從 72% 降到 62%，開式迴路 60% 流量的電力會是多少？</p><details><summary>看解答</summary><p>電力與效率成反比：3.8 × 0.72 ÷ 0.62 ≈ 4.4 kW。低轉速時效率下降很常見，這也是立方定律容易高估節能的另一個原因。</p></details></li><li><p>修改 operating_point()，讓它在轉速不足時丟出例外而不是回傳 (0, h_static)，有什麼好處？</p><details><summary>看解答</summary><p>呼叫端無法忽略這個狀況。回傳 0 流量可能被當成正常的停機值進入節能計算；丟出例外能迫使使用者檢查設定的最低轉速是否合理。</p></details></li><li><p>若冷卻水塔較高，靜揚程改為 12 m（系統在 150 m³/h 時仍需 30 m），流量 60% 時轉速、電力各是多少？最低轉速呢？</p><details><summary>看解答</summary><p>k = (30 − 12) ÷ 150²。額定轉速運轉點 Q = 122.5 m³/h、H = 24.0 m、11.1 kW。流量 60% 時轉速 73.7%、H = 16.3 m、電力 4.5 kW，約為額定的 40.8%；立方定律估 2.4 kW，低估將近一半。最低轉速 √(12 ÷ 42) ≈ 53.5%，比 8 m 時的 43.6% 高。已用範例函式實際執行驗證。</p><p>靜揚程越高，可調降的轉速範圍越窄、節能越少；改造前要量測實際靜揚程，不能沿用其他案場的比例。</p></details></li></ol></section><!-- extension:end -->
+  流量 60%：轉速 69.4%，H=13.5 m，電力 3.8 kW（立方定律估 2.4 kW）</code></pre><h3>工程現場案例：冷卻水泵改變頻，節電只有預估的一半</h3><p>某工廠把冷卻水塔的泵浦改成變頻，廠商用立方定律估流量 60% 時功率只剩 22%。實際量測卻接近 35%。原因是冷卻水塔是開式迴路，有約 8 m 的靜揚程（水要被打到塔頂），轉速降低時揚程不能跟著平方下降。</p><p>範例中 60% 流量時，閉式迴路轉速 60%、電力 2.3 kW，與立方定律一致；開式迴路則需要 69.4% 轉速、電力 3.8 kW，比立方定律估的 2.4 kW 高出約 60%。轉速再往下降，泵浦甚至無法克服靜揚程、流量直接歸零。</p><ol><li>確認迴路型式：閉式冰水迴路靜揚程接近 0，冷卻水塔與揚水系統則有明顯靜揚程。</li><li>量測至少兩個運轉點的流量與差壓，擬合系統曲線的靜揚程與 k 值。</li><li>用泵浦廠商曲線（含效率）求運轉點，不要只用立方定律。</li><li>設定變頻器最低頻率，確保最低轉速時仍能克服靜揚程，並維持冷卻水塔噴頭的最低流量。</li></ol><h3>版本與法規更新（核對日期 2026-11-28）</h3><ul><li>歐盟 Ecodesign 規章 (EU) 2019/1781 規定 0.75–1000 kW 的三相馬達自 2021 年 7 月起至少 IE3，75–200 kW 自 2023 年 7 月起至少 IE4；變頻器也有 IE2 等級要求。採購進口設備時可依此確認效率等級，台灣另有電動機容許耗用能源基準，以經濟部最新公告為準。 <a href="https://eur-lex.europa.eu/eli/reg/2019/1781/oj">來源：EUR-Lex：Regulation (EU) 2019/1781</a> <a href="https://www.energy.gov/sites/default/files/2014/05/f16/variable_speed_pumping.pdf">來源：美國能源部：Variable Speed Pumping，系統曲線與靜揚程</a></li></ul><h3>練習題與自我檢查</h3><ol><li><p>為什麼閉式迴路的計算結果剛好等於立方定律？</p><details><summary>看解答</summary><p>靜揚程為 0 時系統曲線通過原點（H = kQ²），與相似定律的等效率曲線重合，流量、揚程、功率分別與轉速的一次、二次、三次方成正比，所以完全符合立方定律（在效率不變的假設下）。</p></details></li><li><p>開式迴路 8 m 靜揚程時，模型的零流量臨界轉速是多少？這等於現場最低運轉轉速嗎？</p><details><summary>看解答</summary><p>零流量臨界是 √(8 ÷ 42) ≈ 43.6%；轉速必須超過臨界才有正流量。這不是最低允許轉速；實際需另查泵浦允許範圍與冷卻水塔所需的最低流量。</p></details></li><li><p>在開式迴路的 60% 流量運轉點（約 69.4% 轉速），如果泵浦、馬達與變頻器的總效率從 72% 降到 62%，估算電力是多少？</p><details><summary>看解答</summary><p>保持流量與揚程不變，電力與總效率成反比：以原模型約 3.8 kW 乘上 0.72 ÷ 0.62，約 4.4 kW。60% 是流量比例，並非轉速設定。</p></details></li><li><p>修改 operating_point()，讓它在轉速不足時丟出例外而不是回傳 (0, h_static)，有什麼好處？</p><details><summary>看解答</summary><p>呼叫端無法忽略這個狀況。回傳 0 流量可能被當成正常的停機值進入節能計算；丟出例外能迫使使用者檢查設定的最低轉速是否合理。</p></details></li><li><p>目標流量在模型範圍之外時，為什麼不能直接採用搜尋端點？</p><details><summary>看解答</summary><p>搜尋端點仍可能達不到目標。20%～100% 是本算例搜尋範圍，不是現場允許轉速；零流量由停機或控制策略另行判斷。</p></details></li><li><p>若冷卻水塔較高，靜揚程改為 12 m（系統在 150 m³/h 時仍需 30 m），流量 60% 時轉速、電力各是多少？零流量臨界轉速呢？</p><details><summary>看解答</summary><p>k = (30 − 12) ÷ 150²。額定轉速運轉點 Q = 122.5 m³/h、H = 24.0 m、11.1 kW。流量 60% 時轉速 73.7%、H = 16.3 m、電力 4.5 kW，約為額定的 40.8%；立方定律估 2.4 kW，低估將近一半。零流量臨界轉速 √(12 ÷ 42) ≈ 53.5%，比 8 m 時的 43.6% 高；這仍不是現場允許的最低轉速。已用範例函式實際執行驗證。</p><p>靜揚程越高，可調降的轉速範圍越窄、節能越少；改造前要量測實際靜揚程，不能沿用其他案場的比例。</p></details></li></ol></section><!-- extension:end -->
 </main><footer><a href="#top">回頂端</a> · <a href="index.html">Python 教材首頁</a></footer></body></html>
